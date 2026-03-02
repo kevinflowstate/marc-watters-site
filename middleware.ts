@@ -1,7 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// TODO: Remove PREVIEW_MODE before go-live
+const PREVIEW_MODE = true;
+
 export async function middleware(request: NextRequest) {
+  if (PREVIEW_MODE) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
