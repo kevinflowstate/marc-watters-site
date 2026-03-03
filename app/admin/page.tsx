@@ -38,7 +38,8 @@ function timeAgo(dateStr: string): string {
 
 export default function AdminDashboard() {
   const clients = getClientsSorted();
-  const recentCheckins = getAllRecentCheckins().slice(0, 8);
+  const recentCheckins = getAllRecentCheckins();
+  const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
   const greenCount = clients.filter((c) => c.status === "green").length;
   const amberCount = clients.filter((c) => c.status === "amber").length;
@@ -80,7 +81,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6">
-        {/* Client cards with glow */}
+        {/* Compact client list with expandable detail */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-heading font-bold text-text-primary">Clients</h2>
@@ -88,71 +89,97 @@ export default function AdminDashboard() {
               View All
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
             {clients.map((client) => {
               const sl = statusLabel[client.status];
+              const isExpanded = expandedClient === client.id;
               const planTotal = client.business_plan.length;
               const planDone = client.business_plan.filter((p) => p.completed).length;
               const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
 
               return (
-                <Link
-                  key={client.id}
-                  href={`/admin/clients/${client.id}`}
-                  className={`block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 transition-all duration-300 no-underline hover:-translate-y-0.5 ${glowClass[client.status]}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {/* Avatar with glow ring */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${sl.bgClass} ${sl.textClass} border ${
-                        client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
-                      }`}>
-                        {client.name.split(" ").map((n) => n[0]).join("")}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-text-primary">{client.name}</div>
-                        <div className="text-xs text-text-muted">{client.business_name}</div>
-                      </div>
+                <div key={client.id} className="border-b border-[rgba(255,255,255,0.03)] last:border-b-0">
+                  {/* Compact row - name + glow */}
+                  <button
+                    onClick={() => setExpandedClient(isExpanded ? null : client.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left"
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border ${sl.bgClass} ${sl.textClass} ${
+                      client.status === "red" ? "border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                      : client.status === "amber" ? "border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                      : "border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                    }`}>
+                      {client.name.split(" ").map((n) => n[0]).join("")}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${sl.bgClass} ${sl.textClass}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${sl.dotClass}`} />
-                        {sl.text}
-                      </span>
-                    </div>
-                  </div>
+                    <span className="text-sm font-medium text-text-primary flex-1">{client.name}</span>
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${sl.dotClass}`} />
+                    <svg
+                      className={`w-3.5 h-3.5 text-text-muted transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
 
-                  <div className="grid grid-cols-3 gap-4 text-xs">
-                    <div>
-                      <div className="text-text-muted mb-1">Week</div>
-                      <div className="text-text-primary font-semibold">{client.current_week} of 12</div>
-                    </div>
-                    <div>
-                      <div className="text-text-muted mb-1">Last Check-In</div>
-                      <div className={`font-semibold ${
-                        new Date().getTime() - new Date(client.last_checkin).getTime() > 7 * 24 * 60 * 60 * 1000
-                          ? "text-red-400"
-                          : "text-text-primary"
-                      }`}>
-                        {timeAgo(client.last_checkin)}
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className={`px-4 pb-4 pt-1 border-l-2 ml-4 ${
+                      client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
+                    }`}>
+                      <div className="bg-[rgba(255,255,255,0.015)] rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <div className="text-xs text-text-muted">{client.business_name} - {client.business_type}</div>
+                          </div>
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${sl.bgClass} ${sl.textClass}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${sl.dotClass}`} />
+                            {sl.text}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 text-xs mb-3">
+                          <div>
+                            <div className="text-text-muted mb-0.5">Week</div>
+                            <div className="text-text-primary font-semibold">{client.current_week}/12</div>
+                          </div>
+                          <div>
+                            <div className="text-text-muted mb-0.5">Last Check-In</div>
+                            <div className={`font-semibold ${
+                              new Date().getTime() - new Date(client.last_checkin).getTime() > 7 * 24 * 60 * 60 * 1000
+                                ? "text-red-400" : "text-text-primary"
+                            }`}>
+                              {timeAgo(client.last_checkin)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-text-muted mb-0.5">Plan</div>
+                            <div className="text-text-primary font-semibold">{planDone}/{planTotal} ({planPct}%)</div>
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="h-1.5 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden mb-3">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              client.status === "red" ? "bg-red-500/60" : client.status === "amber" ? "bg-amber-500/60" : "bg-emerald-500/60"
+                            }`}
+                            style={{ width: `${planPct}%` }}
+                          />
+                        </div>
+
+                        <Link
+                          href={`/admin/clients/${client.id}`}
+                          className="text-xs text-accent-bright hover:text-accent-light transition-colors no-underline inline-flex items-center gap-1"
+                        >
+                          View Full Profile
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-text-muted mb-1">Plan Progress</div>
-                      <div className="text-text-primary font-semibold">{planDone}/{planTotal} ({planPct}%)</div>
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="mt-3 h-1.5 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        client.status === "red" ? "bg-red-500/60" : client.status === "amber" ? "bg-amber-500/60" : "bg-emerald-500/60"
-                      }`}
-                      style={{ width: `${planPct}%` }}
-                    />
-                  </div>
-                </Link>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -165,14 +192,13 @@ export default function AdminDashboard() {
   );
 }
 
-// --- Check-Ins Panel with weekly grouping + expandable items ---
+// --- Check-Ins Panel with weekly grouping + expandable items + reply ---
 
 type EnrichedCheckin = ReturnType<typeof getAllRecentCheckins>[number];
 
 function getWeekBucket(dateStr: string): "this_week" | "last_week" | "earlier" {
   const now = new Date();
   const d = new Date(dateStr);
-  // Start of this week (Monday)
   const startOfThisWeek = new Date(now);
   const dayOfWeek = now.getDay();
   const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -190,6 +216,8 @@ function getWeekBucket(dateStr: string): "this_week" | "last_week" | "earlier" {
 function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["earlier"]));
+  const [replies, setReplies] = useState<Record<string, string>>({});
+  const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
 
   const thisWeek = checkins.filter((c) => getWeekBucket(c.created_at) === "this_week");
   const lastWeek = checkins.filter((c) => getWeekBucket(c.created_at) === "last_week");
@@ -211,6 +239,13 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
       else next.add(key);
       return next;
     });
+  }
+
+  function handleReply(checkinId: string) {
+    const text = replies[checkinId];
+    if (!text?.trim()) return;
+    setSentReplies((prev) => ({ ...prev, [checkinId]: text }));
+    setReplies((prev) => ({ ...prev, [checkinId]: "" }));
   }
 
   const sections = [
@@ -236,9 +271,9 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
                   <span className="text-[10px] text-text-muted bg-[rgba(255,255,255,0.04)] px-2 py-0.5 rounded-full">
                     {section.items.length}
                   </span>
-                  {section.items.some((c) => !c.admin_reply) && (
+                  {section.items.some((c) => !c.admin_reply && !sentReplies[c.id]) && (
                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
-                      {section.items.filter((c) => !c.admin_reply).length} pending
+                      {section.items.filter((c) => !c.admin_reply && !sentReplies[c.id]).length} pending
                     </span>
                   )}
                 </div>
@@ -258,6 +293,10 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
                       checkin={checkin}
                       isExpanded={expanded.has(checkin.id)}
                       onToggle={() => toggleExpand(checkin.id)}
+                      replyText={replies[checkin.id] || ""}
+                      onReplyChange={(text) => setReplies((prev) => ({ ...prev, [checkin.id]: text }))}
+                      onReplySubmit={() => handleReply(checkin.id)}
+                      sentReply={sentReplies[checkin.id]}
                     />
                   ))}
                 </div>
@@ -274,12 +313,21 @@ function CheckInRow({
   checkin,
   isExpanded,
   onToggle,
+  replyText,
+  onReplyChange,
+  onReplySubmit,
+  sentReply,
 }: {
   checkin: EnrichedCheckin;
   isExpanded: boolean;
   onToggle: () => void;
+  replyText: string;
+  onReplyChange: (text: string) => void;
+  onReplySubmit: () => void;
+  sentReply?: string;
 }) {
   const mc = moodConfig[checkin.mood];
+  const hasReply = checkin.admin_reply || sentReply;
 
   return (
     <div className="border-b border-[rgba(255,255,255,0.02)] last:border-b-0">
@@ -302,7 +350,7 @@ function CheckInRow({
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {checkin.admin_reply ? (
+          {hasReply ? (
             <span className="text-[10px] text-emerald-400 font-medium">Replied</span>
           ) : (
             <span className="text-[10px] text-amber-400 font-medium">Pending</span>
@@ -343,15 +391,42 @@ function CheckInRow({
               </div>
             )}
 
+            {/* Reply section */}
             {checkin.admin_reply ? (
               <div className="mt-2 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
-                <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc's Reply</div>
+                <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc&apos;s Reply</div>
                 <p className="text-xs text-text-secondary leading-relaxed">{checkin.admin_reply}</p>
               </div>
+            ) : sentReply ? (
+              <div className="mt-2 pl-3 border-l-2 border-emerald-500/30 bg-emerald-500/5 rounded-r-lg py-2 pr-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Marc&apos;s Reply</div>
+                  <span className="text-[10px] text-emerald-400/60">Just now</span>
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed">{sentReply}</p>
+              </div>
             ) : (
-              <div className="flex items-center gap-2 text-amber-400 mt-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-xs font-medium">Awaiting reply</span>
+              <div className="mt-2 pt-3 border-t border-[rgba(255,255,255,0.04)]">
+                <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">Reply to this check-in</div>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => onReplyChange(e.target.value)}
+                  rows={3}
+                  placeholder="Type your reply..."
+                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onReplySubmit(); }}
+                    disabled={!replyText.trim()}
+                    className="px-4 py-2 gradient-accent text-white rounded-lg text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition-opacity inline-flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Send Reply
+                  </button>
+                </div>
               </div>
             )}
           </div>
