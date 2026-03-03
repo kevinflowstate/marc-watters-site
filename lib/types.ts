@@ -84,6 +84,31 @@ export interface CheckIn {
   client?: ClientProfile;
 }
 
+export interface BusinessPlanItem {
+  id: string;
+  category: string;
+  title: string;
+  completed: boolean;
+  completed_at?: string;
+}
+
+export interface DemoClient {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  business_name: string;
+  business_type: string;
+  goals: string;
+  start_date: string;
+  status: TrafficLight;
+  current_week: number;
+  last_login: string;
+  last_checkin: string;
+  checkins: CheckIn[];
+  business_plan: BusinessPlanItem[];
+}
+
 export interface Notification {
   id: string;
   user_id: string;

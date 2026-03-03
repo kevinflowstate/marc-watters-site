@@ -1,51 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import type { ClientProfile, CheckIn } from "@/lib/types";
+import { getClientsSorted, getAllRecentCheckins } from "@/lib/demo-data";
+import type { TrafficLight, CheckInMood } from "@/lib/types";
 
-function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
-  return (
-    <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-      <div className="text-text-muted text-xs uppercase tracking-wider mb-2">{label}</div>
-      <div className={`text-3xl font-heading font-bold ${color || "text-text-primary"}`}>{value}</div>
-      {sub && <div className="text-text-secondary text-sm mt-1">{sub}</div>}
-    </div>
-  );
-}
-
-const statusColors = {
-  green: "bg-emerald-500",
-  amber: "bg-amber-500",
-  red: "bg-red-500",
+const glowClass: Record<TrafficLight, string> = {
+  green: "glow-green",
+  amber: "glow-amber",
+  red: "glow-red",
 };
 
+const statusLabel: Record<TrafficLight, { text: string; dotClass: string; bgClass: string; textClass: string }> = {
+  red: { text: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
+  amber: { text: "Check In Due", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
+  green: { text: "On Track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
+};
+
+const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = {
+  great: { bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
+  good: { bgClass: "bg-blue-500/10", textClass: "text-blue-400" },
+  okay: { bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
+  struggling: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
+};
+
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return "1 week ago";
+  return `${Math.floor(diffDays / 7)} weeks ago`;
+}
+
 export default function AdminDashboard() {
-  const [clients, setClients] = useState<ClientProfile[]>([]);
-  const [recentCheckins, setRecentCheckins] = useState<CheckIn[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-
-      const [clientsRes, checkinsRes] = await Promise.all([
-        supabase.from("client_profiles").select("*, user:users(full_name, email)"),
-        supabase.from("checkins").select("*, client:client_profiles(*, user:users(full_name))").order("created_at", { ascending: false }).limit(10),
-      ]);
-
-      if (clientsRes.data) setClients(clientsRes.data);
-      if (checkinsRes.data) setRecentCheckins(checkinsRes.data);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  const clients = getClientsSorted();
+  const recentCheckins = getAllRecentCheckins().slice(0, 8);
 
   const greenCount = clients.filter((c) => c.status === "green").length;
   const amberCount = clients.filter((c) => c.status === "amber").length;
   const redCount = clients.filter((c) => c.status === "red").length;
-  const unrepliedCheckins = recentCheckins.filter((c) => !c.admin_reply).length;
+  const unreplied = recentCheckins.filter((c) => !c.admin_reply).length;
 
   return (
     <>
@@ -56,90 +53,150 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Clients" value={`${clients.length}`} />
-        <StatCard label="On Track" value={`${greenCount}`} color="text-emerald-400" />
-        <StatCard label="Needs Attention" value={`${amberCount + redCount}`} color={amberCount + redCount > 0 ? "text-amber-400" : "text-text-primary"} />
-        <StatCard label="Unreplied Check-Ins" value={`${unrepliedCheckins}`} color={unrepliedCheckins > 0 ? "text-red-400" : "text-text-primary"} />
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Total Clients</div>
+          <div className="text-3xl font-heading font-bold text-text-primary">{clients.length}</div>
+        </div>
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(16,185,129,0.15)] rounded-2xl p-6">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">On Track</div>
+          <div className="text-3xl font-heading font-bold text-emerald-400">{greenCount}</div>
+        </div>
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(245,158,11,0.15)] rounded-2xl p-6">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Needs Attention</div>
+          <div className={`text-3xl font-heading font-bold ${amberCount + redCount > 0 ? "text-amber-400" : "text-text-primary"}`}>
+            {amberCount + redCount}
+          </div>
+          {redCount > 0 && (
+            <div className="text-red-400 text-xs mt-1">{redCount} behind schedule</div>
+          )}
+        </div>
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Unreplied Check-Ins</div>
+          <div className={`text-3xl font-heading font-bold ${unreplied > 0 ? "text-red-400" : "text-text-primary"}`}>
+            {unreplied}
+          </div>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Client list */}
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+      <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6">
+        {/* Client cards with glow */}
+        <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-heading font-bold text-text-primary">Clients</h2>
             <Link href="/admin/clients" className="text-sm text-accent-bright hover:text-accent-light transition-colors no-underline">
               View All
             </Link>
           </div>
-          {loading ? (
-            <div className="text-text-muted text-sm">Loading...</div>
-          ) : clients.length === 0 ? (
-            <div className="text-text-muted text-sm">No clients yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {clients.slice(0, 8).map((client) => (
+          <div className="space-y-3">
+            {clients.map((client) => {
+              const sl = statusLabel[client.status];
+              const planTotal = client.business_plan.length;
+              const planDone = client.business_plan.filter((p) => p.completed).length;
+              const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
+
+              return (
                 <Link
                   key={client.id}
                   href={`/admin/clients/${client.id}`}
-                  className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[rgba(255,255,255,0.02)] transition-colors no-underline"
+                  className={`block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 transition-all duration-300 no-underline hover:-translate-y-0.5 ${glowClass[client.status]}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${statusColors[client.status]}`} />
-                    <div>
-                      <div className="text-sm font-medium text-text-primary">{(client as ClientProfile & { user?: { full_name: string } }).user?.full_name || "Unknown"}</div>
-                      <div className="text-xs text-text-muted">{client.business_name || "No business"}</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-text-muted">
-                    {client.last_checkin
-                      ? new Date(client.last_checkin).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-                      : "No check-in"}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recent check-ins */}
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Recent Check-Ins</h2>
-          {loading ? (
-            <div className="text-text-muted text-sm">Loading...</div>
-          ) : recentCheckins.length === 0 ? (
-            <div className="text-text-muted text-sm">No check-ins yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {recentCheckins.map((checkin) => {
-                const clientData = checkin as CheckIn & { client?: { user?: { full_name: string } } };
-                return (
-                  <div key={checkin.id} className="flex items-center justify-between py-3 px-3 rounded-xl">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        checkin.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
-                        checkin.mood === "good" ? "bg-blue-500/10 text-blue-400" :
-                        checkin.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
-                        "bg-red-500/10 text-red-400"
+                      {/* Avatar with glow ring */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${sl.bgClass} ${sl.textClass} border ${
+                        client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
                       }`}>
-                        {checkin.mood}
-                      </span>
+                        {client.name.split(" ").map((n) => n[0]).join("")}
+                      </div>
                       <div>
-                        <div className="text-sm font-medium text-text-primary">{clientData.client?.user?.full_name || "Unknown"}</div>
-                        <div className="text-xs text-text-muted">Week {checkin.week_number}</div>
+                        <div className="text-sm font-semibold text-text-primary">{client.name}</div>
+                        <div className="text-xs text-text-muted">{client.business_name}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${sl.bgClass} ${sl.textClass}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${sl.dotClass}`} />
+                        {sl.text}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div>
+                      <div className="text-text-muted mb-1">Week</div>
+                      <div className="text-text-primary font-semibold">{client.current_week} of 12</div>
+                    </div>
+                    <div>
+                      <div className="text-text-muted mb-1">Last Check-In</div>
+                      <div className={`font-semibold ${
+                        new Date().getTime() - new Date(client.last_checkin).getTime() > 7 * 24 * 60 * 60 * 1000
+                          ? "text-red-400"
+                          : "text-text-primary"
+                      }`}>
+                        {timeAgo(client.last_checkin)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-text-muted mb-1">Plan Progress</div>
+                      <div className="text-text-primary font-semibold">{planDone}/{planTotal} ({planPct}%)</div>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-3 h-1.5 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        client.status === "red" ? "bg-red-500/60" : client.status === "amber" ? "bg-amber-500/60" : "bg-emerald-500/60"
+                      }`}
+                      style={{ width: `${planPct}%` }}
+                    />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Recent check-ins */}
+        <div>
+          <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Recent Check-Ins</h2>
+          <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+            <div className="space-y-1">
+              {recentCheckins.map((checkin) => {
+                const mc = moodConfig[checkin.mood];
+                return (
+                  <div
+                    key={checkin.id}
+                    className="flex items-start gap-3 py-3 px-3 rounded-xl hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                  >
+                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full mt-0.5 uppercase tracking-wider ${mc.bgClass} ${mc.textClass}`}>
+                      {checkin.mood}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-text-primary">{checkin.client_name}</span>
+                        <span className="text-[10px] text-text-muted">Week {checkin.week_number}</span>
+                      </div>
+                      {checkin.wins && (
+                        <p className="text-xs text-text-secondary truncate">{checkin.wins}</p>
+                      )}
+                      {checkin.questions && !checkin.wins && (
+                        <p className="text-xs text-text-secondary truncate">{checkin.questions}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-[10px] text-text-muted">{timeAgo(checkin.created_at)}</span>
                       {checkin.admin_reply ? (
-                        <span className="text-xs text-emerald-400">Replied</span>
+                        <span className="text-[10px] text-emerald-400 font-medium">Replied</span>
                       ) : (
-                        <span className="text-xs text-amber-400">Pending</span>
+                        <span className="text-[10px] text-amber-400 font-medium">Pending</span>
                       )}
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </>

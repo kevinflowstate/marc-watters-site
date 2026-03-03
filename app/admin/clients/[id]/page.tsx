@@ -1,178 +1,368 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import type { ClientProfile, ClientModule, CheckIn, TrafficLight } from "@/lib/types";
+import { getClientById } from "@/lib/demo-data";
+import type { TrafficLight, CheckInMood, BusinessPlanItem } from "@/lib/types";
+
+const glowClass: Record<TrafficLight, string> = {
+  green: "glow-green",
+  amber: "glow-amber",
+  red: "glow-red",
+};
+
+const statusConfig: Record<TrafficLight, { label: string; dotClass: string; bgClass: string; textClass: string; ringClass: string }> = {
+  red: { label: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400", ringClass: "ring-red-500" },
+  amber: { label: "Check In Due", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400", ringClass: "ring-amber-500" },
+  green: { label: "On Track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400", ringClass: "ring-emerald-500" },
+};
+
+const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = {
+  great: { bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
+  good: { bgClass: "bg-blue-500/10", textClass: "text-blue-400" },
+  okay: { bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
+  struggling: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
+};
+
+const categoryIcons: Record<string, string> = {
+  "Financial Foundation": "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  "Pipeline & Sales": "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
+  "Team & People": "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+  "Systems & Operations": "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  "Standards & Quality": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+};
+
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return "1 week ago";
+  return `${Math.floor(diffDays / 7)} weeks ago`;
+}
 
 export default function ClientDetailPage() {
   const { id } = useParams();
-  const [client, setClient] = useState<ClientProfile & { user?: { full_name: string; email: string } } | null>(null);
-  const [modules, setModules] = useState<ClientModule[]>([]);
-  const [checkins, setCheckins] = useState<CheckIn[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const client = getClientById(id as string);
+  const [planItems, setPlanItems] = useState<BusinessPlanItem[]>(client?.business_plan || []);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(
+    client ? [...new Set(client.business_plan.map((p) => p.category))] : []
+  ));
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-
-      const [clientRes, modulesRes, checkinsRes] = await Promise.all([
-        supabase.from("client_profiles").select("*, user:users(full_name, email)").eq("id", id).single(),
-        supabase.from("client_modules").select("*, module:training_modules(title, order_index)").eq("client_id", id),
-        supabase.from("checkins").select("*").eq("client_id", id).order("created_at", { ascending: false }),
-      ]);
-
-      if (clientRes.data) setClient(clientRes.data);
-      if (modulesRes.data) setModules(modulesRes.data);
-      if (checkinsRes.data) setCheckins(checkinsRes.data);
-      setLoading(false);
-    }
-    load();
-  }, [id]);
-
-  async function updateStatus(status: TrafficLight) {
-    const supabase = createClient();
-    await supabase.from("client_profiles").update({ status }).eq("id", id);
-    setClient((prev) => prev ? { ...prev, status } : null);
-  }
-
-  async function submitReply(checkinId: string) {
-    const text = replyText[checkinId];
-    if (!text?.trim()) return;
-
-    const supabase = createClient();
-    await supabase.from("checkins").update({
-      admin_reply: text,
-      replied_at: new Date().toISOString(),
-    }).eq("id", checkinId);
-
-    setCheckins((prev) =>
-      prev.map((c) => c.id === checkinId ? { ...c, admin_reply: text, replied_at: new Date().toISOString() } : c)
+  if (!client) {
+    return (
+      <div className="text-text-muted">
+        <Link href="/admin/clients" className="text-accent-bright hover:text-accent-light transition-colors no-underline text-sm">
+          Back to Clients
+        </Link>
+        <p className="mt-4">Client not found.</p>
+      </div>
     );
-    setReplyText((prev) => ({ ...prev, [checkinId]: "" }));
   }
 
-  if (loading) return <div className="text-text-muted">Loading client...</div>;
-  if (!client) return <div className="text-text-muted">Client not found.</div>;
+  const sc = statusConfig[client.status];
+  const planTotal = planItems.length;
+  const planDone = planItems.filter((p) => p.completed).length;
+  const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
 
-  const completedModules = modules.filter((m) => m.status === "completed").length;
+  // Group plan items by category
+  const categories = [...new Set(planItems.map((p) => p.category))];
+  const grouped = categories.map((cat) => ({
+    name: cat,
+    items: planItems.filter((p) => p.category === cat),
+    done: planItems.filter((p) => p.category === cat && p.completed).length,
+    total: planItems.filter((p) => p.category === cat).length,
+  }));
+
+  function toggleItem(itemId: string) {
+    setPlanItems((prev) =>
+      prev.map((p) =>
+        p.id === itemId
+          ? { ...p, completed: !p.completed, completed_at: !p.completed ? new Date().toISOString() : undefined }
+          : p
+      )
+    );
+  }
+
+  function toggleCategory(cat: string) {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
+
+  // Week progress
+  const totalWeeks = 12;
+  const currentWeek = client.current_week;
 
   return (
     <>
-      <Link href="/admin/clients" className="text-text-muted text-sm hover:text-text-secondary transition-colors no-underline inline-flex items-center gap-1 mb-6">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-        Back to Clients
+      <Link
+        href="/admin"
+        className="text-text-muted text-sm hover:text-text-secondary transition-colors no-underline inline-flex items-center gap-1 mb-6"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Dashboard
       </Link>
 
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">{client.user?.full_name || "Unknown"}</h1>
-          <p className="text-text-secondary mt-1">{client.user?.email} {client.phone ? `- ${client.phone}` : ""}</p>
-          <p className="text-text-muted text-sm mt-1">{client.business_name} {client.business_type ? `(${client.business_type})` : ""}</p>
-        </div>
-
-        {/* Status buttons */}
-        <div className="flex gap-2">
-          {(["green", "amber", "red"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => updateStatus(s)}
-              className={`w-8 h-8 rounded-full transition-all ${
-                client.status === s
-                  ? `${s === "green" ? "bg-emerald-500" : s === "amber" ? "bg-amber-500" : "bg-red-500"} ring-2 ring-offset-2 ring-offset-bg-primary ${s === "green" ? "ring-emerald-500" : s === "amber" ? "ring-amber-500" : "ring-red-500"}`
-                  : `${s === "green" ? "bg-emerald-500/20" : s === "amber" ? "bg-amber-500/20" : "bg-red-500/20"} hover:opacity-80`
-              }`}
-            />
-          ))}
+      {/* Header with glow */}
+      <div className={`bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-6 mb-6 transition-all duration-300 ${glowClass[client.status]}`}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
+              client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
+            }`}>
+              {client.name.split(" ").map((n) => n[0]).join("")}
+            </div>
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-text-primary">{client.name}</h1>
+              <p className="text-text-secondary text-sm">{client.email} - {client.phone}</p>
+              <p className="text-text-muted text-xs mt-0.5">{client.business_name} ({client.business_type})</p>
+            </div>
+          </div>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${sc.bgClass} ${sc.textClass}`}>
+            <span className={`w-2 h-2 rounded-full ${sc.dotClass}`} />
+            {sc.label}
+          </span>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Progress</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{completedModules}/{modules.length}</div>
-          <div className="text-text-secondary text-sm">modules completed</div>
+      {/* Stat cards row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Current Week</div>
+          <div className="text-2xl font-heading font-bold text-accent-bright">{currentWeek}</div>
+          <div className="text-text-secondary text-xs">of {totalWeeks} weeks</div>
         </div>
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Plan Progress</div>
+          <div className="text-2xl font-heading font-bold text-text-primary">{planDone}/{planTotal}</div>
+          <div className="text-text-secondary text-xs">{planPct}% complete</div>
+        </div>
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
           <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Check-Ins</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{checkins.length}</div>
-          <div className="text-text-secondary text-sm">total submissions</div>
+          <div className="text-2xl font-heading font-bold text-text-primary">{client.checkins.length}</div>
+          <div className="text-text-secondary text-xs">Last: {timeAgo(client.last_checkin)}</div>
         </div>
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Start Date</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">
-            {new Date(client.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Last Login</div>
+          <div className={`text-2xl font-heading font-bold ${
+            new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
+          }`}>
+            {timeAgo(client.last_login)}
+          </div>
+          <div className="text-text-secondary text-xs">
+            {new Date(client.last_login).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
           </div>
         </div>
       </div>
 
-      {/* Notes */}
+      {/* Week timeline */}
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-heading font-bold text-text-primary">Programme Timeline</h2>
+          <span className="text-xs text-text-muted">
+            Started {new Date(client.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+          </span>
+        </div>
+        <div className="flex gap-1.5">
+          {Array.from({ length: totalWeeks }).map((_, i) => {
+            const weekNum = i + 1;
+            const isCurrent = weekNum === currentWeek;
+            const isComplete = weekNum < currentWeek;
+            return (
+              <div
+                key={i}
+                className={`flex-1 h-8 rounded-lg flex items-center justify-center text-[10px] font-semibold transition-all relative ${
+                  isCurrent
+                    ? "bg-accent/20 text-accent-bright border border-accent/40"
+                    : isComplete
+                    ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/10"
+                    : "bg-[rgba(255,255,255,0.02)] text-text-muted border border-[rgba(255,255,255,0.03)]"
+                }`}
+              >
+                {weekNum}
+                {isCurrent && (
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-accent-bright" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Goals */}
       {client.goals && (
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-6">
-          <h2 className="text-lg font-heading font-bold text-text-primary mb-2">Goals</h2>
-          <p className="text-text-secondary text-sm whitespace-pre-wrap">{client.goals}</p>
+        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
+          <h2 className="text-sm font-heading font-bold text-text-primary mb-2">Goals</h2>
+          <p className="text-text-secondary text-sm leading-relaxed">{client.goals}</p>
         </div>
       )}
 
-      {/* Check-in timeline */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-        <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Check-In History</h2>
-        {checkins.length === 0 ? (
-          <p className="text-text-muted text-sm">No check-ins submitted yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {checkins.map((c) => (
-              <div key={c.id} className="border border-[rgba(255,255,255,0.04)] rounded-xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-text-primary">Week {c.week_number}</span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      c.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
-                      c.mood === "good" ? "bg-blue-500/10 text-blue-400" :
-                      c.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
-                      "bg-red-500/10 text-red-400"
-                    }`}>
-                      {c.mood}
-                    </span>
-                  </div>
-                  <span className="text-xs text-text-muted">
-                    {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </div>
-
-                {c.wins && <div className="mb-2"><span className="text-xs text-emerald-400 font-medium">Wins:</span> <span className="text-sm text-text-secondary">{c.wins}</span></div>}
-                {c.challenges && <div className="mb-2"><span className="text-xs text-amber-400 font-medium">Challenges:</span> <span className="text-sm text-text-secondary">{c.challenges}</span></div>}
-                {c.questions && <div className="mb-2"><span className="text-xs text-accent-bright font-medium">Questions:</span> <span className="text-sm text-text-secondary">{c.questions}</span></div>}
-
-                {c.admin_reply ? (
-                  <div className="mt-3 pl-4 border-l-2 border-accent/30">
-                    <div className="text-xs text-accent-bright mb-1">Your reply:</div>
-                    <div className="text-sm text-text-secondary">{c.admin_reply}</div>
-                  </div>
-                ) : (
-                  <div className="mt-3 flex gap-2">
-                    <input
-                      type="text"
-                      value={replyText[c.id] || ""}
-                      onChange={(e) => setReplyText((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                      placeholder="Reply to this check-in..."
-                      className="flex-1 bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-                    />
-                    <button
-                      onClick={() => submitReply(c.id)}
-                      className="px-4 py-2 gradient-accent text-white rounded-lg text-sm font-medium"
-                    >
-                      Reply
-                    </button>
-                  </div>
-                )}
+      <div className="grid lg:grid-cols-[1.3fr_1fr] gap-6">
+        {/* Business Plan */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-heading font-bold text-text-primary">Business Plan</h2>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-24 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
+                <div
+                  className="h-full gradient-accent rounded-full transition-all duration-500"
+                  style={{ width: `${planPct}%` }}
+                />
               </div>
-            ))}
+              <span className="text-xs text-accent-bright font-semibold">{planPct}%</span>
+            </div>
           </div>
-        )}
+
+          <div className="space-y-3">
+            {grouped.map((group) => {
+              const isExpanded = expandedCategories.has(group.name);
+              const groupPct = Math.round((group.done / group.total) * 100);
+              const iconPath = categoryIcons[group.name] || categoryIcons["Standards & Quality"];
+
+              return (
+                <div key={group.name} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
+                  <button
+                    onClick={() => toggleCategory(group.name)}
+                    className="w-full flex items-center justify-between p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={iconPath} />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-semibold text-text-primary">{group.name}</div>
+                        <div className="text-xs text-text-muted">{group.done}/{group.total} completed</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-16 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${groupPct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
+                            style={{ width: `${groupPct}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-text-muted w-8 text-right">{groupPct}%</span>
+                      </div>
+                      <svg
+                        className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-3">
+                      {group.items.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => toggleItem(item.id)}
+                          className="w-full flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left group"
+                        >
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                            item.completed
+                              ? "bg-emerald-500 border-emerald-500"
+                              : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
+                          }`}>
+                            {item.completed && (
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-sm transition-all duration-200 ${
+                            item.completed ? "text-text-muted line-through" : "text-text-secondary group-hover:text-text-primary"
+                          }`}>
+                            {item.title}
+                          </span>
+                          {item.completed && item.completed_at && (
+                            <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">
+                              {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Check-in History */}
+        <div>
+          <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Check-In History</h2>
+          {client.checkins.length === 0 ? (
+            <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+              <p className="text-text-muted text-sm">No check-ins submitted yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[...client.checkins].reverse().map((c) => {
+                const mc = moodConfig[c.mood];
+                return (
+                  <div key={c.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-text-primary">Week {c.week_number}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${mc.bgClass} ${mc.textClass}`}>
+                          {c.mood}
+                        </span>
+                      </div>
+                      <span className="text-xs text-text-muted">{timeAgo(c.created_at)}</span>
+                    </div>
+
+                    {c.wins && (
+                      <div className="mb-2">
+                        <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Wins</span>
+                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.wins}</p>
+                      </div>
+                    )}
+                    {c.challenges && (
+                      <div className="mb-2">
+                        <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Challenges</span>
+                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.challenges}</p>
+                      </div>
+                    )}
+                    {c.questions && (
+                      <div className="mb-2">
+                        <span className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider">Questions</span>
+                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.questions}</p>
+                      </div>
+                    )}
+
+                    {c.admin_reply ? (
+                      <div className="mt-3 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
+                        <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc's Reply</div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{c.admin_reply}</p>
+                      </div>
+                    ) : (
+                      <div className="mt-2 flex items-center gap-2 text-amber-400">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <span className="text-xs font-medium">Awaiting reply</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
