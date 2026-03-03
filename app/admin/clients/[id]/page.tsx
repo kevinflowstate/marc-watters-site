@@ -101,6 +101,16 @@ export default function ClientDetailPage() {
   const totalWeeks = 12;
   const currentWeek = client.current_week;
 
+  // Calculate alert context for red/amber clients
+  const now = new Date();
+  const lastLoginDays = Math.floor((now.getTime() - new Date(client.last_login).getTime()) / (1000 * 60 * 60 * 24));
+  const lastCheckinDays = Math.floor((now.getTime() - new Date(client.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
+  // Expected weekly check-ins: count how many weeks since start with no check-in
+  const weeksSinceStart = Math.floor((now.getTime() - new Date(client.start_date).getTime()) / (1000 * 60 * 60 * 24 * 7));
+  const expectedCheckins = weeksSinceStart;
+  const actualCheckins = client.checkins.length;
+  const missedCheckins = Math.max(0, expectedCheckins - actualCheckins);
+
   return (
     <>
       <Link
@@ -134,6 +144,47 @@ export default function ClientDetailPage() {
           </span>
         </div>
       </div>
+
+      {/* Status alert banner */}
+      {client.status === "red" && (
+        <div className="flex items-start gap-3 bg-red-500/[0.06] border border-red-500/20 rounded-2xl px-5 py-4 mb-6">
+          <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-red-400 mb-0.5">This client needs attention</div>
+            <div className="text-xs text-text-secondary leading-relaxed">
+              Last login was <span className="text-red-400 font-medium">{lastLoginDays} days ago</span>
+              {missedCheckins > 0 && (
+                <> and they have <span className="text-red-400 font-medium">missed {missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""}</span></>
+              )}
+              . Consider reaching out directly to re-engage.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {client.status === "amber" && (
+        <div className="flex items-start gap-3 bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl px-5 py-4 mb-6">
+          <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-amber-400 mb-0.5">Check-in overdue</div>
+            <div className="text-xs text-text-secondary leading-relaxed">
+              Last check-in was <span className="text-amber-400 font-medium">{lastCheckinDays} days ago</span>
+              {missedCheckins > 0 && (
+                <> - <span className="text-amber-400 font-medium">{missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""} missed</span></>
+              )}
+              . A quick nudge might help keep momentum.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stat cards row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
