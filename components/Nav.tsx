@@ -36,6 +36,7 @@ export default function Nav() {
             { href: "/about", label: "About" },
             { href: "/testimonials", label: "Testimonials" },
             { href: "/#how-it-works", label: "How It Works" },
+            { href: "/articles", label: "Articles" },
             { href: "/#portal-preview", label: "Client Portal" },
           ].map((link) => (
             <Link
@@ -69,10 +70,10 @@ export default function Nav() {
 
       {mobileOpen && (
         <div className="md:hidden pb-6 flex flex-col gap-4 px-4">
-          {["About", "Testimonials", "How It Works", "Client Portal"].map((label) => (
+          {["About", "Testimonials", "How It Works", "Articles", "Client Portal"].map((label) => (
             <Link
               key={label}
-              href={label === "About" ? "/about" : label === "Testimonials" ? "/testimonials" : `/#${label.toLowerCase().replace(/ /g, "-")}`}
+              href={label === "About" ? "/about" : label === "Testimonials" ? "/testimonials" : label === "Articles" ? "/articles" : `/#${label.toLowerCase().replace(/ /g, "-")}`}
               onClick={() => setMobileOpen(false)}
               className="text-text-secondary no-underline text-sm font-medium hover:text-text-primary transition-colors"
             >

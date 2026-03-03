@@ -38,6 +38,30 @@ const testimonials = [
   },
 ];
 
+const articles = [
+  {
+    slug: "how-to-price-construction-jobs-for-profit",
+    title: "How to Price Construction Jobs for Profit, Not Just Turnover",
+    excerpt: "Most construction businesses price jobs based on what feels right or what the last guy charged. Here's how to actually build margin into every quote.",
+    category: "Profit",
+    readTime: "6 min read",
+  },
+  {
+    slug: "five-systems-every-construction-business-needs",
+    title: "5 Systems Every Construction Business Needs Before It Can Scale",
+    excerpt: "You can't scale chaos. Before you take on more work or hire more people, these five systems need to be in place.",
+    category: "Systems",
+    readTime: "7 min read",
+  },
+  {
+    slug: "construction-business-owner-working-60-hours",
+    title: "Working 60 Hours a Week and Still Not Profitable? Here's Why.",
+    excerpt: "Being busy isn't the same as being profitable. If your hours are going up but your margins aren't, the problem isn't effort - it's structure.",
+    category: "Growth",
+    readTime: "5 min read",
+  },
+];
+
 const steps = [
   { num: "1", title: "Apply", desc: "Fill in a short application. This isn't for everyone - it's for serious operators who are ready to do the work." },
   { num: "2", title: "Discovery Call", desc: "If it looks like a fit, we'll get on a call. No pitch. Just a straight conversation about where you are and where you want to be." },
@@ -149,6 +173,37 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      {/* VIDEO */}
+      <section className="py-[100px] px-8 relative">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(34,114,222,0.04) 0%, transparent 60%)" }} />
+        <div className="max-w-[900px] mx-auto text-center relative">
+          <div className="reveal">
+            <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">See What This Looks Like</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">How Marc Helps Construction Business Owners Build Real Structure</div>
+            <div className="section-divider mx-auto" />
+          </div>
+
+          <div className="mt-10 rounded-[18px] overflow-hidden border border-[rgba(255,255,255,0.06)] shadow-[0_30px_80px_rgba(0,0,0,0.5),0_0_60px_rgba(34,114,222,0.06)] relative reveal reveal-delay-1">
+            <div className="absolute -top-px left-[20%] right-[20%] h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.4)] to-transparent" />
+            <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+              <iframe
+                src="https://player.vimeo.com/video/1121582501?h=ad5f727774&color=2272DE&title=0&byline=0&portrait=0"
+                className="absolute top-0 left-0 w-full h-full"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                title="Marc Watters - Construction Business Blueprint"
+              />
+            </div>
+          </div>
+
+          <div className="mt-10 max-w-[650px] mx-auto reveal reveal-delay-2">
+            <p className="text-[1.05rem] text-text-secondary leading-[1.85]">
+              No motivational speeches. No generic advice. Marc works one-to-one with trade and construction business owners to fix the things that actually hold them back - margins, team, systems, pipeline. Watch how it works.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* PROBLEM */}
       <section className="py-[120px] px-8 bg-bg-secondary relative">
@@ -308,6 +363,51 @@ export default function Home() {
                 <p className="text-sm text-text-secondary leading-[1.7] max-w-[280px] mx-auto">{s.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ARTICLES */}
+      <section id="articles" className="py-[120px] px-8 relative">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 30% 50%, rgba(34,114,222,0.03) 0%, transparent 50%)" }} />
+        <div className="max-w-[1200px] mx-auto relative">
+          <div className="reveal">
+            <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">Articles</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">Practical Advice for Construction Business Owners</div>
+            <div className="section-divider" />
+            <div className="text-[1.05rem] text-text-secondary max-w-[600px] leading-[1.8]">Straight-talking articles on profit, systems, team, and growth - written for people who actually run construction businesses.</div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+            {articles.map((a, i) => (
+              <Link
+                key={i}
+                href={`/articles/${a.slug}`}
+                className={`group bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-[18px] overflow-hidden backdrop-blur-[10px] transition-all duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] no-underline relative hover:-translate-y-1.5 hover:border-[rgba(34,114,222,0.3)] hover:shadow-[0_15px_40px_rgba(34,114,222,0.1),0_0_0_1px_rgba(34,114,222,0.1)] reveal ${i > 0 ? `reveal-delay-${i}` : ""}`}
+              >
+                <div className="absolute top-0 left-0 right-0 h-0.5 gradient-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="h-[3px] gradient-accent" />
+                <div className="p-7">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.15)] rounded-full px-3 py-1 text-[0.7rem] font-semibold text-accent-light tracking-[0.3px]">{a.category}</span>
+                    <span className="text-[0.72rem] text-text-muted">{a.readTime}</span>
+                  </div>
+                  <h3 className="font-heading text-[1.05rem] font-bold leading-[1.35] mb-3 text-text-primary group-hover:text-accent-bright transition-colors duration-300">{a.title}</h3>
+                  <p className="text-[0.85rem] text-text-secondary leading-[1.7] mb-4">{a.excerpt}</p>
+                  <span className="text-[0.82rem] font-semibold text-accent inline-flex items-center gap-1.5 group-hover:gap-2.5 transition-all duration-300">
+                    Read article
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="text-center mt-12 reveal">
+            <Link href="/articles" className="inline-flex items-center gap-2 bg-transparent text-text-primary px-8 py-4 rounded-[10px] font-semibold text-[0.95rem] no-underline border border-border-light transition-all duration-300 hover:border-accent hover:bg-[rgba(34,114,222,0.05)] hover:shadow-[0_0_30px_rgba(34,114,222,0.08)]">
+              View All Articles
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+            </Link>
           </div>
         </div>
       </section>

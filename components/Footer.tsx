@@ -23,6 +23,7 @@ export default function Footer() {
             { href: "/about", label: "About" },
             { href: "/testimonials", label: "Testimonials" },
             { href: "/#how-it-works", label: "How It Works" },
+            { href: "/articles", label: "Articles" },
             { href: "/apply", label: "Apply" },
           ].map((link) => (
             <Link key={link.href} href={link.href} className="block text-text-muted no-underline text-[0.85rem] mb-2.5 hover:text-accent-light hover:translate-x-[3px] transition-all duration-300">
