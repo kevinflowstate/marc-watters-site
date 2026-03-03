@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { getClientsSorted, getAllRecentCheckins } from "@/lib/demo-data";
 import type { TrafficLight, CheckInMood } from "@/lib/types";
@@ -157,48 +158,205 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent check-ins */}
-        <div>
-          <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Recent Check-Ins</h2>
-          <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-            <div className="space-y-1">
-              {recentCheckins.map((checkin) => {
-                const mc = moodConfig[checkin.mood];
-                return (
-                  <div
-                    key={checkin.id}
-                    className="flex items-start gap-3 py-3 px-3 rounded-xl hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-                  >
-                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full mt-0.5 uppercase tracking-wider ${mc.bgClass} ${mc.textClass}`}>
-                      {checkin.mood}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-medium text-text-primary">{checkin.client_name}</span>
-                        <span className="text-[10px] text-text-muted">Week {checkin.week_number}</span>
-                      </div>
-                      {checkin.wins && (
-                        <p className="text-xs text-text-secondary truncate">{checkin.wins}</p>
-                      )}
-                      {checkin.questions && !checkin.wins && (
-                        <p className="text-xs text-text-secondary truncate">{checkin.questions}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-[10px] text-text-muted">{timeAgo(checkin.created_at)}</span>
-                      {checkin.admin_reply ? (
-                        <span className="text-[10px] text-emerald-400 font-medium">Replied</span>
-                      ) : (
-                        <span className="text-[10px] text-amber-400 font-medium">Pending</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        {/* Recent check-ins - grouped by week */}
+        <CheckInsPanel checkins={recentCheckins} />
       </div>
     </>
+  );
+}
+
+// --- Check-Ins Panel with weekly grouping + expandable items ---
+
+type EnrichedCheckin = ReturnType<typeof getAllRecentCheckins>[number];
+
+function getWeekBucket(dateStr: string): "this_week" | "last_week" | "earlier" {
+  const now = new Date();
+  const d = new Date(dateStr);
+  // Start of this week (Monday)
+  const startOfThisWeek = new Date(now);
+  const dayOfWeek = now.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  startOfThisWeek.setDate(now.getDate() - diffToMonday);
+  startOfThisWeek.setHours(0, 0, 0, 0);
+
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+
+  if (d >= startOfThisWeek) return "this_week";
+  if (d >= startOfLastWeek) return "last_week";
+  return "earlier";
+}
+
+function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["earlier"]));
+
+  const thisWeek = checkins.filter((c) => getWeekBucket(c.created_at) === "this_week");
+  const lastWeek = checkins.filter((c) => getWeekBucket(c.created_at) === "last_week");
+  const earlier = checkins.filter((c) => getWeekBucket(c.created_at) === "earlier");
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSection(key: string) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const sections = [
+    { key: "this_week", label: "This Week", items: thisWeek },
+    { key: "last_week", label: "Last Week", items: lastWeek },
+    { key: "earlier", label: "Earlier", items: earlier },
+  ].filter((s) => s.items.length > 0);
+
+  return (
+    <div>
+      <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Recent Check-Ins</h2>
+      <div className="space-y-3">
+        {sections.map((section) => {
+          const isCollapsed = collapsedSections.has(section.key);
+          return (
+            <div key={section.key} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
+              <button
+                onClick={() => toggleSection(section.key)}
+                className="w-full flex items-center justify-between px-5 py-3 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-text-primary">{section.label}</span>
+                  <span className="text-[10px] text-text-muted bg-[rgba(255,255,255,0.04)] px-2 py-0.5 rounded-full">
+                    {section.items.length}
+                  </span>
+                  {section.items.some((c) => !c.admin_reply) && (
+                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+                      {section.items.filter((c) => !c.admin_reply).length} pending
+                    </span>
+                  )}
+                </div>
+                <svg
+                  className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {!isCollapsed && (
+                <div className="border-t border-[rgba(255,255,255,0.03)]">
+                  {section.items.map((checkin) => (
+                    <CheckInRow
+                      key={checkin.id}
+                      checkin={checkin}
+                      isExpanded={expanded.has(checkin.id)}
+                      onToggle={() => toggleExpand(checkin.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CheckInRow({
+  checkin,
+  isExpanded,
+  onToggle,
+}: {
+  checkin: EnrichedCheckin;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const mc = moodConfig[checkin.mood];
+
+  return (
+    <div className="border-b border-[rgba(255,255,255,0.02)] last:border-b-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-start gap-3 py-3 px-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left"
+      >
+        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full mt-0.5 uppercase tracking-wider flex-shrink-0 ${mc.bgClass} ${mc.textClass}`}>
+          {checkin.mood}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-sm font-medium text-text-primary">{checkin.client_name}</span>
+            <span className="text-[10px] text-text-muted">Week {checkin.week_number}</span>
+          </div>
+          {!isExpanded && (
+            <p className="text-xs text-text-secondary truncate">
+              {checkin.wins || checkin.challenges || checkin.questions || "No details"}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {checkin.admin_reply ? (
+            <span className="text-[10px] text-emerald-400 font-medium">Replied</span>
+          ) : (
+            <span className="text-[10px] text-amber-400 font-medium">Pending</span>
+          )}
+          <svg
+            className={`w-3.5 h-3.5 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="px-5 pb-4 pt-1 ml-[38px]">
+          <div className="bg-[rgba(255,255,255,0.015)] border border-[rgba(255,255,255,0.04)] rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between text-xs text-text-muted mb-2">
+              <span>{checkin.client_business}</span>
+              <span>{new Date(checkin.created_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</span>
+            </div>
+
+            {checkin.wins && (
+              <div>
+                <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider mb-1">Wins</div>
+                <p className="text-xs text-text-secondary leading-relaxed">{checkin.wins}</p>
+              </div>
+            )}
+            {checkin.challenges && (
+              <div>
+                <div className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider mb-1">Challenges</div>
+                <p className="text-xs text-text-secondary leading-relaxed">{checkin.challenges}</p>
+              </div>
+            )}
+            {checkin.questions && (
+              <div>
+                <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Questions</div>
+                <p className="text-xs text-text-secondary leading-relaxed">{checkin.questions}</p>
+              </div>
+            )}
+
+            {checkin.admin_reply ? (
+              <div className="mt-2 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
+                <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc's Reply</div>
+                <p className="text-xs text-text-secondary leading-relaxed">{checkin.admin_reply}</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-amber-400 mt-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-xs font-medium">Awaiting reply</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
