@@ -40,6 +40,14 @@ export interface TrainingModule {
   content?: ModuleContent[];
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: 'pdf' | 'sheet' | 'doc' | 'image' | 'other';
+  size?: string;
+}
+
 export interface ModuleContent {
   id: string;
   module_id: string;
@@ -49,6 +57,7 @@ export interface ModuleContent {
   content_text?: string;
   order_index: number;
   duration_minutes?: number;
+  attachments?: Attachment[];
   created_at: string;
 }
 
