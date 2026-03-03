@@ -13,12 +13,24 @@ const navItems = [
   { href: "/portal/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  read: boolean;
+  link?: string;
+  created_at: string;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [userName, setUserName] = useState("");
   const [initials, setInitials] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -38,6 +50,46 @@ export default function Sidebar() {
     }
     loadUser();
   }, []);
+
+  useEffect(() => {
+    async function loadNotifications() {
+      try {
+        const res = await fetch("/api/notifications");
+        if (res.ok) {
+          const data = await res.json();
+          setUnreadCount(data.unreadCount);
+          setNotifications(data.notifications);
+        }
+      } catch {
+        // Silently fail - notifications are non-critical
+      }
+    }
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function markAsRead(ids: string[]) {
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      setNotifications((prev) =>
+        prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - ids.length));
+    } catch {
+      // Silently fail
+    }
+  }
+
+  function handleNotificationClick(n: NotificationItem) {
+    if (!n.read) markAsRead([n.id]);
+    if (n.link) router.push(n.link);
+    setShowNotifications(false);
+  }
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -86,6 +138,59 @@ export default function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Notification bell */}
+        <div className="px-4 pb-2 relative">
+          <button
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              if (!showNotifications && unreadCount > 0) {
+                const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+                if (unreadIds.length > 0) markAsRead(unreadIds);
+              }
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.03)] transition-all duration-200 relative"
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Notifications
+            {unreadCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute bottom-full left-4 right-4 mb-2 bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-xl shadow-xl max-h-64 overflow-y-auto z-50">
+              {notifications.length === 0 ? (
+                <div className="p-4 text-xs text-text-muted text-center">No notifications</div>
+              ) : (
+                notifications.slice(0, 10).map((n) => (
+                  <button
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    className={`w-full text-left px-4 py-3 border-b border-[rgba(255,255,255,0.03)] last:border-0 hover:bg-[rgba(255,255,255,0.03)] transition-colors ${
+                      !n.read ? "bg-accent/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-accent-bright mt-1.5 flex-shrink-0" />}
+                      <div className={!n.read ? "" : "ml-3.5"}>
+                        <div className="text-xs font-semibold text-text-primary">{n.title}</div>
+                        <div className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">{n.message}</div>
+                        <div className="text-[10px] text-text-muted mt-1">
+                          {new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="p-4 border-t border-[rgba(255,255,255,0.04)]">
           <div className="flex items-center gap-3 px-4 py-3">

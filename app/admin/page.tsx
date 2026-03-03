@@ -218,6 +218,8 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["earlier"]));
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
+  const [sendingReply, setSendingReply] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   const thisWeek = checkins.filter((c) => getWeekBucket(c.created_at) === "this_week");
   const lastWeek = checkins.filter((c) => getWeekBucket(c.created_at) === "last_week");
@@ -241,11 +243,31 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
     });
   }
 
-  function handleReply(checkinId: string) {
+  async function handleReply(checkinId: string) {
     const text = replies[checkinId];
     if (!text?.trim()) return;
-    setSentReplies((prev) => ({ ...prev, [checkinId]: text }));
-    setReplies((prev) => ({ ...prev, [checkinId]: "" }));
+    setSendingReply(checkinId);
+    setReplyError(null);
+
+    try {
+      const res = await fetch("/api/admin/reply-checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkin_id: checkinId, reply_text: text }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send reply");
+      }
+
+      setSentReplies((prev) => ({ ...prev, [checkinId]: text }));
+      setReplies((prev) => ({ ...prev, [checkinId]: "" }));
+    } catch (err) {
+      setReplyError(err instanceof Error ? err.message : "Failed to send reply");
+    } finally {
+      setSendingReply(null);
+    }
   }
 
   const sections = [
@@ -297,6 +319,8 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
                       onReplyChange={(text) => setReplies((prev) => ({ ...prev, [checkin.id]: text }))}
                       onReplySubmit={() => handleReply(checkin.id)}
                       sentReply={sentReplies[checkin.id]}
+                      isSending={sendingReply === checkin.id}
+                      error={sendingReply === checkin.id ? replyError : null}
                     />
                   ))}
                 </div>
@@ -317,6 +341,8 @@ function CheckInRow({
   onReplyChange,
   onReplySubmit,
   sentReply,
+  isSending,
+  error,
 }: {
   checkin: EnrichedCheckin;
   isExpanded: boolean;
@@ -325,6 +351,8 @@ function CheckInRow({
   onReplyChange: (text: string) => void;
   onReplySubmit: () => void;
   sentReply?: string;
+  isSending?: boolean;
+  error?: string | null;
 }) {
   const mc = moodConfig[checkin.mood];
   const hasReply = checkin.admin_reply || sentReply;
@@ -413,18 +441,34 @@ function CheckInRow({
                   onChange={(e) => onReplyChange(e.target.value)}
                   rows={3}
                   placeholder="Type your reply..."
-                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
+                  disabled={isSending}
+                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none disabled:opacity-50"
                 />
+                {error && (
+                  <div className="text-xs text-red-400 mt-1">{error}</div>
+                )}
                 <div className="flex justify-end mt-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); onReplySubmit(); }}
-                    disabled={!replyText.trim()}
+                    disabled={!replyText.trim() || isSending}
                     className="px-4 py-2 gradient-accent text-white rounded-lg text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition-opacity inline-flex items-center gap-1.5"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                    Send Reply
+                    {isSending ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Send Reply
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

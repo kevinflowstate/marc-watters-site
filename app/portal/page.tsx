@@ -91,26 +91,41 @@ export default function PortalDashboard() {
         ) : (
           <div className="space-y-3">
             {checkins.map((c) => (
-              <div key={c.id} className="flex items-center justify-between py-3 border-b border-[rgba(255,255,255,0.04)] last:border-0">
-                <div>
-                  <span className="text-text-primary text-sm font-medium">Week {c.week_number}</span>
-                  <span className="text-text-muted text-sm ml-3">
-                    {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </span>
+              <div key={c.id} className="py-3 border-b border-[rgba(255,255,255,0.04)] last:border-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-text-primary text-sm font-medium">Week {c.week_number}</span>
+                    <span className="text-text-muted text-sm ml-3">
+                      {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      c.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
+                      c.mood === "good" ? "bg-blue-500/10 text-blue-400" :
+                      c.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
+                      "bg-red-500/10 text-red-400"
+                    }`}>
+                      {c.mood}
+                    </span>
+                    {c.admin_reply ? (
+                      <span className="text-xs text-accent-bright">Replied</span>
+                    ) : (
+                      <span className="text-xs text-text-muted">Pending</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    c.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
-                    c.mood === "good" ? "bg-blue-500/10 text-blue-400" :
-                    c.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
-                    "bg-red-500/10 text-red-400"
-                  }`}>
-                    {c.mood}
-                  </span>
-                  {c.admin_reply && (
-                    <span className="text-xs text-accent-bright">Replied</span>
-                  )}
-                </div>
+                {c.admin_reply && (
+                  <div className="mt-2 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
+                    <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc&apos;s Reply</div>
+                    <p className="text-xs text-text-secondary leading-relaxed">{c.admin_reply}</p>
+                    {c.replied_at && (
+                      <div className="text-[10px] text-text-muted mt-1">
+                        {new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

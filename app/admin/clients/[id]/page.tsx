@@ -52,6 +52,37 @@ export default function ClientDetailPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(
     client ? [...new Set(client.business_plan.map((p) => p.category))] : []
   ));
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
+  const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
+  const [sendingReply, setSendingReply] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
+  async function handleReply(checkinId: string) {
+    const text = replyTexts[checkinId];
+    if (!text?.trim()) return;
+    setSendingReply(checkinId);
+    setReplyError(null);
+
+    try {
+      const res = await fetch("/api/admin/reply-checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkin_id: checkinId, reply_text: text }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send reply");
+      }
+
+      setSentReplies((prev) => ({ ...prev, [checkinId]: text }));
+      setReplyTexts((prev) => ({ ...prev, [checkinId]: "" }));
+    } catch (err) {
+      setReplyError(err instanceof Error ? err.message : "Failed to send reply");
+    } finally {
+      setSendingReply(null);
+    }
+  }
 
   if (!client) {
     return (
@@ -397,15 +428,52 @@ export default function ClientDetailPage() {
                       </div>
                     )}
 
-                    {c.admin_reply ? (
+                    {c.admin_reply || sentReplies[c.id] ? (
                       <div className="mt-3 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
-                        <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc's Reply</div>
-                        <p className="text-xs text-text-secondary leading-relaxed">{c.admin_reply}</p>
+                        <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">
+                          Marc&apos;s Reply
+                          {sentReplies[c.id] && !c.admin_reply && <span className="text-emerald-400/60 ml-2">Just sent</span>}
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{sentReplies[c.id] || c.admin_reply}</p>
                       </div>
                     ) : (
-                      <div className="mt-2 flex items-center gap-2 text-amber-400">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        <span className="text-xs font-medium">Awaiting reply</span>
+                      <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)]">
+                        <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">Reply to this check-in</div>
+                        <textarea
+                          value={replyTexts[c.id] || ""}
+                          onChange={(e) => setReplyTexts((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                          rows={3}
+                          placeholder="Type your reply..."
+                          disabled={sendingReply === c.id}
+                          className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none disabled:opacity-50"
+                        />
+                        {replyError && sendingReply === null && (
+                          <div className="text-xs text-red-400 mt-1">{replyError}</div>
+                        )}
+                        <div className="flex justify-end mt-2">
+                          <button
+                            onClick={() => handleReply(c.id)}
+                            disabled={!replyTexts[c.id]?.trim() || sendingReply === c.id}
+                            className="px-4 py-2 gradient-accent text-white rounded-lg text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition-opacity inline-flex items-center gap-1.5"
+                          >
+                            {sendingReply === c.id ? (
+                              <>
+                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                </svg>
+                                Send Reply
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
