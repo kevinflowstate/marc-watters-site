@@ -65,6 +65,7 @@ export default function ClientDetailPage() {
     plans.find((p) => p.status === "active")?.phases.map((ph) => ph.id) || []
   ));
   const [showHistory, setShowHistory] = useState(false);
+  const [expandedHistoryPlan, setExpandedHistoryPlan] = useState<string | null>(null);
   const [builderMode, setBuilderMode] = useState<"closed" | "create" | "edit">("closed");
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
@@ -154,22 +155,19 @@ export default function ClientDetailPage() {
     setPlans((prev) => {
       const exists = prev.find((p) => p.id === plan.id);
       if (exists) {
+        // Editing existing plan
         return prev.map((p) => (p.id === plan.id ? plan : p));
       }
-      return [...prev, plan];
+      // New plan - mark any active plan as completed
+      return prev.map((p) =>
+        p.status === "active" ? { ...p, status: "completed" as const, completed_at: new Date().toISOString() } : p
+      ).concat(plan);
     });
     setExpandedPhases(new Set(plan.phases.map((ph) => ph.id)));
     setBuilderMode("closed");
   }
 
   function handleNewPlan() {
-    if (activePlan) {
-      setPlans((prev) =>
-        prev.map((p) =>
-          p.id === activePlan.id ? { ...p, status: "completed" as const, completed_at: new Date().toISOString() } : p
-        )
-      );
-    }
     setBuilderMode("create");
   }
 
@@ -535,20 +533,69 @@ export default function ClientDetailPage() {
                         const prevItems = plan.phases.flatMap((ph) => ph.items);
                         const prevDone = prevItems.filter((i) => i.completed).length;
                         const prevTotal = prevItems.length;
+                        const isOpen = expandedHistoryPlan === plan.id;
                         return (
-                          <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl p-4 opacity-70">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-semibold text-text-muted">
-                                {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
-                                Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
-                              </span>
-                            </div>
-                            <p className="text-xs text-text-muted leading-relaxed mb-2">{plan.summary}</p>
-                            <div className="text-[10px] text-text-muted">
-                              {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
-                            </div>
+                          <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl overflow-hidden">
+                            <button
+                              onClick={() => setExpandedHistoryPlan(isOpen ? null : plan.id)}
+                              className="w-full p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-text-muted">
+                                  {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
+                                    Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
+                                  </span>
+                                  <svg
+                                    className={`w-3.5 h-3.5 text-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </div>
+                              </div>
+                              <p className="text-xs text-text-muted leading-relaxed mb-1">{plan.summary}</p>
+                              <div className="text-[10px] text-text-muted">
+                                {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
+                              </div>
+                            </button>
+                            {isOpen && (
+                              <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-4 space-y-3 pt-3">
+                                {plan.phases.map((phase) => {
+                                  const phDone = phase.items.filter((i) => i.completed).length;
+                                  const phTotal = phase.items.length;
+                                  return (
+                                    <div key={phase.id}>
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-xs font-semibold text-text-secondary">{phase.name}</span>
+                                        <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
+                                      </div>
+                                      {phase.notes && (
+                                        <p className="text-[11px] text-text-muted italic mb-1.5">{phase.notes}</p>
+                                      )}
+                                      {phase.items.map((item) => (
+                                        <div key={item.id} className="flex items-center gap-2 py-1 px-1">
+                                          <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
+                                            item.completed ? "bg-emerald-500/20" : "border border-[rgba(255,255,255,0.1)]"
+                                          }`}>
+                                            {item.completed && (
+                                              <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                          <span className={`text-xs ${item.completed ? "text-text-muted line-through" : "text-text-secondary"}`}>
+                                            {item.title}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -594,20 +641,69 @@ export default function ClientDetailPage() {
                     const prevItems = plan.phases.flatMap((ph) => ph.items);
                     const prevDone = prevItems.filter((i) => i.completed).length;
                     const prevTotal = prevItems.length;
+                    const isOpen = expandedHistoryPlan === plan.id;
                     return (
-                      <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl p-4 opacity-70 mt-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-text-muted">
-                            {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
-                            Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
-                          </span>
-                        </div>
-                        <p className="text-xs text-text-muted leading-relaxed mb-2">{plan.summary}</p>
-                        <div className="text-[10px] text-text-muted">
-                          {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
-                        </div>
+                      <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl overflow-hidden mt-2">
+                        <button
+                          onClick={() => setExpandedHistoryPlan(isOpen ? null : plan.id)}
+                          className="w-full p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-text-muted">
+                              {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
+                                Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
+                              </span>
+                              <svg
+                                className={`w-3.5 h-3.5 text-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
+                          <p className="text-xs text-text-muted leading-relaxed mb-1">{plan.summary}</p>
+                          <div className="text-[10px] text-text-muted">
+                            {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-4 space-y-3 pt-3">
+                            {plan.phases.map((phase) => {
+                              const phDone = phase.items.filter((i) => i.completed).length;
+                              const phTotal = phase.items.length;
+                              return (
+                                <div key={phase.id}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-xs font-semibold text-text-secondary">{phase.name}</span>
+                                    <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
+                                  </div>
+                                  {phase.notes && (
+                                    <p className="text-[11px] text-text-muted italic mb-1.5">{phase.notes}</p>
+                                  )}
+                                  {phase.items.map((item) => (
+                                    <div key={item.id} className="flex items-center gap-2 py-1 px-1">
+                                      <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
+                                        item.completed ? "bg-emerald-500/20" : "border border-[rgba(255,255,255,0.1)]"
+                                      }`}>
+                                        {item.completed && (
+                                          <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        )}
+                                      </div>
+                                      <span className={`text-xs ${item.completed ? "text-text-muted line-through" : "text-text-secondary"}`}>
+                                        {item.title}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
