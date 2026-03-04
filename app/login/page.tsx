@@ -35,13 +35,18 @@ function LoginForm() {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: profile } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      // Check role from user metadata first (no DB query needed), fall back to DB
+      let role = user.user_metadata?.role;
+      if (!role) {
+        const { data: profile } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        role = profile?.role;
+      }
 
-      if (profile?.role === "admin" && redirect === "/portal") {
+      if (role === "admin" && redirect === "/portal") {
         router.push("/admin");
       } else {
         router.push(redirect);
