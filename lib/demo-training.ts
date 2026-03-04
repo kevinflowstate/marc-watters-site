@@ -367,3 +367,11 @@ export function getDemoModules(): TrainingModule[] {
 export function getDemoModuleById(id: string): TrainingModule | undefined {
   return demoModules.find((m) => m.id === id);
 }
+
+export function getContentById(id: string): { content: import("./types").ModuleContent; moduleName: string } | undefined {
+  for (const mod of demoModules) {
+    const content = mod.content?.find((c) => c.id === id);
+    if (content) return { content, moduleName: mod.title };
+  }
+  return undefined;
+}

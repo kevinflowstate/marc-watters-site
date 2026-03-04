@@ -101,6 +101,25 @@ export interface BusinessPlanItem {
   completed_at?: string;
 }
 
+export interface BusinessPlanPhase {
+  id: string;
+  name: string;
+  notes: string;
+  order_index: number;
+  items: BusinessPlanItem[];
+  linked_trainings: string[];
+}
+
+export interface BusinessPlan {
+  id: string;
+  client_id: string;
+  summary: string;
+  status: 'active' | 'completed';
+  created_at: string;
+  completed_at?: string;
+  phases: BusinessPlanPhase[];
+}
+
 export interface DemoClient {
   id: string;
   name: string;
@@ -115,7 +134,7 @@ export interface DemoClient {
   last_login: string;
   last_checkin: string;
   checkins: CheckIn[];
-  business_plan: BusinessPlanItem[];
+  business_plan: BusinessPlan[];
 }
 
 export interface Notification {

@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getClientById } from "@/lib/demo-data";
-import type { TrafficLight, CheckInMood, BusinessPlanItem } from "@/lib/types";
+import { getContentById } from "@/lib/demo-training";
+import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase } from "@/lib/types";
+import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
 
 const glowClass: Record<TrafficLight, string> = {
   green: "glow-green",
@@ -33,6 +35,15 @@ const categoryIcons: Record<string, string> = {
   "Standards & Quality": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
 };
 
+function getPhaseIcon(phaseName: string): string {
+  const lower = phaseName.toLowerCase();
+  if (lower.includes("financial") || lower.includes("pricing") || lower.includes("revenue")) return categoryIcons["Financial Foundation"];
+  if (lower.includes("pipeline") || lower.includes("sales") || lower.includes("visibility") || lower.includes("growth")) return categoryIcons["Pipeline & Sales"];
+  if (lower.includes("team") || lower.includes("hire") || lower.includes("people")) return categoryIcons["Team & People"];
+  if (lower.includes("system") || lower.includes("operation") || lower.includes("quality") || lower.includes("standard")) return categoryIcons["Systems & Operations"];
+  return categoryIcons["Standards & Quality"];
+}
+
 function timeAgo(dateStr: string): string {
   const now = new Date();
   const d = new Date(dateStr);
@@ -48,10 +59,13 @@ function timeAgo(dateStr: string): string {
 export default function ClientDetailPage() {
   const { id } = useParams();
   const client = getClientById(id as string);
-  const [planItems, setPlanItems] = useState<BusinessPlanItem[]>(client?.business_plan || []);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(
-    client ? [...new Set(client.business_plan.map((p) => p.category))] : []
+  const [plans, setPlans] = useState<BusinessPlan[]>(client?.business_plan || []);
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set(
+    // Expand all phases of the active plan by default
+    plans.find((p) => p.status === "active")?.phases.map((ph) => ph.id) || []
   ));
+  const [showHistory, setShowHistory] = useState(false);
+  const [builderMode, setBuilderMode] = useState<"closed" | "create" | "edit">("closed");
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
@@ -95,37 +109,68 @@ export default function ClientDetailPage() {
     );
   }
 
+  const activePlan = plans.find((p) => p.status === "active");
+  const completedPlans = plans.filter((p) => p.status === "completed");
   const sc = statusConfig[client.status];
-  const planTotal = planItems.length;
-  const planDone = planItems.filter((p) => p.completed).length;
+
+  // Calculate plan stats from active plan
+  const allItems = activePlan?.phases.flatMap((ph) => ph.items) || [];
+  const planTotal = allItems.length;
+  const planDone = allItems.filter((p) => p.completed).length;
   const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
 
-  // Group plan items by category
-  const categories = [...new Set(planItems.map((p) => p.category))];
-  const grouped = categories.map((cat) => ({
-    name: cat,
-    items: planItems.filter((p) => p.category === cat),
-    done: planItems.filter((p) => p.category === cat && p.completed).length,
-    total: planItems.filter((p) => p.category === cat).length,
-  }));
-
-  function toggleItem(itemId: string) {
-    setPlanItems((prev) =>
-      prev.map((p) =>
-        p.id === itemId
-          ? { ...p, completed: !p.completed, completed_at: !p.completed ? new Date().toISOString() : undefined }
-          : p
-      )
+  function toggleItem(phaseId: string, itemId: string) {
+    setPlans((prev) =>
+      prev.map((plan) => {
+        if (plan.status !== "active") return plan;
+        return {
+          ...plan,
+          phases: plan.phases.map((phase) => {
+            if (phase.id !== phaseId) return phase;
+            return {
+              ...phase,
+              items: phase.items.map((item) =>
+                item.id === itemId
+                  ? { ...item, completed: !item.completed, completed_at: !item.completed ? new Date().toISOString() : undefined }
+                  : item
+              ),
+            };
+          }),
+        };
+      })
     );
   }
 
-  function toggleCategory(cat: string) {
-    setExpandedCategories((prev) => {
+  function togglePhase(phaseId: string) {
+    setExpandedPhases((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
+      if (next.has(phaseId)) next.delete(phaseId);
+      else next.add(phaseId);
       return next;
     });
+  }
+
+  function handleSavePlan(plan: BusinessPlan) {
+    setPlans((prev) => {
+      const exists = prev.find((p) => p.id === plan.id);
+      if (exists) {
+        return prev.map((p) => (p.id === plan.id ? plan : p));
+      }
+      return [...prev, plan];
+    });
+    setExpandedPhases(new Set(plan.phases.map((ph) => ph.id)));
+    setBuilderMode("closed");
+  }
+
+  function handleNewPlan() {
+    if (activePlan) {
+      setPlans((prev) =>
+        prev.map((p) =>
+          p.id === activePlan.id ? { ...p, status: "completed" as const, completed_at: new Date().toISOString() } : p
+        )
+      );
+    }
+    setBuilderMode("create");
   }
 
   // Week progress
@@ -136,7 +181,6 @@ export default function ClientDetailPage() {
   const now = new Date();
   const lastLoginDays = Math.floor((now.getTime() - new Date(client.last_login).getTime()) / (1000 * 60 * 60 * 24));
   const lastCheckinDays = Math.floor((now.getTime() - new Date(client.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
-  // Expected weekly check-ins: count how many weeks since start with no check-in
   const weeksSinceStart = Math.floor((now.getTime() - new Date(client.start_date).getTime()) / (1000 * 60 * 60 * 24 * 7));
   const expectedCheckins = weeksSinceStart;
   const actualCheckins = client.checkins.length;
@@ -295,95 +339,282 @@ export default function ClientDetailPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-heading font-bold text-text-primary">Business Plan</h2>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-24 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                <div
-                  className="h-full gradient-accent rounded-full transition-all duration-500"
-                  style={{ width: `${planPct}%` }}
-                />
-              </div>
-              <span className="text-xs text-accent-bright font-semibold">{planPct}%</span>
+              {activePlan ? (
+                <>
+                  <button
+                    onClick={() => setBuilderMode("edit")}
+                    className="px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit Plan
+                  </button>
+                  <button
+                    onClick={handleNewPlan}
+                    className="px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    New Plan
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setBuilderMode("create")}
+                  className="px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create Business Plan
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="space-y-3">
-            {grouped.map((group) => {
-              const isExpanded = expandedCategories.has(group.name);
-              const groupPct = Math.round((group.done / group.total) * 100);
-              const iconPath = categoryIcons[group.name] || categoryIcons["Standards & Quality"];
+          {activePlan ? (
+            <>
+              {/* Plan summary */}
+              <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-4 mb-3">
+                <p className="text-text-secondary text-sm leading-relaxed">{activePlan.summary}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="h-2 w-24 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full gradient-accent rounded-full transition-all duration-500"
+                      style={{ width: `${planPct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-accent-bright font-semibold">{planPct}%</span>
+                  <span className="text-[10px] text-text-muted">({planDone}/{planTotal} items)</span>
+                </div>
+              </div>
 
-              return (
-                <div key={group.name} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-                  <button
-                    onClick={() => toggleCategory(group.name)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={iconPath} />
-                        </svg>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-sm font-semibold text-text-primary">{group.name}</div>
-                        <div className="text-xs text-text-muted">{group.done}/{group.total} completed</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-16 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${groupPct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
-                            style={{ width: `${groupPct}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-text-muted w-8 text-right">{groupPct}%</span>
-                      </div>
-                      <svg
-                        className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              {/* Phases */}
+              <div className="space-y-3">
+                {activePlan.phases.map((phase) => {
+                  const isExpanded = expandedPhases.has(phase.id);
+                  const phaseDone = phase.items.filter((i) => i.completed).length;
+                  const phaseTotal = phase.items.length;
+                  const phasePct = phaseTotal > 0 ? Math.round((phaseDone / phaseTotal) * 100) : 0;
+                  const iconPath = getPhaseIcon(phase.name);
+
+                  return (
+                    <div key={phase.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
+                      <button
+                        onClick={() => togglePhase(phase.id)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={iconPath} />
+                            </svg>
+                          </div>
+                          <div className="text-left">
+                            <div className="text-sm font-semibold text-text-primary">{phase.name}</div>
+                            <div className="text-xs text-text-muted">{phaseDone}/{phaseTotal} completed</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-16 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${phasePct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
+                                style={{ width: `${phasePct}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-text-muted w-8 text-right">{phasePct}%</span>
+                          </div>
+                          <svg
+                            className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-3">
+                          {/* Phase notes */}
+                          {phase.notes && (
+                            <div className="py-3 border-b border-[rgba(255,255,255,0.03)] mb-1">
+                              <p className="text-xs text-text-muted leading-relaxed italic">{phase.notes}</p>
+                            </div>
+                          )}
+
+                          {/* Checklist items */}
+                          {phase.items.map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => toggleItem(phase.id, item.id)}
+                              className="w-full flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left group"
+                            >
+                              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                                item.completed
+                                  ? "bg-emerald-500 border-emerald-500"
+                                  : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
+                              }`}>
+                                {item.completed && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className={`text-sm transition-all duration-200 ${
+                                item.completed ? "text-text-muted line-through" : "text-text-secondary group-hover:text-text-primary"
+                              }`}>
+                                {item.title}
+                              </span>
+                              {item.completed && item.completed_at && (
+                                <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">
+                                  {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+
+                          {/* Linked trainings */}
+                          {phase.linked_trainings.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-[rgba(255,255,255,0.03)]">
+                              <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2 px-2">Linked Training</div>
+                              <div className="space-y-1">
+                                {phase.linked_trainings.map((contentId) => {
+                                  const info = getContentById(contentId);
+                                  if (!info) return null;
+                                  return (
+                                    <Link
+                                      key={contentId}
+                                      href={`/admin/training/${info.content.module_id}`}
+                                      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-accent/5 transition-colors no-underline group"
+                                    >
+                                      <div className="w-5 h-5 rounded bg-accent/10 flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-3 h-3 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      </div>
+                                      <div className="min-w-0">
+                                        <div className="text-xs text-text-secondary group-hover:text-text-primary transition-colors truncate">{info.content.title}</div>
+                                        <div className="text-[10px] text-text-muted">{info.moduleName}{info.content.duration_minutes ? ` - ${info.content.duration_minutes}m` : ""}</div>
+                                      </div>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Previous Plans */}
+              {completedPlans.length > 0 && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors mb-2"
+                  >
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Previous Plans ({completedPlans.length})
                   </button>
 
-                  {isExpanded && (
-                    <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-3">
-                      {group.items.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => toggleItem(item.id)}
-                          className="w-full flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left group"
-                        >
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                            item.completed
-                              ? "bg-emerald-500 border-emerald-500"
-                              : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
-                          }`}>
-                            {item.completed && (
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                  {showHistory && (
+                    <div className="space-y-3">
+                      {completedPlans.map((plan) => {
+                        const prevItems = plan.phases.flatMap((ph) => ph.items);
+                        const prevDone = prevItems.filter((i) => i.completed).length;
+                        const prevTotal = prevItems.length;
+                        return (
+                          <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl p-4 opacity-70">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-text-muted">
+                                {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
+                                Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
+                              </span>
+                            </div>
+                            <p className="text-xs text-text-muted leading-relaxed mb-2">{plan.summary}</p>
+                            <div className="text-[10px] text-text-muted">
+                              {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
+                            </div>
                           </div>
-                          <span className={`text-sm transition-all duration-200 ${
-                            item.completed ? "text-text-muted line-through" : "text-text-secondary group-hover:text-text-primary"
-                          }`}>
-                            {item.title}
-                          </span>
-                          {item.completed && item.completed_at && (
-                            <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">
-                              {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                            </span>
-                          )}
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-sm text-text-muted mb-4">No active business plan for this client.</p>
+              <button
+                onClick={() => setBuilderMode("create")}
+                className="px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Business Plan
+              </button>
+
+              {/* Show history even when no active plan */}
+              {completedPlans.length > 0 && (
+                <div className="mt-6 text-left">
+                  <button
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors mb-2"
+                  >
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Previous Plans ({completedPlans.length})
+                  </button>
+                  {showHistory && completedPlans.map((plan) => {
+                    const prevItems = plan.phases.flatMap((ph) => ph.items);
+                    const prevDone = prevItems.filter((i) => i.completed).length;
+                    const prevTotal = prevItems.length;
+                    return (
+                      <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl p-4 opacity-70 mt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-text-muted">
+                            {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
+                            Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
+                          </span>
+                        </div>
+                        <p className="text-xs text-text-muted leading-relaxed mb-2">{plan.summary}</p>
+                        <div className="text-[10px] text-text-muted">
+                          {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Check-in History */}
@@ -483,6 +714,16 @@ export default function ClientDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Business Plan Builder Modal */}
+      {builderMode !== "closed" && (
+        <BusinessPlanBuilder
+          clientId={client.id}
+          existingPlan={builderMode === "edit" ? activePlan : undefined}
+          onSave={handleSavePlan}
+          onCancel={() => setBuilderMode("closed")}
+        />
+      )}
     </>
   );
 }

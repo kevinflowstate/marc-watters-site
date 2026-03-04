@@ -115,8 +115,10 @@ export default function AdminDashboard() {
             {clients.map((client) => {
               const sl = statusLabel[client.status];
               const isExpanded = expandedClient === client.id;
-              const planTotal = client.business_plan.length;
-              const planDone = client.business_plan.filter((p) => p.completed).length;
+              const activePlan = client.business_plan.find((p) => p.status === "active");
+              const allItems = activePlan?.phases.flatMap((ph) => ph.items) || [];
+              const planTotal = allItems.length;
+              const planDone = allItems.filter((p) => p.completed).length;
               const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
 
               return (
