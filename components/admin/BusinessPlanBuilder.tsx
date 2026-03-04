@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { BusinessPlan, BusinessPlanPhase, BusinessPlanItem, TrainingModule } from "@/lib/types";
+import type { BusinessPlan, BusinessPlanPhase, BusinessPlanItem, TrainingModule, BusinessPlanFormConfig } from "@/lib/types";
 import TrainingPicker from "./TrainingPicker";
 
 interface BusinessPlanBuilderProps {
@@ -34,13 +34,21 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
   const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
   const [modules, setModules] = useState<TrainingModule[]>([]);
   const [contentLookup, setContentLookup] = useState<Map<string, { title: string }>>(new Map());
+  const [bpConfig, setBpConfig] = useState<BusinessPlanFormConfig | null>(null);
+  const [discoveryAnswers, setDiscoveryAnswers] = useState<Record<string, string>>(
+    existingPlan?.discovery_answers || {}
+  );
 
   useEffect(() => {
-    async function loadModules() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/admin/training");
-        if (res.ok) {
-          const data = await res.json();
+        const [trainingRes, configRes] = await Promise.all([
+          fetch("/api/admin/training"),
+          fetch("/api/admin/form-config?type=business_plan"),
+        ]);
+
+        if (trainingRes.ok) {
+          const data = await trainingRes.json();
           setModules(data.modules || []);
           const lookup = new Map<string, { title: string }>();
           for (const mod of data.modules || []) {
@@ -50,9 +58,14 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
           }
           setContentLookup(lookup);
         }
+
+        if (configRes.ok) {
+          const data = await configRes.json();
+          setBpConfig(data.config);
+        }
       } catch { /* ignore */ }
     }
-    loadModules();
+    loadData();
   }, []);
 
   const isEditing = !!existingPlan;
@@ -110,6 +123,7 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
       status: "active",
       created_at: existingPlan?.created_at || new Date().toISOString(),
       phases,
+      discovery_answers: Object.keys(discoveryAnswers).length > 0 ? discoveryAnswers : undefined,
     };
     onSave(plan);
   }
@@ -144,6 +158,29 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Discovery Questions */}
+          {bpConfig && bpConfig.questions.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                Discovery Questions
+              </label>
+              <div className="space-y-3">
+                {bpConfig.questions.map((q) => (
+                  <div key={q.id}>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">{q.label}</label>
+                    <textarea
+                      value={discoveryAnswers[q.id] || ""}
+                      onChange={(e) => setDiscoveryAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      rows={2}
+                      placeholder={q.placeholder}
+                      className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Summary */}
           <div>
             <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">

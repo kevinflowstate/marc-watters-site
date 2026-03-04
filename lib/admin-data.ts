@@ -152,6 +152,7 @@ export async function getClients(): Promise<AdminClient[]> {
       created_at: plan.created_at,
       completed_at: plan.completed_at,
       phases: phasesByPlan.get(plan.id) || [],
+      discovery_answers: plan.discovery_answers || undefined,
     });
     plansByClient.set(plan.client_id, list);
   }
@@ -295,6 +296,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     created_at: plan.created_at,
     completed_at: plan.completed_at,
     phases: phasesByPlan.get(plan.id) || [],
+    discovery_answers: plan.discovery_answers || undefined,
   }));
 
   const user = Array.isArray(p.user) ? p.user[0] : p.user;
@@ -368,6 +370,7 @@ export async function savePlan(plan: BusinessPlan): Promise<{ error?: string }> 
       status: plan.status,
       created_at: plan.created_at,
       completed_at: plan.completed_at || null,
+      discovery_answers: plan.discovery_answers || null,
     });
 
   if (planError) return { error: planError.message };

@@ -1,69 +1,78 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { CheckInMood } from "@/lib/types";
+import { useState, useEffect } from "react";
+import type { CheckinFormConfig } from "@/lib/types";
 
-const moods: { value: CheckInMood; label: string; color: string }[] = [
-  { value: "great", label: "Great", color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" },
-  { value: "good", label: "Good", color: "border-blue-500/30 bg-blue-500/10 text-blue-400" },
-  { value: "okay", label: "Okay", color: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
-  { value: "struggling", label: "Struggling", color: "border-red-500/30 bg-red-500/10 text-red-400" },
-];
+const moodColorMap: Record<string, string> = {
+  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  blue: "border-blue-500/30 bg-blue-500/10 text-blue-400",
+  amber: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+  red: "border-red-500/30 bg-red-500/10 text-red-400",
+};
 
 export default function CheckInPage() {
-  const [mood, setMood] = useState<CheckInMood | null>(null);
-  const [wins, setWins] = useState("");
-  const [challenges, setChallenges] = useState("");
-  const [questions, setQuestions] = useState("");
+  const [config, setConfig] = useState<CheckinFormConfig | null>(null);
+  const [mood, setMood] = useState<string | null>(null);
+  const [responses, setResponses] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch("/api/admin/form-config?type=checkin");
+        if (res.ok) {
+          const data = await res.json();
+          setConfig(data.config);
+        }
+      } catch {
+        // Fallback config if fetch fails
+        setConfig({
+          checkin_day: "monday",
+          mood_enabled: true,
+          mood_options: [
+            { value: "great", label: "Great", color: "emerald" },
+            { value: "good", label: "Good", color: "blue" },
+            { value: "okay", label: "Okay", color: "amber" },
+            { value: "struggling", label: "Struggling", color: "red" },
+          ],
+          questions: [
+            { id: "wins", label: "Wins this week", placeholder: "What went well? Any progress or breakthroughs?", type: "textarea", required: false },
+            { id: "challenges", label: "Challenges", placeholder: "What are you finding difficult or stuck on?", type: "textarea", required: false },
+            { id: "questions", label: "Questions for Marc", placeholder: "Anything you need help with or want to discuss?", type: "textarea", required: false },
+          ],
+        });
+      }
+    }
+    loadConfig();
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!mood) return;
+    if (config?.mood_enabled && !mood) return;
     setSubmitting(true);
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const res = await fetch("/api/portal/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood: mood || "good", responses }),
+      });
 
-    const { data: profile } = await supabase
-      .from("client_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+      if (res.ok) {
+        setSubmitted(true);
+      }
+    } catch {
+      // Silent fail - could add error state
+    }
 
-    if (!profile) return;
-
-    // Get current week number
-    const { data: lastCheckin } = await supabase
-      .from("checkins")
-      .select("week_number")
-      .eq("client_id", profile.id)
-      .order("week_number", { ascending: false })
-      .limit(1)
-      .single();
-
-    const weekNumber = (lastCheckin?.week_number || 0) + 1;
-
-    await supabase.from("checkins").insert({
-      client_id: profile.id,
-      week_number: weekNumber,
-      mood,
-      wins: wins || null,
-      challenges: challenges || null,
-      questions: questions || null,
-    });
-
-    // Update last checkin timestamp
-    await supabase
-      .from("client_profiles")
-      .update({ last_checkin: new Date().toISOString() })
-      .eq("id", profile.id);
-
-    setSubmitted(true);
     setSubmitting(false);
+  }
+
+  function resetForm() {
+    setSubmitted(false);
+    setMood(null);
+    setResponses({});
   }
 
   if (submitted) {
@@ -78,12 +87,20 @@ export default function CheckInPage() {
           <h2 className="text-2xl font-heading font-bold text-text-primary mb-2">Check-In Submitted</h2>
           <p className="text-text-secondary">Marc will review your check-in and respond shortly.</p>
           <button
-            onClick={() => { setSubmitted(false); setMood(null); setWins(""); setChallenges(""); setQuestions(""); }}
+            onClick={resetForm}
             className="mt-6 px-6 py-3 gradient-accent text-white rounded-xl text-sm font-medium"
           >
             Submit Another
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div className="max-w-2xl">
+        <div className="text-text-muted text-sm py-10">Loading check-in form...</div>
       </div>
     );
   }
@@ -97,63 +114,45 @@ export default function CheckInPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Mood */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-3">How are you feeling this week?</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {moods.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => setMood(m.value)}
-                className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-                  mood === m.value ? m.color : "border-[rgba(255,255,255,0.06)] text-text-muted hover:border-[rgba(255,255,255,0.12)]"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+        {config.mood_enabled && config.mood_options.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-3">How are you feeling this week?</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {config.mood_options.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setMood(m.value)}
+                  className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    mood === m.value
+                      ? (moodColorMap[m.color] || "border-accent/30 bg-accent/10 text-accent-bright")
+                      : "border-[rgba(255,255,255,0.06)] text-text-muted hover:border-[rgba(255,255,255,0.12)]"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Wins */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">Wins this week</label>
-          <textarea
-            value={wins}
-            onChange={(e) => setWins(e.target.value)}
-            rows={3}
-            placeholder="What went well? Any progress or breakthroughs?"
-            className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
-          />
-        </div>
-
-        {/* Challenges */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">Challenges</label>
-          <textarea
-            value={challenges}
-            onChange={(e) => setChallenges(e.target.value)}
-            rows={3}
-            placeholder="What are you finding difficult or stuck on?"
-            className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
-          />
-        </div>
-
-        {/* Questions */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">Questions for Marc</label>
-          <textarea
-            value={questions}
-            onChange={(e) => setQuestions(e.target.value)}
-            rows={3}
-            placeholder="Anything you need help with or want to discuss?"
-            className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
-          />
-        </div>
+        {/* Dynamic questions */}
+        {config.questions.map((q) => (
+          <div key={q.id}>
+            <label className="block text-sm font-medium text-text-primary mb-2">{q.label}</label>
+            <textarea
+              value={responses[q.id] || ""}
+              onChange={(e) => setResponses((prev) => ({ ...prev, [q.id]: e.target.value }))}
+              rows={3}
+              placeholder={q.placeholder}
+              className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
+            />
+          </div>
+        ))}
 
         <button
           type="submit"
-          disabled={!mood || submitting}
+          disabled={(config.mood_enabled && !mood) || submitting}
           className="w-full py-4 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
         >
           {submitting ? "Submitting..." : "Submit Check-In"}

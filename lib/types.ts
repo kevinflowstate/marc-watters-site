@@ -2,7 +2,7 @@ export type UserRole = 'client' | 'admin';
 export type TrafficLight = 'green' | 'amber' | 'red';
 export type ModuleStatus = 'locked' | 'in_progress' | 'completed';
 export type ContentType = 'video' | 'pdf' | 'text' | 'checklist';
-export type CheckInMood = 'great' | 'good' | 'okay' | 'struggling';
+export type CheckInMood = 'great' | 'good' | 'okay' | 'struggling' | string;
 
 export interface User {
   id: string;
@@ -87,6 +87,7 @@ export interface CheckIn {
   wins?: string;
   challenges?: string;
   questions?: string;
+  responses?: Record<string, string>;
   admin_reply?: string;
   replied_at?: string;
   created_at: string;
@@ -118,6 +119,7 @@ export interface BusinessPlan {
   created_at: string;
   completed_at?: string;
   phases: BusinessPlanPhase[];
+  discovery_answers?: Record<string, string>;
 }
 
 export interface DemoClient {
@@ -161,4 +163,30 @@ export interface CalendarEvent {
   link_label?: string;
   is_active: boolean;
   created_at: string;
+}
+
+// Form config types
+export interface FormQuestion {
+  id: string;
+  label: string;
+  placeholder: string;
+  type: 'textarea' | 'text';
+  required?: boolean;
+}
+
+export interface MoodOption {
+  value: string;
+  label: string;
+  color: string;
+}
+
+export interface CheckinFormConfig {
+  checkin_day: string;
+  mood_enabled: boolean;
+  mood_options: MoodOption[];
+  questions: FormQuestion[];
+}
+
+export interface BusinessPlanFormConfig {
+  questions: FormQuestion[];
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { AdminClient } from "@/lib/admin-data";
-import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase } from "@/lib/types";
+import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion } from "@/lib/types";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
 
 const glowClass: Record<TrafficLight, string> = {
@@ -57,6 +57,7 @@ function timeAgo(dateStr: string): string {
 
 export default function ClientDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [client, setClient] = useState<AdminClient | null>(null);
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<BusinessPlan[]>([]);
@@ -72,12 +73,18 @@ export default function ClientDetailPage() {
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [contentLookup, setContentLookup] = useState<Map<string, { title: string; moduleName: string; moduleId: string; duration?: number }>>(new Map());
+  const [checkinConfig, setCheckinConfig] = useState<CheckinFormConfig | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [revokeModalOpen, setRevokeModalOpen] = useState(false);
+  const [revokeConfirmText, setRevokeConfirmText] = useState("");
+  const [revoking, setRevoking] = useState(false);
 
   const loadClient = useCallback(async () => {
     try {
-      const [clientRes, trainingRes] = await Promise.all([
+      const [clientRes, trainingRes, configRes] = await Promise.all([
         fetch(`/api/admin/clients/${id}`),
         fetch("/api/admin/training"),
+        fetch("/api/admin/form-config?type=checkin"),
       ]);
 
       if (clientRes.ok) {
@@ -98,6 +105,11 @@ export default function ClientDetailPage() {
           }
         }
         setContentLookup(lookup);
+      }
+
+      if (configRes.ok) {
+        const cfgData = await configRes.json();
+        setCheckinConfig(cfgData.config);
       }
     } finally {
       setLoading(false);
@@ -274,12 +286,96 @@ export default function ClientDetailPage() {
               <p className="text-text-muted text-xs mt-0.5">{client.business_name} ({client.business_type})</p>
             </div>
           </div>
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${sc.bgClass} ${sc.textClass}`}>
-            <span className={`w-2 h-2 rounded-full ${sc.dotClass}`} />
-            {sc.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${sc.bgClass} ${sc.textClass}`}>
+              <span className={`w-2 h-2 rounded-full ${sc.dotClass}`} />
+              {sc.label}
+            </span>
+            <div className="relative">
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-secondary hover:bg-white/5 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              {settingsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-xl shadow-xl py-1 min-w-[180px]">
+                    <button
+                      onClick={() => { setSettingsOpen(false); setRevokeModalOpen(true); }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      Revoke Access
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Revoke Access Modal */}
+      {revokeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-heading font-bold text-text-primary">Revoke Client Access</h3>
+            </div>
+            <p className="text-sm text-text-secondary mb-4 leading-relaxed">
+              This will permanently remove <span className="text-text-primary font-semibold">{client.name}</span> and all their data (business plans, check-ins, training progress). This cannot be undone.
+            </p>
+            <input
+              type="text"
+              value={revokeConfirmText}
+              onChange={(e) => setRevokeConfirmText(e.target.value)}
+              placeholder='Type "confirm" to proceed'
+              className="w-full px-4 py-2.5 bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-red-500/50 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setRevokeModalOpen(false); setRevokeConfirmText(""); }}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={revokeConfirmText !== "confirm" || revoking}
+                onClick={async () => {
+                  setRevoking(true);
+                  try {
+                    const res = await fetch(`/api/admin/clients/${id}`, {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ user_id: client.user_id }),
+                    });
+                    if (res.ok) {
+                      router.push("/admin/clients");
+                    }
+                  } finally {
+                    setRevoking(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {revoking ? "Revoking..." : "Revoke Access"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status alert banner */}
       {client.status === "red" && (
@@ -850,23 +946,40 @@ export default function ClientDetailPage() {
                       <span className="text-xs text-text-muted">{timeAgo(c.created_at)}</span>
                     </div>
 
-                    {c.wins && (
-                      <div className="mb-2">
-                        <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Wins</span>
-                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.wins}</p>
-                      </div>
-                    )}
-                    {c.challenges && (
-                      <div className="mb-2">
-                        <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Challenges</span>
-                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.challenges}</p>
-                      </div>
-                    )}
-                    {c.questions && (
-                      <div className="mb-2">
-                        <span className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider">Questions</span>
-                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.questions}</p>
-                      </div>
+                    {c.responses && checkinConfig ? (
+                      /* Dynamic responses - render using config labels */
+                      checkinConfig.questions.map((q: FormQuestion) => {
+                        const answer = c.responses?.[q.id];
+                        if (!answer) return null;
+                        return (
+                          <div key={q.id} className="mb-2">
+                            <span className="text-[10px] text-text-muted font-semibold uppercase tracking-wider">{q.label}</span>
+                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{answer}</p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      /* Legacy format - backward compatibility */
+                      <>
+                        {c.wins && (
+                          <div className="mb-2">
+                            <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Wins</span>
+                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.wins}</p>
+                          </div>
+                        )}
+                        {c.challenges && (
+                          <div className="mb-2">
+                            <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Challenges</span>
+                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.challenges}</p>
+                          </div>
+                        )}
+                        {c.questions && (
+                          <div className="mb-2">
+                            <span className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider">Questions</span>
+                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.questions}</p>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     {c.admin_reply || sentReplies[c.id] ? (
