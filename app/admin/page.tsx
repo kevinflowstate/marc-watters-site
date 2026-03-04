@@ -80,7 +80,29 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6">
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-3 mb-8">
+        <Link
+          href="/admin/calendar"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.06)] rounded-xl text-sm font-medium text-text-primary hover:border-accent/30 hover:bg-accent/5 transition-all no-underline group"
+        >
+          <svg className="w-4 h-4 text-accent-bright group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Add To Calendar
+        </Link>
+        <Link
+          href="/admin/training"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.06)] rounded-xl text-sm font-medium text-text-primary hover:border-accent/30 hover:bg-accent/5 transition-all no-underline group"
+        >
+          <svg className="w-4 h-4 text-accent-bright group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Add New Training
+        </Link>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Compact client list with expandable detail */}
         <div>
           <div className="flex items-center justify-between mb-4">

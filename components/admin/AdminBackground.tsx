@@ -5,10 +5,10 @@ export default function AdminBackground() {
       <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="admin-grid" width="80" height="80" patternUnits="userSpaceOnUse">
-            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(34,114,222,0.025)" strokeWidth="0.5" />
+            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(34,114,222,0.05)" strokeWidth="0.5" />
           </pattern>
           <pattern id="admin-grid-minor" width="20" height="20" patternUnits="userSpaceOnUse">
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(34,114,222,0.012)" strokeWidth="0.5" />
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(34,114,222,0.025)" strokeWidth="0.5" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#admin-grid-minor)" />
@@ -16,7 +16,7 @@ export default function AdminBackground() {
       </svg>
 
       {/* Cog - top left */}
-      <svg className="absolute top-[8%] left-[5%] w-[120px] h-[120px] opacity-[0.06]" viewBox="0 0 120 120" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1">
+      <svg className="absolute top-[8%] left-[5%] w-[120px] h-[120px] opacity-[0.12]" viewBox="0 0 120 120" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1">
         <circle cx="60" cy="60" r="20" />
         <circle cx="60" cy="60" r="8" />
         {Array.from({ length: 12 }).map((_, i) => {
@@ -38,7 +38,7 @@ export default function AdminBackground() {
       </svg>
 
       {/* Cog - bottom right */}
-      <svg className="absolute bottom-[15%] right-[8%] w-[160px] h-[160px] opacity-[0.05]" viewBox="0 0 160 160" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1">
+      <svg className="absolute bottom-[15%] right-[8%] w-[160px] h-[160px] opacity-[0.10]" viewBox="0 0 160 160" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1">
         <circle cx="80" cy="80" r="28" />
         <circle cx="80" cy="80" r="12" />
         {Array.from({ length: 4 }).map((_, i) => {
@@ -51,14 +51,14 @@ export default function AdminBackground() {
       </svg>
 
       {/* Meshed small cog - near top left cog */}
-      <svg className="absolute top-[17%] left-[11%] w-[70px] h-[70px] opacity-[0.05]" viewBox="0 0 70 70" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="0.8">
+      <svg className="absolute top-[17%] left-[11%] w-[70px] h-[70px] opacity-[0.10]" viewBox="0 0 70 70" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="0.8">
         <circle cx="35" cy="35" r="12" />
         <circle cx="35" cy="35" r="5" />
         <path d={generateCogPath(35, 35, 18, 24, 8)} />
       </svg>
 
       {/* Pipe - horizontal mid-left */}
-      <svg className="absolute top-[45%] left-0 w-[300px] h-[40px] opacity-[0.04]" viewBox="0 0 300 40" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1.5">
+      <svg className="absolute top-[45%] left-0 w-[300px] h-[40px] opacity-[0.08]" viewBox="0 0 300 40" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1.5">
         <line x1="0" y1="15" x2="120" y2="15" />
         <line x1="0" y1="25" x2="120" y2="25" />
         <line x1="120" y1="15" x2="120" y2="5" />
@@ -77,7 +77,7 @@ export default function AdminBackground() {
       </svg>
 
       {/* Pipe - vertical right */}
-      <svg className="absolute top-[20%] right-[3%] w-[30px] h-[250px] opacity-[0.04]" viewBox="0 0 30 250" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1.5">
+      <svg className="absolute top-[20%] right-[3%] w-[30px] h-[250px] opacity-[0.08]" viewBox="0 0 30 250" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1.5">
         <line x1="10" y1="0" x2="10" y2="100" />
         <line x1="20" y1="0" x2="20" y2="100" />
         <rect x="6" y="95" width="18" height="10" rx="1" />
@@ -88,7 +88,7 @@ export default function AdminBackground() {
       </svg>
 
       {/* I-beam - center-left */}
-      <svg className="absolute top-[65%] left-[15%] w-[50px] h-[60px] opacity-[0.04] rotate-12" viewBox="0 0 50 60" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="0.8">
+      <svg className="absolute top-[65%] left-[15%] w-[50px] h-[60px] opacity-[0.08] rotate-12" viewBox="0 0 50 60" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="0.8">
         <path d="M5 5 L45 5 L45 12 L30 12 L30 48 L45 48 L45 55 L5 55 L5 48 L20 48 L20 12 L5 12 Z" />
       </svg>
 
@@ -105,7 +105,7 @@ export default function AdminBackground() {
       ].map((bolt, i) => (
         <svg
           key={i}
-          className="absolute opacity-[0.05]"
+          className="absolute opacity-[0.10]"
           style={{ left: bolt.x, top: bolt.y, width: bolt.s * 2, height: bolt.s * 2 }}
           viewBox="0 0 24 24"
           fill="none"
@@ -118,7 +118,7 @@ export default function AdminBackground() {
       ))}
 
       {/* Dimension line - bottom */}
-      <svg className="absolute bottom-[8%] left-[30%] w-[200px] h-[20px] opacity-[0.04]" viewBox="0 0 200 20" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="0.5">
+      <svg className="absolute bottom-[8%] left-[30%] w-[200px] h-[20px] opacity-[0.08]" viewBox="0 0 200 20" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="0.5">
         <line x1="5" y1="10" x2="195" y2="10" />
         <line x1="5" y1="3" x2="5" y2="17" />
         <line x1="195" y1="3" x2="195" y2="17" />
@@ -127,8 +127,8 @@ export default function AdminBackground() {
       </svg>
 
       {/* Radial glow accents */}
-      <div className="absolute top-[10%] right-[15%] w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(34,114,222,0.03)_0%,transparent_70%)]" />
-      <div className="absolute bottom-[20%] left-[10%] w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,rgba(34,114,222,0.025)_0%,transparent_70%)]" />
+      <div className="absolute top-[10%] right-[15%] w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(34,114,222,0.06)_0%,transparent_70%)]" />
+      <div className="absolute bottom-[20%] left-[10%] w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,rgba(34,114,222,0.05)_0%,transparent_70%)]" />
     </div>
   );
 }
