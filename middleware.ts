@@ -5,10 +5,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 const PREVIEW_MODE = true;
 
 export async function middleware(request: NextRequest) {
-  if (PREVIEW_MODE) {
-    return NextResponse.next({ request });
-  }
-
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -20,7 +16,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({ request });
@@ -32,9 +28,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Always refresh the session so API routes can read auth
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // In preview mode, skip auth enforcement but session is still refreshed
+  if (PREVIEW_MODE) {
+    return supabaseResponse;
+  }
 
   const path = request.nextUrl.pathname;
 
