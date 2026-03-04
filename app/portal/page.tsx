@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getNextUpcomingEvent } from "@/lib/demo-calendar";
-import type { ClientProfile, ClientModule, CheckIn } from "@/lib/types";
+import type { ClientProfile, ClientModule, CheckIn, CalendarEvent } from "@/lib/types";
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -25,6 +24,52 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
       />
     </div>
   );
+}
+
+function getNextOccurrence(event: CalendarEvent): Date | null {
+  const now = new Date();
+
+  if (event.recurrence === "none") {
+    const d = new Date(event.event_date);
+    return d > now ? d : null;
+  }
+
+  const [hours, minutes] = event.event_time.split(":").map(Number);
+  const targetDay = event.recurrence_day ?? 0;
+
+  const next = new Date(now);
+  next.setHours(hours, minutes, 0, 0);
+
+  const currentDay = next.getDay();
+  let daysUntil = targetDay - currentDay;
+  if (daysUntil < 0 || (daysUntil === 0 && next <= now)) {
+    daysUntil += 7;
+  }
+  next.setDate(next.getDate() + daysUntil);
+
+  if (event.recurrence === "biweekly") {
+    const start = new Date(event.event_date);
+    const weeksDiff = Math.floor((next.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    if (weeksDiff % 2 !== 0) {
+      next.setDate(next.getDate() + 7);
+    }
+  }
+
+  if (event.recurrence === "monthly") {
+    let candidate = new Date(next);
+    for (let i = 0; i < 12; i++) {
+      const month = (now.getMonth() + i) % 12;
+      const year = now.getFullYear() + Math.floor((now.getMonth() + i) / 12);
+      const first = new Date(year, month, 1, hours, minutes, 0, 0);
+      let dayDiff = targetDay - first.getDay();
+      if (dayDiff < 0) dayDiff += 7;
+      candidate = new Date(year, month, 1 + dayDiff, hours, minutes, 0, 0);
+      if (candidate > now) return candidate;
+    }
+    return candidate;
+  }
+
+  return next;
 }
 
 export default function PortalDashboard() {
@@ -140,9 +185,43 @@ export default function PortalDashboard() {
 }
 
 function NextEventCard() {
-  const upcoming = getNextUpcomingEvent();
+  const [event, setEvent] = useState<CalendarEvent | null>(null);
+  const [nextDate, setNextDate] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!upcoming) {
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/calendar");
+        if (res.ok) {
+          const data = await res.json();
+          const events: CalendarEvent[] = data.events;
+
+          let earliest: { event: CalendarEvent; date: Date } | null = null;
+          for (const evt of events) {
+            const nd = getNextOccurrence(evt);
+            if (nd && (!earliest || nd < earliest.date)) {
+              earliest = { event: evt, date: nd };
+            }
+          }
+
+          if (earliest) {
+            setEvent(earliest.event);
+            setNextDate(earliest.date);
+          }
+        }
+      } catch {
+        // Silently fail
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) return null;
+
+  if (!event || !nextDate) {
     return (
       <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-8">
         <div className="flex items-center gap-3">
@@ -157,7 +236,6 @@ function NextEventCard() {
     );
   }
 
-  const { event, nextDate } = upcoming;
   const dayName = nextDate.toLocaleDateString("en-GB", { weekday: "long" });
   const [h, m] = event.event_time.split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
@@ -168,7 +246,7 @@ function NextEventCard() {
     weekly: `Every ${dayName}`,
     biweekly: `Every other ${dayName}`,
     monthly: `Monthly`,
-    none: formatFullDate(nextDate),
+    none: nextDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
   };
 
   return (
@@ -205,8 +283,4 @@ function NextEventCard() {
       </div>
     </div>
   );
-}
-
-function formatFullDate(date: Date): string {
-  return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }

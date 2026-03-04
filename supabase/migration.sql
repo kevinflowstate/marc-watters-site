@@ -268,3 +268,30 @@ DROP TRIGGER IF EXISTS on_user_created ON public.users;
 CREATE TRIGGER on_user_created
   AFTER INSERT ON public.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_client();
+
+-- ============================================
+-- CALENDAR EVENTS
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS public.calendar_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  event_date TIMESTAMPTZ NOT NULL,
+  event_time TEXT NOT NULL,
+  recurrence TEXT NOT NULL DEFAULT 'none',
+  recurrence_day INTEGER,
+  link TEXT,
+  link_label TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read events" ON public.calendar_events
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Service role full access" ON public.calendar_events
+  FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
