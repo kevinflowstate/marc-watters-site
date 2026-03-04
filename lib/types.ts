@@ -127,3 +127,19 @@ export interface Notification {
   link?: string;
   created_at: string;
 }
+
+export type RecurrenceType = 'none' | 'weekly' | 'biweekly' | 'monthly';
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  event_date: string;
+  event_time: string;
+  recurrence: RecurrenceType;
+  recurrence_day?: number;
+  link?: string;
+  link_label?: string;
+  is_active: boolean;
+  created_at: string;
+}
