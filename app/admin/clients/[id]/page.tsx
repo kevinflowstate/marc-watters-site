@@ -67,6 +67,13 @@ export default function ClientDetailPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [expandedHistoryPlan, setExpandedHistoryPlan] = useState<string | null>(null);
   const [builderMode, setBuilderMode] = useState<"closed" | "create" | "edit">("closed");
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [internalNotes, setInternalNotes] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(`internal-notes-${id}`) || "";
+    }
+    return "";
+  });
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
@@ -330,6 +337,52 @@ export default function ClientDetailPage() {
           <p className="text-text-secondary text-sm leading-relaxed">{client.goals}</p>
         </div>
       )}
+
+      {/* Internal Notes */}
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl mb-6 overflow-hidden">
+        <button
+          onClick={() => setNotesOpen(!notesOpen)}
+          className="w-full flex items-center justify-between p-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div className="text-left">
+              <h2 className="text-sm font-heading font-bold text-text-primary">Internal Notes</h2>
+              <p className="text-[10px] text-text-muted">Private - never visible to the client</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {internalNotes.trim() && !notesOpen && (
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+            )}
+            <svg
+              className={`w-4 h-4 text-text-muted transition-transform duration-200 ${notesOpen ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+        {notesOpen && (
+          <div className="px-5 pb-5 border-t border-[rgba(255,255,255,0.03)]">
+            <textarea
+              value={internalNotes}
+              onChange={(e) => {
+                setInternalNotes(e.target.value);
+                localStorage.setItem(`internal-notes-${id}`, e.target.value);
+              }}
+              rows={4}
+              placeholder="Add private notes about this client... e.g. follow-up items, context for next session, personal circumstances"
+              className="w-full mt-3 bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-y"
+            />
+            <p className="text-[10px] text-text-muted mt-1.5">Auto-saved as you type</p>
+          </div>
+        )}
+      </div>
 
       <div className="grid lg:grid-cols-[1.3fr_1fr] gap-6">
         {/* Business Plan */}
