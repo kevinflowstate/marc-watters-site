@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getClientsSorted } from "@/lib/demo-data";
+import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight } from "@/lib/types";
 
 const glowClass: Record<TrafficLight, string> = {
@@ -30,8 +30,32 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function ClientsPage() {
-  const allClients = getClientsSorted();
+  const [allClients, setAllClients] = useState<AdminClient[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TrafficLight | "all">("all");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/clients");
+        if (res.ok) {
+          const data = await res.json();
+          setAllClients(data.clients || []);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-text-muted text-sm">Loading clients...</div>
+      </div>
+    );
+  }
 
   const filtered = filter === "all" ? allClients : allClients.filter((c) => c.status === filter);
 

@@ -1,18 +1,31 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getDemoModules } from "@/lib/demo-training";
+import type { TrainingModule } from "@/lib/types";
 
 interface TrainingPickerProps {
   selectedIds: string[];
   onToggle: (id: string) => void;
+  modules?: TrainingModule[];
 }
 
-export default function TrainingPicker({ selectedIds, onToggle }: TrainingPickerProps) {
+export default function TrainingPicker({ selectedIds, onToggle, modules: modulesProp }: TrainingPickerProps) {
   const [open, setOpen] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [fetchedModules, setFetchedModules] = useState<TrainingModule[]>([]);
   const ref = useRef<HTMLDivElement>(null);
-  const modules = getDemoModules();
+
+  // Use prop if provided, otherwise fetch
+  useEffect(() => {
+    if (!modulesProp) {
+      fetch("/api/admin/training")
+        .then((r) => r.ok ? r.json() : { modules: [] })
+        .then((d) => setFetchedModules(d.modules || []))
+        .catch(() => {});
+    }
+  }, [modulesProp]);
+
+  const modules = modulesProp || fetchedModules;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import type { BusinessPlan, BusinessPlanPhase, BusinessPlanItem } from "@/lib/types";
+import { useState, useEffect } from "react";
+import type { BusinessPlan, BusinessPlanPhase, BusinessPlanItem, TrainingModule } from "@/lib/types";
 import TrainingPicker from "./TrainingPicker";
-import { getContentById } from "@/lib/demo-training";
 
 interface BusinessPlanBuilderProps {
   clientId: string;
@@ -33,6 +32,28 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
     existingPlan?.phases.length ? existingPlan.phases : [createEmptyPhase(0)]
   );
   const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
+  const [modules, setModules] = useState<TrainingModule[]>([]);
+  const [contentLookup, setContentLookup] = useState<Map<string, { title: string }>>(new Map());
+
+  useEffect(() => {
+    async function loadModules() {
+      try {
+        const res = await fetch("/api/admin/training");
+        if (res.ok) {
+          const data = await res.json();
+          setModules(data.modules || []);
+          const lookup = new Map<string, { title: string }>();
+          for (const mod of data.modules || []) {
+            for (const c of mod.content || []) {
+              lookup.set(c.id, { title: c.title });
+            }
+          }
+          setContentLookup(lookup);
+        }
+      } catch { /* ignore */ }
+    }
+    loadModules();
+  }, []);
 
   const isEditing = !!existingPlan;
 
@@ -236,19 +257,20 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
                       <TrainingPicker
                         selectedIds={phase.linked_trainings}
                         onToggle={(id) => toggleTraining(phase.id, id)}
+                        modules={modules}
                       />
                     </div>
                     {phase.linked_trainings.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         {phase.linked_trainings.map((id) => {
-                          const info = getContentById(id);
+                          const info = contentLookup.get(id);
                           if (!info) return null;
                           return (
                             <span
                               key={id}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-accent/10 border border-accent/15 rounded-lg text-[10px] text-text-secondary"
                             >
-                              <span className="truncate max-w-[160px]">{info.content.title}</span>
+                              <span className="truncate max-w-[160px]">{info.title}</span>
                               <button
                                 type="button"
                                 onClick={() => toggleTraining(phase.id, id)}

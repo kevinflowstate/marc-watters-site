@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getClientsSorted, getAllRecentCheckins } from "@/lib/demo-data";
-import type { TrafficLight, CheckInMood } from "@/lib/types";
+import type { AdminClient } from "@/lib/admin-data";
+import type { TrafficLight, CheckInMood, CheckIn } from "@/lib/types";
 
 const glowClass: Record<TrafficLight, string> = {
   green: "glow-green",
@@ -37,9 +37,45 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function AdminDashboard() {
-  const clients = getClientsSorted();
-  const recentCheckins = getAllRecentCheckins();
+  const [clients, setClients] = useState<AdminClient[]>([]);
+  const [recentCheckins, setRecentCheckins] = useState<EnrichedCheckin[]>([]);
+  const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/clients");
+        if (res.ok) {
+          const data = await res.json();
+          setClients(data.clients || []);
+          // Build recent checkins from client data
+          const checkins = (data.clients || []).flatMap((c: AdminClient) =>
+            c.checkins.map((ck: CheckIn) => ({
+              ...ck,
+              client_name: c.name,
+              client_business: c.business_name,
+              client_status: c.status,
+            }))
+          ).sort((a: EnrichedCheckin, b: EnrichedCheckin) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setRecentCheckins(checkins);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-text-muted text-sm">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   const greenCount = clients.filter((c) => c.status === "green").length;
   const amberCount = clients.filter((c) => c.status === "amber").length;
@@ -218,7 +254,21 @@ export default function AdminDashboard() {
 
 // --- Check-Ins Panel with weekly grouping + expandable items + reply ---
 
-type EnrichedCheckin = ReturnType<typeof getAllRecentCheckins>[number];
+interface EnrichedCheckin {
+  id: string;
+  client_id: string;
+  week_number: number;
+  mood: CheckInMood;
+  wins?: string;
+  challenges?: string;
+  questions?: string;
+  admin_reply?: string;
+  replied_at?: string;
+  created_at: string;
+  client_name: string;
+  client_business: string;
+  client_status: TrafficLight;
+}
 
 function getWeekBucket(dateStr: string): "this_week" | "last_week" | "earlier" {
   const now = new Date();

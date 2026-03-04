@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getClientById } from "@/lib/demo-data";
-import { getContentById } from "@/lib/demo-training";
+import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase } from "@/lib/types";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
 
@@ -58,26 +57,54 @@ function timeAgo(dateStr: string): string {
 
 export default function ClientDetailPage() {
   const { id } = useParams();
-  const client = getClientById(id as string);
-  const [plans, setPlans] = useState<BusinessPlan[]>(client?.business_plan || []);
-  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set(
-    // Expand all phases of the active plan by default
-    plans.find((p) => p.status === "active")?.phases.map((ph) => ph.id) || []
-  ));
+  const [client, setClient] = useState<AdminClient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState<BusinessPlan[]>([]);
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [expandedHistoryPlan, setExpandedHistoryPlan] = useState<string | null>(null);
   const [builderMode, setBuilderMode] = useState<"closed" | "create" | "edit">("closed");
   const [notesOpen, setNotesOpen] = useState(false);
-  const [internalNotes, setInternalNotes] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(`internal-notes-${id}`) || "";
-    }
-    return "";
-  });
+  const [internalNotes, setInternalNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [contentLookup, setContentLookup] = useState<Map<string, { title: string; moduleName: string; moduleId: string; duration?: number }>>(new Map());
+
+  const loadClient = useCallback(async () => {
+    try {
+      const [clientRes, trainingRes] = await Promise.all([
+        fetch(`/api/admin/clients/${id}`),
+        fetch("/api/admin/training"),
+      ]);
+
+      if (clientRes.ok) {
+        const data = await clientRes.json();
+        setClient(data.client);
+        setPlans(data.client?.business_plan || []);
+        const activePlan = (data.client?.business_plan || []).find((p: BusinessPlan) => p.status === "active");
+        setExpandedPhases(new Set(activePlan?.phases.map((ph: BusinessPlanPhase) => ph.id) || []));
+        setInternalNotes(data.client?.internal_notes || "");
+      }
+
+      if (trainingRes.ok) {
+        const tData = await trainingRes.json();
+        const lookup = new Map<string, { title: string; moduleName: string; moduleId: string; duration?: number }>();
+        for (const mod of tData.modules || []) {
+          for (const c of mod.content || []) {
+            lookup.set(c.id, { title: c.title, moduleName: mod.title, moduleId: mod.id, duration: c.duration_minutes });
+          }
+        }
+        setContentLookup(lookup);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { loadClient(); }, [loadClient]);
 
   async function handleReply(checkinId: string) {
     const text = replyTexts[checkinId];
@@ -106,6 +133,14 @@ export default function ClientDetailPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-text-muted text-sm">Loading client...</div>
+      </div>
+    );
+  }
+
   if (!client) {
     return (
       <div className="text-text-muted">
@@ -127,7 +162,8 @@ export default function ClientDetailPage() {
   const planDone = allItems.filter((p) => p.completed).length;
   const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
 
-  function toggleItem(phaseId: string, itemId: string) {
+  async function toggleItem(phaseId: string, itemId: string) {
+    // Optimistic update
     setPlans((prev) =>
       prev.map((plan) => {
         if (plan.status !== "active") return plan;
@@ -147,6 +183,8 @@ export default function ClientDetailPage() {
         };
       })
     );
+    // Persist
+    await fetch(`/api/admin/plan-items/${itemId}`, { method: "PATCH" });
   }
 
   function togglePhase(phaseId: string) {
@@ -158,24 +196,42 @@ export default function ClientDetailPage() {
     });
   }
 
-  function handleSavePlan(plan: BusinessPlan) {
-    setPlans((prev) => {
-      const exists = prev.find((p) => p.id === plan.id);
-      if (exists) {
-        // Editing existing plan
-        return prev.map((p) => (p.id === plan.id ? plan : p));
-      }
-      // New plan - mark any active plan as completed
-      return prev.map((p) =>
-        p.status === "active" ? { ...p, status: "completed" as const, completed_at: new Date().toISOString() } : p
-      ).concat(plan);
+  async function handleSavePlan(plan: BusinessPlan) {
+    // If new plan, mark any active plan as completed first
+    const existingActive = plans.find((p) => p.status === "active" && p.id !== plan.id);
+    if (existingActive && !plans.find((p) => p.id === plan.id)) {
+      await fetch("/api/admin/business-plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", plan_id: existingActive.id }),
+      });
+    }
+
+    // Save the plan
+    await fetch("/api/admin/business-plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan }),
     });
-    setExpandedPhases(new Set(plan.phases.map((ph) => ph.id)));
+
+    // Refresh data
+    await loadClient();
     setBuilderMode("closed");
   }
 
   function handleNewPlan() {
     setBuilderMode("create");
+  }
+
+  async function saveNotes() {
+    if (!client) return;
+    setNotesSaving(true);
+    await fetch(`/api/admin/internal-notes/${client.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: internalNotes }),
+    });
+    setNotesSaving(false);
   }
 
   // Week progress
@@ -371,15 +427,20 @@ export default function ClientDetailPage() {
           <div className="px-5 pb-5 border-t border-[rgba(255,255,255,0.03)]">
             <textarea
               value={internalNotes}
-              onChange={(e) => {
-                setInternalNotes(e.target.value);
-                localStorage.setItem(`internal-notes-${id}`, e.target.value);
-              }}
+              onChange={(e) => setInternalNotes(e.target.value)}
               rows={4}
               placeholder="Add private notes about this client... e.g. follow-up items, context for next session, personal circumstances"
               className="w-full mt-3 bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-y"
             />
-            <p className="text-[10px] text-text-muted mt-1.5">Auto-saved as you type</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <button
+                onClick={saveNotes}
+                disabled={notesSaving}
+                className="text-[10px] font-medium text-accent-bright hover:text-accent-light transition-colors disabled:opacity-50"
+              >
+                {notesSaving ? "Saving..." : "Save Notes"}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -533,12 +594,12 @@ export default function ClientDetailPage() {
                               <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2 px-2">Linked Training</div>
                               <div className="space-y-1">
                                 {phase.linked_trainings.map((contentId) => {
-                                  const info = getContentById(contentId);
+                                  const info = contentLookup.get(contentId);
                                   if (!info) return null;
                                   return (
                                     <Link
                                       key={contentId}
-                                      href={`/admin/training/${info.content.module_id}`}
+                                      href={`/admin/training/${info.moduleId}`}
                                       className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-accent/5 transition-colors no-underline group"
                                     >
                                       <div className="w-5 h-5 rounded bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -548,8 +609,8 @@ export default function ClientDetailPage() {
                                         </svg>
                                       </div>
                                       <div className="min-w-0">
-                                        <div className="text-xs text-text-secondary group-hover:text-text-primary transition-colors truncate">{info.content.title}</div>
-                                        <div className="text-[10px] text-text-muted">{info.moduleName}{info.content.duration_minutes ? ` - ${info.content.duration_minutes}m` : ""}</div>
+                                        <div className="text-xs text-text-secondary group-hover:text-text-primary transition-colors truncate">{info.title}</div>
+                                        <div className="text-[10px] text-text-muted">{info.moduleName}{info.duration ? ` - ${info.duration}m` : ""}</div>
                                       </div>
                                     </Link>
                                   );

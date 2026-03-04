@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getDemoModuleById } from "@/lib/demo-training";
-import type { ModuleContent, Attachment, ContentType } from "@/lib/types";
+import type { TrainingModule, ModuleContent, Attachment, ContentType } from "@/lib/types";
 
 const attachmentIcons: Record<string, { icon: string; color: string }> = {
   pdf: { icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", color: "text-red-400 bg-red-500/10" },
@@ -32,16 +31,17 @@ function getVideoEmbed(url: string): { type: "youtube" | "vimeo" | "unknown"; em
 
 export default function ModuleEditorPage() {
   const { id } = useParams();
-  const module = getDemoModuleById(id as string);
+  const [module, setModule] = useState<TrainingModule | null>(null);
+  const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [moduleTitle, setModuleTitle] = useState(module?.title || "");
-  const [moduleDesc, setModuleDesc] = useState(module?.description || "");
+  const [moduleTitle, setModuleTitle] = useState("");
+  const [moduleDesc, setModuleDesc] = useState("");
   const [editingDesc, setEditingDesc] = useState(false);
-  const [coverUrl, setCoverUrl] = useState(module?.thumbnail_url || "");
+  const [coverUrl, setCoverUrl] = useState("");
   const [editingCover, setEditingCover] = useState(false);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
   const [showAddLesson, setShowAddLesson] = useState(false);
-  const [isPublished, setIsPublished] = useState(module?.is_published || false);
+  const [isPublished, setIsPublished] = useState(false);
 
   // New lesson form state
   const [newTitle, setNewTitle] = useState("");
@@ -49,6 +49,36 @@ export default function ModuleEditorPage() {
   const [newUrl, setNewUrl] = useState("");
   const [newDuration, setNewDuration] = useState("");
   const [newDescription, setNewDescription] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/training");
+        if (res.ok) {
+          const data = await res.json();
+          const found = (data.modules || []).find((m: TrainingModule) => m.id === id);
+          if (found) {
+            setModule(found);
+            setModuleTitle(found.title);
+            setModuleDesc(found.description);
+            setCoverUrl(found.thumbnail_url || "");
+            setIsPublished(found.is_published);
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-text-muted text-sm">Loading module...</div>
+      </div>
+    );
+  }
 
   if (!module) {
     return (

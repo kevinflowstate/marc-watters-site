@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getDemoModules } from "@/lib/demo-training";
 import type { TrainingModule } from "@/lib/types";
 
 const moduleColors = [
@@ -24,13 +23,37 @@ const moduleIcons = [
 ];
 
 export default function TrainingManagerPage() {
-  const modules = getDemoModules();
+  const [modules, setModules] = useState<TrainingModule[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/training");
+        if (res.ok) {
+          const data = await res.json();
+          setModules(data.modules || []);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
   const publishedCount = modules.filter((m) => m.is_published).length;
   const totalLessons = modules.reduce((sum, m) => sum + (m.content?.length || 0), 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-text-muted text-sm">Loading training modules...</div>
+      </div>
+    );
+  }
 
   return (
     <>
