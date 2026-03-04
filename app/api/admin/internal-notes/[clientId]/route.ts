@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-auth";
 import { getInternalNotes, saveInternalNotes } from "@/lib/admin-data";
 import { NextResponse } from "next/server";
 
@@ -6,22 +6,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { clientId } = await params;
   const content = await getInternalNotes(clientId);
@@ -32,22 +18,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { clientId } = await params;
   const { content } = await request.json();
