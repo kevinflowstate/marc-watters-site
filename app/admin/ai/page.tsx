@@ -123,7 +123,7 @@ export default function AdminBlueprintAIPage() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-card p-4 space-y-4 mb-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 mb-4">
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
@@ -201,7 +201,7 @@ export default function AdminBlueprintAIPage() {
           onKeyDown={handleKeyDown}
           placeholder="Ask Blueprint AI..."
           rows={1}
-          className="w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.06)] bg-bg-card px-4 py-3.5 pr-12 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors"
+          className="w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-4 py-3.5 pr-12 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors"
           style={{ minHeight: "48px", maxHeight: "120px" }}
         />
         <button
