@@ -129,7 +129,8 @@ export default function PortalDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <NextEventCard />
         {newModules.length > 0 && (
-          <div className="bg-bg-card border border-emerald-500/10 rounded-2xl p-5">
+          <div className="group relative bg-bg-card border border-emerald-500/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/20 hover:shadow-[0_2px_12px_rgba(16,185,129,0.04)]">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[length:4px_4px]" />
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,32 +158,29 @@ export default function PortalDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Plan Progress</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{planPct}%</div>
-          <div className="text-text-secondary text-sm mt-1">{completedPlanItems}/{totalPlanItems} actions done</div>
-        </div>
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Current Week</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">Week {currentWeek || "-"}</div>
-        </div>
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Trainings</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{completedModules}/{totalModules}</div>
-          <div className="text-text-secondary text-sm mt-1">{totalModules > 0 ? `${Math.round((completedModules / totalModules) * 100)}% complete` : "None assigned"}</div>
-        </div>
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Status</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">
-            {profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-"}
+        {[
+          { label: "Plan Progress", value: `${planPct}%`, sub: `${completedPlanItems}/${totalPlanItems} actions done` },
+          { label: "Current Week", value: `Week ${currentWeek || "-"}` },
+          { label: "Trainings", value: `${completedModules}/${totalModules}`, sub: totalModules > 0 ? `${Math.round((completedModules / totalModules) * 100)}% complete` : "None assigned" },
+          { label: "Status", value: profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-" },
+        ].map((stat, i) => (
+          <div key={i} className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px]" />
+            <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="text-text-muted text-xs uppercase tracking-wider mb-2">{stat.label}</div>
+              <div className="text-2xl font-heading font-bold text-text-primary">{stat.value}</div>
+              {stat.sub && <div className="text-text-secondary text-sm mt-1">{stat.sub}</div>}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Business Plan Summary */}
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+        <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px]" />
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-heading font-bold text-text-primary">Business Plan</h2>
             <Link href="/portal/plan" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
@@ -222,7 +220,8 @@ export default function PortalDashboard() {
         </div>
 
         {/* Check-ins */}
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+        <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px]" />
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-heading font-bold text-text-primary">Check-Ins</h2>
             {isCheckinToday ? (
@@ -349,10 +348,11 @@ function NextEventCard() {
   const recurrenceText: Record<string, string> = { weekly: `Every ${dayName}`, biweekly: `Every other ${dayName}`, monthly: "Monthly", none: nextDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) };
 
   return (
-    <div className="bg-bg-card border border-accent/10 rounded-2xl p-5">
-      <div className="flex items-center justify-between">
+    <div className="group relative bg-bg-card border border-accent/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-[0_2px_12px_rgba(34,114,222,0.06)]">
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(34,114,222,0.03)_1px,transparent_1px)] bg-[length:4px_4px]" />
+      <div className="relative flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center group-hover:bg-accent/15 transition-colors duration-300">
             <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>

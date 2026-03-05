@@ -139,7 +139,11 @@ export default function ModuleView() {
           const isCompleted = progress[lesson.id];
 
           return (
-            <div key={lesson.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-200 hover:border-[rgba(255,255,255,0.08)]">
+            <div key={lesson.id} className="group/lesson relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(34,114,222,0.15)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.2),0_0_30px_rgba(34,114,222,0.04)] will-change-transform">
+                {/* Bento dot pattern */}
+                <div className="absolute inset-0 opacity-0 group-hover/lesson:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
+                {/* Bento gradient border */}
+                <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover/lesson:opacity-100 transition-opacity duration-300 pointer-events-none" />
               {/* Lesson row */}
               <button
                 onClick={() => setExpandedLesson(isExpanded ? null : lesson.id)}
