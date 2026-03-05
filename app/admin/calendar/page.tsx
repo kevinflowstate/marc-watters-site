@@ -121,7 +121,26 @@ export default function AdminCalendarPage() {
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   if (loading) {
-    return <div className="text-text-muted text-sm">Loading events...</div>;
+    return (
+      <>
+        <div className="mb-8">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-48 mb-2" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-64" />
+        </div>
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 flex items-start gap-4">
+              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-xl w-12 h-12" />
+              <div className="flex-1 space-y-2">
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-48" />
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-36" />
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-64" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
   }
 
   return (
@@ -135,7 +154,7 @@ export default function AdminCalendarPage() {
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="px-5 py-3 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2"
+          className="px-5 py-3 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -224,9 +243,10 @@ function EventCard({ event, onToggleActive, onDelete }: {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   return (
-    <div className={`bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 transition-all duration-200 ${
-      event.is_active ? "border-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.08)]" : "border-[rgba(255,255,255,0.02)] opacity-60"
+    <div className={`group relative bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 will-change-transform ${
+      event.is_active ? "border-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.2)]" : "border-[rgba(255,255,255,0.02)] opacity-60"
     }`}>
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
       <div className="flex items-start gap-4">
         <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
           <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,7 +296,7 @@ function EventCard({ event, onToggleActive, onDelete }: {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => onToggleActive(event.id, event.is_active)}
-            className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition-all ${
+            className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition-all cursor-pointer ${
               event.is_active
                 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
                 : "bg-white/10 text-white/60 border border-white/10 hover:border-white/20"

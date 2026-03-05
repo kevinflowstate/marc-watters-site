@@ -51,9 +51,28 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-text-muted text-sm">Loading clients...</div>
-      </div>
+      <>
+        <div className="mb-8">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-32 mb-2" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-40" />
+        </div>
+        <div className="flex gap-2 mb-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-10 w-24 border border-[rgba(255,255,255,0.06)]" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 flex items-center gap-4">
+              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-full w-11 h-11" />
+              <div className="flex-1 space-y-2">
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-36" />
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-48" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
     );
   }
 
@@ -74,7 +93,7 @@ export default function ClientsPage() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
               filter === f
                 ? "bg-[rgba(34,114,222,0.1)] text-accent-bright border border-[rgba(34,114,222,0.2)]"
                 : "text-text-muted hover:text-text-secondary border border-[rgba(255,255,255,0.06)]"
@@ -106,9 +125,10 @@ export default function ClientsPage() {
               <Link
                 key={client.id}
                 href={`/admin/clients/${client.id}`}
-                className={`block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 transition-all duration-300 no-underline hover:-translate-y-0.5 ${glowClass[client.status]}`}
+                className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 overflow-hidden transition-all duration-300 no-underline hover:-translate-y-0.5 cursor-pointer ${glowClass[client.status]}`}
               >
-                <div className="flex items-center justify-between">
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+                <div className="flex items-center justify-between relative">
                   <div className="flex items-center gap-4">
                     <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold ${sc.bgClass} ${sc.textClass} border ${
                       client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"

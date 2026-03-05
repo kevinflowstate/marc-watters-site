@@ -212,7 +212,7 @@ export default function AdminSettingsPage() {
           <button
             type="submit"
             disabled={creating || !email.trim() || !fullName.trim()}
-            className="px-6 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition-opacity"
+            className="px-6 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer transition-opacity"
           >
             {creating ? "Creating..." : "Create Client"}
           </button>
@@ -255,7 +255,7 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 onClick={() => setCheckinConfig({ ...checkinConfig, mood_enabled: !checkinConfig.mood_enabled })}
-                className={`relative w-11 h-6 rounded-full transition-colors ${checkinConfig.mood_enabled ? "bg-accent" : "bg-[rgba(255,255,255,0.1)]"}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${checkinConfig.mood_enabled ? "bg-accent" : "bg-[rgba(255,255,255,0.1)]"}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checkinConfig.mood_enabled ? "translate-x-5" : ""}`} />
               </button>
@@ -287,7 +287,7 @@ export default function AdminSettingsPage() {
                       <button
                         type="button"
                         onClick={() => removeCheckinQuestion(idx)}
-                        className="text-text-muted hover:text-red-400 transition-colors p-1 mt-0.5"
+                        className="text-text-muted hover:text-red-400 transition-colors p-1 mt-0.5 cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -301,7 +301,7 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 onClick={addCheckinQuestion}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-[rgba(255,255,255,0.08)] hover:border-accent/30 rounded-xl text-xs text-text-muted hover:text-accent-bright transition-colors"
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-[rgba(255,255,255,0.08)] hover:border-accent/30 rounded-xl text-xs text-text-muted hover:text-accent-bright transition-colors cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -363,7 +363,7 @@ export default function AdminSettingsPage() {
                       <button
                         type="button"
                         onClick={() => removeBpQuestion(idx)}
-                        className="text-text-muted hover:text-red-400 transition-colors p-1 mt-0.5"
+                        className="text-text-muted hover:text-red-400 transition-colors p-1 mt-0.5 cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -381,7 +381,7 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 onClick={addBpQuestion}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-[rgba(255,255,255,0.08)] hover:border-accent/30 rounded-xl text-xs text-text-muted hover:text-accent-bright transition-colors"
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-[rgba(255,255,255,0.08)] hover:border-accent/30 rounded-xl text-xs text-text-muted hover:text-accent-bright transition-colors cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
