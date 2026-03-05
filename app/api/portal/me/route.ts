@@ -25,7 +25,7 @@ export async function GET() {
 
   const { data: userData } = await admin
     .from("users")
-    .select("full_name")
+    .select("full_name, avatar_url")
     .eq("id", userId)
     .single();
 
@@ -38,6 +38,7 @@ export async function GET() {
   return NextResponse.json({
     userId,
     fullName: userData?.full_name || "",
+    avatarUrl: userData?.avatar_url || null,
     profile: profile || null,
   });
 }

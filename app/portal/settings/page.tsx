@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [goals, setGoals] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -22,6 +25,7 @@ export default function SettingsPage() {
         if (res.ok) {
           const data = await res.json();
           setFullName(data.fullName || "");
+          setAvatarUrl(data.avatarUrl || null);
           if (data.profile) {
             setPhone(data.profile.phone || "");
             setBusinessName(data.profile.business_name || "");
@@ -35,6 +39,25 @@ export default function SettingsPage() {
     }
     load();
   }, []);
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/portal/avatar", { method: "POST", body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        setAvatarUrl(data.avatarUrl);
+      }
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +90,46 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Profile Picture */}
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+          <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Profile Picture</h2>
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Profile"
+                  className="w-20 h-20 rounded-full object-cover border-2 border-[rgba(255,255,255,0.1)]"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-accent/10 border-2 border-[rgba(255,255,255,0.1)] flex items-center justify-center">
+                  <span className="text-2xl font-heading font-bold text-accent-bright">
+                    {fullName ? fullName.charAt(0).toUpperCase() : "?"}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="px-4 py-2 text-sm font-medium text-accent-bright bg-accent/10 rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40"
+              >
+                {uploadingAvatar ? "Uploading..." : "Change Photo"}
+              </button>
+              <p className="text-xs text-text-muted mt-1.5">JPG, PNG. Max 2MB.</p>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 space-y-5">
           <h2 className="text-lg font-heading font-bold text-text-primary">Profile</h2>
 

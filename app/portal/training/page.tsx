@@ -24,13 +24,11 @@ export default function TrainingLibrary() {
   }, []);
 
   const statusColors = {
-    locked: "border-[rgba(255,255,255,0.06)] bg-bg-card opacity-60",
     in_progress: "border-[rgba(34,114,222,0.3)] bg-[rgba(34,114,222,0.05)]",
     completed: "border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.05)]",
   };
 
-  const statusLabels = {
-    locked: "Locked",
+  const statusLabels: Record<string, string> = {
     in_progress: "In Progress",
     completed: "Completed",
   };
@@ -54,11 +52,12 @@ export default function TrainingLibrary() {
           {modules.map((cm, i) => {
             const mod = cm.module;
             if (!mod) return null;
+            const displayStatus = cm.status === "locked" ? "in_progress" : cm.status;
             return (
               <Link
                 key={cm.id}
-                href={cm.status === "locked" ? "#" : `/portal/training/${mod.id}`}
-                className={`block border rounded-2xl p-6 transition-all duration-200 no-underline ${statusColors[cm.status]} ${cm.status !== "locked" ? "hover:border-accent/40" : "cursor-not-allowed"}`}
+                href={`/portal/training/${mod.id}`}
+                className={`block border rounded-2xl p-6 transition-all duration-200 no-underline hover:border-accent/40 ${statusColors[displayStatus as keyof typeof statusColors] || statusColors.in_progress}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
@@ -71,11 +70,10 @@ export default function TrainingLibrary() {
                     </div>
                   </div>
                   <span className={`text-xs px-3 py-1 rounded-full flex-shrink-0 ${
-                    cm.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
-                    cm.status === "in_progress" ? "bg-accent/10 text-accent-bright" :
-                    "bg-[rgba(255,255,255,0.04)] text-text-muted"
+                    displayStatus === "completed" ? "bg-emerald-500/10 text-emerald-400" :
+                    "bg-accent/10 text-accent-bright"
                   }`}>
-                    {statusLabels[cm.status]}
+                    {statusLabels[displayStatus] || "In Progress"}
                   </span>
                 </div>
               </Link>

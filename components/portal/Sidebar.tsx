@@ -29,6 +29,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [userName, setUserName] = useState("");
   const [initials, setInitials] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -42,6 +43,9 @@ export default function Sidebar() {
           if (data.fullName) {
             setUserName(data.fullName);
             setInitials(data.fullName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2));
+          }
+          if (data.avatarUrl) {
+            setAvatarUrl(data.avatarUrl);
           }
         }
       } catch {
@@ -194,9 +198,13 @@ export default function Sidebar() {
 
         <div className="p-4 border-t border-[rgba(255,255,255,0.04)]">
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-9 h-9 bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] rounded-full flex items-center justify-center text-accent-bright text-xs font-bold">
-              {initials || "??"}
-            </div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-[rgba(34,114,222,0.2)]" />
+            ) : (
+              <div className="w-9 h-9 bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] rounded-full flex items-center justify-center text-accent-bright text-xs font-bold">
+                {initials || "??"}
+              </div>
+            )}
             <div>
               <div className="text-sm font-medium text-text-primary">{userName || "Loading..."}</div>
               <div className="text-xs text-text-muted">Client</div>

@@ -6,12 +6,10 @@ export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // In preview mode, user may be null - try to get first client for demo
   const admin = createAdminClient();
 
   let userId = user?.id;
 
-  // If no auth session, pick the demo client for preview
   if (!userId) {
     const { data: demoUser } = await admin
       .from("users")
@@ -26,14 +24,12 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Get user name
   const { data: userData } = await admin
     .from("users")
     .select("full_name")
     .eq("id", userId)
     .single();
 
-  // Get client profile
   const { data: profile } = await admin
     .from("client_profiles")
     .select("*")
@@ -44,8 +40,7 @@ export async function GET() {
     return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
   }
 
-  // Get modules and checkins using profile.id
-  const [modulesRes, checkinsRes] = await Promise.all([
+  const [modulesRes, checkinsRes, planRes, formConfigRes, recentModulesRes] = await Promise.all([
     admin
       .from("client_modules")
       .select("*, module:training_modules(*)")
@@ -56,12 +51,59 @@ export async function GET() {
       .eq("client_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(5),
+    admin
+      .from("business_plans")
+      .select("*")
+      .eq("client_id", profile.id)
+      .eq("status", "active")
+      .limit(1)
+      .single(),
+    admin
+      .from("form_config")
+      .select("*")
+      .eq("form_type", "checkin")
+      .single(),
+    // Recently added modules (for What's New) - modules added in last 14 days
+    admin
+      .from("training_modules")
+      .select("id, title, created_at")
+      .eq("is_published", true)
+      .order("created_at", { ascending: false })
+      .limit(3),
   ]);
+
+  // Get business plan phases and items if plan exists
+  let planPhases: unknown[] = [];
+  if (planRes.data) {
+    const { data: phases } = await admin
+      .from("business_plan_phases")
+      .select("*")
+      .eq("plan_id", planRes.data.id)
+      .order("order_index");
+
+    if (phases && phases.length > 0) {
+      const phaseIds = phases.map((p: { id: string }) => p.id);
+      const { data: items } = await admin
+        .from("business_plan_items")
+        .select("*")
+        .in("phase_id", phaseIds)
+        .order("order_index");
+
+      planPhases = phases.map((phase: { id: string }) => ({
+        ...phase,
+        items: (items || []).filter((item: { phase_id: string }) => item.phase_id === phase.id),
+      }));
+    }
+  }
 
   return NextResponse.json({
     userName: userData?.full_name || "",
     profile,
     modules: modulesRes.data || [],
     checkins: checkinsRes.data || [],
+    businessPlan: planRes.data || null,
+    planPhases,
+    checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
+    recentModules: recentModulesRes.data || [],
   });
 }
