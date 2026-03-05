@@ -34,7 +34,7 @@ export async function GET() {
 
   const { data: modules } = await admin
     .from("client_modules")
-    .select("*, module:training_modules(*)")
+    .select("*, module:training_modules(*, content:module_content(*))")
     .eq("client_id", profile.id);
 
   return NextResponse.json({ modules: modules || [] });

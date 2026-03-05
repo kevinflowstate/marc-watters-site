@@ -2,49 +2,36 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { ClientProfile, ClientModule, CheckIn, CalendarEvent, BusinessPlan, BusinessPlanPhase } from "@/lib/types";
+import type { ClientProfile, ClientModule, CheckIn, CalendarEvent, BusinessPlanPhase } from "@/lib/types";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-2">
-      <div
-        className="h-2 rounded-full gradient-accent transition-all duration-500"
-        style={{ width: `${pct}%` }}
-      />
+      <div className="h-2 rounded-full gradient-accent transition-all duration-500" style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
 function getNextOccurrence(event: CalendarEvent): Date | null {
   const now = new Date();
-
   if (event.recurrence === "none") {
     const d = new Date(event.event_date);
     return d > now ? d : null;
   }
-
   const [hours, minutes] = event.event_time.split(":").map(Number);
   const targetDay = event.recurrence_day ?? 0;
-
   const next = new Date(now);
   next.setHours(hours, minutes, 0, 0);
-
   const currentDay = next.getDay();
   let daysUntil = targetDay - currentDay;
-  if (daysUntil < 0 || (daysUntil === 0 && next <= now)) {
-    daysUntil += 7;
-  }
+  if (daysUntil < 0 || (daysUntil === 0 && next <= now)) daysUntil += 7;
   next.setDate(next.getDate() + daysUntil);
-
   if (event.recurrence === "biweekly") {
     const start = new Date(event.event_date);
     const weeksDiff = Math.floor((next.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
-    if (weeksDiff % 2 !== 0) {
-      next.setDate(next.getDate() + 7);
-    }
+    if (weeksDiff % 2 !== 0) next.setDate(next.getDate() + 7);
   }
-
   if (event.recurrence === "monthly") {
     let candidate = new Date(next);
     for (let i = 0; i < 12; i++) {
@@ -58,23 +45,16 @@ function getNextOccurrence(event: CalendarEvent): Date | null {
     }
     return candidate;
   }
-
   return next;
 }
 
 function getNextCheckinDate(checkinDay: string): Date {
-  const dayMap: Record<string, number> = {
-    sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
-  };
+  const dayMap: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
   const targetDay = dayMap[checkinDay.toLowerCase()] ?? 1;
   const now = new Date();
-  const currentDay = now.getDay();
-  let daysUntil = targetDay - currentDay;
+  let daysUntil = targetDay - now.getDay();
   if (daysUntil < 0) daysUntil += 7;
-  if (daysUntil === 0) {
-    // It's check-in day today
-    return now;
-  }
+  if (daysUntil === 0) return now;
   const next = new Date(now);
   next.setDate(now.getDate() + daysUntil);
   return next;
@@ -85,18 +65,13 @@ function isToday(date: Date): boolean {
   return date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 }
 
-interface RecentModule {
-  id: string;
-  title: string;
-  created_at: string;
-}
+interface RecentModule { id: string; title: string; created_at: string; }
 
 export default function PortalDashboard() {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [userName, setUserName] = useState("");
   const [modules, setModules] = useState<ClientModule[]>([]);
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
-  const [businessPlan, setBusinessPlan] = useState<BusinessPlan | null>(null);
   const [planPhases, setPlanPhases] = useState<BusinessPlanPhase[]>([]);
   const [checkinDay, setCheckinDay] = useState("monday");
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
@@ -113,7 +88,6 @@ export default function PortalDashboard() {
           setUserName(data.userName);
           setModules(data.modules || []);
           setCheckins(data.checkins || []);
-          setBusinessPlan(data.businessPlan || null);
           setPlanPhases(data.planPhases || []);
           setCheckinDay(data.checkinDay || "monday");
           setRecentModules(data.recentModules || []);
@@ -125,25 +99,25 @@ export default function PortalDashboard() {
     load();
   }, []);
 
-  // Progress based on business plan items
   const allPlanItems = planPhases.flatMap((p) => p.items || []);
   const completedPlanItems = allPlanItems.filter((item) => item.completed).length;
   const totalPlanItems = allPlanItems.length;
+  const planPct = totalPlanItems > 0 ? Math.round((completedPlanItems / totalPlanItems) * 100) : 0;
 
   const completedModules = modules.filter((m) => m.status === "completed").length;
   const totalModules = modules.length;
   const currentWeek = checkins.length > 0 ? checkins[0].week_number : 0;
 
   const nextCheckinDate = getNextCheckinDate(checkinDay);
-  const isCheckinDay = isToday(nextCheckinDate);
+  const isCheckinToday = isToday(nextCheckinDate);
 
-  // Recent modules added in last 14 days
   const twoWeeksAgo = new Date();
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
   const newModules = recentModules.filter((m) => new Date(m.created_at) > twoWeeksAgo);
 
   return (
     <>
+      {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold text-text-primary">
           {loading ? "Loading..." : `Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}
@@ -169,14 +143,9 @@ export default function PortalDashboard() {
                 <div key={m.id} className="flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-text-primary truncate">New Training - {m.title}</div>
-                    <div className="text-xs text-text-muted">
-                      {new Date(m.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                    </div>
+                    <div className="text-xs text-text-muted">{new Date(m.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
                   </div>
-                  <Link
-                    href={`/portal/training/${m.id}`}
-                    className="px-3 py-1.5 text-xs font-medium text-accent-bright bg-accent/10 rounded-lg no-underline hover:bg-accent/20 transition-colors flex-shrink-0 ml-3"
-                  >
+                  <Link href={`/portal/training/${m.id}`} className="px-3 py-1.5 text-xs font-medium text-accent-bright bg-accent/10 rounded-lg no-underline hover:bg-accent/20 transition-colors flex-shrink-0 ml-3">
                     Watch
                   </Link>
                 </div>
@@ -190,8 +159,8 @@ export default function PortalDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
           <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Plan Progress</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{completedPlanItems}/{totalPlanItems}</div>
-          <div className="text-text-secondary text-sm mt-1">{totalPlanItems > 0 ? `${Math.round((completedPlanItems / totalPlanItems) * 100)}% complete` : "No plan items"}</div>
+          <div className="text-2xl font-heading font-bold text-text-primary">{planPct}%</div>
+          <div className="text-text-secondary text-sm mt-1">{completedPlanItems}/{totalPlanItems} actions done</div>
         </div>
         <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
           <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Current Week</div>
@@ -210,149 +179,123 @@ export default function PortalDashboard() {
         </div>
       </div>
 
-      {/* Business Plan Progress */}
-      {planPhases.length > 0 && (
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8">
+      {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Business Plan Summary */}
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-heading font-bold text-text-primary">Your Business Plan</h2>
-            <span className="text-xs text-text-muted">{completedPlanItems}/{totalPlanItems} actions completed</span>
-          </div>
-          <ProgressBar value={completedPlanItems} max={totalPlanItems} />
-          <div className="mt-6 space-y-5">
-            {planPhases.map((phase) => {
-              const phaseCompleted = (phase.items || []).filter((i) => i.completed).length;
-              const phaseTotal = (phase.items || []).length;
-              return (
-                <div key={phase.id}>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-heading font-bold text-text-primary">{phase.name}</h3>
-                    <span className="text-xs text-text-muted">{phaseCompleted}/{phaseTotal}</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {(phase.items || []).map((item) => (
-                      <div key={item.id} className="flex items-center gap-3 py-1.5">
-                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
-                          item.completed
-                            ? "bg-emerald-500 border-emerald-500"
-                            : "border-[rgba(255,255,255,0.15)]"
-                        }`}>
-                          {item.completed && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className={`text-sm ${item.completed ? "text-text-muted line-through" : "text-text-primary"}`}>
-                          {item.title}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {/* Linked trainings hint */}
-          <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.04)]">
-            <Link href="/portal/training" className="text-sm text-accent-bright no-underline hover:underline">
-              View Training Library →
+            <h2 className="text-lg font-heading font-bold text-text-primary">Business Plan</h2>
+            <Link href="/portal/plan" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
+              Go To Plan
             </Link>
           </div>
+          <ProgressBar value={completedPlanItems} max={totalPlanItems} />
+          <div className="flex justify-between mt-2 text-sm text-text-muted mb-4">
+            <span>{completedPlanItems} completed</span>
+            <span>{totalPlanItems - completedPlanItems} remaining</span>
+          </div>
+          {planPhases.length > 0 && (
+            <div className="space-y-3">
+              {planPhases.map((phase) => {
+                const phaseCompleted = (phase.items || []).filter((i) => i.completed).length;
+                const phaseTotal = (phase.items || []).length;
+                const phasePct = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
+                return (
+                  <div key={phase.id} className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-text-primary truncate">{phase.name}</span>
+                        <span className="text-[10px] text-text-muted ml-2">{phaseCompleted}/{phaseTotal}</span>
+                      </div>
+                      <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-500 ${phasePct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
+                          style={{ width: `${phasePct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Check-ins */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-heading font-bold text-text-primary">Check-Ins</h2>
-          <div className="flex items-center gap-3">
-            {isCheckinDay ? (
-              <Link
-                href="/portal/checkin"
-                className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity"
-              >
+        {/* Check-ins */}
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-heading font-bold text-text-primary">Check-Ins</h2>
+            {isCheckinToday ? (
+              <Link href="/portal/checkin" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
                 Submit Check-In
               </Link>
             ) : (
               <span className="text-xs text-text-muted">
-                Next Check-In: {nextCheckinDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}
+                Next: {nextCheckinDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
               </span>
             )}
           </div>
-        </div>
-        {checkins.length === 0 ? (
-          <p className="text-text-muted text-sm">No check-ins yet. Submit your first one to get started.</p>
-        ) : (
-          <div className="space-y-2">
-            {checkins.map((c) => {
-              const isExpanded = expandedCheckin === c.id;
-              return (
-                <div key={c.id} className="border border-[rgba(255,255,255,0.04)] rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setExpandedCheckin(isExpanded ? null : c.id)}
-                    className="w-full py-3 px-4 flex items-center justify-between hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-text-primary text-sm font-medium">Week {c.week_number}</span>
-                      <span className="text-text-muted text-sm">
-                        {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        c.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
-                        c.mood === "good" ? "bg-blue-500/10 text-blue-400" :
-                        c.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
-                        "bg-red-500/10 text-red-400"
-                      }`}>
-                        {c.mood}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {c.admin_reply ? (
-                        <span className="text-xs text-accent-bright">Replied</span>
-                      ) : (
-                        <span className="text-xs text-text-muted">Pending</span>
-                      )}
-                      <svg className={`w-4 h-4 text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </button>
-                  {isExpanded && (
-                    <div className="px-4 pb-4 space-y-3">
-                      {c.responses && Object.entries(c.responses).map(([key, value]) => (
-                        <div key={key}>
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
-                            {key === "wins" ? "Wins this week" : key === "challenges" ? "Challenges" : key === "questions" ? "Questions for Marc" : key}
-                          </div>
-                          <p className="text-xs text-text-secondary leading-relaxed">{value}</p>
-                        </div>
-                      ))}
-                      {/* Legacy fields fallback */}
-                      {!c.responses && (
-                        <>
-                          {c.wins && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Wins</div><p className="text-xs text-text-secondary">{c.wins}</p></div>}
-                          {c.challenges && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Challenges</div><p className="text-xs text-text-secondary">{c.challenges}</p></div>}
-                          {c.questions && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Questions</div><p className="text-xs text-text-secondary">{c.questions}</p></div>}
-                        </>
-                      )}
-                      {c.admin_reply && (
-                        <div className="mt-2 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
-                          <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc&apos;s Reply</div>
-                          <p className="text-xs text-text-secondary leading-relaxed">{c.admin_reply}</p>
-                          {c.replied_at && (
-                            <div className="text-[10px] text-text-muted mt-1">
-                              {new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+          {checkins.length === 0 ? (
+            <p className="text-text-muted text-sm">No check-ins yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {checkins.map((c) => {
+                const isExpanded = expandedCheckin === c.id;
+                return (
+                  <div key={c.id} className="border border-[rgba(255,255,255,0.04)] rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setExpandedCheckin(isExpanded ? null : c.id)}
+                      className="w-full py-3 px-4 flex items-center justify-between hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-text-primary text-sm font-medium">Week {c.week_number}</span>
+                        <span className="text-text-muted text-xs">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          c.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
+                          c.mood === "good" ? "bg-blue-500/10 text-blue-400" :
+                          c.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
+                          "bg-red-500/10 text-red-400"
+                        }`}>{c.mood}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {c.admin_reply ? <span className="text-xs text-accent-bright">Replied</span> : <span className="text-xs text-text-muted">Pending</span>}
+                        <svg className={`w-4 h-4 text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="px-4 pb-4 space-y-3">
+                        {c.responses && Object.entries(c.responses).map(([key, value]) => (
+                          <div key={key}>
+                            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
+                              {key === "wins" ? "Wins this week" : key === "challenges" ? "Challenges" : key === "questions" ? "Questions for Marc" : key}
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                            <p className="text-xs text-text-secondary leading-relaxed">{value}</p>
+                          </div>
+                        ))}
+                        {!c.responses && (
+                          <>
+                            {c.wins && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Wins</div><p className="text-xs text-text-secondary">{c.wins}</p></div>}
+                            {c.challenges && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Challenges</div><p className="text-xs text-text-secondary">{c.challenges}</p></div>}
+                            {c.questions && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Questions</div><p className="text-xs text-text-secondary">{c.questions}</p></div>}
+                          </>
+                        )}
+                        {c.admin_reply && (
+                          <div className="mt-2 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
+                            <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc&apos;s Reply</div>
+                            <p className="text-xs text-text-secondary leading-relaxed">{c.admin_reply}</p>
+                            {c.replied_at && <div className="text-[10px] text-text-muted mt-1">{new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
@@ -370,31 +313,19 @@ function NextEventCard() {
         if (res.ok) {
           const data = await res.json();
           const events: CalendarEvent[] = data.events;
-
           let earliest: { event: CalendarEvent; date: Date } | null = null;
           for (const evt of events) {
             const nd = getNextOccurrence(evt);
-            if (nd && (!earliest || nd < earliest.date)) {
-              earliest = { event: evt, date: nd };
-            }
+            if (nd && (!earliest || nd < earliest.date)) earliest = { event: evt, date: nd };
           }
-
-          if (earliest) {
-            setEvent(earliest.event);
-            setNextDate(earliest.date);
-          }
+          if (earliest) { setEvent(earliest.event); setNextDate(earliest.date); }
         }
-      } catch {
-        // Silently fail
-      } finally {
-        setLoading(false);
-      }
+      } catch { /* silent */ } finally { setLoading(false); }
     }
     load();
   }, []);
 
   if (loading) return null;
-
   if (!event || !nextDate) {
     return (
       <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
@@ -415,13 +346,7 @@ function NextEventCard() {
   const period = h >= 12 ? "PM" : "AM";
   const hour = h % 12 || 12;
   const timeStr = `${hour}:${m.toString().padStart(2, "0")} ${period}`;
-
-  const recurrenceText: Record<string, string> = {
-    weekly: `Every ${dayName}`,
-    biweekly: `Every other ${dayName}`,
-    monthly: `Monthly`,
-    none: nextDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
-  };
+  const recurrenceText: Record<string, string> = { weekly: `Every ${dayName}`, biweekly: `Every other ${dayName}`, monthly: "Monthly", none: nextDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) };
 
   return (
     <div className="bg-bg-card border border-accent/10 rounded-2xl p-5">
@@ -442,12 +367,7 @@ function NextEventCard() {
           </div>
         </div>
         {event.link && (
-          <a
-            href={event.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium no-underline inline-flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0"
-          >
+          <a href={event.link} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium no-underline inline-flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
