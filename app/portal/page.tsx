@@ -74,6 +74,7 @@ function getNextOccurrence(event: CalendarEvent): Date | null {
 
 export default function PortalDashboard() {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
+  const [userName, setUserName] = useState("");
   const [modules, setModules] = useState<ClientModule[]>([]);
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,13 +85,30 @@ export default function PortalDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [profileRes, modulesRes, checkinsRes] = await Promise.all([
-        supabase.from("client_profiles").select("*").eq("user_id", user.id).single(),
-        supabase.from("client_modules").select("*, module:training_modules(*)").eq("client_id", user.id),
-        supabase.from("checkins").select("*").eq("client_id", user.id).order("created_at", { ascending: false }).limit(5),
+      // Get profile first to use profile.id for related queries
+      const { data: profileData } = await supabase
+        .from("client_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profileData) { setLoading(false); return; }
+      setProfile(profileData);
+
+      // Get user name
+      const { data: userData } = await supabase
+        .from("users")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+      if (userData?.full_name) setUserName(userData.full_name);
+
+      // Use profile.id (not user.id) for client_id queries
+      const [modulesRes, checkinsRes] = await Promise.all([
+        supabase.from("client_modules").select("*, module:training_modules(*)").eq("client_id", profileData.id),
+        supabase.from("checkins").select("*").eq("client_id", profileData.id).order("created_at", { ascending: false }).limit(5),
       ]);
 
-      if (profileRes.data) setProfile(profileRes.data);
       if (modulesRes.data) setModules(modulesRes.data);
       if (checkinsRes.data) setCheckins(checkinsRes.data);
       setLoading(false);
@@ -106,7 +124,7 @@ export default function PortalDashboard() {
     <>
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold text-text-primary">
-          {loading ? "Loading..." : `Welcome back${profile?.user?.full_name ? `, ${profile.user.full_name.split(" ")[0]}` : ""}`}
+          {loading ? "Loading..." : `Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}
         </h1>
         <p className="text-text-secondary mt-1">Here&apos;s your progress overview.</p>
       </div>
