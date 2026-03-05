@@ -106,7 +106,7 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="lg:hidden fixed top-4 left-4 z-[60] w-10 h-10 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl flex items-center justify-center text-text-primary"
+        className="lg:hidden fixed top-4 left-4 z-[60] w-10 h-10 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl flex items-center justify-center text-text-primary cursor-pointer"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={collapsed ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
@@ -154,7 +154,7 @@ export default function Sidebar() {
                 if (unreadIds.length > 0) markAsRead(unreadIds);
               }
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.03)] transition-all duration-200 relative"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.03)] transition-all duration-200 relative cursor-pointer"
           >
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -213,7 +213,7 @@ export default function Sidebar() {
           </div>
           <button
             onClick={handleSignOut}
-            className="w-full mt-2 px-4 py-2 text-xs text-text-muted hover:text-red-400 transition-colors text-left"
+            className="w-full mt-2 px-4 py-2 text-xs text-text-muted hover:text-red-400 transition-colors text-left cursor-pointer"
           >
             Sign Out
           </button>

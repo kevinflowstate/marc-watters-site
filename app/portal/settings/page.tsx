@@ -80,7 +80,32 @@ export default function SettingsPage() {
     router.push("/login");
   }
 
-  if (loading) return <div className="text-text-muted">Loading...</div>;
+  if (loading) return (
+    <div className="max-w-2xl space-y-6">
+      <div className="mb-8">
+        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-32 mb-2" />
+        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-56" />
+      </div>
+      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-32 mb-4" />
+        <div className="flex items-center gap-5">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-full w-20 h-20" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-xl h-9 w-28" />
+        </div>
+      </div>
+      {[...Array(2)].map((_, i) => (
+        <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 space-y-5">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-24" />
+          {[...Array(2)].map((_, j) => (
+            <div key={j}>
+              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-20 mb-2" />
+              <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-12 border border-[rgba(255,255,255,0.06)]" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="max-w-2xl">
@@ -121,7 +146,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingAvatar}
-                className="px-4 py-2 text-sm font-medium text-accent-bright bg-accent/10 rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40"
+                className="px-4 py-2 text-sm font-medium text-accent-bright bg-accent/10 rounded-xl hover:bg-accent/20 transition-colors disabled:opacity-40 cursor-pointer"
               >
                 {uploadingAvatar ? "Uploading..." : "Change Photo"}
               </button>
@@ -194,7 +219,7 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="px-8 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition-opacity"
+            className="px-8 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer transition-opacity"
           >
             {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
           </button>
@@ -202,7 +227,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleSignOut}
-            className="px-6 py-3 text-sm text-red-400 hover:text-red-300 transition-colors"
+            className="px-6 py-3 text-sm text-red-400 hover:text-red-300 transition-colors cursor-pointer"
           >
             Sign Out
           </button>

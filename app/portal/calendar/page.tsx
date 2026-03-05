@@ -95,7 +95,26 @@ export default function PortalCalendarPage() {
     .slice(0, 10);
 
   if (loading) {
-    return <div className="text-text-muted text-sm">Loading...</div>;
+    return (
+      <>
+        <div className="mb-8">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-32 mb-2" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-64" />
+        </div>
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 flex items-start gap-4">
+              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-xl w-14 h-14" />
+              <div className="flex-1 space-y-2">
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-48" />
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-36" />
+                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-64" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
   }
 
   return (

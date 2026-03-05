@@ -81,7 +81,31 @@ export default function ModuleView() {
     });
   }
 
-  if (loading) return <div className="text-text-muted">Loading module...</div>;
+  if (loading) return (
+    <div className="space-y-4">
+      <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-32 mb-6" />
+      <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
+        <div className="h-32 animate-pulse bg-[rgba(255,255,255,0.04)]" />
+        <div className="p-6 space-y-3">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-6 w-2/3" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-full" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-1/3" />
+        </div>
+      </div>
+      <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-20 mt-4" />
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-4 flex items-center gap-4">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-md w-6 h-6" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg w-6 h-4" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg w-8 h-8" />
+          <div className="flex-1 space-y-2">
+            <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-3/4" />
+            <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-1/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
   if (!module) return <div className="text-text-muted">Module not found.</div>;
 
   const lessons = module.content || [];
@@ -147,12 +171,12 @@ export default function ModuleView() {
               {/* Lesson row */}
               <button
                 onClick={() => setExpandedLesson(isExpanded ? null : lesson.id)}
-                className="w-full flex items-center gap-4 p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                className="w-full flex items-center gap-4 p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
               >
                 {/* Completion checkbox */}
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleComplete(lesson.id); }}
-                  className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                  className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all cursor-pointer ${
                     isCompleted ? "bg-emerald-500 border-emerald-500" : "border-[rgba(255,255,255,0.15)] hover:border-accent"
                   }`}
                 >

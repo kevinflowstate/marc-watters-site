@@ -81,7 +81,39 @@ export default function BusinessPlanPage() {
     load();
   }, []);
 
-  if (loading) return <div className="text-text-muted">Loading business plan...</div>;
+  if (loading) return (
+    <div className="space-y-6">
+      <div className="space-y-2 mb-8">
+        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-64" />
+        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-full max-w-xl" />
+      </div>
+      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+        <div className="flex justify-between mb-3">
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-32" />
+          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-24" />
+        </div>
+        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-full h-3 w-full" />
+      </div>
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
+          <div className="p-6 animate-pulse bg-[rgba(255,255,255,0.03)]">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[rgba(255,255,255,0.06)]" />
+              <div className="flex-1 space-y-2">
+                <div className="bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-48" />
+                <div className="bg-[rgba(255,255,255,0.06)] rounded-full h-1.5 w-full" />
+              </div>
+            </div>
+          </div>
+          <div className="p-6 space-y-3">
+            {[...Array(3)].map((_, j) => (
+              <div key={j} className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-full" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   if (!plan) {
     return (

@@ -125,6 +125,10 @@ export default function PortalDashboard() {
         <p className="text-text-secondary mt-1">Here&apos;s your progress overview.</p>
       </div>
 
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
+      <>
       {/* Top Row: Next Event + What's New */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <NextEventCard />
@@ -244,7 +248,7 @@ export default function PortalDashboard() {
                   <div key={c.id} className="border border-[rgba(255,255,255,0.04)] rounded-xl overflow-hidden">
                     <button
                       onClick={() => setExpandedCheckin(isExpanded ? null : c.id)}
-                      className="w-full py-3 px-4 flex items-center justify-between hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left"
+                      className="w-full py-3 px-4 flex items-center justify-between hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-text-primary text-sm font-medium">Week {c.week_number}</span>
@@ -295,6 +299,48 @@ export default function PortalDashboard() {
             </div>
           )}
         </div>
+      </div>
+      </>
+      )}
+    </>
+  );
+}
+
+function SkeletonPulse({ className }: { className?: string }) {
+  return <div className={`animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg ${className || ""}`} />;
+}
+
+function DashboardSkeleton() {
+  return (
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+          <SkeletonPulse className="h-4 w-24 mb-3" />
+          <SkeletonPulse className="h-6 w-48 mb-2" />
+          <SkeletonPulse className="h-4 w-36" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+            <SkeletonPulse className="h-3 w-20 mb-3" />
+            <SkeletonPulse className="h-8 w-16 mb-2" />
+            <SkeletonPulse className="h-3 w-28" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
+            <SkeletonPulse className="h-5 w-32 mb-4" />
+            <SkeletonPulse className="h-2 w-full mb-4" />
+            <div className="space-y-3">
+              {[...Array(3)].map((_, j) => (
+                <SkeletonPulse key={j} className="h-4 w-full" />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </>
   );
