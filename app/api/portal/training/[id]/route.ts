@@ -1,0 +1,85 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const admin = createAdminClient();
+
+  let userId = user?.id;
+  if (!userId) {
+    const { data: demoUser } = await admin
+      .from("users")
+      .select("id")
+      .eq("role", "client")
+      .limit(1)
+      .single();
+    if (demoUser) userId = demoUser.id;
+  }
+
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const { data: profile } = await admin
+    .from("client_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .single();
+
+  // Get module with content
+  const { data: mod } = await admin
+    .from("training_modules")
+    .select("*, content:module_content(*)")
+    .eq("id", id)
+    .single();
+
+  // Get progress
+  let progress: Record<string, boolean> = {};
+  if (profile) {
+    const { data: progressData } = await admin
+      .from("content_progress")
+      .select("content_id, completed")
+      .eq("client_id", profile.id);
+
+    if (progressData) {
+      progressData.forEach((p: { content_id: string; completed: boolean }) => {
+        progress[p.content_id] = p.completed;
+      });
+    }
+  }
+
+  return NextResponse.json({
+    module: mod,
+    progress,
+    profileId: profile?.id || null,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const admin = createAdminClient();
+  const { contentId, completed, profileId } = await request.json();
+
+  if (!profileId || !contentId) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  if (completed) {
+    await admin.from("content_progress").upsert({
+      client_id: profileId,
+      content_id: contentId,
+      completed: true,
+      completed_at: new Date().toISOString(),
+    });
+  } else {
+    await admin
+      .from("content_progress")
+      .update({ completed: false, completed_at: null })
+      .eq("client_id", profileId)
+      .eq("content_id", contentId);
+  }
+
+  return NextResponse.json({ success: true });
+}

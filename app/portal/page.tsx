@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { ClientProfile, ClientModule, CheckIn, CalendarEvent } from "@/lib/types";
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -81,37 +80,18 @@ export default function PortalDashboard() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get profile first to use profile.id for related queries
-      const { data: profileData } = await supabase
-        .from("client_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!profileData) { setLoading(false); return; }
-      setProfile(profileData);
-
-      // Get user name
-      const { data: userData } = await supabase
-        .from("users")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-      if (userData?.full_name) setUserName(userData.full_name);
-
-      // Use profile.id (not user.id) for client_id queries
-      const [modulesRes, checkinsRes] = await Promise.all([
-        supabase.from("client_modules").select("*, module:training_modules(*)").eq("client_id", profileData.id),
-        supabase.from("checkins").select("*").eq("client_id", profileData.id).order("created_at", { ascending: false }).limit(5),
-      ]);
-
-      if (modulesRes.data) setModules(modulesRes.data);
-      if (checkinsRes.data) setCheckins(checkinsRes.data);
-      setLoading(false);
+      try {
+        const res = await fetch("/api/portal/dashboard");
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data.profile);
+          setUserName(data.userName);
+          setModules(data.modules || []);
+          setCheckins(data.checkins || []);
+        }
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);

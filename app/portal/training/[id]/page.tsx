@@ -3,88 +3,48 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import type { TrainingModule, ModuleContent, ContentProgress } from "@/lib/types";
+import type { TrainingModule, ModuleContent } from "@/lib/types";
 
 export default function ModuleView() {
   const { id } = useParams();
   const [module, setModule] = useState<TrainingModule | null>(null);
   const [progress, setProgress] = useState<Record<string, boolean>>({});
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: mod } = await supabase
-        .from("training_modules")
-        .select("*, content:module_content(*)")
-        .eq("id", id)
-        .single();
-
-      if (mod) {
-        mod.content?.sort((a: ModuleContent, b: ModuleContent) => a.order_index - b.order_index);
-        setModule(mod);
-      }
-
-      const { data: profile } = await supabase
-        .from("client_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (profile) {
-        const { data: progressData } = await supabase
-          .from("content_progress")
-          .select("content_id, completed")
-          .eq("client_id", profile.id);
-
-        if (progressData) {
-          const map: Record<string, boolean> = {};
-          progressData.forEach((p: { content_id: string; completed: boolean }) => { map[p.content_id] = p.completed; });
-          setProgress(map);
+      try {
+        const res = await fetch(`/api/portal/training/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.module) {
+            data.module.content?.sort((a: ModuleContent, b: ModuleContent) => a.order_index - b.order_index);
+            setModule(data.module);
+          }
+          setProgress(data.progress || {});
+          setProfileId(data.profileId);
         }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [id]);
 
   async function toggleComplete(contentId: string) {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from("client_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!profile) return;
-
+    if (!profileId) return;
     const isCompleted = progress[contentId];
 
-    if (isCompleted) {
-      await supabase
-        .from("content_progress")
-        .update({ completed: false, completed_at: null })
-        .eq("client_id", profile.id)
-        .eq("content_id", contentId);
-    } else {
-      await supabase
-        .from("content_progress")
-        .upsert({
-          client_id: profile.id,
-          content_id: contentId,
-          completed: true,
-          completed_at: new Date().toISOString(),
-        });
-    }
-
+    // Optimistic update
     setProgress((prev) => ({ ...prev, [contentId]: !isCompleted }));
+
+    // Persist via API
+    await fetch(`/api/portal/training/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentId, completed: !isCompleted, profileId }),
+    });
   }
 
   const contentTypeIcons: Record<string, string> = {

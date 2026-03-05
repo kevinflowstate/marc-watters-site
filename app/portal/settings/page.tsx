@@ -17,30 +17,21 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: userData } = await supabase
-        .from("users")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-
-      const { data: profile } = await supabase
-        .from("client_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (userData) setFullName(userData.full_name || "");
-      if (profile) {
-        setPhone(profile.phone || "");
-        setBusinessName(profile.business_name || "");
-        setBusinessType(profile.business_type || "");
-        setGoals(profile.goals || "");
+      try {
+        const res = await fetch("/api/portal/me");
+        if (res.ok) {
+          const data = await res.json();
+          setFullName(data.fullName || "");
+          if (data.profile) {
+            setPhone(data.profile.phone || "");
+            setBusinessName(data.profile.business_name || "");
+            setBusinessType(data.profile.business_type || "");
+            setGoals(data.profile.goals || "");
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, []);
@@ -49,16 +40,11 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase.from("users").update({ full_name: fullName }).eq("id", user.id);
-
-    await supabase
-      .from("client_profiles")
-      .update({ phone, business_name: businessName, business_type: businessType, goals })
-      .eq("user_id", user.id);
+    await fetch("/api/portal/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, phone, businessName, businessType, goals }),
+    });
 
     setSaving(false);
     setSaved(true);

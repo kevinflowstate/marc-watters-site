@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import type { ClientModule } from "@/lib/types";
 
 export default function TrainingLibrary() {
@@ -11,26 +10,15 @@ export default function TrainingLibrary() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("client_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (profile) {
-        const { data } = await supabase
-          .from("client_modules")
-          .select("*, module:training_modules(*)")
-          .eq("client_id", profile.id)
-          .order("module(order_index)");
-
-        if (data) setModules(data);
+      try {
+        const res = await fetch("/api/portal/training");
+        if (res.ok) {
+          const data = await res.json();
+          setModules(data.modules || []);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, []);

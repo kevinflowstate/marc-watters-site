@@ -35,18 +35,17 @@ export default function Sidebar() {
 
   useEffect(() => {
     async function loadUser() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from("users")
-          .select("full_name")
-          .eq("id", user.id)
-          .single();
-        if (data?.full_name) {
-          setUserName(data.full_name);
-          setInitials(data.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2));
+      try {
+        const res = await fetch("/api/portal/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.fullName) {
+            setUserName(data.fullName);
+            setInitials(data.fullName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2));
+          }
         }
+      } catch {
+        // Silently fail
       }
     }
     loadUser();
