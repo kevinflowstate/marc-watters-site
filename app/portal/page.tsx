@@ -130,7 +130,7 @@ export default function PortalDashboard() {
         <NextEventCard />
         {newModules.length > 0 && (
           <div className="group relative bg-bg-card border border-emerald-500/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/20 hover:shadow-[0_2px_12px_rgba(16,185,129,0.04)]">
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[length:4px_4px]" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,8 +165,8 @@ export default function PortalDashboard() {
           { label: "Status", value: profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-" },
         ].map((stat, i) => (
           <div key={i} className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px]" />
-            <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+            <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             <div className="relative">
               <div className="text-text-muted text-xs uppercase tracking-wider mb-2">{stat.label}</div>
               <div className="text-2xl font-heading font-bold text-text-primary">{stat.value}</div>
@@ -180,20 +180,20 @@ export default function PortalDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Business Plan Summary */}
         <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px]" />
-          <div className="flex items-center justify-between mb-4">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <h2 className="text-lg font-heading font-bold text-text-primary">Business Plan</h2>
             <Link href="/portal/plan" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
               Go To Plan
             </Link>
           </div>
-          <ProgressBar value={completedPlanItems} max={totalPlanItems} />
-          <div className="flex justify-between mt-2 text-sm text-text-muted mb-4">
+          <div className="relative z-10"><ProgressBar value={completedPlanItems} max={totalPlanItems} /></div>
+          <div className="flex justify-between mt-2 text-sm text-text-muted mb-4 relative z-10">
             <span>{completedPlanItems} completed</span>
             <span>{totalPlanItems - completedPlanItems} remaining</span>
           </div>
           {planPhases.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 relative z-10">
               {planPhases.map((phase) => {
                 const phaseCompleted = (phase.items || []).filter((i) => i.completed).length;
                 const phaseTotal = (phase.items || []).length;
@@ -221,8 +221,8 @@ export default function PortalDashboard() {
 
         {/* Check-ins */}
         <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px]" />
-          <div className="flex items-center justify-between mb-4">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <h2 className="text-lg font-heading font-bold text-text-primary">Check-Ins</h2>
             {isCheckinToday ? (
               <Link href="/portal/checkin" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
@@ -237,7 +237,7 @@ export default function PortalDashboard() {
           {checkins.length === 0 ? (
             <p className="text-text-muted text-sm">No check-ins yet.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 relative z-10">
               {checkins.map((c) => {
                 const isExpanded = expandedCheckin === c.id;
                 return (
@@ -349,7 +349,7 @@ function NextEventCard() {
 
   return (
     <div className="group relative bg-bg-card border border-accent/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-[0_2px_12px_rgba(34,114,222,0.06)]">
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(34,114,222,0.03)_1px,transparent_1px)] bg-[length:4px_4px]" />
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(34,114,222,0.03)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
       <div className="relative flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center group-hover:bg-accent/15 transition-colors duration-300">
