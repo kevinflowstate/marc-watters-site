@@ -130,7 +130,7 @@ export default function PortalDashboard() {
       ) : (
       <>
       {/* Top Row: Next Event + What's New */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+      <div className={`grid grid-cols-1 ${newModules.length > 0 ? 'lg:grid-cols-2' : ''} gap-4 mb-8`}>
         <NextEventCard />
         {newModules.length > 0 && (
           <div className="group relative bg-bg-card border border-emerald-500/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/20 hover:shadow-[0_2px_12px_rgba(16,185,129,0.04)]">
@@ -267,7 +267,7 @@ export default function PortalDashboard() {
                         </svg>
                       </div>
                     </button>
-                    {isExpanded && (
+                    <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                       <div className="px-4 pb-4 space-y-3">
                         {c.responses && Object.entries(c.responses).map(([key, value]) => (
                           <div key={key}>
@@ -292,7 +292,7 @@ export default function PortalDashboard() {
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}

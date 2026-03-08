@@ -16,6 +16,7 @@ export default function CheckInPage() {
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function loadConfig() {
@@ -50,6 +51,7 @@ export default function CheckInPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (config?.mood_enabled && !mood) return;
+    setError(false);
     setSubmitting(true);
 
     try {
@@ -63,7 +65,8 @@ export default function CheckInPage() {
         setSubmitted(true);
       }
     } catch {
-      // Silent fail - could add error state
+      setError(true);
+      setTimeout(() => setError(false), 5000);
     }
 
     setSubmitting(false);
@@ -177,6 +180,9 @@ export default function CheckInPage() {
         >
           {submitting ? "Submitting..." : "Submit Check-In"}
         </button>
+        {error && (
+          <p className="text-red-400 text-sm text-center">Something went wrong. Please try again.</p>
+        )}
       </form>
     </div>
   );

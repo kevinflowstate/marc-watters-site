@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
@@ -35,6 +35,7 @@ export default function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -74,6 +75,18 @@ export default function Sidebar() {
     const interval = setInterval(loadNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showNotifications]);
 
   async function markAsRead(ids: string[]) {
     try {
@@ -146,7 +159,7 @@ export default function Sidebar() {
         </nav>
 
         {/* Notification bell */}
-        <div className="px-4 pb-2 relative">
+        <div ref={notificationRef} className="px-4 pb-2 relative">
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);

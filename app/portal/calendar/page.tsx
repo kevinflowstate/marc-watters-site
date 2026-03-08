@@ -136,7 +136,8 @@ export default function PortalCalendarPage() {
           upcoming.map(({ event, nextDate }) => {
             const rec = recurrenceLabels[event.recurrence];
             return (
-              <div key={event.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 hover:border-[rgba(255,255,255,0.08)] transition-all duration-200">
+              <div key={event.id} className="group relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
                 <div className="flex items-start gap-4">
                   <div className="w-14 h-14 rounded-xl bg-accent/10 border border-accent/20 flex flex-col items-center justify-center flex-shrink-0">
                     <span className="text-[10px] font-semibold text-accent-bright uppercase">
