@@ -1,3 +1,17 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Client Results & Testimonials",
+  description: "Real results from trade and construction business owners on the Construction Business Blueprint programme. Improved margins, stronger teams, and businesses that run without the owner.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/testimonials" },
+  openGraph: {
+    title: "Client Results & Testimonials | Marc Watters",
+    description: "Real results from trade and construction business owners on the Construction Business Blueprint programme.",
+    url: "/testimonials",
+  },
+};
+
 export default function TestimonialsPage() {
   return (
     <main className="min-h-screen pt-[120px] pb-20 px-8">

@@ -200,7 +200,7 @@ export default function BlueprintAIPage() {
           style={{ minHeight: "48px", maxHeight: "120px" }}
         />
         <button
-          onClick={handleSend}
+          onClick={() => handleSend()}
           disabled={!input.trim() || loading}
           className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-accent-bright/20 hover:bg-accent-bright/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
         >

@@ -13,8 +13,23 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const article = getArticleBySlug(slug);
   if (!article) return {};
   return {
-    title: `${article.title} - Marc Watters`,
+    title: article.title,
     description: article.excerpt,
+    alternates: { canonical: `/articles/${slug}` },
+    openGraph: {
+      type: "article",
+      title: `${article.title} | Marc Watters`,
+      description: article.excerpt,
+      url: `/articles/${slug}`,
+      publishedTime: article.date,
+      authors: ["Marc Watters"],
+      section: article.category,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description: article.excerpt,
+    },
   };
 }
 
@@ -26,8 +41,43 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const currentIndex = articles.findIndex((a) => a.slug === slug);
   const related = articles.filter((_, i) => i !== currentIndex).slice(0, 2);
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.excerpt,
+    author: {
+      "@type": "Person",
+      name: "Marc Watters",
+      jobTitle: "Construction Business Mentor",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Construction Business Blueprint",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://marc-watters-site.vercel.app/images/cbb-logo.png",
+      },
+    },
+    datePublished: article.date,
+    articleSection: article.category,
+    mainEntityOfPage: `https://marc-watters-site.vercel.app/articles/${slug}`,
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://marc-watters-site.vercel.app" },
+      { "@type": "ListItem", position: 2, name: "Articles", item: "https://marc-watters-site.vercel.app/articles" },
+      { "@type": "ListItem", position: 3, name: article.title },
+    ],
+  };
+
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <article className="pt-[160px] pb-[100px] px-8 relative">
         <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 10%, rgba(34,114,222,0.03) 0%, transparent 50%)" }} />
         <div className="max-w-[760px] mx-auto relative">

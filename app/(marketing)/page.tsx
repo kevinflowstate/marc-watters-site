@@ -68,9 +68,30 @@ const steps = [
   { num: "3", title: "Start Building", desc: "You get a structured programme, a clear plan, and direct support. From day one, you'll know exactly what to focus on." },
 ];
 
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  name: "Marc Watters - Construction Business Blueprint",
+  description: "Private mentorship for trade and construction business owners who want profit, structure, and a business that doesn't depend on them doing everything.",
+  url: "https://marc-watters-site.vercel.app",
+  logo: "https://marc-watters-site.vercel.app/images/cbb-logo.png",
+  image: "https://marc-watters-site.vercel.app/images/marc-hero.png",
+  founder: {
+    "@type": "Person",
+    name: "Marc Watters",
+    jobTitle: "Construction Business Mentor",
+  },
+  areaServed: [
+    { "@type": "Country", name: "United Kingdom" },
+    { "@type": "Country", name: "Ireland" },
+  ],
+  serviceType: "Business Mentorship",
+};
+
 export default function Home() {
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
       <ScrollReveal />
       <StatCounter />
 

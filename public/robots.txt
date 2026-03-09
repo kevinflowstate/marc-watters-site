@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Block portal and admin areas from search engines
+Disallow: /portal/
+Disallow: /admin/
+Disallow: /login
+Disallow: /auth/
+Disallow: /api/
+
+Sitemap: https://marc-watters-site.vercel.app/sitemap.xml

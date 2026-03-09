@@ -1,3 +1,16 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Apply for Coaching - Construction Business Blueprint",
+  description: "Apply for private 1-to-1 mentorship with Marc Watters. For serious trade and construction business owners ready to build profit, structure, and a team that runs without them.",
+  alternates: { canonical: "/apply" },
+  openGraph: {
+    title: "Apply for Coaching - Construction Business Blueprint",
+    description: "Apply for private 1-to-1 mentorship with Marc Watters. For serious trade and construction business owners ready to build profit, structure, and a team that runs without them.",
+    url: "/apply",
+  },
+};
+
 export default function ApplyPage() {
   return (
     <main className="min-h-screen pt-[120px] pb-20 px-8">

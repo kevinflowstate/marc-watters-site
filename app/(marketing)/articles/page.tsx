@@ -4,8 +4,14 @@ import ScrollReveal from "@/components/ScrollReveal";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Articles - Marc Watters | Construction Business Mentorship",
+  title: "Articles - Practical Advice for Construction Business Owners",
   description: "Practical advice on profit, systems, team building, and growth for trade and construction business owners. Written by Marc Watters.",
+  alternates: { canonical: "/articles" },
+  openGraph: {
+    title: "Articles - Practical Advice for Construction Business Owners",
+    description: "Practical advice on profit, systems, team building, and growth for trade and construction business owners. Written by Marc Watters.",
+    url: "/articles",
+  },
 };
 
 export default function ArticlesPage() {

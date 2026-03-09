@@ -1,3 +1,18 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About Marc Watters - Construction Business Mentor",
+  description: "Marc Watters has spent years in the construction industry. He works privately with trade and construction business owners across the UK and Ireland to build profit, structure, and real systems.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About Marc Watters - Construction Business Mentor",
+    description: "Marc Watters has spent years in the construction industry. He works privately with trade and construction business owners across the UK and Ireland to build profit, structure, and real systems.",
+    url: "/about",
+    images: [{ url: "/images/marc-about.png", alt: "Marc Watters" }],
+  },
+};
+
 export default function AboutPage() {
   return (
     <main className="min-h-screen pt-[120px] pb-20 px-8">
