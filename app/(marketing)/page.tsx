@@ -459,6 +459,7 @@ export default function Home() {
 
           <div className="mt-12 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.4),0_0_60px_rgba(34,114,222,0.04)] relative reveal">
             <div className="absolute -top-px left-[20%] right-[20%] h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.4)] to-transparent" />
+            {/* Browser chrome */}
             <div className="px-6 py-4 bg-[rgba(34,114,222,0.03)] border-b border-[rgba(255,255,255,0.04)] flex justify-between items-center">
               <div className="flex gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#e05555]" />
@@ -468,29 +469,111 @@ export default function Home() {
               <span className="text-[0.82rem] font-semibold text-text-muted font-mono">portal.marcwatters.co.uk</span>
             </div>
 
-            <div className="p-10">
-              <div className="font-heading text-xl font-bold mb-6">Welcome back, James.</div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-6 md:p-10">
+              {/* Welcome */}
+              <div className="mb-6">
+                <div className="font-heading text-xl md:text-2xl font-bold">Welcome back, James.</div>
+                <div className="text-[0.85rem] text-text-muted mt-1">Here&apos;s your progress overview.</div>
+              </div>
+
+              {/* Next Event Banner */}
+              <div className="bg-bg-primary border border-[rgba(34,114,222,0.12)] rounded-2xl p-4 md:p-5 mb-6 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  </div>
+                  <div>
+                    <div className="text-[0.7rem] text-text-muted uppercase tracking-wider">Next Event</div>
+                    <div className="text-[0.95rem] font-heading font-bold">Weekly Check-In Call</div>
+                    <div className="text-[0.8rem] text-text-muted">Thursday, 10:00 AM - Every week</div>
+                  </div>
+                </div>
+                <div className="px-4 py-2 gradient-accent text-white rounded-xl text-[0.8rem] font-semibold flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  Join Call
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
                 {[
-                  { label: "Modules Assigned", value: "8", sub: "5 completed" },
-                  { label: "Check-Ins Submitted", value: "12", sub: "Next due Friday" },
-                  { label: "Week Rating", value: "8/10", sub: "Trending up" },
-                ].map((card, i) => (
-                  <div key={i} className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-[14px] p-6 transition-all duration-300 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_0_20px_rgba(34,114,222,0.05)]">
-                    <div className="text-[0.72rem] font-semibold text-text-muted uppercase tracking-[1.5px] mb-2">{card.label}</div>
-                    <div className="font-heading text-[2.25rem] font-black gradient-text">{card.value}</div>
-                    <div className="text-[0.78rem] text-text-muted mt-1">{card.sub}</div>
+                  { label: "Plan Progress", value: "62%", sub: "8/13 actions done" },
+                  { label: "Current Week", value: "Week 6" },
+                  { label: "Trainings", value: "5/8", sub: "63% complete" },
+                  { label: "Status", value: "On Track", isStatus: true },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-2xl p-4 md:p-5">
+                    <div className="text-[0.65rem] text-text-muted uppercase tracking-wider mb-1.5">{stat.label}</div>
+                    <div className={`font-heading text-lg md:text-xl font-bold ${stat.isStatus ? "text-emerald-400" : "text-text-primary"}`}>{stat.value}</div>
+                    {stat.sub && <div className="text-[0.72rem] text-text-muted mt-0.5">{stat.sub}</div>}
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6">
-                <div className="flex justify-between text-[0.85rem] mb-2">
-                  <span className="text-text-secondary">Programme Progress</span>
-                  <span className="text-accent-bright font-bold">65%</span>
+              {/* Two Column: Business Plan + Check-Ins */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                {/* Business Plan */}
+                <div className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 md:p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="font-heading text-base font-bold">Business Plan</div>
+                    <div className="px-3 py-1.5 gradient-accent text-white rounded-xl text-[0.72rem] font-semibold">Go To Plan</div>
+                  </div>
+                  {/* Overall progress bar */}
+                  <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-2 mb-1">
+                    <div className="h-2 rounded-full gradient-accent" style={{ width: "62%" }} />
+                  </div>
+                  <div className="flex justify-between text-[0.72rem] text-text-muted mb-5">
+                    <span>8 completed</span>
+                    <span>5 remaining</span>
+                  </div>
+
+                  {/* Phase breakdown */}
+                  <div className="space-y-3">
+                    {[
+                      { name: "Financial Foundations", completed: 4, total: 4, color: "bg-blue-500", pct: 100 },
+                      { name: "Pipeline & Sales", completed: 3, total: 4, color: "bg-emerald-500", pct: 75 },
+                      { name: "Team & Hiring", completed: 1, total: 3, color: "bg-purple-500", pct: 33 },
+                      { name: "Operational Systems", completed: 0, total: 2, color: "bg-amber-500", pct: 0 },
+                    ].map((phase, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[0.82rem] text-text-primary truncate">{phase.name}</span>
+                            <span className="text-[0.65rem] text-text-muted ml-2">{phase.completed}/{phase.total}</span>
+                          </div>
+                          <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-1.5">
+                            <div className={`h-1.5 rounded-full ${phase.pct === 100 ? "bg-emerald-500" : "gradient-accent"}`} style={{ width: `${phase.pct}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="h-2.5 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden border border-[rgba(255,255,255,0.04)]">
-                  <div className="h-full w-[65%] gradient-accent rounded-full animate-[progressGlow_2s_ease-in-out_infinite]" />
+
+                {/* Check-Ins */}
+                <div className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 md:p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="font-heading text-base font-bold">Check-Ins</div>
+                    <span className="text-[0.72rem] text-text-muted">Next: Mon 17 Mar</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {[
+                      { week: 6, date: "10 Mar", mood: "great", moodColor: "bg-emerald-500/10 text-emerald-400", replied: true },
+                      { week: 5, date: "3 Mar", mood: "good", moodColor: "bg-blue-500/10 text-blue-400", replied: true },
+                      { week: 4, date: "24 Feb", mood: "okay", moodColor: "bg-amber-500/10 text-amber-400", replied: true },
+                      { week: 3, date: "17 Feb", mood: "good", moodColor: "bg-blue-500/10 text-blue-400", replied: true },
+                    ].map((c, i) => (
+                      <div key={i} className="border border-[rgba(255,255,255,0.04)] rounded-xl py-3 px-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[0.82rem] text-text-primary font-medium">Week {c.week}</span>
+                          <span className="text-[0.72rem] text-text-muted">{c.date}</span>
+                          <span className={`text-[0.68rem] px-2 py-0.5 rounded-full ${c.moodColor}`}>{c.mood}</span>
+                        </div>
+                        <span className="text-[0.72rem] text-accent-bright">Replied</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
