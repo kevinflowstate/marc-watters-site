@@ -511,7 +511,6 @@ export default function Home() {
             Apply for Coaching
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
           </Link>
-          <p className="mt-6 text-[0.82rem] text-text-muted">GHL application form embeds here</p>
         </div>
       </section>
     </main>
