@@ -148,7 +148,21 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero image */}
+          {/* Hero image - mobile: behind text as background, desktop: side by side */}
+          {/* Mobile hero image (absolute behind text) */}
+          <div className="absolute inset-0 lg:hidden z-[1] animate-[fadeIn_1.5s_cubic-bezier(0.16,1,0.3,1)_0.3s_both]">
+            <Image
+              src="/images/marc-hero.png"
+              alt="Marc Watters"
+              width={800}
+              height={900}
+              className="w-full h-full object-cover object-[center_top] brightness-[0.4] contrast-[1.1]"
+              priority
+            />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #050507 0%, rgba(5,5,7,0.7) 40%, transparent 100%)" }} />
+          </div>
+
+          {/* Desktop hero image (side by side) */}
           <div className="relative hidden lg:flex justify-end items-center -mr-8 animate-[fadeIn_1.5s_cubic-bezier(0.16,1,0.3,1)_0.3s_both]">
             <div className="absolute w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(34,114,222,0.1)_0%,transparent_70%)] rounded-full top-[40%] right-[15%] -translate-y-1/2 pointer-events-none animate-[breathe_5s_ease-in-out_infinite] z-0" />
             <Image
