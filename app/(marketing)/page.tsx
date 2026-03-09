@@ -174,10 +174,10 @@ export default function Home() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.3)] to-transparent" />
         <div className="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
-            { value: "0x", count: "20", label: "Return on Ad Spend", suffix: "x" },
-            { value: "0+", count: "21", label: "Active Clients", suffix: "+" },
-            { value: "0", count: "6", label: "New Clients This Month", suffix: "" },
-            { value: "UK & IE", label: "Construction Owners Served" },
+            { value: "0+", count: "20", label: "Years in Construction", suffix: "+" },
+            { value: "0-to-0", count: "1", label: "Private Mentorship", suffix: "-to-1" },
+            { value: "0%", count: "100", label: "Tailored to Your Business", suffix: "%" },
+            { value: "UK & IE", label: "Trade & Construction Owners" },
           ].map((stat, i) => (
             <div key={i} className={`relative reveal ${i > 0 ? `reveal-delay-${i}` : ""}`}>
               {i < 3 && (
