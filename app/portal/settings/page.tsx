@@ -3,9 +3,11 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -71,6 +73,7 @@ export default function SettingsPage() {
 
     setSaving(false);
     setSaved(true);
+    toast("Settings saved successfully");
     setTimeout(() => setSaved(false), 3000);
   }
 

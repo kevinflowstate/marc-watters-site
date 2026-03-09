@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/Toast";
 import type { CheckinFormConfig } from "@/lib/types";
 
 const moodColorMap: Record<string, string> = {
@@ -11,6 +12,7 @@ const moodColorMap: Record<string, string> = {
 };
 
 export default function CheckInPage() {
+  const { toast } = useToast();
   const [config, setConfig] = useState<CheckinFormConfig | null>(null);
   const [mood, setMood] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, string>>({});
@@ -63,9 +65,11 @@ export default function CheckInPage() {
 
       if (res.ok) {
         setSubmitted(true);
+        toast("Check-in submitted - Marc will review it this week");
       }
     } catch {
       setError(true);
+      toast("Something went wrong. Please try again.", "error");
       setTimeout(() => setError(false), 5000);
     }
 

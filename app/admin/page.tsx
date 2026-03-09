@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, CheckIn } from "@/lib/types";
 
@@ -313,6 +314,7 @@ function getWeekBucket(dateStr: string): "this_week" | "last_week" | "earlier" {
 }
 
 function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
+  const { toast } = useToast();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["earlier"]));
   const [replies, setReplies] = useState<Record<string, string>>({});
@@ -362,8 +364,10 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
 
       setSentReplies((prev) => ({ ...prev, [checkinId]: text }));
       setReplies((prev) => ({ ...prev, [checkinId]: "" }));
+      toast("Reply sent successfully");
     } catch (err) {
       setReplyError(err instanceof Error ? err.message : "Failed to send reply");
+      toast("Failed to send reply", "error");
     } finally {
       setSendingReply(null);
     }

@@ -490,6 +490,9 @@ export default function ClientDetailPage() {
         </div>
       )}
 
+      {/* Activity Timeline */}
+      <ActivityTimeline client={client} />
+
       {/* Internal Notes */}
       <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl mb-6 overflow-hidden">
         <button
@@ -1048,5 +1051,126 @@ export default function ClientDetailPage() {
         />
       )}
     </>
+  );
+}
+
+function ActivityTimeline({ client }: { client: AdminClient }) {
+  const [expanded, setExpanded] = useState(true);
+
+  // Build unified timeline from checkins, plan items, and modules
+  interface TimelineEvent {
+    type: "checkin" | "plan_item" | "module_started" | "module_completed" | "reply";
+    date: string;
+    title: string;
+    detail?: string;
+    color: string;
+    icon: string;
+  }
+
+  const events: TimelineEvent[] = [];
+
+  // Check-ins
+  for (const c of client.checkins) {
+    events.push({
+      type: "checkin",
+      date: c.created_at,
+      title: `Submitted Week ${c.week_number} check-in`,
+      detail: c.mood ? `Mood: ${c.mood}` : undefined,
+      color: "text-blue-400",
+      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+    });
+    if (c.admin_reply && c.replied_at) {
+      events.push({
+        type: "reply",
+        date: c.replied_at,
+        title: `Marc replied to Week ${c.week_number} check-in`,
+        color: "text-accent-bright",
+        icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
+      });
+    }
+  }
+
+  // Business plan items completed
+  const activePlan = client.business_plan?.find((p) => p.status === "active");
+  if (activePlan) {
+    for (const phase of activePlan.phases) {
+      for (const item of phase.items) {
+        if (item.completed && item.completed_at) {
+          events.push({
+            type: "plan_item",
+            date: item.completed_at,
+            title: `Completed: ${item.title}`,
+            detail: phase.name,
+            color: "text-emerald-400",
+            icon: "M5 13l4 4L19 7",
+          });
+        }
+      }
+    }
+  }
+
+  // Sort newest first
+  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (events.length === 0) return null;
+
+  return (
+    <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl mb-6 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="text-left">
+            <h2 className="text-sm font-heading font-bold text-text-primary">Activity Timeline</h2>
+            <p className="text-[10px] text-text-muted">{events.length} events</p>
+          </div>
+        </div>
+        <svg className={`w-4 h-4 text-text-muted transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="px-5 pb-5">
+          <div className="relative border-l border-[rgba(255,255,255,0.06)] ml-4 space-y-0">
+            {events.slice(0, 15).map((event, i) => (
+              <div key={i} className="relative pl-6 pb-4 last:pb-0">
+                <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-bg-card ${
+                  event.type === "checkin" ? "bg-blue-400" :
+                  event.type === "reply" ? "bg-accent" :
+                  event.type === "plan_item" ? "bg-emerald-400" :
+                  "bg-purple-400"
+                }`} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <svg className={`w-3.5 h-3.5 flex-shrink-0 ${event.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={event.icon} />
+                    </svg>
+                    <div className="min-w-0">
+                      <span className="text-xs text-text-primary">{event.title}</span>
+                      {event.detail && <span className="text-[10px] text-text-muted ml-2">{event.detail}</span>}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-text-muted whitespace-nowrap flex-shrink-0">
+                    {new Date(event.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {events.length > 15 && (
+              <div className="pl-6 pt-2 text-[10px] text-text-muted">
+                + {events.length - 15} more events
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
