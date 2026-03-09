@@ -107,19 +107,19 @@ export default function Home() {
         />
 
         {/* Mobile hero image (absolute behind text) */}
-        <div className="absolute inset-0 lg:hidden z-[1] animate-[fadeIn_1.5s_cubic-bezier(0.16,1,0.3,1)_0.3s_both]">
+        <div className="absolute inset-0 lg:hidden z-0 pointer-events-none animate-[fadeIn_1.5s_cubic-bezier(0.16,1,0.3,1)_0.3s_both]">
           <Image
             src="/images/marc-hero.png"
             alt="Marc Watters"
             width={800}
             height={900}
-            className="w-full h-full object-cover object-[center_top] brightness-[0.4] contrast-[1.1]"
+            className="w-full h-full object-cover object-[center_top] brightness-[0.35] contrast-[1.1]"
             priority
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #050507 0%, rgba(5,5,7,0.7) 40%, transparent 100%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #050507 5%, rgba(5,5,7,0.6) 50%, transparent 100%)" }} />
         </div>
 
-        <div className="max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center relative z-[2]">
+        <div className="max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center relative z-[3]">
           <div className="max-w-[600px] lg:pl-8">
             <div className="inline-flex items-center gap-2 bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.2)] rounded-full px-[18px] py-[7px] text-[0.78rem] font-semibold text-accent-bright mb-6 tracking-[0.5px] uppercase animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.2s_both]">
               <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--color-accent),0_0_20px_rgba(34,114,222,0.3)] animate-[pulse-dot_2s_ease-in-out_infinite]" />
