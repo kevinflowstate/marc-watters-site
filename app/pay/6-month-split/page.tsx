@@ -65,7 +65,7 @@ export default function Pay6MonthSplitPage() {
                 {["Payment 1 - Today", "Payment 2 - 4 weeks later"].map((label) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-text-secondary">{label}</span>
-                    <span className="text-text-primary font-medium">£1,350</span>
+                    <span className="text-text-primary font-medium">£2,700</span>
                   </div>
                 ))}
               </div>
