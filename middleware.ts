@@ -5,6 +5,30 @@ import { NextResponse, type NextRequest } from 'next/server';
 const PREVIEW_MODE = true;
 
 export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host') || '';
+  const path = request.nextUrl.pathname;
+
+  // Subdomain routing
+  if (hostname.startsWith('calendar.')) {
+    if (path === '/') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/book-marc';
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  if (hostname.startsWith('join.')) {
+    if (path === '/') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/join';
+      return NextResponse.rewrite(url);
+    }
+    // Allow /pay/* routes on the join subdomain
+    if (path.startsWith('/pay/')) {
+      return NextResponse.next();
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -37,8 +61,6 @@ export async function middleware(request: NextRequest) {
   if (PREVIEW_MODE) {
     return supabaseResponse;
   }
-
-  const path = request.nextUrl.pathname;
 
   // Protect portal and admin routes
   if ((path.startsWith('/portal') || path.startsWith('/admin')) && !user) {
