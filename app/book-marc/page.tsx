@@ -1,12 +1,35 @@
-import type { Metadata } from "next";
-import Script from "next/script";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Book a Call with Marc | Marc Watters",
-  description: "Pick the time that works for you, fill in your details and we'll see you soon.",
-};
+import { useEffect, useRef } from "react";
 
 export default function BookMarcPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Inject the raw GHL embed HTML
+    containerRef.current.innerHTML = `
+      <iframe
+        src="https://link.constructionbusinessblueprint.co.uk/widget/booking/4SOIodvlfHYmyzKvIAmn"
+        style="width: 100%; border: none; overflow: hidden; min-height: 800px;"
+        scrolling="no"
+        id="4SOIodvlfHYmyzKvIAmn_1773313772148"
+      ></iframe>
+    `;
+
+    // Load the GHL form embed script
+    const script = document.createElement("script");
+    script.src =
+      "https://link.constructionbusinessblueprint.co.uk/js/form_embed.js";
+    script.type = "text/javascript";
+    document.body.appendChild(script);
+
+    return () => {
+      script.remove();
+    };
+  }, []);
+
   return (
     <main className="min-h-screen flex items-center justify-center py-20 px-8 relative">
       {/* Background gradient */}
@@ -35,7 +58,8 @@ export default function BookMarcPage() {
           </h1>
 
           <p className="text-[1.1rem] text-text-secondary leading-[1.8] max-w-[600px] mx-auto">
-            Pick the time that works for you, fill in your details and we&apos;ll see you soon.
+            Pick the time that works for you, fill in your details and
+            we&apos;ll see you soon.
           </p>
         </div>
 
@@ -43,18 +67,10 @@ export default function BookMarcPage() {
         <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.4),0_0_60px_rgba(34,114,222,0.04)] relative">
           <div className="absolute -top-px left-[20%] right-[20%] h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.4)] to-transparent" />
 
-          <div className="p-8" id="calendar-container">
-            {/* GHL Calendar will be embedded here */}
-            <div
-              id="ghl-calendar-marc"
-              className="min-h-[600px] flex items-center justify-center"
-            >
-              <div className="text-center text-text-secondary">
-                <p className="mb-4">Calendar widget will appear here</p>
-                <p className="text-sm text-text-muted">
-                  Paste Marc&apos;s GHL calendar embed code in this component
-                </p>
-              </div>
+          <div className="p-8" id="calendar-container" ref={containerRef}>
+            {/* GHL calendar injected via useEffect */}
+            <div className="min-h-[800px] flex items-center justify-center">
+              <div className="text-text-muted text-sm">Loading calendar...</div>
             </div>
           </div>
         </div>
