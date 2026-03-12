@@ -63,12 +63,7 @@ export default function Pay6MonthVatPage() {
 
             {/* What's included */}
             <ul className="space-y-3 mb-10">
-              {[
-                "6 months private mentorship with Marc",
-                "Weekly group coaching calls",
-                "Full access to the CBB portal",
-                "Direct support via WhatsApp",
-              ].map((item) => (
+              {["Bespoke business plan", "1 to 1 onboarding session with Marc", "Full access to all CBB resources"].map((item) => (
                 <li key={item} className="flex items-start gap-3 text-text-secondary text-[0.95rem]">
                   <span className="w-5 h-5 rounded-full bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center flex-shrink-0 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent-bright" />
