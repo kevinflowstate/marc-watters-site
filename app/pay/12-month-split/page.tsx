@@ -55,17 +55,17 @@ export default function Pay12MonthSplitPage() {
               <div className="text-[3.5rem] font-heading font-black tracking-[-2px] text-text-primary leading-none">
                 £4,500
               </div>
-              <p className="text-text-muted text-sm mt-2">Split across 4 payments, 1 week apart</p>
+              <p className="text-text-muted text-sm mt-2">2 payments, 4 weeks apart</p>
             </div>
 
             {/* Payment breakdown */}
             <div className="bg-[rgba(34,114,222,0.04)] border border-[rgba(34,114,222,0.1)] rounded-xl p-5 mb-8">
               <div className="text-xs font-semibold text-accent-bright uppercase tracking-[0.5px] mb-3">Payment Schedule</div>
               <div className="space-y-2">
-                {["Payment 1 - Today", "Payment 2 - Week 2", "Payment 3 - Week 3", "Payment 4 - Week 4"].map((label, i) => (
+                {["Payment 1 - Today", "Payment 2 - 4 weeks later"].map((label) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-text-secondary">{label}</span>
-                    <span className="text-text-primary font-medium">£1,125</span>
+                    <span className="text-text-primary font-medium">£2,250</span>
                   </div>
                 ))}
               </div>
