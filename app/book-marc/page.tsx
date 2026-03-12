@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Script from "next/script";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +18,8 @@ export default function BookMarcPage() {
         <div className="max-w-[900px] mx-auto w-full relative z-10">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/images/cbb-logo.png"
               alt="CBB"
               width={56}
@@ -61,19 +61,6 @@ export default function BookMarcPage() {
                 id="4SOIodvlfHYmyzKvIAmn_1773313772148"
               ></iframe>
             </div>
-          </div>
-
-          {/* Footer note */}
-          <div className="text-center mt-8">
-            <p className="text-sm text-text-muted">
-              Can&apos;t find a suitable time?{" "}
-              <a
-                href="mailto:mrwmanagement@outlook.com"
-                className="text-accent hover:text-accent-bright transition-colors"
-              >
-                Get in touch
-              </a>
-            </p>
           </div>
         </div>
       </main>
