@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // TODO: Remove PREVIEW_MODE before go-live
-const PREVIEW_MODE = true;
+const PREVIEW_MODE = false;
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
