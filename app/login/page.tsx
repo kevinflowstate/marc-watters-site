@@ -35,21 +35,15 @@ function LoginForm() {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // Check role from user metadata first (no DB query needed), fall back to DB
-      let role = user.user_metadata?.role;
-      if (!role) {
-        const { data: profile } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        role = profile?.role;
-      }
+      // Fetch role via API to bypass RLS
+      const roleRes = await fetch("/api/portal/me");
+      const roleData = roleRes.ok ? await roleRes.json() : null;
+      const role = roleData?.role;
 
-      if (role === "admin" && redirect === "/portal") {
+      if (role === "admin") {
         router.push("/admin");
       } else {
-        router.push(redirect);
+        router.push("/portal");
       }
     }
   }

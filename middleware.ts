@@ -70,15 +70,37 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Admin routes - check role
-  if (path.startsWith('/admin') && user) {
-    const { data: profile } = await supabase
+  // Role-based routing: admin sees admin, client sees portal, never cross
+  if ((path.startsWith('/admin') || path.startsWith('/portal')) && user) {
+    // Use service role key to bypass RLS for role lookup
+    const adminSupabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        cookies: {
+          getAll() { return []; },
+          setAll() {},
+        },
+      }
+    );
+
+    const { data: profile } = await adminSupabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profile?.role !== 'admin') {
+    const role = profile?.role;
+
+    // Admin trying to access portal -> redirect to admin
+    if (path.startsWith('/portal') && role === 'admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
+
+    // Client (or unknown role) trying to access admin -> redirect to portal
+    if (path.startsWith('/admin') && role !== 'admin') {
       const url = request.nextUrl.clone();
       url.pathname = '/portal';
       return NextResponse.redirect(url);
