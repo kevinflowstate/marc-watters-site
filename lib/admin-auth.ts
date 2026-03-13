@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Check if the current request is from an admin user.
@@ -19,17 +20,15 @@ export async function requireAdmin(): Promise<
     return { authorized: true };
   }
 
-  // Session exists - verify admin role
-  const { data: profile } = await supabase
+  // Use admin client to bypass RLS for role lookup
+  const admin = createAdminClient();
+  const { data: profile } = await admin
     .from("users")
     .select("role")
     .eq("id", user.id)
     .single();
 
-  // Check user_metadata as fallback (RLS on users table can be unreliable)
-  const role = profile?.role || user.user_metadata?.role;
-
-  if (role !== "admin") {
+  if (profile?.role !== "admin") {
     return { authorized: false, status: 403, error: "Not authorized" };
   }
 
