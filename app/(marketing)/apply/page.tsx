@@ -20,9 +20,17 @@ export default function ApplyPage() {
         <div className="section-divider mx-auto" />
         <p className="text-text-secondary text-[1.05rem] leading-[1.8] mt-6 mb-12">Fill in the short application below. This isn't for everyone - it's for serious operators who are ready to do the work. If it looks like a fit, Marc will be in touch directly.</p>
 
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] p-12 text-text-muted">
-          {/* GHL form embed goes here */}
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] p-4 sm:p-8 overflow-hidden">
+          <iframe
+            src="https://link.constructionbusinessblueprint.co.uk/widget/form/YOUR_FORM_ID"
+            style={{ width: "100%", border: "none", minHeight: "600px" }}
+            scrolling="no"
+            title="Apply for Coaching"
+          />
         </div>
+        <p className="text-text-muted text-xs mt-4">
+          Your information is kept strictly confidential and will only be used to assess your application.
+        </p>
       </div>
     </main>
   );

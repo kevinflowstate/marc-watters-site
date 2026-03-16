@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { ClientModule, ModuleContent } from "@/lib/types";
+import type { TrainingModule, ModuleContent } from "@/lib/types";
 
 const moduleColors = [
   { bg: "from-blue-600/20 to-blue-900/40", icon: "text-blue-400" },
@@ -23,7 +23,7 @@ const moduleIcons = [
 ];
 
 export default function TrainingLibrary() {
-  const [modules, setModules] = useState<ClientModule[]>([]);
+  const [modules, setModules] = useState<TrainingModule[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,14 +63,12 @@ export default function TrainingLibrary() {
         </div>
       ) : modules.length === 0 ? (
         <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
-          <p className="text-text-secondary">No training modules assigned yet.</p>
-          <p className="text-text-muted text-sm mt-2">Marc will assign your modules shortly.</p>
+          <p className="text-text-secondary">No training modules available yet.</p>
+          <p className="text-text-muted text-sm mt-2">New content is on the way.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {modules.map((cm, i) => {
-            const mod = cm.module;
-            if (!mod) return null;
+          {modules.map((mod, i) => {
             const color = moduleColors[i % moduleColors.length];
             const icon = moduleIcons[i % moduleIcons.length];
             const lessonCount = mod.content?.length || 0;
@@ -78,7 +76,7 @@ export default function TrainingLibrary() {
 
             return (
               <Link
-                key={cm.id}
+                key={mod.id}
                 href={`/portal/training/${mod.id}`}
                 className="group relative block bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 no-underline hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] will-change-transform cursor-pointer"
               >
@@ -105,14 +103,10 @@ export default function TrainingLibrary() {
                     {i + 1}
                   </div>
 
-                  {/* Status badge */}
+                  {/* Lesson count badge */}
                   <div className="absolute top-4 right-4">
-                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold ${
-                      cm.status === "completed"
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        : "bg-accent/20 text-blue-300 border border-accent/30"
-                    }`}>
-                      {cm.status === "completed" ? "Completed" : "In Progress"}
+                    <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-accent/20 text-blue-300 border border-accent/30">
+                      {lessonCount} {lessonCount === 1 ? "lesson" : "lessons"}
                     </span>
                   </div>
 

@@ -42,9 +42,10 @@ export async function GET() {
 
   const [modulesRes, checkinsRes, planRes, formConfigRes, recentModulesRes] = await Promise.all([
     admin
-      .from("client_modules")
-      .select("*, module:training_modules(*)")
-      .eq("client_id", profile.id),
+      .from("training_modules")
+      .select("*, content:module_content(*)")
+      .eq("is_published", true)
+      .order("order_index"),
     admin
       .from("checkins")
       .select("*")

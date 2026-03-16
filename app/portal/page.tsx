@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { ClientProfile, ClientModule, CheckIn, CalendarEvent, BusinessPlanPhase } from "@/lib/types";
+import type { ClientProfile, TrainingModule, CheckIn, CalendarEvent, BusinessPlanPhase } from "@/lib/types";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
@@ -70,7 +70,7 @@ interface RecentModule { id: string; title: string; created_at: string; }
 export default function PortalDashboard() {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [userName, setUserName] = useState("");
-  const [modules, setModules] = useState<ClientModule[]>([]);
+  const [modules, setModules] = useState<TrainingModule[]>([]);
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [planPhases, setPlanPhases] = useState<BusinessPlanPhase[]>([]);
   const [checkinDay, setCheckinDay] = useState("monday");
@@ -104,7 +104,6 @@ export default function PortalDashboard() {
   const totalPlanItems = allPlanItems.length;
   const planPct = totalPlanItems > 0 ? Math.round((completedPlanItems / totalPlanItems) * 100) : 0;
 
-  const completedModules = modules.filter((m) => m.status === "completed").length;
   const totalModules = modules.length;
   const currentWeek = checkins.length > 0 ? checkins[0].week_number : 0;
 
@@ -130,7 +129,7 @@ export default function PortalDashboard() {
         <BriefingBanner
           isCheckinToday={isCheckinToday}
           nextCheckinDate={nextCheckinDate}
-          uncompletedModules={modules.filter((m) => m.status !== "completed").length}
+          uncompletedModules={totalModules}
           unrepliedCheckins={checkins.filter((c) => c.admin_reply && !expandedCheckin).length}
           latestReply={checkins.find((c) => c.admin_reply)}
           planPct={planPct}
@@ -177,7 +176,7 @@ export default function PortalDashboard() {
         {[
           { label: "Plan Progress", value: `${planPct}%`, sub: `${completedPlanItems}/${totalPlanItems} actions done` },
           { label: "Current Week", value: `Week ${currentWeek || "-"}` },
-          { label: "Trainings", value: `${completedModules}/${totalModules}`, sub: totalModules > 0 ? `${Math.round((completedModules / totalModules) * 100)}% complete` : "None assigned" },
+          { label: "Trainings", value: `${totalModules}`, sub: totalModules > 0 ? `${totalModules} module${totalModules !== 1 ? "s" : ""} available` : "Coming soon" },
           { label: "Status", value: profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-" },
         ].map((stat, i) => (
           <div key={i} className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
@@ -195,7 +194,7 @@ export default function PortalDashboard() {
       {/* Journey Progress */}
       <JourneyTracker
         currentWeek={currentWeek}
-        completedModules={completedModules}
+        completedModules={0}
         totalModules={totalModules}
         planPct={planPct}
         totalCheckins={checkins.length}
@@ -392,7 +391,7 @@ function BriefingBanner({
   }
 
   if (uncompletedModules > 0) {
-    items.push({ icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253", text: `${uncompletedModules} training module${uncompletedModules > 1 ? "s" : ""} to complete`, href: "/portal/training" });
+    items.push({ icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253", text: `${uncompletedModules} training module${uncompletedModules > 1 ? "s" : ""} available`, href: "/portal/training" });
   }
 
   if (latestReply?.admin_reply && latestReply.replied_at) {
@@ -507,12 +506,12 @@ function JourneyTracker({
               <span className="text-[10px] text-emerald-400 font-medium">{totalCheckins} Check-in{totalCheckins > 1 ? "s" : ""}</span>
             </div>
           )}
-          {completedModules > 0 && (
+          {totalModules > 0 && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20">
               <svg className="w-3.5 h-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253" />
               </svg>
-              <span className="text-[10px] text-accent-bright font-medium">{completedModules}/{totalModules} Training{completedModules > 1 ? "s" : ""}</span>
+              <span className="text-[10px] text-accent-bright font-medium">{totalModules} Training{totalModules > 1 ? "s" : ""}</span>
             </div>
           )}
           {planPct >= 25 && (

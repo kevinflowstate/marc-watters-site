@@ -223,8 +223,41 @@ export default function TrainingManagerPage() {
               />
             </div>
             <div className="flex gap-3">
-              <button className="px-5 py-2 gradient-accent text-white rounded-xl text-sm font-medium">Create</button>
-              <button onClick={() => setShowAdd(false)} className="px-5 py-2 text-text-muted text-sm hover:text-text-secondary">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!newTitle.trim()) return;
+                  try {
+                    const res = await fetch("/api/admin/training/modules", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ title: newTitle, description: newDesc }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      toast("Module created");
+                      setNewTitle(""); setNewDesc(""); setShowAdd(false);
+                      // Reload modules
+                      const listRes = await fetch("/api/admin/training");
+                      if (listRes.ok) {
+                        const listData = await listRes.json();
+                        setModules(listData.modules || []);
+                      }
+                      // Navigate to the new module
+                      if (data.module?.id) {
+                        window.location.href = `/admin/training/${data.module.id}`;
+                      }
+                    } else {
+                      toast("Failed to create module", "error");
+                    }
+                  } catch {
+                    toast("Failed to create module", "error");
+                  }
+                }}
+                className="px-5 py-2 gradient-accent text-white rounded-xl text-sm font-medium cursor-pointer"
+              >
+                Create
+              </button>
+              <button onClick={() => setShowAdd(false)} className="px-5 py-2 text-text-muted text-sm hover:text-text-secondary cursor-pointer">Cancel</button>
             </div>
           </div>
         </div>

@@ -7,35 +7,16 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   const admin = createAdminClient();
 
-  let userId = user?.id;
-  if (!userId) {
-    const { data: demoUser } = await admin
-      .from("users")
-      .select("id")
-      .eq("role", "client")
-      .limit(1)
-      .single();
-    if (demoUser) userId = demoUser.id;
-  }
-
-  if (!userId) {
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { data: profile } = await admin
-    .from("client_profiles")
-    .select("id")
-    .eq("user_id", userId)
-    .single();
-
-  if (!profile) {
-    return NextResponse.json({ modules: [] });
-  }
-
+  // All clients see all published training modules
   const { data: modules } = await admin
-    .from("client_modules")
-    .select("*, module:training_modules(*, content:module_content(*))")
-    .eq("client_id", profile.id);
+    .from("training_modules")
+    .select("*, content:module_content(*)")
+    .eq("is_published", true)
+    .order("order_index");
 
   return NextResponse.json({ modules: modules || [] });
 }

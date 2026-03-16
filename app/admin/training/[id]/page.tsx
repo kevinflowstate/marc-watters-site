@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 import type { TrainingModule, ModuleContent, Attachment, ContentType } from "@/lib/types";
 
 const attachmentIcons: Record<string, { icon: string; color: string }> = {
@@ -31,8 +32,11 @@ function getVideoEmbed(url: string): { type: "youtube" | "vimeo" | "unknown"; em
 
 export default function ModuleEditorPage() {
   const { id } = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
   const [module, setModule] = useState<TrainingModule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleDesc, setModuleDesc] = useState("");
@@ -50,27 +54,112 @@ export default function ModuleEditorPage() {
   const [newDuration, setNewDuration] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/admin/training");
-        if (res.ok) {
-          const data = await res.json();
-          const found = (data.modules || []).find((m: TrainingModule) => m.id === id);
-          if (found) {
-            setModule(found);
-            setModuleTitle(found.title);
-            setModuleDesc(found.description);
-            setCoverUrl(found.thumbnail_url || "");
-            setIsPublished(found.is_published);
-          }
+  const loadModule = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/training");
+      if (res.ok) {
+        const data = await res.json();
+        const found = (data.modules || []).find((m: TrainingModule) => m.id === id);
+        if (found) {
+          setModule(found);
+          setModuleTitle(found.title);
+          setModuleDesc(found.description);
+          setCoverUrl(found.thumbnail_url || "");
+          setIsPublished(found.is_published);
         }
-      } finally {
-        setLoading(false);
       }
+    } finally {
+      setLoading(false);
     }
-    load();
   }, [id]);
+
+  useEffect(() => { loadModule(); }, [loadModule]);
+
+  async function saveModule(updates: Record<string, unknown>) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/training/modules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      if (res.ok) {
+        toast("Saved");
+        await loadModule();
+      } else {
+        toast("Failed to save", "error");
+      }
+    } catch {
+      toast("Failed to save", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addLesson() {
+    if (!newTitle.trim()) return;
+    try {
+      const res = await fetch("/api/admin/training/lessons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          module_id: id,
+          title: newTitle,
+          content_type: newType,
+          content_url: newUrl || null,
+          content_text: newDescription || null,
+          duration_minutes: newDuration ? parseInt(newDuration) : null,
+        }),
+      });
+      if (res.ok) {
+        toast("Lesson added");
+        setNewTitle(""); setNewType("video"); setNewUrl(""); setNewDuration(""); setNewDescription("");
+        setShowAddLesson(false);
+        await loadModule();
+      } else {
+        toast("Failed to add lesson", "error");
+      }
+    } catch {
+      toast("Failed to add lesson", "error");
+    }
+  }
+
+  async function deleteLesson(lessonId: string) {
+    try {
+      const res = await fetch("/api/admin/training/lessons", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: lessonId }),
+      });
+      if (res.ok) {
+        toast("Lesson removed");
+        await loadModule();
+      } else {
+        toast("Failed to remove lesson", "error");
+      }
+    } catch {
+      toast("Failed to remove lesson", "error");
+    }
+  }
+
+  async function deleteModule() {
+    if (!confirm("Delete this entire module and all its lessons? This cannot be undone.")) return;
+    try {
+      const res = await fetch("/api/admin/training/modules", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        toast("Module deleted");
+        router.push("/admin/training");
+      } else {
+        toast("Failed to delete module", "error");
+      }
+    } catch {
+      toast("Failed to delete module", "error");
+    }
+  }
 
   if (loading) {
     return (
@@ -141,7 +230,7 @@ export default function ModuleEditorPage() {
                   className="bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-accent/60 w-80"
                 />
                 <button
-                  onClick={() => setEditingCover(false)}
+                  onClick={() => { saveModule({ thumbnail_url: coverUrl }); setEditingCover(false); }}
                   className="px-3 py-2 bg-accent text-white rounded-lg text-xs font-medium"
                 >
                   Save
@@ -169,7 +258,7 @@ export default function ModuleEditorPage() {
           {/* Published toggle */}
           <div className="absolute top-4 right-4">
             <button
-              onClick={() => setIsPublished(!isPublished)}
+              onClick={() => { const next = !isPublished; setIsPublished(next); saveModule({ is_published: next }); }}
               className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
                 isPublished
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
@@ -192,7 +281,7 @@ export default function ModuleEditorPage() {
                 className="flex-1 bg-bg-primary border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-xl font-heading font-bold text-text-primary focus:outline-none focus:border-accent/40"
                 autoFocus
               />
-              <button onClick={() => setEditingTitle(false)} className="px-4 py-2 gradient-accent text-white rounded-xl text-sm font-medium">Save</button>
+              <button onClick={() => { saveModule({ title: moduleTitle }); setEditingTitle(false); }} disabled={saving} className="px-4 py-2 gradient-accent text-white rounded-xl text-sm font-medium disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
               <button onClick={() => { setModuleTitle(module.title); setEditingTitle(false); }} className="px-4 py-2 text-text-muted text-sm">Cancel</button>
             </div>
           ) : (
@@ -219,7 +308,7 @@ export default function ModuleEditorPage() {
                 autoFocus
               />
               <div className="flex gap-2 mt-2">
-                <button onClick={() => setEditingDesc(false)} className="px-3 py-1.5 gradient-accent text-white rounded-lg text-xs font-medium">Save</button>
+                <button onClick={() => { saveModule({ description: moduleDesc }); setEditingDesc(false); }} disabled={saving} className="px-3 py-1.5 gradient-accent text-white rounded-lg text-xs font-medium disabled:opacity-50">{saving ? "..." : "Save"}</button>
                 <button onClick={() => { setModuleDesc(module.description); setEditingDesc(false); }} className="px-3 py-1.5 text-text-muted text-xs">Cancel</button>
               </div>
             </div>
@@ -335,8 +424,8 @@ export default function ModuleEditorPage() {
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium">Add Lesson</button>
-            <button onClick={() => setShowAddLesson(false)} className="px-5 py-2.5 text-text-muted text-sm hover:text-text-secondary">Cancel</button>
+            <button onClick={addLesson} className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium cursor-pointer">Add Lesson</button>
+            <button onClick={() => setShowAddLesson(false)} className="px-5 py-2.5 text-text-muted text-sm hover:text-text-secondary cursor-pointer">Cancel</button>
           </div>
         </div>
       )}
@@ -350,6 +439,7 @@ export default function ModuleEditorPage() {
             index={i}
             isExpanded={expandedLesson === lesson.id}
             onToggle={() => setExpandedLesson(expandedLesson === lesson.id ? null : lesson.id)}
+            onDelete={() => deleteLesson(lesson.id)}
           />
         ))}
       </div>
@@ -359,6 +449,19 @@ export default function ModuleEditorPage() {
           <p className="text-text-muted text-sm">No lessons yet. Add your first one above.</p>
         </div>
       )}
+
+      {/* Danger zone */}
+      <div className="mt-12 pt-6 border-t border-[rgba(255,255,255,0.04)]">
+        <button
+          onClick={deleteModule}
+          className="text-xs text-text-muted hover:text-red-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Delete Module
+        </button>
+      </div>
     </>
   );
 }
@@ -368,11 +471,13 @@ function LessonCard({
   index,
   isExpanded,
   onToggle,
+  onDelete,
 }: {
   lesson: ModuleContent;
   index: number;
   isExpanded: boolean;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   const contentTypeLabels: Record<ContentType, { label: string; icon: string; color: string }> = {
     video: {
@@ -551,7 +656,7 @@ function LessonCard({
               Add Attachment
             </button>
             <div className="flex-1" />
-            <button className="text-xs text-text-muted hover:text-red-400 transition-colors inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-500/5">
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-xs text-text-muted hover:text-red-400 transition-colors inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-500/5 cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
