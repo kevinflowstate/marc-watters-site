@@ -6,19 +6,19 @@ import StatCounter from "@/components/StatCounter";
 import { articles } from "@/lib/articles";
 
 const problems = [
-  { title: "Flat out but not profitable.", desc: "Revenue coming in, but margins are thin and cash flow is unpredictable." },
-  { title: "You are the bottleneck.", desc: "Nothing moves without you. The business stops when you stop." },
-  { title: "Team won't step up.", desc: "You're babysitting instead of leading. Unclear roles, no accountability." },
-  { title: "Feast and famine pipeline.", desc: "No system for winning work consistently. It's luck, not strategy." },
-  { title: "Everything is reactive.", desc: "Firefighting all day, no time to plan, no clear direction forward." },
+  { title: "You're stuck on site and can't get out.", desc: "You're still doing the work yourself because nobody else does it the way you do. Every time you try to step back, something pulls you straight back in. The business runs on you. That's the problem." },
+  { title: "Every day is firefighting.", desc: "You're reactive from the minute you wake up. Site issues, supplier problems, team questions - it never stops. You're busy all day and can't point to one thing that actually moved the business forward." },
+  { title: "You're chasing money that's already yours.", desc: "Invoices sitting unpaid. Variations that never got priced. Jobs that finished weeks ago and you're still waiting. The money's there - it's just not in your account." },
+  { title: "You can't switch off.", desc: "It follows you home. It's there on weekends, there on holidays. You're running the whole thing in your head because it doesn't exist anywhere else." },
+  { title: "Nothing you've tried has stuck.", desc: "You've had a go at sorting it - read the books, tried the systems, maybe even a course. You pick things up but can't implement them because the business won't give you the space to do it." },
 ];
 
 const pillars = [
-  { icon: "\u00A3", title: "Clear Numbers", desc: "Know your margins, your costs, your cash position. Stop guessing. Start making decisions based on actual data." },
-  { icon: "\u2630", title: "Predictable Pipeline", desc: "A system for winning work consistently. Leads, quotes, follow-ups, conversions. All tracked." },
-  { icon: "\u2606", title: "Stronger Team", desc: "Hire right, set clear expectations, build accountability. Stop being the only person who cares." },
-  { icon: "\u2699", title: "Tighter Systems", desc: "Operational structure so jobs run smoother, communication is clear, and nothing falls through the cracks." },
-  { icon: "\u2713", title: "Real Standards", desc: "Quality control, client management, and delivery that builds a reputation - not just a roster of jobs." },
+  { icon: "\u00A3", title: "Profit & Financial Clarity", desc: "You'll know exactly what each job costs to deliver, what your overheads are, and what you're actually walking away with. No more guessing. No more end-of-month surprises." },
+  { icon: "\u2699", title: "Systems & Operations", desc: "The stuff that runs through your head every day gets turned into a process. Briefing jobs properly. Handovers that stick. A business that can operate without you being in every detail." },
+  { icon: "\u2606", title: "Team & Leadership", desc: "Hiring the right people, setting the standard, and holding the team to it. Clear roles. Real accountability. People who show up and deliver." },
+  { icon: "\u2630", title: "Clients & Pipeline", desc: "Getting the right type of work from the right type of clients. Building a pipeline that keeps you consistently busy with work that's worth doing." },
+  { icon: "\u2713", title: "Business Owner Mindset", desc: "The transition from tradesman to business owner. You'll stop firefighting and start leading. Stop surviving the week and start planning the quarter." },
 ];
 
 
@@ -26,9 +26,9 @@ const pillars = [
 const homeArticles = articles.slice(0, 3);
 
 const steps = [
-  { num: "1", title: "Apply", desc: "Fill in a short application. This isn't for everyone - it's for serious operators who are ready to do the work." },
-  { num: "2", title: "Discovery Call", desc: "If it looks like a fit, we'll get on a call. No pitch. Just a straight conversation about where you are and where you want to be." },
-  { num: "3", title: "Start Building", desc: "You get a structured programme, a clear plan, and direct support. From day one, you'll know exactly what to focus on." },
+  { num: "1", title: "Deep Dive Strategy Session", desc: "As soon as you come on board, we kick off with a full 1-to-1 session. We get into your current challenges, how the business is running now, and what's actually holding it back. Not a surface-level chat - a proper dig into the numbers, the team, the operations, and what you want the business to look like." },
+  { num: "2", title: "Your Bespoke Business Plan", desc: "From that session, we build a plan specific to your trade or construction business. Your margins. Your team. Your goals. Your problems. You review it, we refine it, and only once you're fully happy does your mentorship officially begin." },
+  { num: "3", title: "Weekly Mentorship & Real Implementation", desc: "Weekly 1-to-1 sessions to work through the plan. Prescribed training based on what your business actually needs. Direct access to Marc between sessions. Straight-talking accountability to keep things moving." },
 ];
 
 const organizationJsonLd = {
@@ -86,30 +86,34 @@ export default function Home() {
           <div className="max-w-[600px] lg:pl-8">
             <div className="inline-flex items-center gap-2 bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.2)] rounded-full px-[18px] py-[7px] text-[0.78rem] font-semibold text-accent-bright mb-6 tracking-[0.5px] uppercase animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.2s_both]">
               <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--color-accent),0_0_20px_rgba(34,114,222,0.3)] animate-[pulse-dot_2s_ease-in-out_infinite]" />
-              Private 1-to-1 Mentorship
+              Private 1-to-1 Mentorship - UK &amp; Ireland
             </div>
 
             <h1 className="font-heading text-[2.1rem] md:text-[3.5rem] font-black leading-[1.08] tracking-[-2px] mb-6 animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.35s_both]">
-              Stop Running Your Business Like a{" "}
+              Take Control of Your Trade and{" "}
               <span className="text-accent-bright relative">
-                One-Man Fire Brigade
+                Construction Business
                 <span className="absolute bottom-0.5 left-0 right-0 h-[3px] gradient-accent rounded-sm opacity-50" />
               </span>
             </h1>
 
-            <p className="text-[1.1rem] text-text-secondary leading-[1.8] mb-10 max-w-[500px] animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.5s_both]">
-              Private mentorship for trade and construction business owners who want profit, structure, and a business that doesn&apos;t depend on them doing everything.
+            <p className="text-[1.1rem] text-text-secondary leading-[1.8] mb-4 max-w-[500px] animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.5s_both]">
+              Private 1-to-1 mentorship for trade and construction business owners who are done winging it and ready to build something that actually works.
+            </p>
+            <p className="text-[0.9rem] text-text-muted leading-[1.7] mb-10 max-w-[500px] animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.55s_both]">
+              This is for serious trade and construction business owners only. Not a course. Not group coaching.
             </p>
 
             <div className="flex gap-4 items-center flex-wrap animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.65s_both]">
               <Link href="/apply" className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-9 py-4 rounded-[10px] font-bold text-base no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)]">
-                Apply for Coaching
+                Apply for Mentorship
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
               </Link>
               <a href="#how-it-works" className="inline-flex items-center gap-2 bg-transparent text-text-primary px-7 py-4 rounded-[10px] font-semibold text-[0.95rem] no-underline border border-border-light transition-all duration-300 hover:border-accent hover:bg-[rgba(34,114,222,0.05)] hover:shadow-[0_0_30px_rgba(34,114,222,0.08)]">
                 Learn More
               </a>
             </div>
+            <p className="text-[0.82rem] text-text-muted mt-4 animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.7s_both]">Places are limited. If it&apos;s a fit, we&apos;ll get on a call and go from there.</p>
 
             {/* Media links */}
             <div className="flex gap-4 items-center mt-10 pt-8 border-t border-[rgba(255,255,255,0.05)] animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)_0.8s_both]">
@@ -212,16 +216,14 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto relative">
           <div className="reveal">
             <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">The Reality</div>
-            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">Sound Familiar?</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">Do Any of These Sound Familiar?</div>
             <div className="section-divider" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-12">
             <div className="text-[1.05rem] text-text-secondary leading-[2] reveal">
-              <p className="mb-6">You&apos;re up at 6am, on site by 7, quoting jobs at 9pm. The phone doesn&apos;t stop. You&apos;re chasing suppliers, chasing payments, chasing your own tail.</p>
-              <p className="mb-6">You&apos;ve got work on. You might even be flat out. But the profit doesn&apos;t match the effort. Cash flow is a constant headache. Your team needs babysitting. And every time you try to step back, something falls apart.</p>
-              <p className="mb-6">You&apos;ve tried hiring. Tried spreadsheets. Tried working harder. None of it fixed the actual problem.</p>
-              <p className="text-text-primary font-semibold">The problem is the business has no structure. And without structure, growth just means more chaos.</p>
+              <p className="mb-6">You&apos;ve been in this industry for years. You work hard. You care about the job. You&apos;ve tried to grow. But something keeps getting in the way - and you already know what it is.</p>
+              <p className="text-text-primary font-semibold">You&apos;ve seen lads in this industry hit their 50s and 60s still flat out, stressed, with nothing to show for it. You don&apos;t want that. Something has to change.</p>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -244,10 +246,10 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto relative">
           <div className="text-center max-w-[700px] mx-auto mb-12 reveal">
             <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">The Programme</div>
-            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">The Construction Business Blueprint</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">What We Build Together</div>
             <div className="section-divider mx-auto" />
             <div className="text-[1.05rem] text-text-secondary max-w-[600px] mx-auto leading-[1.8]">
-              A private, one-to-one mentorship programme built specifically for trade and construction business owners. No courses. No group calls with 200 strangers. No motivational fluff.
+              This isn&apos;t a generic business course. It&apos;s built around your business, your numbers, and what&apos;s actually holding you back. These are the five areas we work through.
             </div>
           </div>
 
@@ -271,7 +273,7 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto">
           <div className="reveal">
             <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">Results</div>
-            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">What Clients Are Saying</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">What Clients Say</div>
             <div className="section-divider" />
             <div className="text-[1.05rem] text-text-secondary max-w-[600px] leading-[1.8]">Real outcomes from trade and construction business owners on the programme.</div>
           </div>
@@ -303,7 +305,7 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto">
           <div className="reveal">
             <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">About</div>
-            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">About Marc</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">Marc Watters</div>
             <div className="section-divider" />
           </div>
 
@@ -314,22 +316,26 @@ export default function Home() {
             </div>
 
             <div>
-              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">Marc Watters has spent years in the construction industry. Not watching from the sidelines - in it. On the tools, running jobs, managing teams, dealing with the exact problems that every trade and construction business owner faces.</p>
-              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">The difference is he figured out what actually works. Not theory. Not motivation. Structure. Numbers. Systems. Standards.</p>
-              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">Today, Marc works privately with construction business owners across the UK and Ireland who want to build a business that&apos;s profitable, well-run, and doesn&apos;t rely on them doing everything themselves.</p>
+              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">Marc Watters has spent years in the construction industry. Not watching from the sidelines - in it. Managing large-scale commercial projects, running teams, dealing with contractors, cashflow gaps, clients who moved goalposts, and weeks that never seemed to end. He&apos;s seen what a construction business looks like when it&apos;s working well and what it looks like when the owner is holding the whole thing together with his own two hands.</p>
+              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">When he left the corporate side of the industry, he wasn&apos;t done with construction. He started working directly with trade and construction business owners to help them fix the things holding them back. Pricing that didn&apos;t protect their margin. Teams that needed constant managing. Owners who couldn&apos;t take a day off without the phone going. He&apos;d seen all of it from the inside and knew exactly what the fixes looked like.</p>
+              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">Construction Business Blueprint is the result of everything he built and everything he learned along the way. It&apos;s not based on generic business theory. It&apos;s based on what actually works in this industry - with these clients, these timelines, these kinds of teams. Every plan he builds with a client is different because every business is different. That&apos;s the point.</p>
+              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">He&apos;s direct, practical, and doesn&apos;t waste your time. If something&apos;s not working in your business, he&apos;ll tell you. If you need to have a hard conversation with a team member, he&apos;ll help you prepare for it. This is 1-to-1 mentorship, not a course you work through on your own. He&apos;s involved from day one.</p>
 
               <h3 className="font-heading text-[1.15rem] font-bold mt-8 mb-4 text-accent-bright reveal">His Approach</h3>
-              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">This isn&apos;t a course. There&apos;s no app full of content you&apos;ll never watch. There&apos;s no group call where you&apos;re one of 200 faces on a screen. It&apos;s private mentorship. One to one. Tailored to your business, your numbers, your situation.</p>
+              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">Marc works the way construction works. No corporate nonsense, no recycled frameworks, no 47-page templates you&apos;ll never look at again. He comes in, understands the business properly, builds a plan specific to it, and works through it with you week by week. Every session moves something forward. Every conversation is honest. He asks the questions that get to the real problem, not the surface one.</p>
 
               <h3 className="font-heading text-[1.15rem] font-bold mt-8 mb-4 text-accent-bright reveal">Who This Is For</h3>
+              <p className="text-text-secondary mb-4 leading-[1.85] text-[0.95rem] reveal">This mentorship is for trade and construction business owners who are serious about changing how their business runs. If you&apos;re looking for a course to work through at your own pace, this isn&apos;t it.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                 {[
-                  "Trade and construction business owners running a team",
-                  "Owners still on the tools carrying the whole business",
-                  "Businesses doing the work but not seeing the profit",
-                  "Operators who want structure, not motivation",
+                  "Builders, electricians, plumbers, joiners, landscapers, groundworkers - any trade or construction discipline",
+                  "Business owners turning over 200k or more, or serious about getting there",
+                  "Owners who feel like the business still owns them - and want to change that",
+                  "People ready to lead properly, not just keep the wheels turning",
+                  "Anyone who wants more time, better margin, and a business that can run without them in every detail",
+                  "Sole traders scaling up, small teams growing, and established businesses that need restructuring",
                 ].map((item, i) => (
-                  <div key={i} className={`flex items-start gap-3 text-[0.88rem] text-text-secondary p-4 bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-xl backdrop-blur-[10px] transition-all duration-300 hover:border-[rgba(34,114,222,0.2)] hover:bg-[rgba(34,114,222,0.03)] reveal ${i > 0 ? `reveal-delay-${i}` : ""}`}>
+                  <div key={i} className={`flex items-start gap-3 text-[0.88rem] text-text-secondary p-4 bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-xl backdrop-blur-[10px] transition-all duration-300 hover:border-[rgba(34,114,222,0.2)] hover:bg-[rgba(34,114,222,0.03)] reveal ${i > 0 ? `reveal-delay-${Math.min(i, 4)}` : ""}`}>
                     <span className="text-accent font-bold min-w-[16px]">-</span>
                     <span>{item}</span>
                   </div>
@@ -345,9 +351,9 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto text-center">
           <div className="reveal">
             <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">Process</div>
-            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">How It Works</div>
+            <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-6">Three Steps. No Waiting Around.</div>
             <div className="section-divider mx-auto" />
-            <div className="text-[1.05rem] text-text-secondary mx-auto leading-[1.8]">Three steps. No fluff. No 47-page application.</div>
+            <div className="text-[1.05rem] text-text-secondary mx-auto leading-[1.8]">From your first conversation to a live mentorship plan, everything moves quickly. You don&apos;t spend weeks onboarding before anything happens.</div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 relative">
@@ -553,11 +559,13 @@ export default function Home() {
           <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">Get Started</div>
           <div className="font-heading text-[1.85rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-1.5px] mb-4">Ready to Build a Business That Actually Works?</div>
           <div className="section-divider mx-auto" />
-          <div className="text-[1.05rem] text-text-secondary mx-auto mb-10 leading-[1.8]">Apply for the Construction Business Blueprint. If it&apos;s a fit, you&apos;ll hear back directly from Marc.</div>
+          <div className="text-[1.05rem] text-text-secondary mx-auto mb-4 leading-[1.8]">If you&apos;re serious about taking back control of your time, your profit, and your business - this is where it starts. Apply below and we&apos;ll get on a call to see if it&apos;s a fit.</div>
+          <div className="text-[0.88rem] text-text-muted mx-auto mb-10 leading-[1.7]">Places are limited. This is private 1-to-1 mentorship - not a course, not a group programme.</div>
           <Link href="/apply" className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-11 py-[18px] rounded-[10px] font-bold text-[1.1rem] no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)]">
-            Apply for Coaching
+            Apply Now
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
           </Link>
+          <p className="text-[0.82rem] text-text-muted mt-4">No hard sell. If it&apos;s not the right fit, we&apos;ll tell you.</p>
         </div>
       </section>
     </main>
