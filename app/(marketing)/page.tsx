@@ -3,6 +3,7 @@ import Image from "next/image";
 import HeroCanvas from "@/components/HeroCanvas";
 import ScrollReveal from "@/components/ScrollReveal";
 import StatCounter from "@/components/StatCounter";
+import { articles } from "@/lib/articles";
 
 const problems = [
   { title: "Flat out but not profitable.", desc: "Revenue coming in, but margins are thin and cash flow is unpredictable." },
@@ -38,29 +39,7 @@ const testimonials = [
   },
 ];
 
-const articles = [
-  {
-    slug: "how-to-price-construction-jobs-for-profit",
-    title: "How to Price Construction Jobs for Profit, Not Just Turnover",
-    excerpt: "Most construction businesses price jobs based on what feels right or what the last guy charged. Here's how to actually build margin into every quote.",
-    category: "Profit",
-    readTime: "6 min read",
-  },
-  {
-    slug: "five-systems-every-construction-business-needs",
-    title: "5 Systems Every Construction Business Needs Before It Can Scale",
-    excerpt: "You can't scale chaos. Before you take on more work or hire more people, these five systems need to be in place.",
-    category: "Systems",
-    readTime: "7 min read",
-  },
-  {
-    slug: "construction-business-owner-working-60-hours",
-    title: "Working 60 Hours a Week and Still Not Profitable? Here's Why.",
-    excerpt: "Being busy isn't the same as being profitable. If your hours are going up but your margins aren't, the problem isn't effort - it's structure.",
-    category: "Growth",
-    readTime: "5 min read",
-  },
-];
+const homeArticles = articles.slice(0, 3);
 
 const steps = [
   { num: "1", title: "Apply", desc: "Fill in a short application. This isn't for everyone - it's for serious operators who are ready to do the work." },
@@ -413,7 +392,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-            {articles.map((a, i) => (
+            {homeArticles.map((a, i) => (
               <Link
                 key={i}
                 href={`/articles/${a.slug}`}
