@@ -21,23 +21,7 @@ const pillars = [
   { icon: "\u2713", title: "Real Standards", desc: "Quality control, client management, and delivery that builds a reputation - not just a roster of jobs." },
 ];
 
-const testimonials = [
-  {
-    quote: "Since working with Marc, I've gone from running around like a headless chicken to actually knowing my numbers. My margins have improved, my team knows what's expected, and I'm not quoting jobs at midnight anymore.",
-    initials: "JM", role: "Construction Business Owner", location: "Residential Builds, Northern Ireland",
-    tags: ["Improved Margins", "Team Structure"],
-  },
-  {
-    quote: "I thought I was too busy to get help. Turns out I was too busy because I didn't have the right structure. Marc cut through the noise and showed me exactly what needed to change.",
-    initials: "DK", role: "Trade Business Owner", location: "Joinery, UK",
-    tags: ["Predictable Pipeline", "Cash Flow"],
-  },
-  {
-    quote: "The difference is night and day. I've got proper systems in place, I know exactly where every pound goes, and I actually have time to think about growing the business instead of just surviving it.",
-    initials: "SR", role: "Construction Company Owner", location: "Commercial Fit-Outs, Ireland",
-    tags: ["Systems", "Financial Control"],
-  },
-];
+
 
 const homeArticles = articles.slice(0, 3);
 
@@ -136,6 +120,10 @@ export default function Home() {
               <a href="https://www.youtube.com/@TheConstructionBusinessCoach" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-text-secondary no-underline text-[0.85rem] font-medium px-[18px] py-2.5 rounded-[10px] border border-[rgba(255,255,255,0.05)] bg-[rgba(12,12,18,0.6)] backdrop-blur-[10px] transition-all duration-300 hover:text-text-primary hover:border-[rgba(34,114,222,0.3)] hover:bg-[rgba(34,114,222,0.05)] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(34,114,222,0.1)] group">
                 <svg className="w-[22px] h-[22px] opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                 YouTube
+              </a>
+              <a href="https://podcasts.apple.com/us/podcast/marc-watters-construction-business-blueprint/id1842833723" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-text-secondary no-underline text-[0.85rem] font-medium px-[18px] py-2.5 rounded-[10px] border border-[rgba(255,255,255,0.05)] bg-[rgba(12,12,18,0.6)] backdrop-blur-[10px] transition-all duration-300 hover:text-text-primary hover:border-[rgba(34,114,222,0.3)] hover:bg-[rgba(34,114,222,0.05)] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(34,114,222,0.1)] group">
+                <svg className="w-[22px] h-[22px] opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="currentColor"><path d="M5.34 0A5.328 5.328 0 000 5.34v13.32A5.328 5.328 0 005.34 24h13.32A5.328 5.328 0 0024 18.66V5.34A5.328 5.328 0 0018.66 0H5.34zm6.525 2.568c2.336 0 4.448.902 6.056 2.587 1.224 1.272 1.912 2.619 2.264 4.392.12.6-.24 1.2-.84 1.32-.6.12-1.2-.24-1.32-.84-.264-1.344-.792-2.4-1.68-3.324-1.272-1.332-2.868-1.992-4.56-1.992-1.692 0-3.336.708-4.56 1.992-.888.924-1.416 1.98-1.68 3.324-.12.6-.72.96-1.32.84-.6-.12-.96-.72-.84-1.32.352-1.773 1.04-3.12 2.264-4.392 1.656-1.685 3.72-2.587 6.216-2.587zM11.88 6.72c1.536 0 2.904.588 3.96 1.692.804.84 1.296 1.812 1.536 3.048.072.6-.312 1.152-.912 1.248-.6.072-1.152-.312-1.248-.912-.144-.804-.456-1.416-.984-1.968-.672-.708-1.464-1.044-2.376-1.044s-1.704.336-2.376 1.044c-.528.552-.84 1.164-.984 1.968-.096.6-.648.984-1.248.912-.6-.096-.984-.648-.912-1.248.24-1.236.732-2.208 1.536-3.048 1.08-1.104 2.424-1.692 4.008-1.692zm-.024 4.176c1.224 0 2.232 1.008 2.232 2.232 0 .792-.408 1.488-1.032 1.872v5.88c0 .648-.528 1.176-1.176 1.176-.648 0-1.176-.528-1.176-1.176V15c-.648-.384-1.08-1.08-1.08-1.872 0-1.224 1.008-2.232 2.232-2.232z"/></svg>
+                Apple Podcasts
               </a>
             </div>
           </div>
@@ -289,23 +277,20 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-            {testimonials.map((t, i) => (
-              <div key={i} className={`bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-[18px] p-8 backdrop-blur-[10px] transition-all duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] relative overflow-hidden hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] reveal ${i > 0 ? `reveal-delay-${i}` : ""}`}>
-                <div className="absolute top-[10px] left-5 font-heading text-[6rem] font-black text-[rgba(34,114,222,0.06)] leading-none">&ldquo;</div>
-                <div className="text-[0.93rem] italic text-text-secondary leading-[1.8] mb-6 pl-5 border-l-2 border-accent relative z-[1]">
-                  &ldquo;{t.quote}&rdquo;
-                </div>
-                <div className="flex items-center gap-3 relative z-[1]">
-                  <div className="w-[42px] h-[42px] bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] rounded-full flex items-center justify-center font-bold text-[0.85rem] text-accent-bright">{t.initials}</div>
-                  <div className="text-[0.85rem]">
-                    <strong className="block text-text-primary">{t.role}</strong>
-                    <span className="text-text-muted">{t.location}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 flex-wrap mt-4 relative z-[1]">
-                  {t.tags.map((tag, j) => (
-                    <span key={j} className="bg-[rgba(34,114,222,0.06)] border border-[rgba(34,114,222,0.12)] rounded-full px-3 py-1 text-[0.72rem] font-semibold text-accent-light tracking-[0.3px]">{tag}</span>
-                  ))}
+            {[
+              { id: "obge0_bDhqg", title: "Client Testimonial 1" },
+              { id: "1FILP9frS9E", title: "Client Testimonial 2" },
+              { id: "7eRY9Wgr67c", title: "Client Testimonial 3" },
+            ].map((v, i) => (
+              <div key={v.id} className={`bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-[18px] overflow-hidden backdrop-blur-[10px] transition-all duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] reveal ${i > 0 ? `reveal-delay-${i}` : ""}`}>
+                <div className="relative w-full" style={{ paddingTop: "177.78%" }}>
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${v.id}`}
+                    title={v.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
                 </div>
               </div>
             ))}
