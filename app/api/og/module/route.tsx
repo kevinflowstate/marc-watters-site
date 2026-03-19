@@ -4,73 +4,58 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
-function getAccentColor(title: string): string {
-  let hash = 0;
-  for (let i = 0; i < title.length; i++) {
-    hash = title.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const colors = [
-    "#2272DE",
-    "#10B981",
-    "#8B5CF6",
-    "#F59E0B",
-    "#EF4444",
-    "#06B6D4",
-  ];
-  return colors[Math.abs(hash) % colors.length];
+// Load Montserrat Bold for title text
+async function loadFont() {
+  const res = await fetch(
+    "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w-Y3tcoqK5.ttf"
+  );
+  return res.arrayBuffer();
 }
 
-// Generate deterministic pipe pattern elements as JSX
-function PatternElements({ accent, width, height }: { accent: string; width: number; height: number }) {
+function PatternElements({ width, height }: { width: number; height: number }) {
   const elements: React.ReactNode[] = [];
   let key = 0;
+  const color = "#2272DE";
 
-  // Horizontal pipes with node dots
-  for (let y = 40; y < height; y += 55) {
-    const x1 = (y * 7 + 13) % (width * 0.4);
-    const x2 = x1 + 100 + ((y * 3) % (width * 0.3));
-    // Pipe line
+  // Horizontal pipes
+  for (let y = 35; y < height; y += 50) {
+    const x1 = (y * 7 + 13) % (width * 0.35);
+    const x2 = x1 + 120 + ((y * 3) % (width * 0.25));
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x1, top: y, width: x2 - x1, height: 2, background: accent, opacity: 0.12, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x1, top: y, width: x2 - x1, height: 1.5, background: color, opacity: 0.1, display: "flex" }} />
     );
-    // Start node
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x1 - 3, top: y - 3, width: 6, height: 6, borderRadius: "50%", background: accent, opacity: 0.18, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x1 - 2.5, top: y - 2.5, width: 5, height: 5, borderRadius: "50%", background: color, opacity: 0.15, display: "flex" }} />
     );
-    // End node
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x2 - 3, top: y - 3, width: 6, height: 6, borderRadius: "50%", background: accent, opacity: 0.18, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x2 - 2.5, top: y - 2.5, width: 5, height: 5, borderRadius: "50%", background: color, opacity: 0.15, display: "flex" }} />
     );
   }
 
   // Vertical connectors
-  for (let x = 80; x < width; x += 95) {
-    const y1 = (x * 5 + 7) % (height * 0.4) + 40;
-    const y2 = y1 + 50 + ((x * 2) % 80);
+  for (let x = 90; x < width; x += 100) {
+    const y1 = (x * 5 + 7) % (height * 0.35) + 30;
+    const y2 = y1 + 45 + ((x * 2) % 70);
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x, top: y1, width: 2, height: y2 - y1, background: accent, opacity: 0.08, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x, top: y1, width: 1.5, height: y2 - y1, background: color, opacity: 0.07, display: "flex" }} />
     );
   }
 
-  // Corner brackets (L-shapes using two divs)
+  // L-shaped brackets
   for (let i = 0; i < 5; i++) {
-    const cx = 120 + (i * 137) % (width - 200);
-    const cy = 50 + (i * 83) % (height - 100);
-    // Horizontal arm
+    const cx = 100 + (i * 151) % (width - 180);
+    const cy = 40 + (i * 79) % (height - 80);
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx, top: cy, width: 35, height: 2, background: accent, opacity: 0.1, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx, top: cy, width: 30, height: 1.5, background: color, opacity: 0.08, display: "flex" }} />
     );
-    // Vertical arm
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx + 33, top: cy, width: 2, height: 25, background: accent, opacity: 0.1, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx + 28.5, top: cy, width: 1.5, height: 22, background: color, opacity: 0.08, display: "flex" }} />
     );
-    // Junction dot
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx - 2, top: cy - 2, width: 5, height: 5, borderRadius: "50%", background: accent, opacity: 0.14, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx - 2, top: cy - 2, width: 4, height: 4, borderRadius: "50%", background: color, opacity: 0.12, display: "flex" }} />
     );
-    // End square
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx + 30, top: cy + 21, width: 8, height: 8, borderRadius: 2, background: accent, opacity: 0.07, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx + 26, top: cy + 18, width: 6, height: 6, borderRadius: 1, background: color, opacity: 0.06, display: "flex" }} />
     );
   }
 
@@ -85,8 +70,8 @@ export async function GET(request: NextRequest) {
   const width = variant === "banner" ? 1200 : 800;
   const height = variant === "banner" ? 280 : 450;
 
-  const accent = getAccentColor(title);
   const logoUrl = new URL("/images/cbb-logo.png", request.nextUrl.origin).toString();
+  const fontData = await loadFont();
 
   return new ImageResponse(
     (
@@ -101,12 +86,13 @@ export async function GET(request: NextRequest) {
           backgroundColor: "#050507",
           position: "relative",
           overflow: "hidden",
+          fontFamily: "Montserrat",
         }}
       >
-        {/* Construction pipe pattern */}
-        <PatternElements accent={accent} width={width} height={height} />
+        {/* Blue pipe pattern */}
+        <PatternElements width={width} height={height} />
 
-        {/* Radial glow */}
+        {/* Subtle radial glow */}
         <div
           style={{
             position: "absolute",
@@ -114,7 +100,7 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             bottom: 0,
-            background: `radial-gradient(ellipse at 30% 50%, ${accent}18 0%, transparent 65%)`,
+            background: "radial-gradient(ellipse at 30% 50%, rgba(34,114,222,0.08) 0%, transparent 65%)",
             display: "flex",
           }}
         />
@@ -127,8 +113,8 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             height: 3,
-            background: `linear-gradient(90deg, transparent 0%, ${accent} 50%, transparent 100%)`,
-            opacity: 0.5,
+            background: "linear-gradient(90deg, transparent 0%, #2272DE 50%, transparent 100%)",
+            opacity: 0.45,
             display: "flex",
           }}
         />
@@ -143,7 +129,7 @@ export async function GET(request: NextRequest) {
             position: "absolute",
             top: variant === "banner" ? 20 : 30,
             objectFit: "contain",
-            opacity: 0.65,
+            opacity: 0.6,
           }}
         />
 
@@ -166,6 +152,7 @@ export async function GET(request: NextRequest) {
               textAlign: "center",
               lineHeight: 1.15,
               letterSpacing: "-0.02em",
+              fontFamily: "Montserrat",
             }}
           >
             {title}
@@ -179,14 +166,25 @@ export async function GET(request: NextRequest) {
             bottom: variant === "banner" ? 16 : 24,
             width: 50,
             height: 2,
-            background: accent,
-            opacity: 0.35,
+            background: "#2272DE",
+            opacity: 0.3,
             borderRadius: 1,
             display: "flex",
           }}
         />
       </div>
     ),
-    { width, height }
+    {
+      width,
+      height,
+      fonts: [
+        {
+          name: "Montserrat",
+          data: fontData,
+          weight: 800,
+          style: "normal",
+        },
+      ],
+    }
   );
 }
