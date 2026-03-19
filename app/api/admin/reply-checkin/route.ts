@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
-import { sendCheckinReplyEmail } from "@/lib/resend";
+import { sendCheckinReplyEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {

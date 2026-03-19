@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 
 export async function POST(request: Request) {
   const auth = await requireAdmin();
@@ -88,39 +88,14 @@ export async function POST(request: Request) {
     ? `https://marc-watters-site.vercel.app/auth/callback?token_hash=${linkData.properties.hashed_token}&type=recovery&redirect=/portal`
     : null;
 
-  // Send welcome email via Resend (will fail gracefully if domain not verified yet)
+  // Send welcome email via unified template
   let emailSent = false;
   try {
-    const resendKey = process.env.RESEND_API_KEY;
-    if (resendKey && setupUrl) {
-      const resend = new Resend(resendKey);
-      const firstName = name.split(" ")[0];
-      await resend.emails.send({
-        from: "Marc Watters <marc@marcwatters.com>",
-        to: email.trim().toLowerCase(),
-        subject: "Your Construction Business Blueprint portal is ready",
-        html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px;">
-            <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Welcome ${firstName},</h2>
-            <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-              Your client portal for the Construction Business Blueprint is set up and ready to go.
-            </p>
-            <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-              Click the button below to set your password and access your portal, training modules, and business plan.
-            </p>
-            <a href="${setupUrl}" style="display: inline-block; background: #2272de; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 15px; font-weight: 600;">
-              Set Up Your Account
-            </a>
-            <p style="color: #999; font-size: 12px; margin: 32px 0 0;">
-              Construction Business Blueprint - Client Portal
-            </p>
-          </div>
-        `,
-      });
+    if (setupUrl) {
+      await sendWelcomeEmail(email.trim().toLowerCase(), name, setupUrl);
       emailSent = true;
     }
   } catch (e) {
-    // Resend domain not verified yet - that's fine
     console.log("[INVITE] Email send failed (likely domain not verified):", e instanceof Error ? e.message : e);
   }
 
