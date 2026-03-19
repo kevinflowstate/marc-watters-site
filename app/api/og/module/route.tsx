@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
@@ -15,69 +14,55 @@ function PatternElements({ width, height }: { width: number; height: number }) {
   const elements: React.ReactNode[] = [];
   let key = 0;
   const blue = "#2272DE";
-  const white = "rgba(255,255,255,0.06)";
 
-  // Grid of faint white dots
-  for (let x = 30; x < width; x += 40) {
-    for (let y = 30; y < height; y += 40) {
+  // Grid of dots
+  for (let x = 25; x < width; x += 35) {
+    for (let y = 25; y < height; y += 35) {
       elements.push(
-        <div key={key++} style={{ position: "absolute", left: x, top: y, width: 1.5, height: 1.5, borderRadius: "50%", background: "white", opacity: 0.04, display: "flex" }} />
+        <div key={key++} style={{ position: "absolute", left: x, top: y, width: 2, height: 2, borderRadius: "50%", background: blue, opacity: 0.12, display: "flex" }} />
       );
     }
   }
 
-  // Horizontal blue pipes - bolder
-  for (let y = 45; y < height; y += 48) {
-    const x1 = (y * 7 + 13) % (width * 0.3);
-    const x2 = x1 + 140 + ((y * 3) % (width * 0.3));
+  // Horizontal pipes
+  for (let y = 40; y < height; y += 44) {
+    const x1 = (y * 7 + 13) % (width * 0.25);
+    const x2 = x1 + 150 + ((y * 3) % (width * 0.3));
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x1, top: y, width: x2 - x1, height: 2, background: blue, opacity: 0.2, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x1, top: y, width: x2 - x1, height: 2, background: blue, opacity: 0.3, display: "flex" }} />
     );
-    // Start node
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x1 - 4, top: y - 4, width: 8, height: 8, borderRadius: "50%", background: blue, opacity: 0.25, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x1 - 5, top: y - 5, width: 10, height: 10, borderRadius: "50%", background: blue, opacity: 0.35, display: "flex" }} />
     );
-    // End node
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x2 - 4, top: y - 4, width: 8, height: 8, borderRadius: "50%", background: blue, opacity: 0.25, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x2 - 5, top: y - 5, width: 10, height: 10, borderRadius: "50%", background: blue, opacity: 0.35, display: "flex" }} />
     );
   }
 
   // Vertical connectors
-  for (let x = 100; x < width; x += 85) {
-    const y1 = (x * 5 + 7) % (height * 0.35) + 30;
-    const y2 = y1 + 50 + ((x * 2) % 80);
+  for (let x = 80; x < width; x += 75) {
+    const y1 = (x * 5 + 7) % (height * 0.3) + 25;
+    const y2 = y1 + 55 + ((x * 2) % 90);
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x, top: y1, width: 2, height: y2 - y1, background: blue, opacity: 0.15, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x, top: y1, width: 2, height: y2 - y1, background: blue, opacity: 0.25, display: "flex" }} />
     );
   }
 
-  // L-shaped brackets - larger
-  for (let i = 0; i < 6; i++) {
-    const cx = 80 + (i * 143) % (width - 160);
-    const cy = 35 + (i * 67) % (height - 70);
-    // Horizontal arm
+  // L-shaped brackets
+  for (let i = 0; i < 7; i++) {
+    const cx = 60 + (i * 131) % (width - 120);
+    const cy = 30 + (i * 59) % (height - 60);
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx, top: cy, width: 40, height: 2, background: blue, opacity: 0.18, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx, top: cy, width: 45, height: 2, background: blue, opacity: 0.28, display: "flex" }} />
     );
-    // Vertical arm
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx + 38, top: cy, width: 2, height: 28, background: blue, opacity: 0.18, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx + 43, top: cy, width: 2, height: 32, background: blue, opacity: 0.28, display: "flex" }} />
     );
-    // Junction dot
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx - 3, top: cy - 3, width: 6, height: 6, borderRadius: "50%", background: blue, opacity: 0.22, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx - 4, top: cy - 4, width: 8, height: 8, borderRadius: "50%", background: blue, opacity: 0.3, display: "flex" }} />
     );
-    // End square
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx + 34, top: cy + 24, width: 10, height: 10, borderRadius: 2, border: `1.5px solid ${blue}`, opacity: 0.15, display: "flex" }} />
-    );
-  }
-
-  // White subtle horizontal rules
-  for (let y = 80; y < height - 40; y += 120) {
-    elements.push(
-      <div key={key++} style={{ position: "absolute", left: 0, top: y, width, height: 1, background: white, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx + 37, top: cy + 26, width: 12, height: 12, borderRadius: 2, border: `2px solid ${blue}`, opacity: 0.22, display: "flex" }} />
     );
   }
 
@@ -92,7 +77,6 @@ export async function GET(request: NextRequest) {
   const width = variant === "banner" ? 1200 : 800;
   const height = variant === "banner" ? 280 : 450;
 
-  const logoUrl = new URL("/images/cbb-logo.png", request.nextUrl.origin).toString();
   const fontData = await loadFont();
 
   return new ImageResponse(
@@ -114,7 +98,7 @@ export async function GET(request: NextRequest) {
         {/* Blueprint pattern */}
         <PatternElements width={width} height={height} />
 
-        {/* Radial glow - stronger */}
+        {/* Blue glow left */}
         <div
           style={{
             position: "absolute",
@@ -122,12 +106,12 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "radial-gradient(ellipse at 25% 45%, rgba(34,114,222,0.14) 0%, transparent 60%)",
+            background: "radial-gradient(ellipse at 20% 40%, rgba(34,114,222,0.18) 0%, transparent 55%)",
             display: "flex",
           }}
         />
 
-        {/* Second glow bottom right */}
+        {/* Blue glow bottom right */}
         <div
           style={{
             position: "absolute",
@@ -135,7 +119,7 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "radial-gradient(ellipse at 80% 80%, rgba(34,114,222,0.08) 0%, transparent 50%)",
+            background: "radial-gradient(ellipse at 80% 75%, rgba(34,114,222,0.12) 0%, transparent 45%)",
             display: "flex",
           }}
         />
@@ -148,25 +132,55 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             height: 3,
-            background: "linear-gradient(90deg, transparent 10%, #2272DE 50%, transparent 90%)",
-            opacity: 0.6,
+            background: "linear-gradient(90deg, transparent 5%, #2272DE 50%, transparent 95%)",
+            opacity: 0.7,
             display: "flex",
           }}
         />
 
-        {/* Logo */}
-        <img
-          src={logoUrl}
-          alt="CBB"
-          width={variant === "banner" ? 110 : 90}
-          height={variant === "banner" ? 33 : 27}
+        {/* CBB text logo */}
+        <div
           style={{
             position: "absolute",
-            top: variant === "banner" ? 20 : 30,
-            objectFit: "contain",
-            opacity: 0.7,
+            top: variant === "banner" ? 18 : 28,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
-        />
+        >
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 800,
+              color: "#2272DE",
+              letterSpacing: "0.15em",
+              fontFamily: "Montserrat",
+              display: "flex",
+            }}
+          >
+            CBB
+          </div>
+          <div
+            style={{
+              width: 1,
+              height: 14,
+              background: "rgba(255,255,255,0.2)",
+              display: "flex",
+            }}
+          />
+          <div
+            style={{
+              fontSize: 11,
+              color: "rgba(255,255,255,0.4)",
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              fontFamily: "Montserrat",
+              display: "flex",
+            }}
+          >
+            CONSTRUCTION BUSINESS BLUEPRINT
+          </div>
+        </div>
 
         {/* Title */}
         <div
@@ -202,7 +216,7 @@ export async function GET(request: NextRequest) {
             width: 60,
             height: 3,
             background: "#2272DE",
-            opacity: 0.5,
+            opacity: 0.6,
             borderRadius: 2,
             display: "flex",
           }}
