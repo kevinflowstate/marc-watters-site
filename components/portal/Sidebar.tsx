@@ -119,16 +119,8 @@ export default function Sidebar() {
 
   return (
     <>
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="lg:hidden fixed top-4 left-4 z-[60] w-10 h-10 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl flex items-center justify-center text-text-primary cursor-pointer portal-hamburger"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={collapsed ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-        </svg>
-      </button>
-
-      <aside className={`portal-sidebar fixed top-0 left-0 h-full w-[260px] bg-[rgba(5,5,7,0.97)] border-r border-[rgba(255,255,255,0.04)] backdrop-blur-[20px] z-50 flex flex-col transition-transform duration-300 ${collapsed ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      {/* Sidebar - desktop only, mobile uses MobileNav bottom bar */}
+      <aside className="portal-sidebar hidden lg:flex fixed top-0 left-0 h-full w-[260px] bg-[rgba(5,5,7,0.97)] border-r border-[rgba(255,255,255,0.04)] backdrop-blur-[20px] z-50 flex-col">
         <div className="p-6 border-b border-[rgba(255,255,255,0.04)]">
           <Link href="/" className="flex items-center gap-3 no-underline">
             <Image src="/images/cbb-logo.png" alt="CBB" width={28} height={28} className="h-7 w-auto" />
@@ -238,9 +230,6 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {collapsed && (
-        <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setCollapsed(false)} />
-      )}
     </>
   );
 }
