@@ -115,7 +115,7 @@ export default function BlueprintAIPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-3xl mx-auto">
+    <div className="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100vh-4rem)] max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-heading font-extrabold text-text-primary">Blueprint AI</h1>
         <p className="text-sm text-text-secondary mt-1">
