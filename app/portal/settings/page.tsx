@@ -2,10 +2,19 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import { Suspense } from "react";
 
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -19,6 +28,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isSetup, setIsSetup] = useState(false);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("setup") === "true") setIsSetup(true);
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -216,6 +236,73 @@ export default function SettingsPage() {
               className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
             />
           </div>
+        </div>
+
+        {/* Password section */}
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 space-y-5">
+          <h2 className="text-lg font-heading font-bold text-text-primary">
+            {isSetup ? "Set Your Password" : "Change Password"}
+          </h2>
+          {isSetup && (
+            <p className="text-sm text-accent-bright">Welcome! Set a password to secure your account.</p>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Type it again"
+              className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+            />
+          </div>
+
+          {passwordMessage && (
+            <div className={`text-sm px-4 py-2.5 rounded-xl ${
+              passwordMessage.type === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+            }`}>
+              {passwordMessage.text}
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={!newPassword || newPassword.length < 8 || newPassword !== confirmPassword || passwordSaving}
+            onClick={async () => {
+              setPasswordSaving(true);
+              setPasswordMessage(null);
+              try {
+                const supabase = createClient();
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                  setPasswordMessage({ type: "error", text: error.message });
+                } else {
+                  setPasswordMessage({ type: "success", text: "Password updated successfully" });
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setIsSetup(false);
+                }
+              } catch {
+                setPasswordMessage({ type: "error", text: "Something went wrong" });
+              } finally {
+                setPasswordSaving(false);
+              }
+            }}
+            className="px-6 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-opacity"
+          >
+            {passwordSaving ? "Updating..." : isSetup ? "Set Password" : "Update Password"}
+          </button>
         </div>
 
         <div className="flex items-center justify-between">
