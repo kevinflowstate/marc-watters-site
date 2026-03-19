@@ -4,7 +4,6 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
-// Load Montserrat Bold for title text
 async function loadFont() {
   const res = await fetch(
     "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w-Y3tcoqK5.ttf"
@@ -15,47 +14,70 @@ async function loadFont() {
 function PatternElements({ width, height }: { width: number; height: number }) {
   const elements: React.ReactNode[] = [];
   let key = 0;
-  const color = "#2272DE";
+  const blue = "#2272DE";
+  const white = "rgba(255,255,255,0.06)";
 
-  // Horizontal pipes
-  for (let y = 35; y < height; y += 50) {
-    const x1 = (y * 7 + 13) % (width * 0.35);
-    const x2 = x1 + 120 + ((y * 3) % (width * 0.25));
+  // Grid of faint white dots
+  for (let x = 30; x < width; x += 40) {
+    for (let y = 30; y < height; y += 40) {
+      elements.push(
+        <div key={key++} style={{ position: "absolute", left: x, top: y, width: 1.5, height: 1.5, borderRadius: "50%", background: "white", opacity: 0.04, display: "flex" }} />
+      );
+    }
+  }
+
+  // Horizontal blue pipes - bolder
+  for (let y = 45; y < height; y += 48) {
+    const x1 = (y * 7 + 13) % (width * 0.3);
+    const x2 = x1 + 140 + ((y * 3) % (width * 0.3));
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x1, top: y, width: x2 - x1, height: 1.5, background: color, opacity: 0.1, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x1, top: y, width: x2 - x1, height: 2, background: blue, opacity: 0.2, display: "flex" }} />
     );
+    // Start node
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x1 - 2.5, top: y - 2.5, width: 5, height: 5, borderRadius: "50%", background: color, opacity: 0.15, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x1 - 4, top: y - 4, width: 8, height: 8, borderRadius: "50%", background: blue, opacity: 0.25, display: "flex" }} />
     );
+    // End node
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x2 - 2.5, top: y - 2.5, width: 5, height: 5, borderRadius: "50%", background: color, opacity: 0.15, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x2 - 4, top: y - 4, width: 8, height: 8, borderRadius: "50%", background: blue, opacity: 0.25, display: "flex" }} />
     );
   }
 
   // Vertical connectors
-  for (let x = 90; x < width; x += 100) {
+  for (let x = 100; x < width; x += 85) {
     const y1 = (x * 5 + 7) % (height * 0.35) + 30;
-    const y2 = y1 + 45 + ((x * 2) % 70);
+    const y2 = y1 + 50 + ((x * 2) % 80);
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: x, top: y1, width: 1.5, height: y2 - y1, background: color, opacity: 0.07, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: x, top: y1, width: 2, height: y2 - y1, background: blue, opacity: 0.15, display: "flex" }} />
     );
   }
 
-  // L-shaped brackets
-  for (let i = 0; i < 5; i++) {
-    const cx = 100 + (i * 151) % (width - 180);
-    const cy = 40 + (i * 79) % (height - 80);
+  // L-shaped brackets - larger
+  for (let i = 0; i < 6; i++) {
+    const cx = 80 + (i * 143) % (width - 160);
+    const cy = 35 + (i * 67) % (height - 70);
+    // Horizontal arm
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx, top: cy, width: 30, height: 1.5, background: color, opacity: 0.08, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx, top: cy, width: 40, height: 2, background: blue, opacity: 0.18, display: "flex" }} />
     );
+    // Vertical arm
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx + 28.5, top: cy, width: 1.5, height: 22, background: color, opacity: 0.08, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx + 38, top: cy, width: 2, height: 28, background: blue, opacity: 0.18, display: "flex" }} />
     );
+    // Junction dot
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx - 2, top: cy - 2, width: 4, height: 4, borderRadius: "50%", background: color, opacity: 0.12, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx - 3, top: cy - 3, width: 6, height: 6, borderRadius: "50%", background: blue, opacity: 0.22, display: "flex" }} />
     );
+    // End square
     elements.push(
-      <div key={key++} style={{ position: "absolute", left: cx + 26, top: cy + 18, width: 6, height: 6, borderRadius: 1, background: color, opacity: 0.06, display: "flex" }} />
+      <div key={key++} style={{ position: "absolute", left: cx + 34, top: cy + 24, width: 10, height: 10, borderRadius: 2, border: `1.5px solid ${blue}`, opacity: 0.15, display: "flex" }} />
+    );
+  }
+
+  // White subtle horizontal rules
+  for (let y = 80; y < height - 40; y += 120) {
+    elements.push(
+      <div key={key++} style={{ position: "absolute", left: 0, top: y, width, height: 1, background: white, display: "flex" }} />
     );
   }
 
@@ -83,16 +105,16 @@ export async function GET(request: NextRequest) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#050507",
+          backgroundColor: "#070A10",
           position: "relative",
           overflow: "hidden",
           fontFamily: "Montserrat",
         }}
       >
-        {/* Blue pipe pattern */}
+        {/* Blueprint pattern */}
         <PatternElements width={width} height={height} />
 
-        {/* Subtle radial glow */}
+        {/* Radial glow - stronger */}
         <div
           style={{
             position: "absolute",
@@ -100,7 +122,20 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "radial-gradient(ellipse at 30% 50%, rgba(34,114,222,0.08) 0%, transparent 65%)",
+            background: "radial-gradient(ellipse at 25% 45%, rgba(34,114,222,0.14) 0%, transparent 60%)",
+            display: "flex",
+          }}
+        />
+
+        {/* Second glow bottom right */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "radial-gradient(ellipse at 80% 80%, rgba(34,114,222,0.08) 0%, transparent 50%)",
             display: "flex",
           }}
         />
@@ -113,8 +148,8 @@ export async function GET(request: NextRequest) {
             left: 0,
             right: 0,
             height: 3,
-            background: "linear-gradient(90deg, transparent 0%, #2272DE 50%, transparent 100%)",
-            opacity: 0.45,
+            background: "linear-gradient(90deg, transparent 10%, #2272DE 50%, transparent 90%)",
+            opacity: 0.6,
             display: "flex",
           }}
         />
@@ -129,7 +164,7 @@ export async function GET(request: NextRequest) {
             position: "absolute",
             top: variant === "banner" ? 20 : 30,
             objectFit: "contain",
-            opacity: 0.6,
+            opacity: 0.7,
           }}
         />
 
@@ -140,13 +175,13 @@ export async function GET(request: NextRequest) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            padding: "0 60px",
+            padding: "0 50px",
             marginTop: variant === "banner" ? 10 : 20,
           }}
         >
           <div
             style={{
-              fontSize: variant === "banner" ? 40 : 46,
+              fontSize: variant === "banner" ? 42 : 48,
               fontWeight: 800,
               color: "#FFFFFF",
               textAlign: "center",
@@ -164,27 +199,16 @@ export async function GET(request: NextRequest) {
           style={{
             position: "absolute",
             bottom: variant === "banner" ? 16 : 24,
-            width: 50,
-            height: 2,
+            width: 60,
+            height: 3,
             background: "#2272DE",
-            opacity: 0.3,
-            borderRadius: 1,
+            opacity: 0.5,
+            borderRadius: 2,
             display: "flex",
           }}
         />
       </div>
     ),
-    {
-      width,
-      height,
-      fonts: [
-        {
-          name: "Montserrat",
-          data: fontData,
-          weight: 800,
-          style: "normal",
-        },
-      ],
-    }
+    { width, height, fonts: [{ name: "Montserrat", data: fontData, weight: 800, style: "normal" as const }] }
   );
 }

@@ -278,19 +278,13 @@ export default function TrainingManagerPage() {
               {/* Bento dot pattern */}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
               <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-              {/* Cover / Header */}
-              <div className={`relative h-36 bg-gradient-to-br ${color.bg} overflow-hidden`}>
-                <div className="absolute inset-0 opacity-10">
-                  <svg className="absolute -right-4 -top-4 w-32 h-32" viewBox="0 0 120 120" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3">
-                    <circle cx="60" cy="60" r="50" />
-                    <circle cx="60" cy="60" r="30" />
-                    <circle cx="60" cy="60" r="10" />
-                    {Array.from({ length: 8 }).map((_, j) => {
-                      const a = (j / 8) * Math.PI * 2;
-                      return <line key={j} x1={60 + Math.cos(a) * 10} y1={60 + Math.sin(a) * 10} x2={60 + Math.cos(a) * 50} y2={60 + Math.sin(a) * 50} />;
-                    })}
-                  </svg>
-                </div>
+              {/* Cover - auto-generated from title */}
+              <div className="relative h-36 overflow-hidden">
+                <img
+                  src={mod.thumbnail_url || `/api/og/module?title=${encodeURIComponent(mod.title)}&variant=card`}
+                  alt={mod.title}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
 
                 {/* Module number / checkbox */}
                 <div className="absolute top-4 left-4">
@@ -320,13 +314,6 @@ export default function TrainingManagerPage() {
                   }`}>
                     {mod.is_published ? "Published" : "Draft"}
                   </span>
-                </div>
-
-                {/* Icon */}
-                <div className="absolute bottom-4 right-4 w-12 h-12 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 flex items-center justify-center">
-                  <svg className={`w-6 h-6 ${color.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={icon} />
-                  </svg>
                 </div>
               </div>
 
