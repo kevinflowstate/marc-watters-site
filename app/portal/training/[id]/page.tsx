@@ -121,12 +121,12 @@ export default function ModuleView() {
 
       {/* Module header */}
       <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden mb-6">
-        <div className="relative h-32 bg-gradient-to-br from-blue-600/20 to-blue-900/40 overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <svg className="absolute -right-4 -top-4 w-32 h-32" viewBox="0 0 120 120" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3">
-              <circle cx="60" cy="60" r="50" /><circle cx="60" cy="60" r="30" /><circle cx="60" cy="60" r="10" />
-            </svg>
-          </div>
+        <div className="relative h-32 overflow-hidden">
+          <img
+            src={module.thumbnail_url || `/api/og/module?title=${encodeURIComponent(module.title)}&variant=banner`}
+            alt={module.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         </div>
         <div className="p-6">
           <h1 className="text-2xl font-heading font-bold text-text-primary mb-2">{module.title}</h1>
