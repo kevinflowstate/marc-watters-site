@@ -73,7 +73,7 @@ export default function WebinarThankYou() {
                 Date
               </div>
               <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                Tues 1st April
+                Wed 1st April
               </div>
             </div>
             <div>

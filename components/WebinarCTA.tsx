@@ -82,7 +82,7 @@ export default function WebinarCTA({
                 <span className="text-accent-bright">Time Profit Control</span>
               </div>
               <p className="text-text-muted text-[0.82rem]">
-                Tuesday 1st April at 7pm - Live on Zoom
+                Wednesday 1st April at 7pm - Live on Zoom
               </p>
             </div>
 

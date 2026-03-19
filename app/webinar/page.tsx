@@ -5,7 +5,7 @@ import WebinarCTA from "@/components/WebinarCTA";
 export const metadata: Metadata = {
   title: "Time Profit Control | Free Live Workshop for Trade & Construction Business Owners",
   description:
-    "Free live workshop: fix the three areas holding your construction business back. Time, profit, and control. Tuesday 1st April at 7pm.",
+    "Free live workshop: fix the three areas holding your construction business back. Time, profit, and control. Wednesday 1st April at 7pm.",
 };
 
 export default function WebinarOptIn() {
@@ -90,7 +90,7 @@ export default function WebinarOptIn() {
                   Date
                 </div>
                 <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                  Tues 1st April
+                  Wed 1st April
                 </div>
               </div>
               <div className="w-px h-8 bg-border-light" />
@@ -317,7 +317,7 @@ export default function WebinarOptIn() {
           <div className="w-[60px] h-[3px] gradient-accent rounded-sm mx-auto mb-6" />
 
           <p className="text-text-secondary text-[1rem] leading-[1.7] mb-4">
-            Tuesday 1st April at 7pm. Live on Zoom. One session. Free.
+            Wednesday 1st April at 7pm. Live on Zoom. One session. Free.
           </p>
           <p className="text-text-muted text-[0.88rem] leading-[1.7] mb-8">
             We&apos;ve got capacity for around 50 businesses. This isn&apos;t
