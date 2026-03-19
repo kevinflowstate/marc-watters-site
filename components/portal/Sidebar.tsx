@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "@/components/portal/ThemeToggle";
 
 const navItems = [
   { href: "/portal", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
@@ -120,14 +121,14 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="lg:hidden fixed top-4 left-4 z-[60] w-10 h-10 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl flex items-center justify-center text-text-primary cursor-pointer"
+        className="lg:hidden fixed top-4 left-4 z-[60] w-10 h-10 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl flex items-center justify-center text-text-primary cursor-pointer portal-hamburger"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={collapsed ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
         </svg>
       </button>
 
-      <aside className={`fixed top-0 left-0 h-full w-[260px] bg-[rgba(5,5,7,0.97)] border-r border-[rgba(255,255,255,0.04)] backdrop-blur-[20px] z-50 flex flex-col transition-transform duration-300 ${collapsed ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <aside className={`portal-sidebar fixed top-0 left-0 h-full w-[260px] bg-[rgba(5,5,7,0.97)] border-r border-[rgba(255,255,255,0.04)] backdrop-blur-[20px] z-50 flex flex-col transition-transform duration-300 ${collapsed ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
         <div className="p-6 border-b border-[rgba(255,255,255,0.04)]">
           <Link href="/" className="flex items-center gap-3 no-underline">
             <Image src="/images/cbb-logo.png" alt="CBB" width={28} height={28} className="h-7 w-auto" />
@@ -225,12 +226,15 @@ export default function Sidebar() {
               <div className="text-xs text-text-muted">Client</div>
             </div>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="w-full mt-2 px-4 py-2 text-xs text-text-muted hover:text-red-400 transition-colors text-left cursor-pointer"
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center justify-between mt-2">
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 text-xs text-text-muted hover:text-red-400 transition-colors text-left cursor-pointer"
+            >
+              Sign Out
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
