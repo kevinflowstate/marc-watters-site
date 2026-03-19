@@ -81,6 +81,29 @@ export default function BusinessPlanPage() {
     load();
   }, []);
 
+  async function toggleItem(phaseId: string, itemId: string) {
+    // Optimistic update
+    setPhases((prev) =>
+      prev.map((phase) => {
+        if (phase.id !== phaseId) return phase;
+        return {
+          ...phase,
+          items: phase.items.map((item) =>
+            item.id === itemId
+              ? { ...item, completed: !item.completed, completed_at: !item.completed ? new Date().toISOString() : undefined }
+              : item
+          ),
+        };
+      })
+    );
+    // Persist
+    await fetch("/api/portal/plan", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId }),
+    });
+  }
+
   if (loading) return (
     <div className="space-y-6">
       <div className="space-y-2 mb-8">
@@ -195,9 +218,13 @@ export default function BusinessPlanPage() {
                   <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Action Items</h3>
                   <div className="space-y-2">
                     {phase.items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3 py-2">
-                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
-                          item.completed ? "bg-emerald-500 border-emerald-500" : "border-[rgba(255,255,255,0.15)]"
+                      <button
+                        key={item.id}
+                        onClick={() => toggleItem(phase.id, item.id)}
+                        className="w-full flex items-center gap-3 py-2 px-1 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer group"
+                      >
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                          item.completed ? "bg-emerald-500 border-emerald-500" : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
                         }`}>
                           {item.completed && (
                             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +232,7 @@ export default function BusinessPlanPage() {
                             </svg>
                           )}
                         </div>
-                        <span className={`text-sm ${item.completed ? "text-text-muted line-through" : "text-text-primary"}`}>
+                        <span className={`text-sm transition-all duration-200 ${item.completed ? "text-text-muted line-through" : "text-text-primary group-hover:text-accent-bright"}`}>
                           {item.title}
                         </span>
                         {item.completed_at && (
@@ -213,7 +240,7 @@ export default function BusinessPlanPage() {
                             {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                           </span>
                         )}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>

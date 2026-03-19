@@ -1,6 +1,21 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { togglePlanItem } from "@/lib/admin-data";
 import { NextResponse } from "next/server";
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { itemId } = await request.json();
+  if (!itemId) return NextResponse.json({ error: "itemId required" }, { status: 400 });
+
+  const result = await togglePlanItem(itemId);
+  if (result.error) return NextResponse.json({ error: result.error }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}
 
 export async function GET() {
   const supabase = await createClient();
