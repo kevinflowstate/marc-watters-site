@@ -76,15 +76,15 @@ export default function AdminBackground() {
         <circle cx="220" cy="20" r="1.5" fill="rgba(34,114,222,0.2)" stroke="none" />
       </svg>
 
-      {/* Pipe - vertical right */}
-      <svg className="absolute top-[20%] right-[3%] w-[30px] h-[250px] opacity-[0.08]" viewBox="0 0 30 250" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1.5">
-        <line x1="10" y1="0" x2="10" y2="100" />
-        <line x1="20" y1="0" x2="20" y2="100" />
-        <rect x="6" y="95" width="18" height="10" rx="1" />
-        <line x1="5" y1="105" x2="5" y2="250" />
-        <line x1="25" y1="105" x2="25" y2="250" />
-        <circle cx="15" cy="50" r="1.5" fill="rgba(34,114,222,0.3)" stroke="none" />
-        <circle cx="15" cy="160" r="1.5" fill="rgba(34,114,222,0.3)" stroke="none" />
+      {/* Pipe - vertical right (moved inward) */}
+      <svg className="absolute top-[55%] right-[12%] w-[30px] h-[180px] opacity-[0.06]" viewBox="0 0 30 180" fill="none" stroke="rgba(34,114,222,1)" strokeWidth="1.5">
+        <line x1="10" y1="0" x2="10" y2="70" />
+        <line x1="20" y1="0" x2="20" y2="70" />
+        <rect x="6" y="65" width="18" height="10" rx="1" />
+        <line x1="5" y1="75" x2="5" y2="180" />
+        <line x1="25" y1="75" x2="25" y2="180" />
+        <circle cx="15" cy="35" r="1.5" fill="rgba(34,114,222,0.3)" stroke="none" />
+        <circle cx="15" cy="130" r="1.5" fill="rgba(34,114,222,0.3)" stroke="none" />
       </svg>
 
       {/* I-beam - center-left */}
