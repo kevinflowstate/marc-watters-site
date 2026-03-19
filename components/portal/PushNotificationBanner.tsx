@@ -107,20 +107,10 @@ export default function PushNotificationBanner() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={handleInstall}
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-accent-primary text-white hover:bg-accent-light transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? "Installing..." : "Install App"}
-            </button>
-            <button
               onClick={handleDismissInstall}
-              className="p-1.5 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
-              aria-label="Dismiss"
+              className="px-4 py-2 text-sm font-medium rounded-lg text-text-muted hover:text-text-primary transition-colors cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              Done
             </button>
           </div>
         </div>
