@@ -75,10 +75,8 @@ export default function ModuleCover({
       <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#2272DE] to-transparent opacity-60" />
 
       {/* CBB text logo */}
-      <div className="absolute top-4 left-0 right-0 flex items-center justify-center gap-2">
+      <div className="absolute top-4 left-0 right-0 flex items-center justify-center">
         <span className="text-[11px] font-extrabold tracking-[0.15em] text-[#2272DE] font-heading">CBB</span>
-        <span className="w-px h-3 bg-white/20" />
-        <span className="text-[9px] font-semibold tracking-wider text-white/40 font-heading">CONSTRUCTION BUSINESS BLUEPRINT</span>
       </div>
 
       {/* Module title */}
