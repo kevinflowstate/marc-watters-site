@@ -78,6 +78,10 @@ export default function ClientDetailPage() {
   const [revokeModalOpen, setRevokeModalOpen] = useState(false);
   const [revokeConfirmText, setRevokeConfirmText] = useState("");
   const [revoking, setRevoking] = useState(false);
+  const [nudgeOpen, setNudgeOpen] = useState(false);
+  const [nudgeMessage, setNudgeMessage] = useState("");
+  const [nudgeSending, setNudgeSending] = useState(false);
+  const [nudgeSent, setNudgeSent] = useState(false);
 
   const loadClient = useCallback(async () => {
     try {
@@ -379,42 +383,64 @@ export default function ClientDetailPage() {
 
       {/* Status alert banner */}
       {client.status === "red" && (
-        <div className="flex items-start gap-3 bg-red-500/[0.06] border border-red-500/20 rounded-2xl px-5 py-4 mb-6">
-          <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-red-400 mb-0.5">This client needs attention</div>
-            <div className="text-xs text-text-secondary leading-relaxed">
-              Last login was <span className="text-red-400 font-medium">{lastLoginDays} days ago</span>
-              {missedCheckins > 0 && (
-                <> and they have <span className="text-red-400 font-medium">missed {missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""}</span></>
-              )}
-              . Consider reaching out directly to re-engage.
+        <div className="bg-red-500/[0.06] border border-red-500/20 rounded-2xl px-5 py-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold text-red-400 mb-0.5">This client needs attention</div>
+              <div className="text-xs text-text-secondary leading-relaxed">
+                Last login was <span className="text-red-400 font-medium">{lastLoginDays} days ago</span>
+                {missedCheckins > 0 && (
+                  <> and they have <span className="text-red-400 font-medium">missed {missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""}</span></>
+                )}
+                . Consider reaching out directly to re-engage.
+              </div>
             </div>
           </div>
+          <button
+            onClick={() => { setNudgeOpen(true); setNudgeSent(false); setNudgeMessage(`Hey ${client.name.split(" ")[0]}, just checking in - haven't seen you in the portal for a bit. Everything OK? Jump back in when you're ready, your plan is waiting.`); }}
+            className="mt-3 ml-11 px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Send Nudge
+          </button>
         </div>
       )}
 
       {client.status === "amber" && (
-        <div className="flex items-start gap-3 bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl px-5 py-4 mb-6">
-          <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-amber-400 mb-0.5">Check-in overdue</div>
-            <div className="text-xs text-text-secondary leading-relaxed">
-              Last check-in was <span className="text-amber-400 font-medium">{lastCheckinDays} days ago</span>
-              {missedCheckins > 0 && (
-                <> - <span className="text-amber-400 font-medium">{missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""} missed</span></>
-              )}
-              . A quick nudge might help keep momentum.
+        <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl px-5 py-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold text-amber-400 mb-0.5">Check-in overdue</div>
+              <div className="text-xs text-text-secondary leading-relaxed">
+                Last check-in was <span className="text-amber-400 font-medium">{lastCheckinDays} days ago</span>
+                {missedCheckins > 0 && (
+                  <> - <span className="text-amber-400 font-medium">{missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""} missed</span></>
+                )}
+                . A quick nudge might help keep momentum.
+              </div>
             </div>
           </div>
+          <button
+            onClick={() => { setNudgeOpen(true); setNudgeSent(false); setNudgeMessage(`Hey ${client.name.split(" ")[0]}, your weekly check-in is due. Takes 2 minutes - let me know how things are going.`); }}
+            className="mt-3 ml-11 px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Send Nudge
+          </button>
         </div>
       )}
 
@@ -1040,6 +1066,86 @@ export default function ClientDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Nudge Modal */}
+      {nudgeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-heading font-bold text-text-primary">Nudge {client.name.split(" ")[0]}</h3>
+                <p className="text-xs text-text-muted">Send a push notification to their device</p>
+              </div>
+            </div>
+
+            {nudgeSent ? (
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
+                <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-emerald-400 font-medium">Nudge sent</span>
+              </div>
+            ) : (
+              <textarea
+                value={nudgeMessage}
+                onChange={(e) => setNudgeMessage(e.target.value)}
+                rows={4}
+                placeholder="Type your message..."
+                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50 mb-4 resize-none"
+              />
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setNudgeOpen(false)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+              >
+                {nudgeSent ? "Done" : "Cancel"}
+              </button>
+              {!nudgeSent && (
+                <button
+                  disabled={!nudgeMessage.trim() || nudgeSending}
+                  onClick={async () => {
+                    setNudgeSending(true);
+                    try {
+                      await fetch("/api/push/send", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          userId: client.user_id,
+                          title: "Marc Watters",
+                          body: nudgeMessage,
+                          url: "/portal",
+                          tag: "nudge",
+                        }),
+                      });
+                      setNudgeSent(true);
+                    } finally {
+                      setNudgeSending(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {nudgeSending ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Sending...
+                    </>
+                  ) : "Send Nudge"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Business Plan Builder Modal */}
       {builderMode !== "closed" && (
