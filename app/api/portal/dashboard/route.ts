@@ -40,7 +40,7 @@ export async function GET() {
     return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
   }
 
-  const [modulesRes, checkinsRes, planRes, formConfigRes, recentModulesRes] = await Promise.all([
+  const [modulesRes, checkinsRes, planRes, formConfigRes, recentModulesRes, contentProgressRes] = await Promise.all([
     admin
       .from("training_modules")
       .select("*, content:module_content(*)")
@@ -71,6 +71,12 @@ export async function GET() {
       .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(3),
+    // Content progress for training completion tracking
+    admin
+      .from("content_progress")
+      .select("content_id, completed")
+      .eq("client_id", profile.id)
+      .eq("completed", true),
   ]);
 
   // Get business plan phases and items if plan exists
@@ -97,6 +103,18 @@ export async function GET() {
     }
   }
 
+  // Build a set of completed content IDs for training progress
+  const completedContentIds = new Set(
+    (contentProgressRes.data || []).map((p: { content_id: string }) => p.content_id)
+  );
+
+  // Count total lessons and completed lessons across all modules
+  const allLessons = (modulesRes.data || []).flatMap(
+    (m: { content?: { id: string }[] }) => (m.content || []).map((c: { id: string }) => c.id)
+  );
+  const totalLessons = allLessons.length;
+  const completedLessons = allLessons.filter((id: string) => completedContentIds.has(id)).length;
+
   return NextResponse.json({
     userName: userData?.full_name || "",
     profile,
@@ -106,5 +124,9 @@ export async function GET() {
     planPhases,
     checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
     recentModules: recentModulesRes.data || [],
+    trainingProgress: {
+      completedLessons,
+      totalLessons,
+    },
   });
 }

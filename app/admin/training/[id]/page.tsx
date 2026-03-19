@@ -143,6 +143,38 @@ export default function ModuleEditorPage() {
     }
   }
 
+  async function moveLesson(index: number, direction: "up" | "down") {
+    const sorted = [...lessons].sort((a, b) => a.order_index - b.order_index);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+
+    const lessonA = sorted[index];
+    const lessonB = sorted[targetIndex];
+
+    // Swap order_index values
+    const orderA = lessonA.order_index;
+    const orderB = lessonB.order_index;
+
+    try {
+      await Promise.all([
+        fetch("/api/admin/training/lessons", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: lessonA.id, order_index: orderB }),
+        }),
+        fetch("/api/admin/training/lessons", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: lessonB.id, order_index: orderA }),
+        }),
+      ]);
+      await loadModule();
+      toast("Lesson reordered");
+    } catch {
+      toast("Failed to reorder", "error");
+    }
+  }
+
   async function deleteModule() {
     if (!confirm("Delete this entire module and all its lessons? This cannot be undone.")) return;
     try {
@@ -404,9 +436,13 @@ export default function ModuleEditorPage() {
             key={lesson.id}
             lesson={lesson}
             index={i}
+            isFirst={i === 0}
+            isLast={i === lessons.length - 1}
             isExpanded={expandedLesson === lesson.id}
             onToggle={() => setExpandedLesson(expandedLesson === lesson.id ? null : lesson.id)}
             onDelete={() => deleteLesson(lesson.id)}
+            onMoveUp={() => moveLesson(i, "up")}
+            onMoveDown={() => moveLesson(i, "down")}
           />
         ))}
       </div>
@@ -436,15 +472,23 @@ export default function ModuleEditorPage() {
 function LessonCard({
   lesson,
   index,
+  isFirst,
+  isLast,
   isExpanded,
   onToggle,
   onDelete,
+  onMoveUp,
+  onMoveDown,
 }: {
   lesson: ModuleContent;
   index: number;
+  isFirst: boolean;
+  isLast: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const contentTypeLabels: Record<ContentType, { label: string; icon: string; color: string }> = {
     video: {
@@ -499,8 +543,30 @@ function LessonCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover:opacity-100">
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {!isFirst && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+              className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover/lesson:opacity-100 cursor-pointer"
+              title="Move up"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+          )}
+          {!isLast && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+              className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover/lesson:opacity-100 cursor-pointer"
+              title="Move down"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
+          <button className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover/lesson:opacity-100">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>

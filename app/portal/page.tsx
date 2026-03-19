@@ -76,6 +76,7 @@ export default function PortalDashboard() {
   const [checkinDay, setCheckinDay] = useState("monday");
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
   const [expandedCheckin, setExpandedCheckin] = useState<string | null>(null);
+  const [trainingProgress, setTrainingProgress] = useState<{ completedLessons: number; totalLessons: number }>({ completedLessons: 0, totalLessons: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function PortalDashboard() {
           setPlanPhases(data.planPhases || []);
           setCheckinDay(data.checkinDay || "monday");
           setRecentModules(data.recentModules || []);
+          setTrainingProgress(data.trainingProgress || { completedLessons: 0, totalLessons: 0 });
         }
       } finally {
         setLoading(false);
@@ -199,6 +201,37 @@ export default function PortalDashboard() {
         planPct={planPct}
         totalCheckins={checkins.length}
       />
+
+      {/* Training Progress */}
+      {trainingProgress.totalLessons > 0 && (
+        <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-heading font-bold text-text-primary">Training Progress</h2>
+            </div>
+            <Link href="/portal/training" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
+              View Training
+            </Link>
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl font-heading font-bold text-text-primary">
+                {trainingProgress.totalLessons > 0 ? Math.round((trainingProgress.completedLessons / trainingProgress.totalLessons) * 100) : 0}%
+              </span>
+              <span className="text-sm text-text-muted">
+                {trainingProgress.completedLessons}/{trainingProgress.totalLessons} lessons completed
+              </span>
+            </div>
+            <ProgressBar value={trainingProgress.completedLessons} max={trainingProgress.totalLessons} />
+          </div>
+        </div>
+      )}
 
       {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

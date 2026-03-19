@@ -1,6 +1,7 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+async function getResend() {
+  const { Resend } = await import("resend");
+  return new Resend(process.env.RESEND_API_KEY!);
+}
 const FROM = "Marc Watters <marc@marcwatters.com>";
 const PORTAL_URL = "https://marc-watters-site.vercel.app";
 
@@ -21,7 +22,7 @@ function button(href: string, label: string): string {
 
 export async function sendWelcomeEmail(to: string, name: string, setupUrl: string) {
   const firstName = name.split(" ")[0];
-  return resend.emails.send({
+  const resend = await getResend(); return resend.emails.send({
     from: FROM,
     to,
     subject: "Your Construction Business Blueprint portal is ready",
@@ -37,7 +38,7 @@ export async function sendWelcomeEmail(to: string, name: string, setupUrl: strin
 
 export async function sendCheckinReplyEmail(to: string, clientName: string, replyText: string) {
   const firstName = clientName.split(" ")[0];
-  return resend.emails.send({
+  const resend = await getResend(); return resend.emails.send({
     from: FROM,
     to,
     subject: "Marc replied to your check-in",
@@ -56,7 +57,7 @@ export async function sendCheckinReplyEmail(to: string, clientName: string, repl
 
 export async function sendCheckinReminderEmail(to: string, clientName: string, weekNumber: number) {
   const firstName = clientName.split(" ")[0];
-  return resend.emails.send({
+  const resend = await getResend(); return resend.emails.send({
     from: FROM,
     to,
     subject: `Week ${weekNumber} check-in reminder`,
@@ -89,7 +90,7 @@ export async function sendWeeklySummaryEmail(to: string, summary: {
     ? summary.redClients.map(n => `<li style="color:#e74c3c;font-size:14px;margin:4px 0;">${n}</li>`).join("")
     : '<li style="color:#27ae60;font-size:14px;">All clients on track</li>';
 
-  return resend.emails.send({
+  const resend = await getResend(); return resend.emails.send({
     from: FROM,
     to,
     subject: `Weekly Summary - ${summary.totalClients} clients`,
