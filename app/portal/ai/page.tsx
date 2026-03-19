@@ -123,7 +123,7 @@ export default function BlueprintAIPage() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 mb-4 bg-[rgba(255,255,255,0.01)] rounded-2xl border border-[rgba(255,255,255,0.03)]">
+      <div className={`flex-1 overflow-y-auto p-4 space-y-4 mb-4 bg-[rgba(255,255,255,0.01)] rounded-2xl border border-[rgba(255,255,255,0.03)] flex flex-col ${messages.length > 0 ? "justify-end" : ""}`}>
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
