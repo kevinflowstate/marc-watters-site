@@ -33,21 +33,25 @@ export default function ClientsPage() {
   const [allClients, setAllClients] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TrafficLight | "all">("all");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ success: boolean; emailSent?: boolean; setupUrl?: string; error?: string } | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/admin/clients");
-        if (res.ok) {
-          const data = await res.json();
-          setAllClients(data.clients || []);
-        }
-      } finally {
-        setLoading(false);
+  async function loadClients() {
+    try {
+      const res = await fetch("/api/admin/clients");
+      if (res.ok) {
+        const data = await res.json();
+        setAllClients(data.clients || []);
       }
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
+
+  useEffect(() => { loadClients(); }, []);
 
   if (loading) {
     return (
@@ -85,7 +89,138 @@ export default function ClientsPage() {
           <h1 className="text-3xl font-heading font-bold text-text-primary">Clients</h1>
           <p className="text-text-secondary mt-1">{allClients.length} total clients</p>
         </div>
+        <button
+          onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); }}
+          className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Client
+        </button>
       </div>
+
+      {/* Add Client Modal */}
+      {inviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-heading font-bold text-text-primary">Add Client</h3>
+                <p className="text-xs text-text-muted">They'll receive an email to set up their account</p>
+              </div>
+            </div>
+
+            {inviteResult?.success ? (
+              <>
+                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
+                  <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-emerald-400 font-medium">
+                    {inviteResult.emailSent ? "Client added and email sent" : "Client added"}
+                  </span>
+                </div>
+                {!inviteResult.emailSent && inviteResult.setupUrl && (
+                  <div className="mb-4">
+                    <p className="text-xs text-amber-400 mb-2">Email couldn't be sent (domain not verified yet). Share this setup link manually:</p>
+                    <div className="bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2">
+                      <p className="text-[10px] text-text-muted break-all select-all">{inviteResult.setupUrl}</p>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={() => { setInviteOpen(false); loadClients(); }}
+                  className="w-full px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl cursor-pointer"
+                >
+                  Done
+                </button>
+              </>
+            ) : (
+              <>
+                {inviteResult?.error && (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4">
+                    <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
+                    </svg>
+                    <span className="text-sm text-red-400">{inviteResult.error}</span>
+                  </div>
+                )}
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      placeholder="e.g. James McConnell"
+                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="e.g. james@example.com"
+                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setInviteOpen(false)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!inviteName.trim() || !inviteEmail.trim() || inviteSending}
+                    onClick={async () => {
+                      setInviteSending(true);
+                      setInviteResult(null);
+                      try {
+                        const res = await fetch("/api/admin/invite-client", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ name: inviteName, email: inviteEmail }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setInviteResult({ success: true, emailSent: data.emailSent, setupUrl: data.setupUrl });
+                        } else {
+                          setInviteResult({ success: false, error: data.error });
+                        }
+                      } catch {
+                        setInviteResult({ success: false, error: "Something went wrong" });
+                      } finally {
+                        setInviteSending(false);
+                      }
+                    }}
+                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {inviteSending ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Adding...
+                      </>
+                    ) : "Add Client"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-6">
