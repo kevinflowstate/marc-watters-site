@@ -56,23 +56,12 @@ export default function WebinarThankYou() {
         {/* VSL Video embed */}
         <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden mb-8">
           <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-            {/* Replace the src below with Marc's actual VSL video URL */}
-            <div className="absolute inset-0 flex items-center justify-center bg-[#08080c]">
-              <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-[rgba(34,114,222,0.15)] border border-[rgba(34,114,222,0.3)] flex items-center justify-center mx-auto mb-4 cursor-pointer hover:bg-[rgba(34,114,222,0.25)] transition-all">
-                  <svg
-                    className="w-8 h-8 text-accent-bright ml-1"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                <p className="text-text-muted text-sm">
-                  VSL video placeholder - replace src with Marc&apos;s video
-                </p>
-              </div>
-            </div>
+            <iframe
+              src="https://drive.google.com/file/d/11IKrOna44VlMnk644ej3S2lg5uyHRow9/preview"
+              className="absolute inset-0 w-full h-full"
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+            />
           </div>
         </div>
 
@@ -146,19 +135,18 @@ export default function WebinarThankYou() {
         </div>
 
         {/* Book a call section */}
-        <div className="bg-bg-card border border-[rgba(34,114,222,0.15)] rounded-2xl p-6 text-center">
-          <p className="text-text-secondary text-[0.92rem] leading-[1.7] mb-5">
+        <div className="bg-bg-card border border-[rgba(34,114,222,0.15)] rounded-2xl p-6">
+          <p className="text-center text-text-secondary text-[0.92rem] leading-[1.7] mb-6">
             If you&apos;re serious about making changes in your business, and you
             want to have a conversation about what that looks like with proper
             support behind you - book a call with Marc directly. No sales pitch.
             Just a business deep dive. You leave with clarity either way.
           </p>
-          <a
-            href="/book-marc"
-            className="inline-block bg-transparent border border-[rgba(34,114,222,0.3)] text-accent-bright font-heading font-bold py-3 px-8 rounded-xl text-[0.92rem] tracking-[-0.2px] transition-all hover:bg-[rgba(34,114,222,0.08)] hover:border-[rgba(34,114,222,0.5)]"
-          >
-            Book a Call with Marc
-          </a>
+          <iframe
+            src="https://link.constructionbusinessblueprint.co.uk/widget/booking/9SVdnjIjQsmtxsafPfBP"
+            style={{ width: "100%", border: "none", overflow: "hidden", minHeight: "600px" }}
+            scrolling="no"
+          />
         </div>
       </div>
     </main>
