@@ -18,13 +18,14 @@ export async function middleware(request: NextRequest) {
   }
 
   if (hostname.startsWith('join.')) {
+    // Root -> webinar opt-in page
     if (path === '/') {
       const url = request.nextUrl.clone();
-      url.pathname = '/join';
+      url.pathname = '/webinar';
       return NextResponse.rewrite(url);
     }
-    // Allow /pay/* routes on the join subdomain
-    if (path.startsWith('/pay/')) {
+    // Allow webinar, pay, and book routes on join subdomain
+    if (path.startsWith('/webinar') || path.startsWith('/pay/') || path.startsWith('/book')) {
       return NextResponse.next();
     }
   }

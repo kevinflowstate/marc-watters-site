@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import WebinarCTA from "@/components/WebinarCTA";
 
 export const metadata: Metadata = {
   title: "Time Profit Control | Free Live Workshop for Trade & Construction Business Owners",
@@ -112,10 +113,7 @@ export default function WebinarOptIn() {
               </div>
             </div>
 
-            <a
-              href="#register"
-              className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-9 py-4 rounded-[10px] font-bold text-base no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)]"
-            >
+            <WebinarCTA className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-9 py-4 rounded-[10px] font-bold text-base no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)] cursor-pointer">
               Register Free
               <svg
                 width="16"
@@ -131,7 +129,7 @@ export default function WebinarOptIn() {
                   d="M17 8l4 4m0 0l-4 4m4-4H3"
                 />
               </svg>
-            </a>
+            </WebinarCTA>
             <p className="text-[0.82rem] text-text-muted mt-3">
               Limited to 50 businesses. Free. One session.
             </p>
@@ -327,36 +325,12 @@ export default function WebinarOptIn() {
             serious operators.
           </p>
 
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 text-left">
-            <iframe
-              src="https://link.constructionbusinessblueprint.co.uk/widget/form/qK8QPo1a2iMJzRRRpqdX"
-              style={{
-                width: "100%",
-                border: "none",
-                borderRadius: "3px",
-                minHeight: "400px",
-              }}
-              id="popup-qK8QPo1a2iMJzRRRpqdX"
-              data-layout='{"id":"POPUP"}'
-              data-trigger-type="alwaysShow"
-              data-trigger-value=""
-              data-activation-type="alwaysActivated"
-              data-activation-value=""
-              data-deactivation-type="neverDeactivate"
-              data-deactivation-value=""
-              data-form-name="Webinar Form"
-              data-height="373"
-              data-layout-iframe-id="popup-qK8QPo1a2iMJzRRRpqdX"
-              data-form-id="qK8QPo1a2iMJzRRRpqdX"
-              title="Webinar Form"
-              scrolling="no"
-            />
-          </div>
-          {/* GHL form embed script */}
-          <script
-            src="https://link.constructionbusinessblueprint.co.uk/js/form_embed.js"
-            async
-          />
+          <WebinarCTA className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-11 py-[18px] rounded-[10px] font-bold text-[1.1rem] no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)] cursor-pointer">
+            Register Free
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </WebinarCTA>
 
           <p className="text-text-muted text-[0.78rem] mt-4">
             No spam. No selling. Just the workshop details and your Zoom link.
