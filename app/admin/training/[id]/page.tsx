@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import type { TrainingModule, ModuleContent, Attachment, ContentType } from "@/lib/types";
+import ModuleCover from "@/components/training/ModuleCover";
 
 const attachmentIcons: Record<string, { icon: string; color: string }> = {
   pdf: { icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", color: "text-red-400 bg-red-500/10" },
@@ -218,12 +219,8 @@ export default function ModuleEditorPage() {
       {/* Module header card */}
       <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden mb-6">
         {/* Cover area - auto-generated from title */}
-        <div className="relative h-40 overflow-hidden">
-          <img
-            src={coverUrl || `/api/og/module?title=${encodeURIComponent(moduleTitle)}&variant=banner`}
-            alt={moduleTitle}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+        <div className="relative">
+          <ModuleCover title={moduleTitle} variant="banner" />
 
           {/* Published toggle */}
           <div className="absolute top-4 right-4">

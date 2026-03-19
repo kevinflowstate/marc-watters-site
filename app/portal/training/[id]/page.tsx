@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { TrainingModule, ModuleContent, ContentType } from "@/lib/types";
+import ModuleCover from "@/components/training/ModuleCover";
 
 function getVideoEmbed(url: string): { type: string; embedUrl: string } {
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
@@ -121,13 +122,7 @@ export default function ModuleView() {
 
       {/* Module header */}
       <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden mb-6">
-        <div className="relative h-32 overflow-hidden">
-          <img
-            src={module.thumbnail_url || `/api/og/module?title=${encodeURIComponent(module.title)}&variant=banner`}
-            alt={module.title}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        </div>
+        <ModuleCover title={module.title} variant="banner" />
         <div className="p-6">
           <h1 className="text-2xl font-heading font-bold text-text-primary mb-2">{module.title}</h1>
           <p className="text-sm text-text-secondary leading-relaxed mb-4">{module.description}</p>

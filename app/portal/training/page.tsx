@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { TrainingModule, ModuleContent } from "@/lib/types";
+import ModuleCover from "@/components/training/ModuleCover";
 
 const moduleColors = [
   { bg: "from-blue-600/20 to-blue-900/40", icon: "text-blue-400" },
@@ -83,20 +84,16 @@ export default function TrainingLibrary() {
                 {/* Bento gradient border */}
                 <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 {/* Cover - auto-generated from title */}
-                <div className="relative h-36 overflow-hidden">
-                  <img
-                    src={mod.thumbnail_url || `/api/og/module?title=${encodeURIComponent(mod.title)}&variant=card`}
-                    alt={mod.title}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
+                <div className="relative">
+                  <ModuleCover title={mod.title} />
 
                   {/* Module number */}
-                  <div className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white font-bold text-sm">
+                  <div className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white font-bold text-sm z-10">
                     {i + 1}
                   </div>
 
                   {/* Lesson count badge */}
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-4 right-4 z-10">
                     <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-accent/20 text-blue-300 border border-accent/30">
                       {lessonCount} {lessonCount === 1 ? "lesson" : "lessons"}
                     </span>

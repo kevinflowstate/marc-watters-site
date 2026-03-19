@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import ModuleCover from "@/components/training/ModuleCover";
 import type { TrainingModule } from "@/lib/types";
 
 interface ClientOption {
@@ -279,12 +280,8 @@ export default function TrainingManagerPage() {
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
               <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
               {/* Cover - auto-generated from title */}
-              <div className="relative h-36 overflow-hidden">
-                <img
-                  src={mod.thumbnail_url || `/api/og/module?title=${encodeURIComponent(mod.title)}&variant=card`}
-                  alt={mod.title}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
+              <div className="relative">
+                <ModuleCover title={mod.title} />
 
                 {/* Module number / checkbox */}
                 <div className="absolute top-4 left-4">
