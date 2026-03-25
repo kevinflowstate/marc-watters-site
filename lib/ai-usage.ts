@@ -55,22 +55,34 @@ export async function trackAIUsage({
     endpoint: endpoint || null,
   });
 
-  // Deduct from credits - only if it's not an admin call
-  // We deduct via a raw update using the admin client
-  const { data: profile } = await admin
-    .from("client_profiles")
-    .select("ai_credits")
-    .eq("user_id", userId)
-    .single();
-
+  // Atomic credit deduction using RPC to avoid race conditions
+  // Falls back to read-then-write if RPC doesn't exist
+  const deductAmount = Math.round(billedCostPence);
   let remainingCredits = 0;
-  if (profile) {
-    const newCredits = Math.max(0, (profile.ai_credits || 0) - Math.round(billedCostPence));
-    await admin
+
+  const { data: rpcResult, error: rpcError } = await admin.rpc("deduct_ai_credits", {
+    p_user_id: userId,
+    p_amount: deductAmount,
+  });
+
+  if (!rpcError && rpcResult !== null) {
+    remainingCredits = rpcResult;
+  } else {
+    // Fallback: read-then-write (non-atomic, acceptable for low concurrency)
+    const { data: profile } = await admin
       .from("client_profiles")
-      .update({ ai_credits: newCredits })
-      .eq("user_id", userId);
-    remainingCredits = newCredits;
+      .select("ai_credits")
+      .eq("user_id", userId)
+      .single();
+
+    if (profile) {
+      const newCredits = Math.max(0, (profile.ai_credits || 0) - deductAmount);
+      await admin
+        .from("client_profiles")
+        .update({ ai_credits: newCredits })
+        .eq("user_id", userId);
+      remainingCredits = newCredits;
+    }
   }
 
   return { actualCost: actualCostPence, billedCost: billedCostPence, remainingCredits };

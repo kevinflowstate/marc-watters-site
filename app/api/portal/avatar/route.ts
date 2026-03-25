@@ -19,6 +19,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
+  // Server-side file size validation (2MB max)
+  if (file.size > 2 * 1024 * 1024) {
+    return NextResponse.json({ error: "File too large. Maximum 2MB." }, { status: 400 });
+  }
+
   const ext = file.name.split(".").pop() || "jpg";
   const filePath = `${userId}.${ext}`;
 
