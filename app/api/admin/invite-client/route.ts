@@ -1,16 +1,21 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/email-templates";
+import { getSiteUrl } from "@/lib/site-url";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const auth = await requireAdmin();
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { name, email } = await request.json();
+  const { name, email, password } = await request.json();
 
   if (!name?.trim() || !email?.trim()) {
     return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
+  }
+
+  if (password && password.length < 8) {
+    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -30,6 +35,7 @@ export async function POST(request: Request) {
   const { data: newUser, error: authError } = await admin.auth.admin.createUser({
     email: email.trim().toLowerCase(),
     email_confirm: true,
+    ...(password ? { password } : {}),
     user_metadata: {
       full_name: name.trim(),
       role: "client",
@@ -85,7 +91,7 @@ export async function POST(request: Request) {
   });
 
   const setupUrl = linkData?.properties?.hashed_token
-    ? `https://marc-watters-site.vercel.app/auth/callback?token_hash=${linkData.properties.hashed_token}&type=recovery&redirect=/portal`
+    ? `${getSiteUrl()}/auth/callback?token_hash=${linkData.properties.hashed_token}&type=recovery&redirect=/portal`
     : null;
 
   // Send welcome email via unified template
@@ -104,6 +110,7 @@ export async function POST(request: Request) {
     userId: newUser.user.id,
     profileId: profile.id,
     emailSent,
+    passwordSet: !!password,
     setupUrl: emailSent ? null : setupUrl, // Return URL if email didn't send, so Marc can share manually
   });
 }

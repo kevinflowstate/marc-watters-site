@@ -78,6 +78,10 @@ export default function ClientDetailPage() {
   const [revokeModalOpen, setRevokeModalOpen] = useState(false);
   const [revokeConfirmText, setRevokeConfirmText] = useState("");
   const [revoking, setRevoking] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newClientPassword, setNewClientPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordResult, setPasswordResult] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [nudgeOpen, setNudgeOpen] = useState(false);
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [nudgeSending, setNudgeSending] = useState(false);
@@ -310,6 +314,15 @@ export default function ClientDetailPage() {
                   <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
                   <div className="absolute right-0 top-full mt-1 z-50 bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-xl shadow-xl py-1 min-w-[180px]">
                     <button
+                      onClick={() => { setSettingsOpen(false); setPasswordModalOpen(true); setNewClientPassword(""); setPasswordResult(null); }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-white/5 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      Set Password
+                    </button>
+                    <button
                       onClick={() => { setSettingsOpen(false); setRevokeModalOpen(true); }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                     >
@@ -377,6 +390,95 @@ export default function ClientDetailPage() {
                 {revoking ? "Revoking..." : "Revoke Access"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Set Password Modal */}
+      {passwordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-heading font-bold text-text-primary">Set Password</h3>
+                <p className="text-xs text-text-muted">Set login password for {client.name}</p>
+              </div>
+            </div>
+
+            {passwordResult?.type === "success" ? (
+              <>
+                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
+                  <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-emerald-400 font-medium">Password set - client can log in now</span>
+                </div>
+                <button
+                  onClick={() => setPasswordModalOpen(false)}
+                  className="w-full px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl cursor-pointer"
+                >
+                  Done
+                </button>
+              </>
+            ) : (
+              <>
+                {passwordResult?.type === "error" && (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4">
+                    <span className="text-sm text-red-400">{passwordResult.text}</span>
+                  </div>
+                )}
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">New Password</label>
+                  <input
+                    type="text"
+                    value={newClientPassword}
+                    onChange={(e) => setNewClientPassword(e.target.value)}
+                    placeholder="Min 8 characters"
+                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPasswordModalOpen(false)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={newClientPassword.length < 8 || passwordSaving}
+                    onClick={async () => {
+                      setPasswordSaving(true);
+                      setPasswordResult(null);
+                      try {
+                        const res = await fetch("/api/admin/set-password", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ user_id: client.user_id, password: newClientPassword }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setPasswordResult({ type: "success", text: "Password set" });
+                        } else {
+                          setPasswordResult({ type: "error", text: data.error || "Failed to set password" });
+                        }
+                      } catch {
+                        setPasswordResult({ type: "error", text: "Something went wrong" });
+                      } finally {
+                        setPasswordSaving(false);
+                      }
+                    }}
+                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {passwordSaving ? "Setting..." : "Set Password"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

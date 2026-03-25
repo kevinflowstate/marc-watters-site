@@ -36,8 +36,9 @@ export default function ClientsPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
   const [inviteSending, setInviteSending] = useState(false);
-  const [inviteResult, setInviteResult] = useState<{ success: boolean; emailSent?: boolean; setupUrl?: string; error?: string } | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ success: boolean; emailSent?: boolean; passwordSet?: boolean; setupUrl?: string; error?: string } | null>(null);
 
   async function loadClients() {
     try {
@@ -90,7 +91,7 @@ export default function ClientsPage() {
           <p className="text-text-secondary mt-1">{allClients.length} total clients</p>
         </div>
         <button
-          onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); }}
+          onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
           className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,10 +124,14 @@ export default function ClientsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   <span className="text-sm text-emerald-400 font-medium">
-                    {inviteResult.emailSent ? "Client added and email sent" : "Client added"}
+                    {inviteResult.passwordSet
+                      ? "Client added - password set, ready to log in"
+                      : inviteResult.emailSent
+                        ? "Client added and email sent"
+                        : "Client added"}
                   </span>
                 </div>
-                {!inviteResult.emailSent && inviteResult.setupUrl && (
+                {!inviteResult.passwordSet && !inviteResult.emailSent && inviteResult.setupUrl && (
                   <div className="mb-4">
                     <p className="text-xs text-amber-400 mb-2">Email couldn't be sent (domain not verified yet). Share this setup link manually:</p>
                     <div className="bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2">
@@ -172,6 +177,16 @@ export default function ClientsPage() {
                       className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Set Password <span className="text-text-muted font-normal">(optional - or they set via email)</span></label>
+                    <input
+                      type="text"
+                      value={invitePassword}
+                      onChange={(e) => setInvitePassword(e.target.value)}
+                      placeholder="Min 8 characters"
+                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -189,11 +204,11 @@ export default function ClientsPage() {
                         const res = await fetch("/api/admin/invite-client", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ name: inviteName, email: inviteEmail }),
+                          body: JSON.stringify({ name: inviteName, email: inviteEmail, ...(invitePassword.trim() ? { password: invitePassword.trim() } : {}) }),
                         });
                         const data = await res.json();
                         if (res.ok) {
-                          setInviteResult({ success: true, emailSent: data.emailSent, setupUrl: data.setupUrl });
+                          setInviteResult({ success: true, emailSent: data.emailSent, passwordSet: data.passwordSet, setupUrl: data.setupUrl });
                         } else {
                           setInviteResult({ success: false, error: data.error });
                         }

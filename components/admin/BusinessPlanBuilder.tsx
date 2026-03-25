@@ -12,7 +12,7 @@ interface BusinessPlanBuilderProps {
 }
 
 function generateId() {
-  return `bp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  return crypto.randomUUID();
 }
 
 function createEmptyPhase(orderIndex: number): BusinessPlanPhase {
