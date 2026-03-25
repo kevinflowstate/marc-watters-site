@@ -43,7 +43,7 @@ function LoginForm() {
       if (role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/portal");
+        router.push(redirect);
       }
     }
   }

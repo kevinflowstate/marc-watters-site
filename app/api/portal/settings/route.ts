@@ -15,11 +15,21 @@ export async function POST(request: Request) {
 
   const { fullName, phone, businessName, businessType, goals } = await request.json();
 
-  await admin.from("users").update({ full_name: fullName }).eq("id", userId);
-  await admin
-    .from("client_profiles")
-    .update({ phone, business_name: businessName, business_type: businessType, goals })
-    .eq("user_id", userId);
+  // Only update name if provided (prevents onboarding from blanking it)
+  if (fullName) {
+    await admin.from("users").update({ full_name: fullName }).eq("id", userId);
+  }
+
+  // Only update profile fields that were provided
+  const profileUpdate: Record<string, string> = {};
+  if (phone !== undefined) profileUpdate.phone = phone;
+  if (businessName !== undefined) profileUpdate.business_name = businessName;
+  if (businessType !== undefined) profileUpdate.business_type = businessType;
+  if (goals !== undefined) profileUpdate.goals = goals;
+
+  if (Object.keys(profileUpdate).length > 0) {
+    await admin.from("client_profiles").update(profileUpdate).eq("user_id", userId);
+  }
 
   return NextResponse.json({ success: true });
 }

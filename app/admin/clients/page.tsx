@@ -180,7 +180,7 @@ export default function ClientsPage() {
                   <div>
                     <label className="block text-xs font-medium text-text-secondary mb-1.5">Set Password <span className="text-text-muted font-normal">(optional - or they set via email)</span></label>
                     <input
-                      type="text"
+                      type="password"
                       value={invitePassword}
                       onChange={(e) => setInvitePassword(e.target.value)}
                       placeholder="Min 8 characters"

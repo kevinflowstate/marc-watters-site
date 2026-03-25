@@ -40,17 +40,16 @@ function getNextOccurrence(event: CalendarEvent): Date | null {
   }
 
   if (event.recurrence === "monthly") {
-    let candidate = new Date(next);
+    // Use day-of-month from the original event date (matches admin calendar logic)
+    const baseDate = new Date(event.event_date);
+    const dayOfMonth = baseDate.getDate();
     for (let i = 0; i < 12; i++) {
       const month = (now.getMonth() + i) % 12;
       const year = now.getFullYear() + Math.floor((now.getMonth() + i) / 12);
-      const first = new Date(year, month, 1, hours, minutes, 0, 0);
-      let dayDiff = targetDay - first.getDay();
-      if (dayDiff < 0) dayDiff += 7;
-      candidate = new Date(year, month, 1 + dayDiff, hours, minutes, 0, 0);
+      const candidate = new Date(year, month, dayOfMonth, hours, minutes, 0, 0);
       if (candidate > now) return candidate;
     }
-    return candidate;
+    return null;
   }
 
   return next;
@@ -77,7 +76,7 @@ export default function PortalCalendarPage() {
         const res = await fetch("/api/calendar");
         if (res.ok) {
           const data = await res.json();
-          setEvents(data.events);
+          setEvents(data.events || []);
         }
       } catch {
         // Silently fail

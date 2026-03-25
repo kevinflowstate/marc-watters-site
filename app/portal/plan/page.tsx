@@ -96,12 +96,28 @@ export default function BusinessPlanPage() {
         };
       })
     );
-    // Persist
-    await fetch("/api/portal/plan", {
+    // Persist - rollback on failure
+    const res = await fetch("/api/portal/plan", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId }),
     });
+    if (!res.ok) {
+      // Reverse the optimistic update
+      setPhases((prev) =>
+        prev.map((phase) => {
+          if (phase.id !== phaseId) return phase;
+          return {
+            ...phase,
+            items: phase.items.map((item) =>
+              item.id === itemId
+                ? { ...item, completed: !item.completed, completed_at: !item.completed ? new Date().toISOString() : undefined }
+                : item
+            ),
+          };
+        })
+      );
+    }
   }
 
   if (loading) return (

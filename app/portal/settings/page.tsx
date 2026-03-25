@@ -65,6 +65,10 @@ function SettingsContent() {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast("File too large. Maximum 2MB.");
+      return;
+    }
     setUploadingAvatar(true);
 
     const formData = new FormData();
@@ -75,6 +79,8 @@ function SettingsContent() {
       if (res.ok) {
         const data = await res.json();
         setAvatarUrl(data.avatarUrl);
+      } else {
+        toast("Failed to upload avatar. Please try again.");
       }
     } finally {
       setUploadingAvatar(false);
@@ -85,16 +91,20 @@ function SettingsContent() {
     e.preventDefault();
     setSaving(true);
 
-    await fetch("/api/portal/settings", {
+    const res = await fetch("/api/portal/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fullName, phone, businessName, businessType, goals }),
     });
 
     setSaving(false);
-    setSaved(true);
-    toast("Settings saved successfully");
-    setTimeout(() => setSaved(false), 3000);
+    if (res.ok) {
+      setSaved(true);
+      toast("Settings saved successfully");
+      setTimeout(() => setSaved(false), 3000);
+    } else {
+      toast("Failed to save settings. Please try again.");
+    }
   }
 
   async function handleSignOut() {

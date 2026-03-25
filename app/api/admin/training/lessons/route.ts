@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
     .insert({
       module_id,
       title,
-      content_type: content_type || "video",
-      content_url: content_url || null,
-      content_text: content_text || null,
-      duration_minutes: duration_minutes || null,
+      content_type: content_type ?? "video",
+      content_url: content_url ?? null,
+      content_text: content_text ?? null,
+      duration_minutes: duration_minutes ?? null,
       order_index: nextIndex,
     })
     .select()

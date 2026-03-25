@@ -29,7 +29,6 @@ export default function OnboardingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: "",
           businessName: answers.business_name,
           businessType: answers.business_type,
           goals: answers.goals,

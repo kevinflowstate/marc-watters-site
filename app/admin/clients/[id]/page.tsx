@@ -203,8 +203,30 @@ export default function ClientDetailPage() {
         };
       })
     );
-    // Persist
-    await fetch(`/api/admin/plan-items/${itemId}`, { method: "PATCH" });
+    // Persist - rollback on failure
+    const res = await fetch(`/api/admin/plan-items/${itemId}`, { method: "PATCH" });
+    if (!res.ok) {
+      // Reverse the optimistic update
+      setPlans((prev) =>
+        prev.map((plan) => {
+          if (plan.status !== "active") return plan;
+          return {
+            ...plan,
+            phases: plan.phases.map((phase) => {
+              if (phase.id !== phaseId) return phase;
+              return {
+                ...phase,
+                items: phase.items.map((item) =>
+                  item.id === itemId
+                    ? { ...item, completed: !item.completed, completed_at: !item.completed ? new Date().toISOString() : undefined }
+                    : item
+                ),
+              };
+            }),
+          };
+        })
+      );
+    }
   }
 
   function togglePhase(phaseId: string) {
@@ -380,6 +402,9 @@ export default function ClientDetailPage() {
                     });
                     if (res.ok) {
                       router.push("/admin/clients");
+                    } else {
+                      const data = await res.json().catch(() => ({}));
+                      alert(data.error || "Failed to revoke access");
                     }
                   } finally {
                     setRevoking(false);
@@ -435,7 +460,7 @@ export default function ClientDetailPage() {
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-text-secondary mb-1.5">New Password</label>
                   <input
-                    type="text"
+                    type="password"
                     value={newClientPassword}
                     onChange={(e) => setNewClientPassword(e.target.value)}
                     placeholder="Min 8 characters"
@@ -1215,7 +1240,7 @@ export default function ClientDetailPage() {
                   onClick={async () => {
                     setNudgeSending(true);
                     try {
-                      await fetch("/api/push/send", {
+                      const res = await fetch("/api/push/send", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -1226,7 +1251,12 @@ export default function ClientDetailPage() {
                           tag: "nudge",
                         }),
                       });
-                      setNudgeSent(true);
+                      const result = await res.json().catch(() => ({}));
+                      if (res.ok && result.sent > 0) {
+                        setNudgeSent(true);
+                      } else {
+                        alert("Push notification could not be delivered. Client may not have notifications enabled.");
+                      }
                     } finally {
                       setNudgeSending(false);
                     }

@@ -78,18 +78,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (completed) {
-    await admin.from("content_progress").upsert({
+    const { error } = await admin.from("content_progress").upsert({
       client_id: profileId,
       content_id: contentId,
       completed: true,
       completed_at: new Date().toISOString(),
-    });
+    }, { onConflict: "client_id,content_id" });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   } else {
-    await admin
+    const { error } = await admin
       .from("content_progress")
       .update({ completed: false, completed_at: null })
       .eq("client_id", profileId)
       .eq("content_id", contentId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
