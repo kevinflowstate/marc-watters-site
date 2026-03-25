@@ -15,6 +15,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (hostname.startsWith('portal.')) {
+    if (path === '/') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (hostname.startsWith('join.')) {
     // Root -> webinar opt-in page
     if (path === '/') {
