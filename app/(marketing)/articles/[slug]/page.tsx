@@ -3,6 +3,7 @@ import Image from "next/image";
 import { articles, getArticleBySlug } from "@/lib/articles";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { getSiteUrl } from "@/lib/site-url";
 
 export function generateStaticParams() {
   return articles.map((a) => ({ slug: a.slug }));
@@ -41,6 +42,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const currentIndex = articles.findIndex((a) => a.slug === slug);
   const related = articles.filter((_, i) => i !== currentIndex).slice(0, 2);
 
+  const siteUrl = getSiteUrl();
+
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -56,20 +59,20 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       name: "Construction Business Blueprint",
       logo: {
         "@type": "ImageObject",
-        url: "https://marc-watters-site.vercel.app/images/cbb-logo.png",
+        url: `${siteUrl}/images/cbb-logo.png`,
       },
     },
     datePublished: article.date,
     articleSection: article.category,
-    mainEntityOfPage: `https://marc-watters-site.vercel.app/articles/${slug}`,
+    mainEntityOfPage: `${siteUrl}/articles/${slug}`,
   };
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://marc-watters-site.vercel.app" },
-      { "@type": "ListItem", position: 2, name: "Articles", item: "https://marc-watters-site.vercel.app/articles" },
+      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+      { "@type": "ListItem", position: 2, name: "Articles", item: `${siteUrl}/articles` },
       { "@type": "ListItem", position: 3, name: article.title },
     ],
   };

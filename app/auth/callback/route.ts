@@ -7,7 +7,10 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const tokenHash = searchParams.get('token_hash');
   const type = searchParams.get('type') as 'recovery' | 'magiclink' | 'signup' | 'invite' | 'email';
-  const redirect = searchParams.get('redirect') || '/portal';
+  const rawRedirect = searchParams.get('redirect') || '/portal';
+  // Validate redirect to prevent open redirect attacks:
+  // must start with "/" and must not start with "//" (protocol-relative URL)
+  const redirect = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) ? rawRedirect : '/portal';
 
   const cookieStore = await cookies();
   const supabase = createServerClient(

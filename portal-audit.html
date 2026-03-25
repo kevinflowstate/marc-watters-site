@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marc Watters Portal - Audit Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 40px 20px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 40px; }
+  .section { margin-bottom: 48px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .section-title { font-size: 20px; font-weight: 700; color: #fff; }
+  .section-count { font-size: 12px; color: #888; background: rgba(255,255,255,0.05); padding: 2px 10px; border-radius: 20px; margin-left: auto; }
+
+  .critical .section-icon { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .bug .section-icon { background: rgba(249,115,22,0.15); color: #f97316; }
+  .incomplete .section-icon { background: rgba(234,179,8,0.15); color: #eab308; }
+  .nice .section-icon { background: rgba(34,114,222,0.15); color: #2272DE; }
+
+  .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px 24px; margin-bottom: 12px; transition: border-color 0.2s; }
+  .card:hover { border-color: rgba(255,255,255,0.12); }
+  .card-num { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .card-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .card-body { font-size: 14px; color: #aaa; line-height: 1.7; }
+  .card-body code { background: rgba(34,114,222,0.1); color: #5ba3f5; padding: 2px 7px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Monaco, monospace; }
+
+  .critical .card { border-left: 3px solid #ef4444; }
+  .bug .card { border-left: 3px solid #f97316; }
+  .incomplete .card { border-left: 3px solid #eab308; }
+  .nice .card { border-left: 3px solid #2272DE; }
+
+  .priority-bar { display: flex; gap: 8px; margin-bottom: 40px; flex-wrap: wrap; }
+  .priority-badge { padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .priority-badge.crit { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+  .priority-badge.bug-b { background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid rgba(249,115,22,0.2); }
+  .priority-badge.inc { background: rgba(234,179,8,0.1); color: #eab308; border: 1px solid rgba(234,179,8,0.2); }
+  .priority-badge.nth { background: rgba(34,114,222,0.1); color: #2272DE; border: 1px solid rgba(34,114,222,0.2); }
+
+  .go-live { background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.15); border-radius: 16px; padding: 24px; margin-bottom: 48px; }
+  .go-live h3 { color: #ef4444; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+  .go-live p { color: #ccc; font-size: 14px; line-height: 1.8; }
+  .go-live strong { color: #fff; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Portal Audit Report</h1>
+<p class="subtitle">Marc Watters - Construction Business Blueprint | 19 March 2026</p>
+
+<div class="priority-bar">
+  <span class="priority-badge crit">5 Critical</span>
+  <span class="priority-badge bug-b">3 Bugs</span>
+  <span class="priority-badge inc">5 Incomplete</span>
+  <span class="priority-badge nth">7 Nice to Have</span>
+</div>
+
+<div class="go-live">
+  <h3>Go-Live Blockers</h3>
+  <p>Fix items <strong>1, 2, 4, 5</strong> before any real client touches the portal. Item <strong>3</strong> (Stripe) is needed when ready to take payments. Everything else can ship after launch.</p>
+</div>
+
+<!-- CRITICAL -->
+<div class="section critical">
+  <div class="section-header">
+    <div class="section-icon">!</div>
+    <div class="section-title">Critical</div>
+    <div class="section-count">5 issues</div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#1</div>
+    <div class="card-title">Bulk Assign API has no auth check</div>
+    <div class="card-body">
+      <code>/api/admin/bulk-assign</code> uses the Supabase service role key but has zero authentication. Anyone who knows the endpoint can POST to it and assign training modules to any client. Needs <code>requireAdmin()</code> added.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#2</div>
+    <div class="card-title">Demo user fallback leaks client data</div>
+    <div class="card-body">
+      7 portal API routes (dashboard, plan, me, ai, avatar, settings, training) fall back to the first client in the database if no user is authenticated. This means an unauthenticated request returns real client data - business plans, check-in history, training progress. These <code>demoUser</code> fallbacks must be removed before go-live.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#3</div>
+    <div class="card-title">No Stripe keys configured</div>
+    <div class="card-body">
+      <code>.env.local</code> has no <code>STRIPE_SECRET_KEY</code> or <code>STRIPE_WEBHOOK_SECRET</code>. The payment intent endpoint returns <code>demo_mode</code>. The Stripe webhook rejects everything. Automated onboarding (Stripe checkout -> user creation -> module assignment) won't work. Not a blocker if Marc is manually adding clients for now.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#4</div>
+    <div class="card-title">GHL form ID is a placeholder</div>
+    <div class="card-body">
+      The <code>/apply</code> page has <code>YOUR_FORM_ID</code> hardcoded in the GHL iframe src. The application form is completely broken. Need Marc's actual GHL form ID to replace it.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#5</div>
+    <div class="card-title">Resend domain not verified</div>
+    <div class="card-body">
+      The Resend API key is configured but the sending domain (<code>marc@marcwatters.com</code>) isn't verified. All emails silently fail: welcome emails, check-in reply notifications, and client invite emails. Domain verification needs done in the Resend dashboard.
+    </div>
+  </div>
+</div>
+
+<!-- BUGS -->
+<div class="section bug">
+  <div class="section-header">
+    <div class="section-icon">&#9888;</div>
+    <div class="section-title">Bugs</div>
+    <div class="section-count">3 issues</div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#6</div>
+    <div class="card-title">Payment routes have no auth</div>
+    <div class="card-body">
+      <code>/api/create-payment-intent</code> and <code>/api/schedule-payment</code> are public endpoints. While they won't work without Stripe keys, once Stripe is configured anyone could create payment intents. Should validate the request or add rate limiting.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#7</div>
+    <div class="card-title">Onboarding video is a placeholder</div>
+    <div class="card-body">
+      The <code>/onboarding</code> page shows "Onboarding video - to be added by Marc" with a fake play button. Marc needs to record a welcome video and provide the YouTube/Vimeo URL to embed.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#8</div>
+    <div class="card-title">Invite client password setup link needs testing</div>
+    <div class="card-body">
+      The invite flow generates a Supabase <code>recovery</code> link and constructs a callback URL with <code>token_hash</code>. The auth callback route needs to be verified that it handles this token type and redirects correctly to set a password.
+    </div>
+  </div>
+</div>
+
+<!-- INCOMPLETE -->
+<div class="section incomplete">
+  <div class="section-header">
+    <div class="section-icon">&#9881;</div>
+    <div class="section-title">Incomplete</div>
+    <div class="section-count">5 items</div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#9</div>
+    <div class="card-title">Weekly summary email to Marc</div>
+    <div class="card-body">
+      Noted as Phase 4 scope. Marc has no automated weekly digest of client activity - who checked in, who didn't, plan progress changes, new completions. He has to manually check each client.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#10</div>
+    <div class="card-title">No protected video hosting</div>
+    <div class="card-body">
+      Training videos are YouTube/Vimeo embeds only. No CDN for protected content. If Marc wants truly private training videos (not just unlisted YouTube links), needs Bunny.net, Mux, or Vimeo OTT integration.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#11</div>
+    <div class="card-title">Email templates not unified</div>
+    <div class="card-body">
+      Only <code>sendCheckinReplyEmail</code> exists as a reusable template. The invite email builds HTML inline in the API route. Should be a shared template library for consistent branding across all emails.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#12</div>
+    <div class="card-title">No lesson reordering in admin</div>
+    <div class="card-body">
+      Training lessons can be added and deleted but there's no way to reorder them. <code>order_index</code> exists in the database but no drag-to-reorder or move up/down UI.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#13</div>
+    <div class="card-title">Onboarding questionnaire doesn't save</div>
+    <div class="card-body">
+      The <code>/onboarding</code> page has a business questionnaire (name, type, turnover, challenges, goals) but there's no API route to persist the answers. The form just transitions to step 3 without saving anything to Supabase.
+    </div>
+  </div>
+</div>
+
+<!-- NICE TO HAVE -->
+<div class="section nice">
+  <div class="section-header">
+    <div class="section-icon">&#9733;</div>
+    <div class="section-title">Nice to Have</div>
+    <div class="section-count">7 ideas</div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#14</div>
+    <div class="card-title">Client progress overview grid</div>
+    <div class="card-body">
+      A single admin page showing all clients in a grid: plan completion %, check-in streak, training progress, last login, status. Right now Marc clicks into each client individually. One glance view would save time.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#15</div>
+    <div class="card-title">Check-in reminders via email</div>
+    <div class="card-body">
+      The cron route sends push notification reminders, but most clients won't have push enabled on day one. Email fallback for check-in reminders would catch more people and drive engagement.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#16</div>
+    <div class="card-title">Direct messaging between Marc and clients</div>
+    <div class="card-body">
+      Currently Marc can reply to check-ins, but there's no way for a client to message Marc directly from the portal. A simple message thread per client would replace the need for WhatsApp/email side conversations.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#17</div>
+    <div class="card-title">Training progress on client dashboard</div>
+    <div class="card-body">
+      Clients can see modules and mark lessons complete, but their dashboard doesn't show overall training completion. A "68% of training complete" progress bar on the homepage would drive engagement.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#18</div>
+    <div class="card-title">Export to CSV / PDF</div>
+    <div class="card-body">
+      Marc can't export client data, check-in history, or plan progress. Useful for quarterly reviews, accountability calls, or if a client moves on. Simple CSV export per client would cover it.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#19</div>
+    <div class="card-title">Light mode option</div>
+    <div class="card-body">
+      Currently dark-only. Some construction business owners might prefer light mode, especially on tablets on site. A toggle in settings would be a polish touch.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-num">#20</div>
+    <div class="card-title">Mobile bottom navigation bar</div>
+    <div class="card-body">
+      The sidebar works on desktop but on mobile it's a hamburger menu. A fixed bottom nav bar (Dashboard, Training, Plan, Check-in, AI) would feel more like a native app - especially since we're pushing PWA install.
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -59,11 +59,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const admin = createAdminClient();
   const { contentId, completed, profileId } = await request.json();
 
   if (!profileId || !contentId) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  // Verify the profileId belongs to the authenticated user
+  const { data: ownedProfile } = await admin
+    .from("client_profiles")
+    .select("id")
+    .eq("id", profileId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!ownedProfile) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (completed) {

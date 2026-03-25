@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { checkAICredits, trackAIUsage } from "@/lib/ai-usage";
+import { rateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
 const tools = [
@@ -67,6 +69,31 @@ export async function POST(req: NextRequest) {
 
   if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Rate limit: 20 requests per 15 minutes per user
+  const rl = rateLimit(`portal-ai:${userId}`, 20, 15 * 60 * 1000);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+        },
+      }
+    );
+  }
+
+  // Check AI credits (skip for demo users without a real auth session)
+  if (user?.id) {
+    const { hasCredits } = await checkAICredits(userId);
+    if (!hasCredits) {
+      return NextResponse.json(
+        { error: "Insufficient AI credits. Please contact Marc to top up." },
+        { status: 402 }
+      );
+    }
   }
 
   // Get client profile
@@ -246,6 +273,17 @@ Always confirm the action with the client after using a tool.`;
 
     const textBlock = data.content?.find((b: { type: string }) => b.type === "text");
     const reply = textBlock?.text || "Sorry, I couldn't generate a response.";
+
+    // Track usage after the final response (only for real authenticated users)
+    if (user?.id && data.usage) {
+      await trackAIUsage({
+        userId,
+        model: "claude-haiku-4-5-20251001",
+        inputTokens: data.usage.input_tokens || 0,
+        outputTokens: data.usage.output_tokens || 0,
+        endpoint: "/api/portal/ai",
+      });
+    }
 
     return NextResponse.json({ reply });
   } catch (err) {

@@ -1,9 +1,10 @@
+import { getSiteUrl } from "./site-url";
+
 async function getResend() {
   const { Resend } = await import("resend");
   return new Resend(process.env.RESEND_API_KEY!);
 }
 const FROM = "Marc Watters <marc@marcwatters.com>";
-const PORTAL_URL = "https://marc-watters-site.vercel.app";
 
 function wrap(content: string): string {
   return `
@@ -50,7 +51,7 @@ export async function sendCheckinReplyEmail(to: string, clientName: string, repl
       <div style="background: #f8f9fa; border-left: 3px solid #2272de; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 0 0 24px;">
         <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${replyText}</p>
       </div>
-      ${button(`${PORTAL_URL}/portal`, "View in Portal")}
+      ${button(`${getSiteUrl()}/portal`, "View in Portal")}
     `),
   });
 }
@@ -66,7 +67,7 @@ export async function sendCheckinReminderEmail(to: string, clientName: string, w
       <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
         Your Week ${weekNumber} check-in is due. It takes 2 minutes and helps Marc stay on top of your progress.
       </p>
-      ${button(`${PORTAL_URL}/portal/checkin`, "Submit Check-In")}
+      ${button(`${getSiteUrl()}/portal/checkin`, "Submit Check-In")}
     `),
   });
 }
@@ -113,7 +114,7 @@ export async function sendWeeklySummaryEmail(to: string, summary: {
         </ul>
       ` : ""}
 
-      ${button(`${PORTAL_URL}/admin`, "Open Admin Dashboard")}
+      ${button(`${getSiteUrl()}/admin`, "Open Admin Dashboard")}
     `),
   });
 }

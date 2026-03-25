@@ -4,6 +4,7 @@ import HeroCanvas from "@/components/HeroCanvas";
 import ScrollReveal from "@/components/ScrollReveal";
 import StatCounter from "@/components/StatCounter";
 import { articles } from "@/lib/articles";
+import { getSiteUrl } from "@/lib/site-url";
 
 const problems = [
   { title: "You're stuck on site and can't get out.", desc: "You're still doing the work yourself because nobody else does it the way you do. Every time you try to step back, something pulls you straight back in. The business runs on you. That's the problem." },
@@ -31,14 +32,16 @@ const steps = [
   { num: "3", title: "Weekly Mentorship & Real Implementation", desc: "Weekly 1-to-1 sessions to work through the plan. Prescribed training based on what your business actually needs. Direct access to Marc between sessions. Straight-talking accountability to keep things moving." },
 ];
 
+const siteUrl = getSiteUrl();
+
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "ProfessionalService",
   name: "Marc Watters - Construction Business Blueprint",
   description: "Private mentorship for trade and construction business owners who want profit, structure, and a business that doesn't depend on them doing everything.",
-  url: "https://marc-watters-site.vercel.app",
-  logo: "https://marc-watters-site.vercel.app/images/cbb-logo.png",
-  image: "https://marc-watters-site.vercel.app/images/marc-hero.png",
+  url: siteUrl,
+  logo: `${siteUrl}/images/cbb-logo.png`,
+  image: `${siteUrl}/images/marc-hero.png`,
   founder: {
     "@type": "Person",
     name: "Marc Watters",

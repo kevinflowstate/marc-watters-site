@@ -15,9 +15,9 @@ export async function requireAdmin(): Promise<
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // No session - allow through (middleware handles protection in production)
+  // No session - reject unauthenticated requests
   if (!user) {
-    return { authorized: true };
+    return { authorized: false, status: 401, error: "Not authenticated" };
   }
 
   // Use admin client to bypass RLS for role lookup

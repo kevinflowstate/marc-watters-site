@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construction Business Blueprint - Client Portal Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    color: #e0e0e0;
+    background: #0a0a0f;
+    line-height: 1.7;
+    font-size: 15px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Cover Section ── */
+  .cover {
+    background: #0a0a0f;
+    color: #ffffff;
+    padding: 100px 48px 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 50% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .cover-brand {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #A855F7;
+    margin-bottom: 40px;
+    position: relative;
+  }
+
+  .cover h1 {
+    font-size: 38px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.2;
+    color: #ffffff;
+    position: relative;
+  }
+
+  .cover .subtitle {
+    font-size: 20px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .cover .prepared {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.8;
+    position: relative;
+  }
+
+  .cover .prepared strong {
+    color: #A855F7;
+    font-weight: 600;
+  }
+
+  .cover-divider {
+    width: 60px;
+    height: 3px;
+    background: #A855F7;
+    margin: 0 auto 48px;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  /* ── Section Layout ── */
+  .section-dark {
+    background: #0a0a0f;
+    padding: 64px 0;
+  }
+
+  .section-light {
+    background: #f7f7fa;
+    padding: 64px 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  /* ── Typography ── */
+  .section-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #A855F7;
+    margin-bottom: 12px;
+  }
+
+  h2 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    line-height: 1.3;
+  }
+
+  .section-dark h2 { color: #ffffff; }
+  .section-light h2 { color: #1a1a2e; }
+
+  .section-dark p { color: rgba(255, 255, 255, 0.7); }
+  .section-light p { color: #4a4a5a; }
+
+  p {
+    margin-bottom: 14px;
+    font-size: 15px;
+  }
+
+  .lead {
+    font-size: 17px;
+    line-height: 1.8;
+  }
+
+  .section-light .lead { color: #2a2a3a; }
+  .section-dark .lead { color: rgba(255, 255, 255, 0.8); }
+
+  /* ── Screenshot Browser Frame ── */
+  .screenshot-frame {
+    background: #1a1a24;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 28px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(168, 85, 247, 0.15);
+  }
+
+  .section-light .screenshot-frame {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(168, 85, 247, 0.2);
+  }
+
+  .browser-bar {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #111118;
+    gap: 8px;
+  }
+
+  .browser-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #333;
+  }
+
+  .browser-dot:nth-child(1) { background: #ff5f57; }
+  .browser-dot:nth-child(2) { background: #febc2e; }
+  .browser-dot:nth-child(3) { background: #28c840; }
+
+  .browser-url {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Poppins', monospace;
+  }
+
+  .screenshot-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .screenshot-caption {
+    font-size: 13px;
+    margin-top: 12px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  .section-dark .screenshot-caption { color: rgba(255, 255, 255, 0.5); }
+  .section-light .screenshot-caption { color: #888; }
+
+  /* ── Screenshot Grid ── */
+  .screenshot-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 28px 0;
+  }
+
+  .screenshot-grid .screenshot-frame {
+    margin: 0;
+  }
+
+  /* ── Mobile Screenshots ── */
+  .mobile-grid {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin: 28px 0;
+    flex-wrap: wrap;
+  }
+
+  .mobile-frame {
+    width: 220px;
+    background: #1a1a24;
+    border-radius: 24px;
+    overflow: hidden;
+    padding: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(168, 85, 247, 0.15);
+  }
+
+  .section-light .mobile-frame {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(168, 85, 247, 0.2);
+  }
+
+  .mobile-notch {
+    width: 80px;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    margin: 4px auto 8px;
+  }
+
+  .mobile-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+  }
+
+  .mobile-caption {
+    font-size: 13px;
+    text-align: center;
+    margin-top: 12px;
+    font-weight: 500;
+  }
+
+  .section-dark .mobile-caption { color: rgba(255, 255, 255, 0.5); }
+  .section-light .mobile-caption { color: #888; }
+
+  /* ── Feature Cards ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 28px 0;
+  }
+
+  .feature-card {
+    background: #111118;
+    border: 1px solid rgba(168, 85, 247, 0.15);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.2s;
+  }
+
+  .section-light .feature-card {
+    background: #ffffff;
+    border: 1px solid rgba(168, 85, 247, 0.12);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .feature-card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(168, 85, 247, 0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  .feature-card-icon .dot {
+    width: 14px;
+    height: 14px;
+    background: #A855F7;
+    border-radius: 4px;
+  }
+
+  .feature-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .section-dark .feature-card h3 { color: #ffffff; }
+  .section-light .feature-card h3 { color: #1a1a2e; }
+
+  .feature-card p {
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 0;
+  }
+
+  .section-dark .feature-card p { color: rgba(255, 255, 255, 0.55); }
+  .section-light .feature-card p { color: #666; }
+
+  /* ── Flowchart ── */
+  .flowchart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 0;
+  }
+
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .flow-number {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: rgba(168, 85, 247, 0.12);
+    color: #A855F7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: 2px solid #A855F7;
+  }
+
+  .section-light .flow-number {
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .flow-content {
+    background: #111118;
+    border: 1px solid rgba(168, 85, 247, 0.1);
+    border-radius: 10px;
+    padding: 16px 20px;
+    flex: 1;
+  }
+
+  .section-light .flow-content {
+    background: #ffffff;
+    border: 1px solid rgba(168, 85, 247, 0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .flow-content strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .section-dark .flow-content strong { color: #ffffff; }
+  .section-light .flow-content strong { color: #1a1a2e; }
+
+  .flow-content span {
+    font-size: 13px;
+  }
+
+  .section-dark .flow-content span { color: rgba(255, 255, 255, 0.5); }
+  .section-light .flow-content span { color: #777; }
+
+  .flow-connector-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .flow-line {
+    width: 2px;
+    height: 24px;
+    background: #A855F7;
+    margin-left: 21px;
+    opacity: 0.4;
+  }
+
+  .flow-arrow {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #A855F7;
+    margin-left: 16px;
+    opacity: 0.4;
+  }
+
+  /* ── Traffic Lights ── */
+  .traffic-lights {
+    display: flex;
+    gap: 16px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+
+  .traffic-light {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #111118;
+    padding: 16px 20px;
+    border-radius: 10px;
+    flex: 1;
+    min-width: 200px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .section-light .traffic-light {
+    background: #ffffff;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .light-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .light-green { background: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
+  .light-amber { background: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+  .light-red { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+
+  .traffic-light .light-label strong {
+    display: block;
+    font-size: 13px;
+  }
+
+  .section-dark .traffic-light .light-label strong { color: #ffffff; }
+  .section-light .traffic-light .light-label strong { color: #1a1a2e; }
+
+  .traffic-light .light-label span {
+    font-size: 12px;
+  }
+
+  .section-dark .traffic-light .light-label span { color: rgba(255, 255, 255, 0.45); }
+  .section-light .traffic-light .light-label span { color: #888; }
+
+  /* ── Access Box ── */
+  .access-box {
+    background: #111118;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    padding: 36px;
+    border-radius: 14px;
+    margin: 24px 0;
+  }
+
+  .access-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 14px;
+    align-items: center;
+  }
+
+  .access-row:last-child {
+    border-bottom: none;
+  }
+
+  .access-row .label {
+    color: #A855F7;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-right: 16px;
+  }
+
+  .access-row .value {
+    color: rgba(255, 255, 255, 0.6);
+    text-align: right;
+    word-break: break-all;
+  }
+
+  /* ── Next Steps List ── */
+  .next-list {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0;
+    counter-reset: next-counter;
+  }
+
+  .next-list li {
+    counter-increment: next-counter;
+    padding: 18px 24px 18px 60px;
+    position: relative;
+    background: #111118;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 10px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.7;
+  }
+
+  .next-list li strong {
+    color: #ffffff;
+  }
+
+  .next-list li::before {
+    content: counter(next-counter);
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    width: 28px;
+    height: 28px;
+    background: #A855F7;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 48px 0;
+    background: #0a0a0f;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .footer p {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .footer .footer-brand {
+    color: #A855F7;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .footer .footer-url {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.2);
+    margin-top: 4px;
+  }
+
+  /* ── Print Styles ── */
+  @media print {
+    body {
+      font-size: 13px;
+    }
+
+    .cover, .section-dark, .section-light, .footer,
+    .access-box, .feature-card, .traffic-light, .flow-content,
+    .screenshot-frame, .browser-bar, .mobile-frame {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .section-dark, .section-light {
+      padding: 40px 0;
+    }
+
+    .cover {
+      padding: 60px 40px;
+    }
+
+    .screenshot-frame, .flow-step, .feature-card, .traffic-light,
+    .next-list li {
+      page-break-inside: avoid;
+    }
+
+    .section-dark {
+      page-break-before: auto;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .cover { padding: 64px 24px; }
+    .cover h1 { font-size: 28px; }
+    .cover-brand { font-size: 24px; }
+    .container { padding: 0 20px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .screenshot-grid { grid-template-columns: 1fr; }
+    .traffic-lights { flex-direction: column; }
+    .mobile-grid { flex-direction: column; align-items: center; }
+    .access-row { flex-direction: column; gap: 4px; }
+    .access-row .value { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- COVER -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-brand">Flowstate</div>
+  <div class="cover-divider"></div>
+  <h1>Construction Business Blueprint</h1>
+  <div class="subtitle">Client Portal - Platform Overview</div>
+  <div class="prepared">
+    Prepared for <strong>Marc Watters</strong><br>
+    March 2026
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- WHAT WE'VE BUILT -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-light">
+  <div class="container">
+    <div class="section-label">Overview</div>
+    <h2>What We've Built</h2>
+    <p class="lead">
+      The Construction Business Blueprint portal is your private online platform for managing your mentoring clients. Everything lives in one place -- business plans, training content, weekly check-ins, and AI coaching. Your clients log in, do their work, and stay accountable. You see exactly who's on track and who needs a push, without chasing anyone.
+    </p>
+    <p>
+      It works on any device -- laptop, tablet, or phone. Clients can install it as an app directly from their browser, no App Store needed. Push notifications handle the reminders for you.
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- THE WEBSITE -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-dark">
+  <div class="container">
+    <div class="section-label">The Website</div>
+    <h2>constructionbusinessblueprint.co.uk</h2>
+    <p>A fully custom website built from scratch to position you as the go-to construction business mentor. Fast, mobile-optimised, and designed to convert visitors into booked calls. Here's what's included.</p>
+
+    <div class="screenshot-frame">
+      <div class="browser-bar">
+        <div class="browser-dot"></div>
+        <div class="browser-dot"></div>
+        <div class="browser-dot"></div>
+        <div class="browser-url">constructionbusinessblueprint.co.uk</div>
+      </div>
+      <img src="portal-screenshots/website-hero.png" alt="Website Hero">
+    </div>
+    <div class="screenshot-caption"><strong>Homepage</strong> -- Bold hero section with your positioning front and centre. Clear call to action driving visitors to apply.</div>
+
+    <p style="margin-top: 28px; color: rgba(255,255,255,0.6); line-height: 1.8;">The site also includes dedicated pages for About, Testimonials (video and written), an Application form linked to your calendar, Articles for SEO content, and individual checkout pages for each programme tier. Every page is fully mobile responsive.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- YOUR ADMIN DASHBOARD -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-dark">
+  <div class="container">
+    <div class="section-label">Admin Side</div>
+    <h2>Your Admin Dashboard</h2>
+    <p>When you log in, you see a command centre for managing every client. Here's what it looks like.</p>
+
+    <!-- Admin Dashboard -->
+    <div class="screenshot-frame">
+      <div class="browser-bar">
+        <div class="browser-dot"></div>
+        <div class="browser-dot"></div>
+        <div class="browser-dot"></div>
+        <div class="browser-url">join.constructionbusinessblueprint.co.uk/admin</div>
+      </div>
+      <img src="portal-screenshots/admin-dashboard.png" alt="Admin Dashboard">
+    </div>
+    <p class="screenshot-caption">Your welcome screen with at-a-glance stats, pending check-ins, and a Blueprint AI briefing that flags what needs your attention today.</p>
+
+    <!-- Admin Clients Grid -->
+    <div class="screenshot-grid">
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Clients</div>
+          </div>
+          <img src="portal-screenshots/admin-clients.png" alt="Client List">
+        </div>
+        <p class="screenshot-caption">All clients at a glance with traffic light status indicators.</p>
+      </div>
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Client Detail</div>
+          </div>
+          <img src="portal-screenshots/admin-client-detail.png" alt="Client Detail">
+        </div>
+        <p class="screenshot-caption">Full client profile -- plan progress, check-in history, private notes.</p>
+      </div>
+    </div>
+
+    <!-- Admin Training & Settings Grid -->
+    <div class="screenshot-grid">
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Training</div>
+          </div>
+          <img src="portal-screenshots/admin-training.png" alt="Training Management">
+        </div>
+        <p class="screenshot-caption">Manage training modules and content your clients access.</p>
+      </div>
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Settings</div>
+          </div>
+          <img src="portal-screenshots/admin-settings.png" alt="Admin Settings">
+        </div>
+        <p class="screenshot-caption">Configure check-in questions, day, and portal settings.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- YOUR CLIENTS' EXPERIENCE -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-light">
+  <div class="container">
+    <div class="section-label">Client Side</div>
+    <h2>Your Clients' Experience</h2>
+    <p>When a client logs in, they see their own personal workspace. Clean, focused, and straightforward.</p>
+
+    <!-- Portal Dashboard -->
+    <div class="screenshot-frame">
+      <div class="browser-bar">
+        <div class="browser-dot"></div>
+        <div class="browser-dot"></div>
+        <div class="browser-dot"></div>
+        <div class="browser-url">join.constructionbusinessblueprint.co.uk</div>
+      </div>
+      <img src="portal-screenshots/portal-dashboard.png" alt="Client Dashboard">
+    </div>
+    <p class="screenshot-caption">Their home screen -- current week, plan progress, upcoming check-in, and recent training.</p>
+
+    <!-- Portal Check-in & Plan -->
+    <div class="screenshot-grid">
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Weekly Check-In</div>
+          </div>
+          <img src="portal-screenshots/portal-checkin.png" alt="Weekly Check-In">
+        </div>
+        <p class="screenshot-caption">Weekly check-in -- mood, wins, challenges, and questions for you.</p>
+      </div>
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Business Plan</div>
+          </div>
+          <img src="portal-screenshots/portal-plan.png" alt="Business Plan">
+        </div>
+        <p class="screenshot-caption">Structured business plan with phases, milestones, and trackable actions.</p>
+      </div>
+    </div>
+
+    <!-- Portal Training & AI -->
+    <div class="screenshot-grid">
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Training</div>
+          </div>
+          <img src="portal-screenshots/portal-training.png" alt="Training Library">
+        </div>
+        <p class="screenshot-caption">Training library with video lessons and resources.</p>
+      </div>
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Blueprint AI</div>
+          </div>
+          <img src="portal-screenshots/portal-ai.png" alt="Blueprint AI">
+        </div>
+        <p class="screenshot-caption">Blueprint AI -- tailored business coaching, available 24/7.</p>
+      </div>
+    </div>
+
+    <!-- Portal Calendar & Settings -->
+    <div class="screenshot-grid">
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Calendar</div>
+          </div>
+          <img src="portal-screenshots/portal-calendar.png" alt="Calendar">
+        </div>
+        <p class="screenshot-caption">Shared calendar for calls, deadlines, and events.</p>
+      </div>
+      <div>
+        <div class="screenshot-frame">
+          <div class="browser-bar">
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-dot"></div>
+            <div class="browser-url">Settings</div>
+          </div>
+          <img src="portal-screenshots/portal-settings.png" alt="Account Settings">
+        </div>
+        <p class="screenshot-caption">Profile, business details, and account management.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- WORKS ON ANY DEVICE -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-dark">
+  <div class="container">
+    <div class="section-label">Mobile Ready</div>
+    <h2>Works on Any Device</h2>
+    <p>The portal works as a full app on any phone -- iPhone or Android. Clients add it to their home screen from the browser. No App Store, no download, no updates to manage. Push notifications remind them on check-in day if they haven't submitted.</p>
+
+    <div class="mobile-grid">
+      <div>
+        <div class="mobile-frame">
+          <div class="mobile-notch"></div>
+          <img src="portal-screenshots/portal-mobile.png" alt="Mobile Dashboard">
+        </div>
+        <p class="mobile-caption">Dashboard on mobile</p>
+      </div>
+      <div>
+        <div class="mobile-frame">
+          <div class="mobile-notch"></div>
+          <img src="portal-screenshots/portal-mobile-checkin.png" alt="Mobile Check-In">
+        </div>
+        <p class="mobile-caption">Check-in on mobile</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- CLIENT JOURNEY -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-light">
+  <div class="container">
+    <div class="section-label">The Process</div>
+    <h2>How It Works - Client Journey</h2>
+    <p>From invite to ongoing management, this is the full loop.</p>
+
+    <div class="flowchart">
+
+      <div class="flow-step">
+        <div class="flow-number">1</div>
+        <div class="flow-content">
+          <strong>You Invite a Client</strong>
+          <span>Enter their name and email -- they receive an invite to join</span>
+        </div>
+      </div>
+
+      <div class="flow-connector-row">
+        <div class="flow-line"></div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="flow-connector-row">
+        <div class="flow-arrow"></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">2</div>
+        <div class="flow-content">
+          <strong>They Set Up Their Account</strong>
+          <span>Create a login, add their business details, and they're in</span>
+        </div>
+      </div>
+
+      <div class="flow-connector-row">
+        <div class="flow-line"></div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="flow-connector-row">
+        <div class="flow-arrow"></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">3</div>
+        <div class="flow-content">
+          <strong>You Create Their Business Plan</strong>
+          <span>Set up phases, milestones, and action items tailored to that client</span>
+        </div>
+      </div>
+
+      <div class="flow-connector-row">
+        <div class="flow-line"></div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="flow-connector-row">
+        <div class="flow-arrow"></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">4</div>
+        <div class="flow-content">
+          <strong>They Work Through Plan + Training</strong>
+          <span>Ticking off actions, watching modules, making progress each week</span>
+        </div>
+      </div>
+
+      <div class="flow-connector-row">
+        <div class="flow-line"></div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="flow-connector-row">
+        <div class="flow-arrow"></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">5</div>
+        <div class="flow-content">
+          <strong>Weekly Check-In (Automatic Reminders)</strong>
+          <span>They share wins, challenges, mood, and questions -- push notifications chase them, not you</span>
+        </div>
+      </div>
+
+      <div class="flow-connector-row">
+        <div class="flow-line"></div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="flow-connector-row">
+        <div class="flow-arrow"></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">6</div>
+        <div class="flow-content">
+          <strong>You Review and Reply</strong>
+          <span>See every check-in on your dashboard, reply directly</span>
+        </div>
+      </div>
+
+      <div class="flow-connector-row">
+        <div class="flow-line"></div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="flow-connector-row">
+        <div class="flow-arrow"></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">7</div>
+        <div class="flow-content">
+          <strong>Traffic Lights Flag Problems Early</strong>
+          <span>Anyone falling behind is automatically highlighted -- no one slips through</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SMART FEATURES -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-dark">
+  <div class="container">
+    <div class="section-label">Built-In Intelligence</div>
+    <h2>Smart Features</h2>
+
+    <div class="traffic-lights">
+      <div class="traffic-light">
+        <div class="light-dot light-green"></div>
+        <div class="light-label">
+          <strong>Green - On Track</strong>
+          <span>Check-ins up to date, actively engaged</span>
+        </div>
+      </div>
+      <div class="traffic-light">
+        <div class="light-dot light-amber"></div>
+        <div class="light-label">
+          <strong>Amber - Needs Attention</strong>
+          <span>Check-in overdue by 7+ days</span>
+        </div>
+      </div>
+      <div class="traffic-light">
+        <div class="light-dot light-red"></div>
+        <div class="light-label">
+          <strong>Red - At Risk</strong>
+          <span>Login 10+ days or check-in 14+ days overdue</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-card-icon"><div class="dot"></div></div>
+        <h3>Traffic Light System</h3>
+        <p>Every client gets a green, amber, or red status based on their engagement. Instantly see who's on track and who needs a nudge.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><div class="dot"></div></div>
+        <h3>Automatic Check-In Reminders</h3>
+        <p>Push notifications go out on check-in day to any client who hasn't submitted. The system chases them so you don't have to.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><div class="dot"></div></div>
+        <h3>Blueprint AI Coaching</h3>
+        <p>An AI assistant available to both you and your clients. Gives tailored business advice based on each client's situation and goals.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><div class="dot"></div></div>
+        <h3>Private Internal Notes</h3>
+        <p>Add notes on any client that only you can see. Track observations, follow-up items, or anything you want to remember.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><div class="dot"></div></div>
+        <h3>Push Notifications</h3>
+        <p>Clients get reminders directly to their phone. Check-in day alerts, new content notifications, and event reminders.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><div class="dot"></div></div>
+        <h3>Works Everywhere</h3>
+        <p>Laptop, tablet, or phone. Installable as a home screen app on any device. No App Store, no downloads, no updates.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- FOOTER -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="footer">
+  <p>Built by <span class="footer-brand">Flowstate</span></p>
+  <p class="footer-url">flowstatesystems.ai</p>
+</div>
+
+</body>
+</html>

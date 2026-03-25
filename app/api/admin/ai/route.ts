@@ -1,5 +1,8 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { trackAIUsage } from "@/lib/ai-usage";
+import { rateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -14,6 +17,25 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "AI not configured" }, { status: 500 });
+  }
+
+  // Get admin user ID for usage tracking
+  const supabase = await createClient();
+  const { data: { user: adminUser } } = await supabase.auth.getUser();
+
+  // Rate limit: 60 requests per 15 minutes for admin
+  const adminKey = adminUser?.id ? `admin-ai:${adminUser.id}` : "admin-ai:unknown";
+  const rl = rateLimit(adminKey, 60, 15 * 60 * 1000);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+        },
+      }
+    );
   }
 
   const admin = createAdminClient();
@@ -168,6 +190,19 @@ RULES:
 
     const data = await response.json();
     const reply = data.content?.[0]?.text || "Sorry, I couldn't generate a response.";
+
+    // Track admin AI usage (no credit deduction - admin usage is free)
+    if (adminUser?.id && data.usage) {
+      await trackAIUsage({
+        userId: adminUser.id,
+        model: "claude-haiku-4-5-20251001",
+        inputTokens: data.usage.input_tokens || 0,
+        outputTokens: data.usage.output_tokens || 0,
+        endpoint: "admin:/api/admin/ai",
+      }).catch(() => {
+        // Admin may not have a client_profiles row - ignore credit deduction errors silently
+      });
+    }
 
     return NextResponse.json({ reply });
   } catch (err) {

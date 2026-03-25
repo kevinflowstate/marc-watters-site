@@ -11,6 +11,43 @@ export async function PATCH(request: Request) {
   const { itemId } = await request.json();
   if (!itemId) return NextResponse.json({ error: "itemId required" }, { status: 400 });
 
+  const admin = createAdminClient();
+
+  // Verify the plan item belongs to the authenticated user by joining through phases -> plans -> client_profiles
+  const { data: item } = await admin
+    .from("business_plan_items")
+    .select("phase_id")
+    .eq("id", itemId)
+    .single();
+
+  if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+
+  const { data: phase } = await admin
+    .from("business_plan_phases")
+    .select("plan_id")
+    .eq("id", item.phase_id)
+    .single();
+
+  if (!phase) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+
+  const { data: plan } = await admin
+    .from("business_plans")
+    .select("client_id")
+    .eq("id", phase.plan_id)
+    .single();
+
+  if (!plan) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+
+  const { data: profile } = await admin
+    .from("client_profiles")
+    .select("user_id")
+    .eq("id", plan.client_id)
+    .single();
+
+  if (!profile || profile.user_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const result = await togglePlanItem(itemId);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 500 });
 

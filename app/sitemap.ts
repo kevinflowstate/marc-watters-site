@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { articles } from "@/lib/articles";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://marc-watters-site.vercel.app";
+  const baseUrl = getSiteUrl();
 
   const staticPages: MetadataRoute.Sitemap = [
     {
