@@ -12,7 +12,7 @@ async function getResend() {
   const { Resend } = await import("resend");
   return new Resend(process.env.RESEND_API_KEY!);
 }
-const FROM = "Marc Watters <marc@marcwatters.com>";
+const FROM = "Marc Watters <team@constructionbusinessblueprint.co.uk>";
 
 function wrap(content: string): string {
   return `
