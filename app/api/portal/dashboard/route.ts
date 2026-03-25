@@ -30,6 +30,12 @@ export async function GET() {
     return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
   }
 
+  // Update last_login timestamp
+  await admin
+    .from("client_profiles")
+    .update({ last_login: new Date().toISOString() })
+    .eq("id", profile.id);
+
   const [modulesRes, checkinsRes, planRes, formConfigRes, recentModulesRes, contentProgressRes] = await Promise.all([
     admin
       .from("training_modules")

@@ -314,8 +314,10 @@ export default function ClientDetailPage() {
             </div>
             <div>
               <h1 className="text-2xl font-heading font-bold text-text-primary">{client.name}</h1>
-              <p className="text-text-secondary text-sm">{client.email} - {client.phone}</p>
-              <p className="text-text-muted text-xs mt-0.5">{client.business_name} ({client.business_type})</p>
+              <p className="text-text-secondary text-sm">{client.email}{client.phone ? ` - ${client.phone}` : ""}</p>
+              {(client.business_name || client.business_type) && (
+                <p className="text-text-muted text-xs mt-0.5">{[client.business_name, client.business_type].filter(Boolean).join(" - ")}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
