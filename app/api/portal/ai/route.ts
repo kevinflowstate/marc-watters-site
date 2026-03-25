@@ -76,6 +76,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Check monthly AI budget (account-level, not per-client)
+  const { data: budgetConfig } = await admin
+    .from("form_config")
+    .select("config")
+    .eq("form_type", "ai_budget")
+    .single();
+
+  if (budgetConfig?.config?.monthly_limit_pence) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const { data: usageData } = await admin
+      .from("ai_usage")
+      .select("billed_cost_pence")
+      .gte("created_at", monthStart);
+
+    const totalUsedPence = (usageData || []).reduce(
+      (sum: number, row: { billed_cost_pence: number }) => sum + (row.billed_cost_pence || 0), 0
+    );
+
+    if (totalUsedPence >= budgetConfig.config.monthly_limit_pence) {
+      return NextResponse.json(
+        { error: "The AI assistant is temporarily unavailable. Please try again later or contact Marc." },
+        { status: 503 }
+      );
+    }
+  }
+
   // Get client profile
   const { data: profile } = await admin
     .from("client_profiles")
