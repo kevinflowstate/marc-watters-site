@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Apply for Coaching - Construction Business Blueprint",
@@ -22,16 +23,18 @@ export default function ApplyPage() {
 
         <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] p-4 sm:p-8 overflow-hidden">
           <iframe
-            src="https://link.constructionbusinessblueprint.co.uk/widget/form/qK8QPo1a2iMJzRRRpqdX"
-            style={{ width: "100%", border: "none", minHeight: "600px" }}
+            src="https://link.constructionbusinessblueprint.co.uk/widget/booking/4SOIodvlfHYmyzKvIAmn"
+            style={{ width: "100%", border: "none", minHeight: "600px", overflow: "hidden" }}
             scrolling="no"
-            title="Apply for Coaching"
+            id="4SOIodvlfHYmyzKvIAmn_1774454401321"
+            title="Book a Call"
           />
         </div>
         <p className="text-text-muted text-xs mt-4">
           Your information is kept strictly confidential and will only be used to assess your application.
         </p>
       </div>
+      <Script src="https://link.constructionbusinessblueprint.co.uk/js/form_embed.js" strategy="lazyOnload" />
     </main>
   );
 }

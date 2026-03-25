@@ -47,8 +47,7 @@ export default function Footer() {
 
         <div>
           <h4 className="font-heading text-[0.8rem] font-bold mb-4 text-text-primary uppercase tracking-[1px]">Legal</h4>
-          <a href="#" className="block text-text-muted no-underline text-[0.85rem] mb-2.5 hover:text-accent-light hover:translate-x-[3px] transition-all duration-300">Privacy Policy</a>
-          <a href="#" className="block text-text-muted no-underline text-[0.85rem] mb-2.5 hover:text-accent-light hover:translate-x-[3px] transition-all duration-300">Terms of Service</a>
+          <a href="/privacy" className="block text-text-muted no-underline text-[0.85rem] mb-2.5 hover:text-accent-light hover:translate-x-[3px] transition-all duration-300">Privacy Policy</a>
         </div>
       </div>
 

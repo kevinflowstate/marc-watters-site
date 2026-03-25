@@ -162,7 +162,7 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
             { value: "0+", count: "20", label: "Years in Construction", suffix: "+" },
-            { value: "0-to-0", count: "1", label: "Private Mentorship", suffix: "-to-1" },
+            { value: "1-to-1", label: "Private Mentorship" },
             { value: "0%", count: "100", label: "Tailored to Your Business", suffix: "%" },
             { value: "UK & IE", label: "Trade & Construction Owners" },
           ].map((stat, i) => (
@@ -439,7 +439,7 @@ export default function Home() {
                 <span className="w-2.5 h-2.5 rounded-full bg-[#e0a030]" />
                 <span className="w-2.5 h-2.5 rounded-full bg-[#30b050]" />
               </div>
-              <span className="text-[0.82rem] font-semibold text-text-muted font-mono">portal.marcwatters.co.uk</span>
+              <span className="text-[0.82rem] font-semibold text-text-muted font-mono"></span>
             </div>
 
             <div className="p-6 md:p-10">
