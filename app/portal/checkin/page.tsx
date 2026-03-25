@@ -66,6 +66,11 @@ export default function CheckInPage() {
       if (res.ok) {
         setSubmitted(true);
         toast("Check-in submitted - Marc will review it this week");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(true);
+        toast(data.error || "Something went wrong. Please try again.", "error");
+        setTimeout(() => setError(false), 5000);
       }
     } catch {
       setError(true);

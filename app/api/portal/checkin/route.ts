@@ -10,7 +10,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient();
+
+  const { data: profile } = await admin
     .from("client_profiles")
     .select("id")
     .eq("user_id", user.id)
@@ -25,8 +27,6 @@ export async function POST(request: Request) {
   if (!mood) {
     return NextResponse.json({ error: "Mood is required" }, { status: 400 });
   }
-
-  const admin = createAdminClient();
 
   // Get next week number
   const { data: lastCheckin } = await admin
