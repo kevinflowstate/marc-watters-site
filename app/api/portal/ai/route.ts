@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { checkAICredits, trackAIUsage } from "@/lib/ai-usage";
+import { trackAIUsage } from "@/lib/ai-usage";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -73,15 +73,6 @@ export async function POST(req: NextRequest) {
           "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
         },
       }
-    );
-  }
-
-  // Check AI credits
-  const { hasCredits } = await checkAICredits(userId);
-  if (!hasCredits) {
-    return NextResponse.json(
-      { error: "Insufficient AI credits. Please contact Marc to top up." },
-      { status: 402 }
     );
   }
 
