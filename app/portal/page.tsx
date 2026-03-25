@@ -107,7 +107,7 @@ export default function PortalDashboard() {
   const planPct = totalPlanItems > 0 ? Math.round((completedPlanItems / totalPlanItems) * 100) : 0;
 
   const totalModules = modules.length;
-  const currentWeek = checkins.length > 0 ? checkins[0].week_number : 0;
+  const currentWeek = checkins.length > 0 ? checkins[0].week_number : 1;
 
   const nextCheckinDate = getNextCheckinDate(checkinDay);
   const isCheckinToday = isToday(nextCheckinDate);

@@ -3,7 +3,7 @@
   "short_name": "CBB Portal",
   "description": "Marc Watters - Construction Business Blueprint Client Portal",
   "id": "/",
-  "start_url": "/login",
+  "start_url": "/portal",
   "scope": "/",
   "display": "standalone",
   "background_color": "#050507",
