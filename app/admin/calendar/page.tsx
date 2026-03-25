@@ -119,7 +119,7 @@ export default function AdminCalendarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle, description: newDesc,
-          event_date: `${newDate}T${newTime}:00Z`, event_time: newTime,
+          event_date: `${newDate}T${newTime}:00`, event_time: newTime,
           recurrence: newRecurrence,
           recurrence_day: newRecurrence !== "none" ? newRecurrenceDay : null,
           link: newLink, link_label: newLinkLabel,
