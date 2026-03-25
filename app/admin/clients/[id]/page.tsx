@@ -577,29 +577,29 @@ export default function ClientDetailPage() {
 
       {/* Stat cards row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Current Week</div>
-          <div className="text-2xl font-heading font-bold text-accent-bright">{currentWeek}</div>
-          <div className="text-text-secondary text-xs">of {totalWeeks} weeks</div>
+        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
+          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Current Week</div>
+          <div className="text-3xl font-heading font-bold text-white">{currentWeek}</div>
+          <div className="text-white/60 text-sm font-medium">of {totalWeeks} weeks</div>
         </div>
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Plan Progress</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{planDone}/{planTotal}</div>
-          <div className="text-text-secondary text-xs">{planPct}% complete</div>
+        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
+          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Plan Progress</div>
+          <div className="text-3xl font-heading font-bold text-white">{planDone}/{planTotal}</div>
+          <div className="text-white/60 text-sm font-medium">{planPct}% complete</div>
         </div>
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Check-Ins</div>
-          <div className="text-2xl font-heading font-bold text-text-primary">{client.checkins.length}</div>
-          <div className="text-text-secondary text-xs">Last: {timeAgo(client.last_checkin)}</div>
+        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
+          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Check-Ins</div>
+          <div className="text-3xl font-heading font-bold text-white">{client.checkins.length}</div>
+          <div className="text-white/60 text-sm font-medium">Last: {timeAgo(client.last_checkin)}</div>
         </div>
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Last Login</div>
-          <div className={`text-2xl font-heading font-bold ${
-            new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
+        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
+          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Last Login</div>
+          <div className={`text-3xl font-heading font-bold ${
+            new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-white"
           }`}>
             {timeAgo(client.last_login)}
           </div>
-          <div className="text-text-secondary text-xs">
+          <div className="text-white/60 text-sm font-medium">
             {new Date(client.last_login).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
           </div>
         </div>
