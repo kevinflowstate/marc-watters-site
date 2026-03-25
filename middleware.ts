@@ -1,8 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-// TODO: Remove PREVIEW_MODE before go-live
-const PREVIEW_MODE = false;
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
@@ -57,11 +55,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  // In preview mode, skip auth enforcement but session is still refreshed
-  if (PREVIEW_MODE) {
-    return supabaseResponse;
-  }
 
   // Protect portal and admin routes
   if ((path.startsWith('/portal') || path.startsWith('/admin')) && !user) {

@@ -56,20 +56,11 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const admin = createAdminClient();
 
-  let userId = user?.id;
-  if (!userId) {
-    const { data: demoUser } = await admin
-      .from("users")
-      .select("id")
-      .eq("role", "client")
-      .limit(1)
-      .single();
-    if (demoUser) userId = demoUser.id;
-  }
-
-  if (!userId) {
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const userId = user.id;
 
   // Rate limit: 20 requests per 15 minutes per user
   const rl = rateLimit(`portal-ai:${userId}`, 20, 15 * 60 * 1000);
@@ -85,15 +76,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check AI credits (skip for demo users without a real auth session)
-  if (user?.id) {
-    const { hasCredits } = await checkAICredits(userId);
-    if (!hasCredits) {
-      return NextResponse.json(
-        { error: "Insufficient AI credits. Please contact Marc to top up." },
-        { status: 402 }
-      );
-    }
+  // Check AI credits
+  const { hasCredits } = await checkAICredits(userId);
+  if (!hasCredits) {
+    return NextResponse.json(
+      { error: "Insufficient AI credits. Please contact Marc to top up." },
+      { status: 402 }
+    );
   }
 
   // Get client profile
@@ -224,8 +213,12 @@ Always confirm the action with the client after using a tool.`;
 
     let data = await response.json();
 
+    // Capture usage from first call (for tool-use flows with two API calls)
+    let firstCallUsage = null as { input_tokens: number; output_tokens: number } | null;
+
     // Handle tool use - process tool calls and get final response
     if (data.stop_reason === "tool_use") {
+      firstCallUsage = data.usage || null;
       const toolResults: Array<{ type: string; tool_use_id: string; content: string }> = [];
 
       for (const block of data.content) {
@@ -274,13 +267,13 @@ Always confirm the action with the client after using a tool.`;
     const textBlock = data.content?.find((b: { type: string }) => b.type === "text");
     const reply = textBlock?.text || "Sorry, I couldn't generate a response.";
 
-    // Track usage after the final response (only for real authenticated users)
-    if (user?.id && data.usage) {
+    // Track usage from all API calls (tool-use calls + final response)
+    if (data.usage) {
       await trackAIUsage({
         userId,
         model: "claude-haiku-4-5-20251001",
-        inputTokens: data.usage.input_tokens || 0,
-        outputTokens: data.usage.output_tokens || 0,
+        inputTokens: (firstCallUsage?.input_tokens || 0) + (data.usage.input_tokens || 0),
+        outputTokens: (firstCallUsage?.output_tokens || 0) + (data.usage.output_tokens || 0),
         endpoint: "/api/portal/ai",
       });
     }

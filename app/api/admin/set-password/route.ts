@@ -16,7 +16,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
 
+  // Only allow setting password for client-role users, not other admins
   const admin = createAdminClient();
+  const { data: targetUser } = await admin
+    .from("users")
+    .select("role")
+    .eq("id", user_id)
+    .single();
+
+  if (!targetUser || targetUser.role !== "client") {
+    return NextResponse.json({ error: "Can only set password for client users" }, { status: 403 });
+  }
+
   const { error } = await admin.auth.admin.updateUserById(user_id, { password });
 
   if (error) {

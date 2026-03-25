@@ -1,8 +1,14 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  // Form config is readable by any authenticated user (clients need it for check-in page)
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
 

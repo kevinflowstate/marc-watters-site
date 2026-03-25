@@ -27,13 +27,25 @@ export async function DELETE(
   const auth = await requireAdmin();
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  const { id } = await params;
   const { user_id } = await request.json();
 
   if (!user_id) {
     return NextResponse.json({ error: "user_id is required" }, { status: 400 });
   }
 
+  // Verify the user_id matches the client profile being deleted
   const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("client_profiles")
+    .select("user_id")
+    .eq("id", id)
+    .single();
+
+  if (!profile || profile.user_id !== user_id) {
+    return NextResponse.json({ error: "user_id does not match this client" }, { status: 400 });
+  }
+
   const { error } = await admin.auth.admin.deleteUser(user_id);
 
   if (error) {

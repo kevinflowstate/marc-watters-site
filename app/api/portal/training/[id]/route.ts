@@ -8,20 +8,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { data: { user } } = await supabase.auth.getUser();
   const admin = createAdminClient();
 
-  let userId = user?.id;
-  if (!userId) {
-    const { data: demoUser } = await admin
-      .from("users")
-      .select("id")
-      .eq("role", "client")
-      .limit(1)
-      .single();
-    if (demoUser) userId = demoUser.id;
-  }
-
-  if (!userId) {
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const userId = user.id;
 
   const { data: profile } = await admin
     .from("client_profiles")
@@ -29,11 +20,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq("user_id", userId)
     .single();
 
-  // Get module with content
+  // Get module with content (only if published)
   const { data: mod } = await admin
     .from("training_modules")
     .select("*, content:module_content(*)")
     .eq("id", id)
+    .eq("is_published", true)
     .single();
 
   // Get progress

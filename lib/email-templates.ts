@@ -1,5 +1,13 @@
 import { getSiteUrl } from "./site-url";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 async function getResend() {
   const { Resend } = await import("resend");
   return new Resend(process.env.RESEND_API_KEY!);
@@ -28,7 +36,7 @@ export async function sendWelcomeEmail(to: string, name: string, setupUrl: strin
     to,
     subject: "Your Construction Business Blueprint portal is ready",
     html: wrap(`
-      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Welcome ${firstName},</h2>
+      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Welcome ${escapeHtml(firstName)},</h2>
       <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
         Your client portal is set up and ready to go. Click below to set your password and access your training, business plan, and check-ins.
       </p>
@@ -44,12 +52,12 @@ export async function sendCheckinReplyEmail(to: string, clientName: string, repl
     to,
     subject: "Marc replied to your check-in",
     html: wrap(`
-      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Hey ${firstName},</h2>
+      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Hey ${escapeHtml(firstName)},</h2>
       <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
         Marc has replied to your latest check-in.
       </p>
       <div style="background: #f8f9fa; border-left: 3px solid #2272de; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 0 0 24px;">
-        <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${replyText}</p>
+        <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(replyText)}</p>
       </div>
       ${button(`${getSiteUrl()}/portal`, "View in Portal")}
     `),
@@ -63,7 +71,7 @@ export async function sendCheckinReminderEmail(to: string, clientName: string, w
     to,
     subject: `Week ${weekNumber} check-in reminder`,
     html: wrap(`
-      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Hey ${firstName},</h2>
+      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Hey ${escapeHtml(firstName)},</h2>
       <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
         Your Week ${weekNumber} check-in is due. It takes 2 minutes and helps Marc stay on top of your progress.
       </p>

@@ -7,20 +7,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   const admin = createAdminClient();
 
-  let userId = user?.id;
-  if (!userId) {
-    const { data: demoUser } = await admin
-      .from("users")
-      .select("id")
-      .eq("role", "client")
-      .limit(1)
-      .single();
-    if (demoUser) userId = demoUser.id;
-  }
-
-  if (!userId) {
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const userId = user.id;
 
   const { fullName, phone, businessName, businessType, goals } = await request.json();
 
