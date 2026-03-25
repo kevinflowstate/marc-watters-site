@@ -17,6 +17,12 @@ function getVideoEmbed(url: string): { type: string; embedUrl: string } {
     return { type: "vimeo", embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}${h}color=2272DE&title=0&byline=0&portrait=0` };
   }
 
+  // Fathom (share link -> embed link)
+  const fathomShareMatch = url.match(/fathom\.video\/share\/([a-zA-Z0-9_-]+)/);
+  if (fathomShareMatch) return { type: "fathom", embedUrl: `https://fathom.video/embed/${fathomShareMatch[1]}` };
+  const fathomEmbedMatch = url.match(/fathom\.video\/embed\/([a-zA-Z0-9_-]+)/);
+  if (fathomEmbedMatch) return { type: "fathom", embedUrl: `https://fathom.video/embed/${fathomEmbedMatch[1]}` };
+
   return { type: "unknown", embedUrl: url };
 }
 
@@ -213,9 +219,11 @@ export default function ModuleView() {
                         <iframe
                           src={getVideoEmbed(lesson.content_url).embedUrl}
                           className="absolute top-0 left-0 w-full h-full"
-                          allow="autoplay; fullscreen; picture-in-picture"
+                          allow="encrypted-media *; fullscreen *"
                           allowFullScreen
+                          scrolling="no"
                           title={lesson.title}
+                          style={{ border: 0 }}
                         />
                       </div>
                     </div>

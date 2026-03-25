@@ -34,6 +34,7 @@ interface BusinessPlan {
   summary: string;
   status: string;
   created_at: string;
+  pdf_url?: string;
 }
 
 const phaseIcons: Record<string, string> = {
@@ -171,7 +172,22 @@ export default function BusinessPlanPage() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Your Business Plan</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-heading font-bold text-text-primary">Your Business Plan</h1>
+          {plan.pdf_url && (
+            <a
+              href={plan.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold no-underline inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download PDF
+            </a>
+          )}
+        </div>
         <p className="text-text-secondary mt-2 leading-relaxed max-w-3xl">{plan.summary}</p>
       </div>
 

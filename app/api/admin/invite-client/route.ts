@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     user_metadata: {
       full_name: name.trim(),
       role: "client",
+      app_name: "marc-watters-portal",
     },
   });
 

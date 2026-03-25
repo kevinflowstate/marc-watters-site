@@ -120,6 +120,7 @@ export interface BusinessPlan {
   completed_at?: string;
   phases: BusinessPlanPhase[];
   discovery_answers?: Record<string, string>;
+  pdf_url?: string;
 }
 
 export interface DemoClient {

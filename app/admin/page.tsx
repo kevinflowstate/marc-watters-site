@@ -428,7 +428,22 @@ export default function AdminDashboard() {
 
 // --- Blueprint AI Overview ---
 
+interface BriefingInsight {
+  id: string;
+  icon: string;
+  text: string;
+  action?: { type: "nudge"; clientName: string; userId: string; clientId: string }
+    | { type: "reply"; clientId: string }
+    | { type: "view-plan"; clientId: string };
+}
+
 function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]; recentCheckins: EnrichedCheckin[] }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [nudgeTarget, setNudgeTarget] = useState<{ name: string; userId: string } | null>(null);
+  const [nudgeMessage, setNudgeMessage] = useState("");
+  const [nudgeSending, setNudgeSending] = useState(false);
+  const [nudgeSent, setNudgeSent] = useState(false);
+
   const redClients = clients.filter(c => c.status === "red");
   const amberClients = clients.filter(c => c.status === "amber");
   const unrepliedCheckins = recentCheckins.filter(c => !c.admin_reply);
@@ -441,37 +456,50 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
     return total > 0 && (done / total) < 0.3 && c.current_week > 4;
   });
 
-  const insights: { icon: string; color: string; text: string }[] = [];
+  const insights: BriefingInsight[] = [];
 
   for (const c of redClients) {
     const daysSinceLogin = Math.floor((Date.now() - new Date(c.last_login).getTime()) / (1000 * 60 * 60 * 24));
     const daysSinceCheckin = Math.floor((Date.now() - new Date(c.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
     if (daysSinceLogin > 10) {
-      insights.push({ icon: "alert", color: "red", text: `${c.name} hasn't logged in for ${daysSinceLogin} days - consider reaching out` });
+      insights.push({ id: `login-${c.id}`, icon: "alert", text: `${c.name} hasn't logged in for ${daysSinceLogin} days - consider reaching out`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
     } else if (daysSinceCheckin > 14) {
-      insights.push({ icon: "alert", color: "red", text: `${c.name} hasn't checked in for ${daysSinceCheckin} days` });
+      insights.push({ id: `checkin-${c.id}`, icon: "alert", text: `${c.name} hasn't checked in for ${daysSinceCheckin} days`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
     }
   }
 
   for (const c of amberClients) {
     const daysSinceCheckin = Math.floor((Date.now() - new Date(c.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
-    insights.push({ icon: "clock", color: "amber", text: `${c.name} is ${daysSinceCheckin} days since last check-in` });
+    insights.push({ id: `amber-${c.id}`, icon: "clock", text: `${c.name} is ${daysSinceCheckin} days since last check-in`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
   }
 
   if (unrepliedCheckins.length > 0) {
-    const names = [...new Set(unrepliedCheckins.map(c => c.client_name))];
-    insights.push({ icon: "reply", color: "accent", text: `${unrepliedCheckins.length} unreplied check-in${unrepliedCheckins.length > 1 ? "s" : ""} from ${names.join(", ")}` });
+    // Group by client for individual actions
+    const byClient = new Map<string, EnrichedCheckin[]>();
+    for (const ck of unrepliedCheckins) {
+      if (!byClient.has(ck.client_id)) byClient.set(ck.client_id, []);
+      byClient.get(ck.client_id)!.push(ck);
+    }
+    for (const [clientId, cks] of byClient) {
+      const name = cks[0].client_name;
+      insights.push({ id: `reply-${clientId}`, icon: "reply", text: `${cks.length} unreplied check-in${cks.length > 1 ? "s" : ""} from ${name}`, action: { type: "reply", clientId } });
+    }
   }
 
   for (const c of stalledClients) {
     const activePlan = c.business_plan.find(p => p.status === "active");
     const items = activePlan!.phases.flatMap(ph => ph.items);
     const pct = Math.round((items.filter(i => i.completed).length / items.length) * 100);
-    insights.push({ icon: "plan", color: "amber", text: `${c.name}'s plan is only ${pct}% complete at week ${c.current_week}` });
+    insights.push({ id: `plan-${c.id}`, icon: "plan", text: `${c.name}'s plan is only ${pct}% complete at week ${c.current_week}`, action: { type: "view-plan", clientId: c.id } });
   }
 
-  if (insights.length === 0) {
-    insights.push({ icon: "check", color: "green", text: "All clients are on track - no immediate actions needed" });
+  const visibleInsights = insights.filter(i => !dismissed.has(i.id));
+
+  if (visibleInsights.length === 0 && insights.length > 0) {
+    // All dismissed
+    visibleInsights.push({ id: "all-clear", icon: "check", text: "All caught up - no actions remaining" });
+  } else if (insights.length === 0) {
+    visibleInsights.push({ id: "on-track", icon: "check", text: "All clients are on track - no immediate actions needed" });
   }
 
   const iconMap: Record<string, React.ReactNode> = {
@@ -482,28 +510,170 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
     check: <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
   };
 
+  function handleNudge(insight: BriefingInsight) {
+    if (insight.action?.type !== "nudge") return;
+    const firstName = insight.action.clientName.split(" ")[0];
+    setNudgeTarget({ name: insight.action.clientName, userId: insight.action.userId });
+    setNudgeMessage(`Hey ${firstName}, just checking in - haven't seen you in the portal for a bit. Everything OK? Jump back in when you're ready, your plan is waiting.`);
+    setNudgeSent(false);
+  }
+
+  async function sendNudge(insightId: string) {
+    if (!nudgeTarget) return;
+    setNudgeSending(true);
+    try {
+      const res = await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: nudgeTarget.userId,
+          title: "Marc Watters",
+          body: nudgeMessage,
+          url: "/portal",
+          tag: "nudge",
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result.sent > 0) {
+        setNudgeSent(true);
+        setDismissed(prev => new Set([...prev, insightId]));
+        setTimeout(() => { setNudgeTarget(null); }, 1500);
+      } else {
+        alert("Push notification could not be delivered. Client may not have notifications enabled.");
+      }
+    } finally {
+      setNudgeSending(false);
+    }
+  }
+
   return (
-    <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-8">
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-          <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-        </div>
-        <div>
-          <h2 className="text-sm font-heading font-bold text-text-primary">Blueprint AI</h2>
-          <p className="text-[10px] text-text-muted">Your daily briefing</p>
-        </div>
-      </div>
-      <div className="space-y-2.5">
-        {insights.map((insight, i) => (
-          <div key={i} className="flex items-start gap-3 text-sm text-text-secondary">
-            {iconMap[insight.icon]}
-            <span>{insight.text}</span>
+    <>
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-8">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
           </div>
-        ))}
+          <div>
+            <h2 className="text-sm font-heading font-bold text-text-primary">Blueprint AI</h2>
+            <p className="text-[10px] text-text-muted">Your daily briefing</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {visibleInsights.map((insight) => (
+            <div key={insight.id} className="flex items-start gap-3 group/insight">
+              <div className="pt-0.5">{iconMap[insight.icon]}</div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-text-secondary">{insight.text}</span>
+                {insight.action && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {insight.action.type === "nudge" && (
+                      <button
+                        onClick={() => handleNudge(insight)}
+                        className="text-[11px] px-3 py-1 rounded-lg font-semibold text-accent-bright bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                        Send Nudge
+                      </button>
+                    )}
+                    {insight.action.type === "reply" && (
+                      <Link
+                        href={`/admin/clients/${insight.action.clientId}`}
+                        className="text-[11px] px-3 py-1 rounded-lg font-semibold text-accent-bright bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-colors no-underline inline-flex items-center gap-1.5"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                        Reply Now
+                      </Link>
+                    )}
+                    {insight.action.type === "view-plan" && (
+                      <Link
+                        href={`/admin/clients/${insight.action.clientId}`}
+                        className="text-[11px] px-3 py-1 rounded-lg font-semibold text-accent-bright bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-colors no-underline inline-flex items-center gap-1.5"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                        View Plan
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => setDismissed(prev => new Set([...prev, insight.id]))}
+                      className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text-secondary hover:bg-[rgba(255,255,255,0.05)] transition-colors cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Nudge Modal */}
+      {nudgeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-heading font-bold text-text-primary">Nudge {nudgeTarget.name.split(" ")[0]}</h3>
+                <p className="text-xs text-text-muted">Send a push notification to their device</p>
+              </div>
+            </div>
+
+            {nudgeSent ? (
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
+                <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-emerald-400 font-medium">Nudge sent</span>
+              </div>
+            ) : (
+              <textarea
+                value={nudgeMessage}
+                onChange={(e) => setNudgeMessage(e.target.value)}
+                rows={4}
+                placeholder="Type your message..."
+                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50 mb-4 resize-none"
+              />
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setNudgeTarget(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+              >
+                {nudgeSent ? "Done" : "Cancel"}
+              </button>
+              {!nudgeSent && (
+                <button
+                  disabled={!nudgeMessage.trim() || nudgeSending}
+                  onClick={() => {
+                    const insightId = insights.find(i => i.action?.type === "nudge" && (i.action as { userId: string }).userId === nudgeTarget.userId)?.id;
+                    if (insightId) sendNudge(insightId);
+                  }}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {nudgeSending ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Sending...
+                    </>
+                  ) : "Send Nudge"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "@/components/portal/ThemeToggle";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
@@ -70,6 +71,10 @@ export default function AdminSidebar() {
         </nav>
 
         <div className="p-4 border-t border-[rgba(255,255,255,0.04)]">
+          <div className="flex items-center justify-between px-4 py-2">
+            <span className="text-xs text-text-muted">Theme</span>
+            <ThemeToggle />
+          </div>
           <Link href="/" className="block px-4 py-2 text-xs text-text-muted hover:text-text-secondary transition-colors no-underline">
             View Public Site
           </Link>

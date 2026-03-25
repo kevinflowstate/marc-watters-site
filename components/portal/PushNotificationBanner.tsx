@@ -99,18 +99,31 @@ export default function PushNotificationBanner() {
                 Get quick access from your home screen with push notifications and a full-screen experience.
               </p>
               {showManual && (
-                <p className="text-xs text-accent-light leading-relaxed mt-2">
-                  Tap the <strong>three dots</strong> menu in Chrome, then tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong>.
-                </p>
+                <div className="text-xs text-accent-light leading-relaxed mt-2 space-y-1">
+                  <p>Tap the <strong>menu</strong> icon in your browser (three dots or three lines), then tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong>.</p>
+                  <p className="text-text-muted">If you opened this link from Slack or another app, tap &quot;Open in browser&quot; first.</p>
+                </div>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {canInstall && (
+              <button
+                onClick={handleInstall}
+                disabled={loading}
+                className="px-4 py-2 text-sm font-semibold rounded-lg gradient-accent text-white hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? "Installing..." : "Install"}
+              </button>
+            )}
             <button
               onClick={handleDismissInstall}
-              className="px-4 py-2 text-sm font-medium rounded-lg text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+              className="p-1.5 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+              aria-label="Dismiss"
             >
-              Done
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         </div>

@@ -15,7 +15,7 @@ const attachmentIcons: Record<string, { icon: string; color: string }> = {
   other: { icon: "M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13", color: "text-text-muted bg-[rgba(255,255,255,0.04)]" },
 };
 
-function getVideoEmbed(url: string): { type: "youtube" | "vimeo" | "unknown"; embedUrl: string } {
+function getVideoEmbed(url: string): { type: "youtube" | "vimeo" | "fathom" | "unknown"; embedUrl: string } {
   // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
   if (ytMatch) return { type: "youtube", embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}` };
@@ -27,6 +27,12 @@ function getVideoEmbed(url: string): { type: "youtube" | "vimeo" | "unknown"; em
     const h = hMatch ? `?h=${hMatch[1]}&` : "?";
     return { type: "vimeo", embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}${h}color=2272DE&title=0&byline=0&portrait=0` };
   }
+
+  // Fathom (share link -> embed link)
+  const fathomShareMatch = url.match(/fathom\.video\/share\/([a-zA-Z0-9_-]+)/);
+  if (fathomShareMatch) return { type: "fathom", embedUrl: `https://fathom.video/embed/${fathomShareMatch[1]}` };
+  const fathomEmbedMatch = url.match(/fathom\.video\/embed\/([a-zA-Z0-9_-]+)/);
+  if (fathomEmbedMatch) return { type: "fathom", embedUrl: `https://fathom.video/embed/${fathomEmbedMatch[1]}` };
 
   return { type: "unknown", embedUrl: url };
 }
@@ -392,14 +398,48 @@ export default function ModuleEditorPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Video URL (YouTube or Vimeo)</label>
-              <input
-                type="text"
-                value={newUrl}
-                onChange={(e) => setNewUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-              />
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                {newType === "video" ? "Video URL (YouTube, Vimeo, or Fathom)" : newType === "pdf" ? "Upload File or Paste URL" : "URL (optional)"}
+              </label>
+              {newType === "pdf" ? (
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.pptx,.zip"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      fd.append("bucket", "training-resources");
+                      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setNewUrl(data.url);
+                      } else {
+                        alert("Upload failed");
+                      }
+                    }}
+                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+                  />
+                  {newUrl && <p className="text-xs text-emerald-400">File uploaded</p>}
+                  <input
+                    type="text"
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                    placeholder="Or paste a URL directly"
+                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                  />
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  placeholder={newType === "video" ? "https://fathom.video/share/... or YouTube/Vimeo URL" : "https://..."}
+                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                />
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration (minutes)</label>
@@ -675,9 +715,11 @@ function LessonCard({
                     <iframe
                       src={getVideoEmbed(lesson.content_url).embedUrl}
                       className="absolute top-0 left-0 w-full h-full"
-                      allow="autoplay; fullscreen; picture-in-picture"
+                      allow="encrypted-media *; fullscreen *"
                       allowFullScreen
+                      scrolling="no"
                       title={lesson.title}
+                      style={{ border: 0 }}
                     />
                   </div>
                 </div>

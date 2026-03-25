@@ -31,6 +31,10 @@ body {
   overflow-x: hidden;
 }
 
+/* Bump all small text to minimum 13px across admin + portal */
+.text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 13px !important; }
+.text-xs { font-size: 13px !important; line-height: 1.5 !important; }
+
 /* Noise texture overlay */
 body::after {
   content: '';
@@ -142,16 +146,82 @@ body::after {
   --color-bg-card-hover: #fafafa;
   --color-text-primary: #111118;
   --color-text-secondary: #555566;
-  --color-text-muted: #8888a0;
+  --color-text-muted: #444455;
   --color-border: #e0e0e8;
   --color-border-light: #d0d0d8;
 }
+.light body { background: #f5f5f7 !important; color: #111118 !important; }
 .light body::after { display: none; }
-.light .portal-sidebar { background: rgba(245,245,247,0.97) !important; border-color: rgba(0,0,0,0.06) !important; }
+.light .portal-sidebar,
+.light aside[class*="bg-[rgba(5,5,7"] { background: rgba(245,245,247,0.97) !important; border-color: rgba(0,0,0,0.06) !important; }
+.light .portal-sidebar > div:first-child,
+.light aside[class*="bg-[rgba(5,5,7"] > div:first-child {
+  background: linear-gradient(135deg, #0a0a12 0%, #151520 100%) !important;
+  border-radius: 0 !important;
+  margin: -1px -1px 0 -1px;
+  padding: 1.5rem !important;
+}
+.light .portal-sidebar > div:first-child span,
+.light aside[class*="bg-[rgba(5,5,7"] > div:first-child span { color: #f0f0f5 !important; }
 .light .portal-hamburger { background: var(--color-bg-card) !important; border-color: rgba(0,0,0,0.08) !important; }
 .light ::-webkit-scrollbar-track { background: #f5f5f7; }
 .light ::-webkit-scrollbar-thumb { background: #d0d0d8; }
 .light ::-webkit-scrollbar-thumb:hover { background: #b0b0b8; }
+
+/* Light mode: fix all hardcoded rgba(255,255,255,...) borders and backgrounds */
+.light [class*="border-[rgba(255"] { border-color: rgba(0,0,0,0.08) !important; }
+.light [class*="border-white"] { border-color: rgba(0,0,0,0.1) !important; }
+.light [class*="bg-[rgba(255,255,255"] { background-color: rgba(0,0,0,0.03) !important; }
+.light [class*="bg-white/"] { background-color: rgba(0,0,0,0.04) !important; }
+.light [class*="bg-black/"] { background-color: rgba(0,0,0,0.03) !important; }
+.light [class*="bg-bg-card"] { background-color: #ffffff !important; }
+.light [class*="text-white"] { color: #111118 !important; }
+.light [class*="text-text-primary"] { color: #111118 !important; }
+.light [class*="text-text-secondary"] { color: #555566 !important; }
+.light [class*="text-text-muted"] { color: #444455 !important; }
+
+/* Light mode: cards, panels, modals */
+.light [class*="bg-bg-primary"] { background-color: #f5f5f7 !important; }
+.light [class*="bg-bg-secondary"] { background-color: #ebebef !important; }
+.light [class*="bg-\[#0"] { background-color: #ffffff !important; }
+.light [class*="bg-\[rgba(0"] { background-color: rgba(0,0,0,0.02) !important; }
+
+/* Light mode: gradient overlays and hover states */
+.light [class*="from-black"] { --tw-gradient-from: rgba(255,255,255,0.8) !important; }
+.light [class*="to-black"] { --tw-gradient-to: rgba(255,255,255,0) !important; }
+.light [class*="via-black"] { --tw-gradient-via: rgba(255,255,255,0.4) !important; }
+
+/* Light mode: shadows */
+.light [class*="shadow-"] { --tw-shadow-color: rgba(0,0,0,0.08) !important; }
+
+/* Light mode: input fields and textareas */
+.light input, .light textarea, .light select {
+  background-color: #f5f5f7 !important;
+  color: #111118 !important;
+  border-color: #d0d0d8 !important;
+}
+.light input::placeholder, .light textarea::placeholder {
+  color: #8888a0 !important;
+}
+
+/* Light mode: mobile nav */
+.light [class*="portal-mobile-nav"],
+.light nav[class*="fixed"][class*="bottom-0"] {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* Light mode: status badges keep their color */
+.light [class*="bg-green-"] { background-color: revert-layer; }
+.light [class*="bg-amber-"] { background-color: revert-layer; }
+.light [class*="bg-red-"] { background-color: revert-layer; }
+.light [class*="bg-blue-"] { background-color: revert-layer; }
+.light [class*="bg-accent"] { background-color: revert-layer; }
+.light [class*="text-green-"] { color: revert-layer; }
+.light [class*="text-amber-"] { color: revert-layer; }
+.light [class*="text-red-"] { color: revert-layer; }
+.light [class*="text-blue-"] { color: revert-layer; }
+.light [class*="text-accent"] { color: revert-layer; }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 8px; }

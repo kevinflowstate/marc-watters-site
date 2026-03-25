@@ -38,6 +38,8 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
   const [discoveryAnswers, setDiscoveryAnswers] = useState<Record<string, string>>(
     existingPlan?.discovery_answers || {}
   );
+  const [pdfUrl, setPdfUrl] = useState(existingPlan?.pdf_url || "");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -124,6 +126,7 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
       created_at: existingPlan?.created_at || new Date().toISOString(),
       phases,
       discovery_answers: Object.keys(discoveryAnswers).length > 0 ? discoveryAnswers : undefined,
+      pdf_url: pdfUrl || undefined,
     };
     onSave(plan);
   }
@@ -182,6 +185,58 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
           )}
 
           {/* Summary */}
+          {/* PDF Upload */}
+          <div>
+            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+              Plan Document (PDF)
+            </label>
+            {pdfUrl ? (
+              <div className="flex items-center gap-3 bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3">
+                <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-bright no-underline hover:underline flex-1 truncate">
+                  View uploaded PDF
+                </a>
+                <button
+                  onClick={() => setPdfUrl("")}
+                  className="text-xs text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploading(true);
+                    const fd = new FormData();
+                    fd.append("file", file);
+                    fd.append("bucket", "plan-documents");
+                    try {
+                      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setPdfUrl(data.url);
+                      } else {
+                        alert("Upload failed");
+                      }
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+                />
+                {uploading && <p className="text-xs text-text-muted mt-1">Uploading...</p>}
+                <p className="text-xs text-text-muted mt-1">Upload the PDF version of this plan. Clients can view and download it.</p>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
               Plan Summary

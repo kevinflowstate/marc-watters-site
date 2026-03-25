@@ -1092,7 +1092,7 @@ export default function ClientDetailPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {[...client.checkins].reverse().map((c) => {
+              {client.checkins.map((c) => {
                 const mc = moodConfig[c.mood];
                 return (
                   <div key={c.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">

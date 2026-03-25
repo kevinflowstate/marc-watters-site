@@ -1,23 +1,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-const THEME_KEY = "portal-theme";
+function getThemeKey(userId: string) {
+  return `portal-theme-${userId}`;
+}
 
 export function useTheme() {
   const [theme, setThemeState] = useState<"dark" | "light">("dark");
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(THEME_KEY) as "dark" | "light" | null;
-    if (saved) {
-      setThemeState(saved);
-      document.documentElement.classList.toggle("light", saved === "light");
+    // Always start dark until we know the user
+    document.documentElement.classList.remove("light");
+    // Clean up old global key from before per-user theming
+    localStorage.removeItem("portal-theme");
+
+    async function loadUserTheme() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        const saved = localStorage.getItem(getThemeKey(user.id)) as "dark" | "light" | null;
+        if (saved) {
+          setThemeState(saved);
+          document.documentElement.classList.toggle("light", saved === "light");
+        }
+      }
     }
+    loadUserTheme();
   }, []);
 
   function setTheme(t: "dark" | "light") {
     setThemeState(t);
-    localStorage.setItem(THEME_KEY, t);
+    if (userId) {
+      localStorage.setItem(getThemeKey(userId), t);
+    }
     document.documentElement.classList.toggle("light", t === "light");
   }
 

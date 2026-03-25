@@ -43,7 +43,10 @@ function computeStatus(lastLogin: string | null, lastCheckin: string | null, cre
   // Use created_at as fallback for last_login (new clients who haven't had login tracked yet)
   const loginRef = lastLogin || createdAt;
   const loginDays = loginRef ? (now - new Date(loginRef).getTime()) / DAY : Infinity;
-  const checkinDays = lastCheckin ? (now - new Date(lastCheckin).getTime()) / DAY : Infinity;
+
+  // If client has never checked in, use created_at as reference (don't penalise new clients)
+  const checkinRef = lastCheckin || createdAt;
+  const checkinDays = checkinRef ? (now - new Date(checkinRef).getTime()) / DAY : Infinity;
 
   if (loginDays > 10 || checkinDays > 14) return "red";
   if (checkinDays > 7) return "amber";
@@ -373,6 +376,7 @@ export async function savePlan(plan: BusinessPlan): Promise<{ error?: string }> 
       created_at: plan.created_at,
       completed_at: plan.completed_at || null,
       discovery_answers: plan.discovery_answers || null,
+      pdf_url: plan.pdf_url || null,
     });
 
   if (planError) return { error: planError.message };
