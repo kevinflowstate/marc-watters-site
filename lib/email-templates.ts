@@ -38,7 +38,7 @@ export async function sendWelcomeEmail(to: string, name: string, setupUrl: strin
     html: wrap(`
       <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Welcome ${escapeHtml(firstName)},</h2>
       <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-        Your client portal is set up and ready to go. Click below to set your password and access your training, business plan, and check-ins.
+        Your client portal is set up and ready to go. Click below to set your password, your business plan &amp; trainings will be assigned as soon as onboarding is complete.
       </p>
       ${button(setupUrl, "Set Up Your Account")}
     `),
