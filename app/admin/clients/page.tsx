@@ -265,7 +265,8 @@ export default function ClientsPage() {
         ) : (
           filtered.map((client) => {
             const sc = statusConfig[client.status];
-            const activePlan = client.business_plan.find((p) => p.status === "active");
+            const activePlans = client.business_plan.filter((p) => p.status === "active");
+            const activePlan = activePlans.find((p) => p.phases.length > 0) || activePlans[0];
             const allItems = activePlan?.phases.flatMap((ph) => ph.items) || [];
             const planTotal = allItems.length;
             const planDone = allItems.filter((p) => p.completed).length;

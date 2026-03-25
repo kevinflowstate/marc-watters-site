@@ -172,7 +172,9 @@ export default function ClientDetailPage() {
     );
   }
 
-  const activePlan = plans.find((p) => p.status === "active");
+  // Prefer the active plan that has phases (in case of duplicates)
+  const activePlans = plans.filter((p) => p.status === "active");
+  const activePlan = activePlans.find((p) => p.phases.length > 0) || activePlans[0];
   const completedPlans = plans.filter((p) => p.status === "completed");
   const sc = statusConfig[client.status];
 
