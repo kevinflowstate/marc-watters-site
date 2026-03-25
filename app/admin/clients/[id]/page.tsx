@@ -304,7 +304,7 @@ export default function ClientDetailPage() {
       </Link>
 
       {/* Header with glow */}
-      <div className={`bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-6 mb-6 transition-all duration-300 ${glowClass[client.status]}`}>
+      <div className={`bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-6 mb-6 transition-all duration-300 overflow-visible ${glowClass[client.status]}`}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
