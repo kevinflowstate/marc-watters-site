@@ -21,6 +21,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -29,11 +30,12 @@ body {
   color: var(--color-text-primary);
   line-height: 1.7;
   overflow-x: hidden;
+  max-width: 100vw;
 }
 
-/* Bump all small text to minimum 13px across admin + portal */
-.text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 13px !important; }
-.text-xs { font-size: 13px !important; line-height: 1.5 !important; }
+/* Bump all small text to minimum 13px across admin + portal - but not nav bars */
+:not(nav) > .text-\[9px\], :not(nav) > .text-\[10px\], :not(nav) > .text-\[11px\] { font-size: 13px !important; }
+:not(nav) > .text-xs { font-size: 13px !important; line-height: 1.5 !important; }
 
 /* Noise texture overlay */
 body::after {
