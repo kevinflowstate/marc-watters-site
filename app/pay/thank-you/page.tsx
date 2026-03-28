@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -83,12 +84,12 @@ export default function ThankYouPage() {
               ))}
             </div>
 
-            <a
+            <Link
               href="/"
               className="btn-primary inline-block gradient-accent text-white font-semibold py-3.5 px-10 rounded-xl text-[1rem] tracking-[-0.2px] transition-all hover:shadow-[0_0_30px_rgba(34,114,222,0.3)] hover:scale-[1.02]"
             >
               Back to Home
-            </a>
+            </Link>
           </div>
         </div>
       </div>

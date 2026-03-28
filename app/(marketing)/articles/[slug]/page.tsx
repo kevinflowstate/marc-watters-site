@@ -121,7 +121,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(34,114,222,0.06) 0%, transparent 60%)" }} />
             <div className="relative z-[1]">
               <div className="font-heading text-[1.3rem] font-bold mb-3">Ready to Put This Into Practice?</div>
-              <p className="text-[0.95rem] text-text-secondary mb-6 max-w-[500px] mx-auto leading-[1.7]">Marc works privately with construction business owners who want real structure, real profit, and a business that doesn't depend on them doing everything.</p>
+              <p className="text-[0.95rem] text-text-secondary mb-6 max-w-[500px] mx-auto leading-[1.7]">Marc works privately with construction business owners who want real structure, real profit, and a business that doesn&apos;t depend on them doing everything.</p>
               <Link href="/apply" className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-8 py-3.5 rounded-[10px] font-bold text-[0.95rem] no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)]">
                 Apply for Coaching
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>

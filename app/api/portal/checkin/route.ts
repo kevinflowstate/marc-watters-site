@@ -39,8 +39,7 @@ export async function POST(request: Request) {
 
   const weekNumber = (lastCheckin?.week_number || 0) + 1;
 
-  // Insert check-in with both legacy columns and new responses JSONB
-  const { error: insertError } = await admin.from("checkins").insert({
+  const payload = {
     client_id: profile.id,
     week_number: weekNumber,
     mood,
@@ -50,9 +49,34 @@ export async function POST(request: Request) {
     questions: responses?.questions || null,
     // Store full responses in JSONB
     responses: responses || null,
+  };
+
+  // Insert check-in with both legacy columns and new responses JSONB
+  const { error: insertError } = await admin.from("checkins").insert({
+    ...payload,
   });
 
   if (insertError) {
+    const duplicateWeek =
+      insertError.code === "23505" ||
+      insertError.message?.includes("checkins_client_week_unique");
+
+    if (duplicateWeek) {
+      const { data: existing } = await admin
+        .from("checkins")
+        .select("week_number")
+        .eq("client_id", profile.id)
+        .eq("week_number", weekNumber)
+        .single();
+
+      await admin
+        .from("client_profiles")
+        .update({ last_checkin: new Date().toISOString() })
+        .eq("id", profile.id);
+
+      return NextResponse.json({ success: true, week_number: existing?.week_number || weekNumber, duplicate: true });
+    }
+
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 

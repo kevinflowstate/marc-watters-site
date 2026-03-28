@@ -14,22 +14,17 @@ declare global {
 }
 
 export function useInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.__pwaInstallPrompt || null;
+  });
+  const [installed, setInstalled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(display-mode: standalone)").matches;
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    // Check if already in standalone mode
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setInstalled(true);
-      return;
-    }
-
-    // Pick up prompt captured globally before React mounted
-    if (window.__pwaInstallPrompt) {
-      setDeferredPrompt(window.__pwaInstallPrompt);
-    }
 
     // Also listen for future events
     const handler = (e: Event) => {
@@ -50,7 +45,7 @@ export function useInstall() {
 
     // Poll briefly in case the event fires between the inline script and this effect
     const timer = setTimeout(() => {
-      if (window.__pwaInstallPrompt && !deferredPrompt) {
+      if (window.__pwaInstallPrompt) {
         setDeferredPrompt(window.__pwaInstallPrompt);
       }
     }, 1000);

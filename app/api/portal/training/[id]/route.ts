@@ -72,7 +72,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .single();
 
   // Get progress
-  let progress: Record<string, boolean> = {};
+  const progress: Record<string, boolean> = {};
   if (profile) {
     const { data: progressData } = await admin
       .from("content_progress")

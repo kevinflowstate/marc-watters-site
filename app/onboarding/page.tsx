@@ -167,7 +167,7 @@ export default function OnboardingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-heading font-bold text-text-primary mb-2">You're All Set</h1>
+            <h1 className="text-2xl font-heading font-bold text-text-primary mb-2">You&apos;re All Set</h1>
             <p className="text-text-secondary text-sm leading-relaxed mb-6">
               Your portal is ready. Marc will review your profile and your first training modules are waiting for you.
             </p>

@@ -36,12 +36,7 @@ export async function GET() {
     .update({ last_login: new Date().toISOString() })
     .eq("id", profile.id);
 
-  const [modulesRes, checkinsRes, planRes, formConfigRes, recentModulesRes, contentProgressRes] = await Promise.all([
-    admin
-      .from("training_modules")
-      .select("*, content:module_content(*)")
-      .eq("is_published", true)
-      .order("order_index"),
+  const [checkinsRes, planRes, formConfigRes, contentProgressRes] = await Promise.all([
     admin
       .from("checkins")
       .select("*")
@@ -60,13 +55,6 @@ export async function GET() {
       .select("*")
       .eq("form_type", "checkin")
       .single(),
-    // Recently added modules (for What's New) - modules added in last 14 days
-    admin
-      .from("training_modules")
-      .select("id, title, created_at")
-      .eq("is_published", true)
-      .order("created_at", { ascending: false })
-      .limit(3),
     // Content progress for training completion tracking
     admin
       .from("content_progress")
@@ -74,6 +62,9 @@ export async function GET() {
       .eq("client_id", profile.id)
       .eq("completed", true),
   ]);
+
+  let modules: Array<{ id: string; title: string; created_at: string; content?: { id: string }[] }> = [];
+  let recentModules: Array<{ id: string; title: string; created_at: string }> = [];
 
   // Get business plan phases and items if plan exists
   let planPhases: unknown[] = [];
@@ -92,6 +83,35 @@ export async function GET() {
         .in("phase_id", phaseIds)
         .order("order_index");
 
+      const { data: links } = await admin
+        .from("phase_training_links")
+        .select("content_id")
+        .in("phase_id", phaseIds);
+
+      const contentIds = [...new Set((links || []).map((link: { content_id: string }) => link.content_id))];
+      if (contentIds.length > 0) {
+        const { data: contentItems } = await admin
+          .from("module_content")
+          .select("module_id")
+          .in("id", contentIds);
+
+        const moduleIds = [...new Set((contentItems || []).map((contentItem: { module_id: string }) => contentItem.module_id))];
+        if (moduleIds.length > 0) {
+          const { data: moduleRows } = await admin
+            .from("training_modules")
+            .select("*, content:module_content(*)")
+            .eq("is_published", true)
+            .in("id", moduleIds)
+            .order("order_index");
+
+          modules = moduleRows || [];
+          recentModules = [...modules]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 3)
+            .map(({ id, title, created_at }) => ({ id, title, created_at }));
+        }
+      }
+
       planPhases = phases.map((phase: { id: string }) => ({
         ...phase,
         items: (items || []).filter((item: { phase_id: string }) => item.phase_id === phase.id),
@@ -105,7 +125,7 @@ export async function GET() {
   );
 
   // Count total lessons and completed lessons across all modules
-  const allLessons = (modulesRes.data || []).flatMap(
+  const allLessons = modules.flatMap(
     (m: { content?: { id: string }[] }) => (m.content || []).map((c: { id: string }) => c.id)
   );
   const totalLessons = allLessons.length;
@@ -114,12 +134,12 @@ export async function GET() {
   return NextResponse.json({
     userName: userData?.full_name || "",
     profile,
-    modules: modulesRes.data || [],
+    modules,
     checkins: checkinsRes.data || [],
     businessPlan: planRes.data || null,
     planPhases,
     checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
-    recentModules: recentModulesRes.data || [],
+    recentModules,
     trainingProgress: {
       completedLessons,
       totalLessons,
