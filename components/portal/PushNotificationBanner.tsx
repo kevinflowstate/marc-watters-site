@@ -22,25 +22,18 @@ function hasPushSupport() {
 export default function PushNotificationBanner() {
   const { permission, subscribed, subscribe } = usePush();
   const { canInstall, installed, install } = useInstall();
-  const [dismissed, setDismissed] = useState(true);
-  const [installDismissed, setInstallDismissed] = useState(true);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (!hasPushSupport()) return true;
+    return localStorage.getItem(DISMISSED_KEY) === "true";
+  });
+  const [installDismissed, setInstallDismissed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const standaloneMode = isStandalone();
+    return localStorage.getItem(INSTALL_DISMISSED_KEY) === "true" || standaloneMode;
+  });
   const [loading, setLoading] = useState(false);
-  const [standalone, setStandalone] = useState(false);
-
-  useEffect(() => {
-    const sa = isStandalone();
-    setStandalone(sa);
-
-    const installWasDismissed = localStorage.getItem(INSTALL_DISMISSED_KEY) === "true";
-    setInstallDismissed(installWasDismissed || sa || installed);
-
-    const pushWasDismissed = localStorage.getItem(DISMISSED_KEY) === "true";
-    if (hasPushSupport()) {
-      setDismissed(pushWasDismissed || permission === "granted" || subscribed);
-    } else {
-      setDismissed(true);
-    }
-  }, [permission, subscribed, installed]);
+  const [standalone] = useState(() => isStandalone());
 
   const handleEnable = async () => {
     setLoading(true);

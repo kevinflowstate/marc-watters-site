@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 
 export function usePush() {
-  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "default";
+  });
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPermission(Notification.permission);
-    }
     // Check if already subscribed
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready.then((reg) => {

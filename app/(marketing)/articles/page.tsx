@@ -68,7 +68,7 @@ export default function ArticlesPage() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.3)] to-transparent" />
         <div className="relative z-[1] max-w-[600px] mx-auto">
           <div className="font-heading text-[1.5rem] md:text-[2rem] font-black leading-[1.15] tracking-[-1px] mb-4">Want to Fix These Problems in Your Business?</div>
-          <p className="text-[1rem] text-text-secondary mb-8 leading-[1.8]">Reading about it is a start. Working with someone who's done it is how things actually change.</p>
+          <p className="text-[1rem] text-text-secondary mb-8 leading-[1.8]">Reading about it is a start. Working with someone who&apos;s done it is how things actually change.</p>
           <Link href="/apply" className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-9 py-4 rounded-[10px] font-bold text-base no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)]">
             Apply for Coaching
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>

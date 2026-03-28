@@ -385,6 +385,7 @@ function BriefingBanner({
   planPct: number;
 }) {
   const items: { icon: string; text: string; href?: string; accent?: boolean }[] = [];
+  const [currentTime] = useState(() => Date.now());
 
   if (isCheckinToday) {
     items.push({ icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4", text: "Your weekly check-in is due today", href: "/portal/checkin", accent: true });
@@ -399,7 +400,7 @@ function BriefingBanner({
 
   if (latestReply?.admin_reply && latestReply.replied_at) {
     const replyDate = new Date(latestReply.replied_at);
-    const daysDiff = Math.floor((Date.now() - replyDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysDiff = Math.floor((currentTime - replyDate.getTime()) / (1000 * 60 * 60 * 24));
     if (daysDiff <= 3) {
       items.push({ icon: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z", text: "Marc replied to your latest check-in", accent: true });
     }

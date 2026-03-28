@@ -115,7 +115,7 @@ export async function GET() {
 
   // Get the actual content details for linked trainings
   const contentIds = [...new Set((links || []).map((l: { content_id: string }) => l.content_id))];
-  let contentLookup: Record<string, { id: string; title: string; content_type: string; duration_minutes: number; module_id: string; moduleName: string }> = {};
+  const contentLookup: Record<string, { id: string; title: string; content_type: string; duration_minutes: number; module_id: string; moduleName: string }> = {};
 
   if (contentIds.length > 0) {
     const { data: contentItems } = await admin
