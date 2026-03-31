@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeAttachments } from "@/lib/attachments";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -71,6 +72,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq("is_published", true)
     .single();
 
+  const normalizedModule = mod
+    ? {
+        ...mod,
+        content: (mod.content || []).map((lesson: Record<string, unknown>) => ({
+          ...lesson,
+          attachments: normalizeAttachments(lesson.attachments),
+        })),
+      }
+    : null;
+
   // Get progress
   const progress: Record<string, boolean> = {};
   if (profile) {
@@ -87,7 +98,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   return NextResponse.json({
-    module: mod,
+    module: normalizedModule,
     progress,
     profileId: profile?.id || null,
   });

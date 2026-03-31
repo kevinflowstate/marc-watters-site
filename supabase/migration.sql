@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS public.module_content (
   content_type TEXT NOT NULL DEFAULT 'text' CHECK (content_type IN ('video', 'pdf', 'text', 'checklist')),
   content_url TEXT,
   content_text TEXT,
+  attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
   order_index INTEGER NOT NULL DEFAULT 0,
   duration_minutes INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
