@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeAttachments } from "@/lib/attachments";
 import { requireAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,7 +8,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdmin();
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { module_id, title, content_type, content_url, content_text, duration_minutes } = await req.json();
+  const { module_id, title, content_type, content_url, content_text, duration_minutes, attachments } = await req.json();
 
   if (!module_id || !title) {
     return NextResponse.json({ error: "module_id and title are required" }, { status: 400 });
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       content_url: content_url ?? null,
       content_text: content_text ?? null,
       duration_minutes: duration_minutes ?? null,
+      attachments: normalizeAttachments(attachments),
       order_index: nextIndex,
     })
     .select()
@@ -50,7 +52,7 @@ export async function PUT(req: NextRequest) {
   const auth = await requireAdmin();
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { id, title, content_type, content_url, content_text, duration_minutes, order_index } = await req.json();
+  const { id, title, content_type, content_url, content_text, duration_minutes, order_index, attachments } = await req.json();
 
   if (!id) {
     return NextResponse.json({ error: "Lesson ID is required" }, { status: 400 });
@@ -64,6 +66,7 @@ export async function PUT(req: NextRequest) {
   if (content_url !== undefined) updates.content_url = content_url;
   if (content_text !== undefined) updates.content_text = content_text;
   if (duration_minutes !== undefined) updates.duration_minutes = duration_minutes;
+  if (attachments !== undefined) updates.attachments = normalizeAttachments(attachments);
   if (order_index !== undefined) updates.order_index = order_index;
 
   const { data: lesson, error } = await admin

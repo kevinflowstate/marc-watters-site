@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
 import type { TrainingModule, ModuleContent, Attachment, ContentType } from "@/lib/types";
 import ModuleCover from "@/components/training/ModuleCover";
 
@@ -60,6 +61,8 @@ export default function ModuleEditorPage() {
   const [newUrl, setNewUrl] = useState("");
   const [newDuration, setNewDuration] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newAttachments, setNewAttachments] = useState<Attachment[]>([]);
+  const [uploadingNewAttachments, setUploadingNewAttachments] = useState(false);
 
   const loadModule = useCallback(async () => {
     try {
@@ -81,6 +84,33 @@ export default function ModuleEditorPage() {
   }, [id]);
 
   useEffect(() => { loadModule(); }, [loadModule]);
+
+  async function uploadAttachments(files: FileList | File[]): Promise<Attachment[]> {
+    const fileArray = Array.from(files);
+    const uploaded: Attachment[] = [];
+
+    for (const file of fileArray) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "training-resources");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+
+      if (!res.ok) {
+        throw new Error(`upload_failed:${file.name}`);
+      }
+
+      const data = await res.json();
+      uploaded.push({
+        id: crypto.randomUUID(),
+        name: data.fileName || file.name,
+        url: data.url,
+        type: guessAttachmentType(file.name, file.type),
+        size: formatFileSize(file.size),
+      });
+    }
+
+    return uploaded;
+  }
 
   async function saveModule(updates: Record<string, unknown>) {
     setSaving(true);
@@ -116,11 +146,12 @@ export default function ModuleEditorPage() {
           content_url: newUrl || null,
           content_text: newDescription || null,
           duration_minutes: newDuration ? parseInt(newDuration) : null,
+          attachments: newAttachments,
         }),
       });
       if (res.ok) {
         toast("Lesson added");
-        setNewTitle(""); setNewType("video"); setNewUrl(""); setNewDuration(""); setNewDescription("");
+        setNewTitle(""); setNewType("video"); setNewUrl(""); setNewDuration(""); setNewDescription(""); setNewAttachments([]);
         setShowAddLesson(false);
         await loadModule();
       } else {
@@ -461,6 +492,44 @@ export default function ModuleEditorPage() {
                 className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none"
               />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Supporting Files (optional)</label>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files?.length) return;
+                    setUploadingNewAttachments(true);
+                    try {
+                      const uploaded = await uploadAttachments(files);
+                      setNewAttachments((prev) => [...prev, ...uploaded]);
+                      toast(uploaded.length === 1 ? "File attached" : `${uploaded.length} files attached`);
+                    } catch {
+                      toast("Failed to upload file", "error");
+                    } finally {
+                      setUploadingNewAttachments(false);
+                      e.target.value = "";
+                    }
+                  }}
+                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+                />
+                {uploadingNewAttachments && <p className="text-xs text-text-muted">Uploading...</p>}
+                {newAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    {newAttachments.map((attachment) => (
+                      <AttachmentRow
+                        key={attachment.id}
+                        attachment={attachment}
+                        onRemove={() => setNewAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={addLesson} className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium cursor-pointer">Add Lesson</button>
@@ -541,13 +610,16 @@ function LessonCard({
   onMoveDown: () => void;
   onSave: (updates: Record<string, unknown>) => Promise<void>;
 }) {
+  const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(lesson.title);
   const [editUrl, setEditUrl] = useState(lesson.content_url || "");
   const [editText, setEditText] = useState(lesson.content_text || "");
   const [editDuration, setEditDuration] = useState(String(lesson.duration_minutes || ""));
   const [editType, setEditType] = useState<ContentType>(lesson.content_type);
+  const [editAttachments, setEditAttachments] = useState<Attachment[]>(lesson.attachments || []);
   const [savingLesson, setSavingLesson] = useState(false);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const contentTypeLabels: Record<ContentType, { label: string; icon: string; color: string }> = {
     video: {
       label: "Video",
@@ -670,6 +742,58 @@ function LessonCard({
                   <label className="block text-xs font-medium text-text-secondary mb-1.5">Description / Notes</label>
                   <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} placeholder="Lesson description..." className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none" />
                 </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Supporting Files</label>
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                      onChange={async (e) => {
+                        const files = e.target.files;
+                        if (!files?.length) return;
+                        setUploadingAttachments(true);
+                        try {
+                          const uploaded = await Promise.all(Array.from(files).map(async (file) => {
+                            const fd = new FormData();
+                            fd.append("file", file);
+                            fd.append("bucket", "training-resources");
+                            const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+                            if (!res.ok) throw new Error("upload_failed");
+                            const data = await res.json();
+                            return {
+                              id: crypto.randomUUID(),
+                              name: data.fileName || file.name,
+                              url: data.url,
+                              type: guessAttachmentType(file.name, file.type),
+                              size: formatFileSize(file.size),
+                            } satisfies Attachment;
+                          }));
+                          setEditAttachments((prev) => [...prev, ...uploaded]);
+                          toast(uploaded.length === 1 ? "File attached" : `${uploaded.length} files attached`);
+                        } catch {
+                          toast("Failed to upload file", "error");
+                        } finally {
+                          setUploadingAttachments(false);
+                          e.target.value = "";
+                        }
+                      }}
+                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+                    />
+                    {uploadingAttachments && <p className="text-xs text-text-muted">Uploading...</p>}
+                    {editAttachments.length > 0 && (
+                      <div className="space-y-2">
+                        {editAttachments.map((attachment) => (
+                          <AttachmentRow
+                            key={attachment.id}
+                            attachment={attachment}
+                            onRemove={() => setEditAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-3">
                 <button
@@ -682,6 +806,7 @@ function LessonCard({
                       content_url: editUrl || null,
                       content_text: editText || null,
                       duration_minutes: editDuration ? parseInt(editDuration) : null,
+                      attachments: editAttachments,
                     });
                     setSavingLesson(false);
                     setEditing(false);
@@ -697,6 +822,7 @@ function LessonCard({
                     setEditText(lesson.content_text || "");
                     setEditDuration(String(lesson.duration_minutes || ""));
                     setEditType(lesson.content_type);
+                    setEditAttachments(lesson.attachments || []);
                     setEditing(false);
                   }}
                   className="px-5 py-2.5 text-text-muted text-sm hover:text-text-secondary cursor-pointer"
@@ -749,6 +875,20 @@ function LessonCard({
                 </div>
               )}
 
+              {lesson.attachments && lesson.attachments.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Attachments</span>
+                    <button onClick={() => setEditing(true)} className="text-xs text-accent-bright hover:text-accent-light transition-colors cursor-pointer">Manage</button>
+                  </div>
+                  <div className="space-y-2">
+                    {lesson.attachments.map((attachment) => (
+                      <AttachmentRow key={attachment.id} attachment={attachment} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Action row */}
               <div className="flex items-center gap-2 pt-2 border-t border-[rgba(255,255,255,0.03)]">
                 <button onClick={() => setEditing(true)} className="text-xs text-text-muted hover:text-text-secondary transition-colors inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.03)] cursor-pointer">
@@ -768,6 +908,43 @@ function LessonCard({
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function AttachmentRow({
+  attachment,
+  onRemove,
+}: {
+  attachment: Attachment;
+  onRemove?: () => void;
+}) {
+  const meta = attachmentIcons[attachment.type] || attachmentIcons.other;
+
+  return (
+    <div className="flex items-center gap-3 bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl px-4 py-3">
+      <div className={`w-9 h-9 rounded-lg ${meta.color} flex items-center justify-center flex-shrink-0`}>
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={meta.icon} />
+        </svg>
+      </div>
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 no-underline">
+        <div className="text-sm text-text-primary truncate">{attachment.name}</div>
+        {attachment.size && <div className="text-[10px] text-text-muted">{attachment.size}</div>}
+      </a>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-xs text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+        >
+          Remove
+        </button>
+      ) : (
+        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent-bright hover:text-accent-light transition-colors no-underline">
+          Download
+        </a>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import type {
   TrainingModule,
   ModuleContent,
 } from "./types";
+import { normalizeAttachments } from "./attachments";
 
 // ============================================
 // Types for admin data layer
@@ -534,6 +535,7 @@ export async function getTrainingModules(): Promise<TrainingModule[]> {
       content_text: c.content_text,
       order_index: c.order_index,
       duration_minutes: c.duration_minutes,
+      attachments: normalizeAttachments(c.attachments),
       created_at: c.created_at,
     });
     contentByModule.set(c.module_id, list);
@@ -585,6 +587,7 @@ export async function getTrainingModuleById(id: string): Promise<TrainingModule 
       content_text: c.content_text,
       order_index: c.order_index,
       duration_minutes: c.duration_minutes,
+      attachments: normalizeAttachments(c.attachments),
       created_at: c.created_at,
     })),
   };
