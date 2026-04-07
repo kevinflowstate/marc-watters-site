@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import ModuleCover from "@/components/training/ModuleCover";
 import type { TrainingModule } from "@/lib/types";
@@ -12,25 +12,8 @@ interface ClientOption {
   business_name: string;
 }
 
-const moduleColors = [
-  { bg: "from-blue-600/20 to-blue-900/40", icon: "text-blue-400", border: "border-blue-500/20" },
-  { bg: "from-emerald-600/20 to-emerald-900/40", icon: "text-emerald-400", border: "border-emerald-500/20" },
-  { bg: "from-purple-600/20 to-purple-900/40", icon: "text-purple-400", border: "border-purple-500/20" },
-  { bg: "from-amber-600/20 to-amber-900/40", icon: "text-amber-400", border: "border-amber-500/20" },
-  { bg: "from-rose-600/20 to-rose-900/40", icon: "text-rose-400", border: "border-rose-500/20" },
-  { bg: "from-cyan-600/20 to-cyan-900/40", icon: "text-cyan-400", border: "border-cyan-500/20" },
-];
-
-const moduleIcons = [
-  "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
-  "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
-  "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
-  "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-  "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-];
-
 export default function TrainingManagerPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [modules, setModules] = useState<TrainingModule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,21 +28,28 @@ export default function TrainingManagerPage() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [assigning, setAssigning] = useState(false);
+  const [movingModuleId, setMovingModuleId] = useState<string | null>(null);
+  const [draggedModuleId, setDraggedModuleId] = useState<string | null>(null);
+  const [dragOverModuleId, setDragOverModuleId] = useState<string | null>(null);
+  const [suppressCardClick, setSuppressCardClick] = useState(false);
+
+  const refreshModules = useCallback(async () => {
+    const res = await fetch("/api/admin/training");
+    if (!res.ok) return;
+    const data = await res.json();
+    setModules(data.modules || []);
+  }, []);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/admin/training");
-        if (res.ok) {
-          const data = await res.json();
-          setModules(data.modules || []);
-        }
+        await refreshModules();
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [refreshModules]);
 
   async function loadClients() {
     try {
@@ -122,6 +112,96 @@ export default function TrainingManagerPage() {
     }
   }
 
+  async function reorderModules(sourceModuleId: string, targetModuleId: string) {
+    if (movingModuleId || sourceModuleId === targetModuleId) return;
+    const sorted = [...modules].sort((a, b) => a.order_index - b.order_index);
+    const sourceIndex = sorted.findIndex((mod) => mod.id === sourceModuleId);
+    const targetIndex = sorted.findIndex((mod) => mod.id === targetModuleId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const reordered = [...sorted];
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    const originalOrderById = new Map(sorted.map((mod) => [mod.id, mod.order_index]));
+    const updates = reordered
+      .map((mod, index) => ({ id: mod.id, order_index: index }))
+      .filter((mod) => originalOrderById.get(mod.id) !== mod.order_index);
+    if (updates.length === 0) return;
+    setMovingModuleId(sourceModuleId);
+
+    try {
+      const responses = await Promise.all(
+        updates.map((mod) =>
+          fetch("/api/admin/training/modules", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: mod.id, order_index: mod.order_index }),
+          })
+        )
+      );
+
+      if (responses.some((res) => !res.ok)) {
+        throw new Error("Failed to reorder modules");
+      }
+
+      await refreshModules();
+      toast("Module reordered");
+    } catch {
+      toast("Failed to reorder modules", "error");
+    } finally {
+      setMovingModuleId(null);
+    }
+  }
+
+  async function moveModule(moduleId: string, direction: "up" | "down") {
+    const sorted = [...modules].sort((a, b) => a.order_index - b.order_index);
+    const index = sorted.findIndex((mod) => mod.id === moduleId);
+    if (index < 0) return;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+    await reorderModules(moduleId, sorted[targetIndex].id);
+  }
+
+  function handleModuleDragStart(e: React.DragEvent<HTMLDivElement>, moduleId: string) {
+    if (bulkMode || movingModuleId) {
+      e.preventDefault();
+      return;
+    }
+
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", moduleId);
+    setDraggedModuleId(moduleId);
+    setDragOverModuleId(moduleId);
+  }
+
+  function handleModuleDragOver(e: React.DragEvent<HTMLDivElement>, moduleId: string) {
+    if (!draggedModuleId || draggedModuleId === moduleId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverModuleId !== moduleId) {
+      setDragOverModuleId(moduleId);
+    }
+  }
+
+  async function handleModuleDrop(e: React.DragEvent<HTMLDivElement>, targetModuleId: string) {
+    e.preventDefault();
+
+    const sourceModuleId = draggedModuleId || e.dataTransfer.getData("text/plain");
+    setDraggedModuleId(null);
+    setDragOverModuleId(null);
+    if (!sourceModuleId || sourceModuleId === targetModuleId) return;
+
+    setSuppressCardClick(true);
+    await reorderModules(sourceModuleId, targetModuleId);
+    setTimeout(() => setSuppressCardClick(false), 120);
+  }
+
+  function handleModuleDragEnd() {
+    setDraggedModuleId(null);
+    setDragOverModuleId(null);
+  }
+
   const publishedCount = modules.filter((m) => m.is_published).length;
   const totalLessons = modules.reduce((sum, m) => sum + (m.content?.length || 0), 0);
 
@@ -154,7 +234,7 @@ export default function TrainingManagerPage() {
         <div>
           <h1 className="text-3xl font-heading font-bold text-text-primary">Training Modules</h1>
           <p className="text-text-secondary mt-1">
-            {modules.length} modules - {totalLessons} lessons - {publishedCount} published
+            {modules.length} modules - {totalLessons} lessons - {publishedCount} published - Drag and drop cards to reorder
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -237,12 +317,7 @@ export default function TrainingManagerPage() {
                       const data = await res.json();
                       toast("Module created");
                       setNewTitle(""); setNewDesc(""); setShowAdd(false);
-                      // Reload modules
-                      const listRes = await fetch("/api/admin/training");
-                      if (listRes.ok) {
-                        const listData = await listRes.json();
-                        setModules(listData.modules || []);
-                      }
+                      await refreshModules();
                       // Navigate to the new module
                       if (data.module?.id) {
                         window.location.href = `/admin/training/${data.module.id}`;
@@ -267,12 +342,16 @@ export default function TrainingManagerPage() {
       {/* Module grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {modules.map((mod, i) => {
-          const color = moduleColors[i % moduleColors.length];
-          const icon = moduleIcons[i % moduleIcons.length];
           const lessonCount = mod.content?.length || 0;
           const totalDuration = mod.content?.reduce((sum, c) => sum + (c.duration_minutes || 0), 0) || 0;
           const attachmentCount = mod.content?.reduce((sum, c) => sum + (c.attachments?.length || 0), 0) || 0;
           const isSelected = selectedModules.has(mod.id);
+          const isFirst = i === 0;
+          const isLast = i === modules.length - 1;
+          const reordering = movingModuleId !== null;
+          const isMoving = movingModuleId === mod.id;
+          const isDragSource = draggedModuleId === mod.id;
+          const isDropTarget = dragOverModuleId === mod.id && draggedModuleId !== mod.id;
 
           const CardContent = (
             <>
@@ -302,6 +381,47 @@ export default function TrainingManagerPage() {
                   )}
                 </div>
 
+                {!bulkMode && (
+                  <div className="absolute top-4 left-16 flex items-center gap-1 z-20">
+                    {!isFirst && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          moveModule(mod.id, "up");
+                        }}
+                        disabled={reordering}
+                        className="p-1.5 rounded-lg bg-black/30 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        title="Move up"
+                        aria-label={`Move ${mod.title} up`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                    )}
+                    {!isLast && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          moveModule(mod.id, "down");
+                        }}
+                        disabled={reordering}
+                        className="p-1.5 rounded-lg bg-black/30 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        title="Move down"
+                        aria-label={`Move ${mod.title} down`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Published badge */}
                 <div className="absolute top-4 right-4">
                   <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold ${
@@ -312,6 +432,11 @@ export default function TrainingManagerPage() {
                     {mod.is_published ? "Published" : "Draft"}
                   </span>
                 </div>
+                {isMoving && (
+                  <div className="absolute inset-0 bg-black/35 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Reordering...</span>
+                  </div>
+                )}
               </div>
 
               {/* Content */}
@@ -365,13 +490,35 @@ export default function TrainingManagerPage() {
           }
 
           return (
-            <Link
+            <div
               key={mod.id}
-              href={`/admin/training/${mod.id}`}
-              className="group relative block bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 no-underline hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] cursor-pointer will-change-transform"
+              role="button"
+              tabIndex={0}
+              draggable={!reordering}
+              onDragStart={(e) => handleModuleDragStart(e, mod.id)}
+              onDragOver={(e) => handleModuleDragOver(e, mod.id)}
+              onDrop={(e) => { void handleModuleDrop(e, mod.id); }}
+              onDragEnd={handleModuleDragEnd}
+              onClick={() => {
+                if (!suppressCardClick && !draggedModuleId) {
+                  router.push(`/admin/training/${mod.id}`);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(`/admin/training/${mod.id}`);
+                }
+              }}
+              className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] cursor-pointer will-change-transform ${
+                isDragSource ? "opacity-60" : ""
+              } ${
+                isDropTarget ? "ring-2 ring-accent/40 border-accent/40" : "border-[rgba(255,255,255,0.04)]"
+              }`}
+              aria-label={`Open ${mod.title}`}
             >
               {CardContent}
-            </Link>
+            </div>
           );
         })}
       </div>
