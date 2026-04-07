@@ -10,6 +10,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/portal";
+  const callbackError = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,6 +61,11 @@ function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] p-8">
+          {callbackError === "setup_link_invalid" && !error && (
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-sm">
+              That setup link has expired or is invalid. Please ask Marc to resend your setup email.
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
               {error}

@@ -93,6 +93,19 @@ export async function middleware(request: NextRequest) {
       .single();
 
     const role = profile?.role;
+    const requiresPasswordSetup = user.user_metadata?.requires_password_setup === true;
+
+    // First-login enforcement for clients created without a password
+    if (path.startsWith('/portal') && role !== 'admin' && requiresPasswordSetup) {
+      const isSettingsPage = path.startsWith('/portal/settings');
+      const setupMode = request.nextUrl.searchParams.get('setup') === 'true';
+      if (!isSettingsPage || !setupMode) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/portal/settings';
+        url.searchParams.set('setup', 'true');
+        return NextResponse.redirect(url);
+      }
+    }
 
     // Admin trying to access portal -> redirect to admin
     if (path.startsWith('/portal') && role === 'admin') {

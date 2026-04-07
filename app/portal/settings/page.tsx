@@ -294,7 +294,11 @@ function SettingsContent() {
               setPasswordMessage(null);
               try {
                 const supabase = createClient();
-                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                const payload: { password: string; data?: Record<string, unknown> } = { password: newPassword };
+                if (isSetup) {
+                  payload.data = { requires_password_setup: false };
+                }
+                const { error } = await supabase.auth.updateUser(payload);
                 if (error) {
                   setPasswordMessage({ type: "error", text: error.message });
                 } else {

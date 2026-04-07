@@ -3,6 +3,19 @@ import { sendWelcomeEmail } from "@/lib/email-templates";
 import { getSiteUrl } from "@/lib/site-url";
 import { NextResponse } from "next/server";
 
+function generateTemporaryPassword(): string {
+  const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
+  return `Tmp!${entropy.slice(0, 24)}aA1`;
+}
+
+function buildSetupUrl(tokenHash: string): string {
+  const url = new URL("/auth/callback", getSiteUrl());
+  url.searchParams.set("token_hash", tokenHash);
+  url.searchParams.set("type", "recovery");
+  url.searchParams.set("redirect", "/portal/settings?setup=true");
+  return url.toString();
+}
+
 export async function POST(request: Request) {
   // Validate webhook secret
   const secret = request.headers.get("x-webhook-secret");
@@ -35,10 +48,12 @@ export async function POST(request: Request) {
   const { data: newUser, error: authError } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
+    password: generateTemporaryPassword(),
     user_metadata: {
       full_name: name,
       role: "client",
       app_name: "marc-watters-portal",
+      requires_password_setup: true,
     },
   });
 
@@ -91,8 +106,8 @@ export async function POST(request: Request) {
   });
 
   const setupUrl = linkData?.properties?.hashed_token
-    ? `${getSiteUrl()}/auth/callback?token_hash=${linkData.properties.hashed_token}&type=recovery&redirect=/portal`
-    : null;
+    ? buildSetupUrl(linkData.properties.hashed_token)
+    : linkData?.properties?.action_link || null;
 
   // Send welcome email
   let emailSent = false;

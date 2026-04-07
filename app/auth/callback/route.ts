@@ -30,10 +30,19 @@ export async function GET(request: Request) {
     }
   );
 
+  let authError: string | null = null;
   if (code) {
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) authError = error.message;
   } else if (tokenHash && type) {
-    await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) authError = error.message;
+  }
+
+  if (authError) {
+    const loginUrl = new URL('/login', origin);
+    loginUrl.searchParams.set('error', 'setup_link_invalid');
+    return NextResponse.redirect(loginUrl);
   }
 
   // If this is a recovery/password reset, redirect to settings so they can set password

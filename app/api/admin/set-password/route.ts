@@ -28,7 +28,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Can only set password for client users" }, { status: 403 });
   }
 
-  const { error } = await admin.auth.admin.updateUserById(user_id, { password });
+  const { data: authUser } = await admin.auth.admin.getUserById(user_id);
+  const existingMetadata = authUser?.user?.user_metadata || {};
+
+  const { error } = await admin.auth.admin.updateUserById(user_id, {
+    password,
+    user_metadata: {
+      ...existingMetadata,
+      requires_password_setup: false,
+    },
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
