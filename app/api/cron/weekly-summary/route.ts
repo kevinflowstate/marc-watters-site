@@ -7,7 +7,8 @@ const MARC_EMAIL = "marc@marcwatters.com";
 export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   // Get all clients
   const { data: profiles } = await admin
     .from("client_profiles")
-    .select("id, user_id, business_name, status, users!inner(full_name, email)")
+    .select("id, user_id, business_name, last_login, last_checkin, created_at, users!inner(full_name, email)")
     .order("status");
 
   if (!profiles || profiles.length === 0) {
@@ -45,6 +46,8 @@ export async function GET(request: Request) {
   const checkedIn: string[] = [];
   const missed: string[] = [];
   const redClients: string[] = [];
+  const now = Date.now();
+  const DAY = 1000 * 60 * 60 * 24;
 
   for (const p of profiles) {
     const user = Array.isArray(p.users) ? p.users[0] : p.users;
@@ -56,7 +59,12 @@ export async function GET(request: Request) {
       missed.push(name);
     }
 
-    if (p.status === "red") {
+    // Mirror app status logic so weekly summary matches dashboard/client list.
+    const loginRef = p.last_login || p.created_at;
+    const checkinRef = p.last_checkin || p.created_at;
+    const loginDays = loginRef ? (now - new Date(loginRef).getTime()) / DAY : Infinity;
+    const checkinDays = checkinRef ? (now - new Date(checkinRef).getTime()) / DAY : Infinity;
+    if (loginDays > 10 || checkinDays > 14) {
       redClients.push(name);
     }
   }
