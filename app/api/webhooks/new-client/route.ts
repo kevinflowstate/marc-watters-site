@@ -18,8 +18,8 @@ function buildSetupUrl(tokenHash: string): string {
 
 export async function POST(request: Request) {
   // Validate webhook secret
-  const secret = request.headers.get("x-webhook-secret");
-  if (!secret || secret !== process.env.WEBHOOK_SECRET) {
+  const secret = request.headers.get("x-webhook-secret")?.trim();
+  if (!secret || secret !== process.env.WEBHOOK_SECRET?.trim()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
