@@ -24,8 +24,11 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const name = body.name?.trim();
-  const email = body.email?.trim()?.toLowerCase();
+  console.log("[WEBHOOK] Raw body:", JSON.stringify(body));
+
+  // GHL sends various field names — handle them all
+  const name = (body.name || body.full_name || body.contact_name || body.fullName || body.contactName || [body.first_name || body.firstName, body.last_name || body.lastName].filter(Boolean).join(" "))?.trim();
+  const email = (body.email || body.contact_email || body.contactEmail)?.trim()?.toLowerCase();
 
   if (!name || !email) {
     return NextResponse.json({ error: "name and email are required" }, { status: 400 });
