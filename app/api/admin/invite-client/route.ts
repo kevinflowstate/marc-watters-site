@@ -79,21 +79,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
   }
 
-  // Auto-assign published training modules
-  const { data: modules } = await admin
-    .from("training_modules")
-    .select("id")
-    .eq("is_published", true);
-
-  if (modules && modules.length > 0) {
-    await admin.from("client_modules").insert(
-      modules.map((mod) => ({
-        client_id: profile.id,
-        module_id: mod.id,
-        status: "locked" as const,
-      }))
-    );
-  }
+  // The published "Welcome & Onboarding" module is auto-assigned by the DB trigger on client_profiles.
 
   // Create welcome notification
   await admin.from("notifications").insert({
