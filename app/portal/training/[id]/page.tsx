@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { TrainingModule, ModuleContent, ContentType } from "@/lib/types";
 import ModuleCover from "@/components/training/ModuleCover";
+import BusinessHealthChecklistCard from "@/components/portal/BusinessHealthChecklistCard";
 
 function getVideoEmbed(url: string): { type: string; embedUrl: string } {
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
@@ -118,6 +119,9 @@ export default function ModuleView() {
   const lessons = module.content || [];
   const totalDuration = lessons.reduce((sum, c) => sum + (c.duration_minutes || 0), 0);
   const completedCount = lessons.filter((c) => progress[c.id]).length;
+  const finalLesson = lessons[lessons.length - 1];
+  const isOnboardingModule = module.title === "Welcome & Onboarding";
+  const checklistUnlocked = !finalLesson || Boolean(progress[finalLesson.id]);
 
   return (
     <>
@@ -276,6 +280,10 @@ export default function ModuleView() {
           );
         })}
       </div>
+
+      {isOnboardingModule && (
+        <BusinessHealthChecklistCard isUnlocked={checklistUnlocked} />
+      )}
     </>
   );
 }

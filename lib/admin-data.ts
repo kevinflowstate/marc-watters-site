@@ -5,10 +5,12 @@ import type {
   BusinessPlanPhase,
   BusinessPlanItem,
   CheckIn,
+  ClientQuestionnaireSubmission,
   TrainingModule,
   ModuleContent,
 } from "./types";
 import { normalizeAttachments } from "./attachments";
+import { BUSINESS_HEALTH_CHECKLIST_TYPE } from "./questionnaires";
 
 // ============================================
 // Types for admin data layer
@@ -31,6 +33,7 @@ export interface AdminClient {
   checkins: CheckIn[];
   business_plan: BusinessPlan[];
   internal_notes?: string;
+  business_health_checklist?: ClientQuestionnaireSubmission | null;
 }
 
 // ============================================
@@ -259,6 +262,13 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     .eq("client_id", id)
     .single();
 
+  const { data: checklist } = await admin
+    .from("client_questionnaires")
+    .select("id, client_id, questionnaire_type, responses, submitted_at, updated_at")
+    .eq("client_id", id)
+    .eq("questionnaire_type", BUSINESS_HEALTH_CHECKLIST_TYPE)
+    .maybeSingle();
+
   // Build nested structures
   const itemsByPhase = new Map<string, BusinessPlanItem[]>();
   for (const item of items || []) {
@@ -324,6 +334,12 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     checkins: checkins || [],
     business_plan: businessPlans,
     internal_notes: notes?.content || "",
+    business_health_checklist: checklist
+      ? {
+          ...checklist,
+          responses: (checklist.responses || {}) as Record<string, string>,
+        }
+      : null,
   };
 }
 

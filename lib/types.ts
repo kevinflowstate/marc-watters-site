@@ -3,6 +3,7 @@ export type TrafficLight = 'green' | 'amber' | 'red';
 export type ModuleStatus = 'locked' | 'in_progress' | 'completed';
 export type ContentType = 'video' | 'pdf' | 'text' | 'checklist';
 export type CheckInMood = 'great' | 'good' | 'okay' | 'struggling' | string;
+export type QuestionnaireType = 'business_health_checklist';
 
 export interface User {
   id: string;
@@ -94,6 +95,15 @@ export interface CheckIn {
   client?: ClientProfile;
 }
 
+export interface ClientQuestionnaireSubmission {
+  id: string;
+  client_id: string;
+  questionnaire_type: QuestionnaireType;
+  responses: Record<string, string>;
+  submitted_at: string;
+  updated_at: string;
+}
+
 export interface BusinessPlanItem {
   id: string;
   category: string;
@@ -167,12 +177,27 @@ export interface CalendarEvent {
 }
 
 // Form config types
+export type FormFieldType = 'textarea' | 'text' | 'single_choice' | 'scale';
+
+export interface FormOption {
+  value: string;
+  label: string;
+}
+
 export interface FormQuestion {
   id: string;
   label: string;
-  placeholder: string;
-  type: 'textarea' | 'text';
+  placeholder?: string;
+  help_text?: string;
+  section?: string;
+  type: FormFieldType;
   required?: boolean;
+  options?: FormOption[];
+  allow_other?: boolean;
+  min?: number;
+  max?: number;
+  min_label?: string;
+  max_label?: string;
 }
 
 export interface MoodOption {
@@ -189,5 +214,14 @@ export interface CheckinFormConfig {
 }
 
 export interface BusinessPlanFormConfig {
+  questions: FormQuestion[];
+}
+
+export interface QuestionnaireFormConfig {
+  title: string;
+  description?: string;
+  submit_label?: string;
+  success_title?: string;
+  success_description?: string;
   questions: FormQuestion[];
 }

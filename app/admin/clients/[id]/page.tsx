@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { AdminClient } from "@/lib/admin-data";
-import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion } from "@/lib/types";
+import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion, QuestionnaireFormConfig } from "@/lib/types";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
+import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 
 const glowClass: Record<TrafficLight, string> = {
   green: "glow-green",
@@ -74,6 +75,7 @@ export default function ClientDetailPage() {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [contentLookup, setContentLookup] = useState<Map<string, { title: string; moduleName: string; moduleId: string; duration?: number }>>(new Map());
   const [checkinConfig, setCheckinConfig] = useState<CheckinFormConfig | null>(null);
+  const [businessHealthConfig, setBusinessHealthConfig] = useState<QuestionnaireFormConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [revokeModalOpen, setRevokeModalOpen] = useState(false);
   const [revokeConfirmText, setRevokeConfirmText] = useState("");
@@ -89,10 +91,11 @@ export default function ClientDetailPage() {
 
   const loadClient = useCallback(async () => {
     try {
-      const [clientRes, trainingRes, configRes] = await Promise.all([
+      const [clientRes, trainingRes, configRes, businessHealthRes] = await Promise.all([
         fetch(`/api/admin/clients/${id}`),
         fetch("/api/admin/training"),
         fetch("/api/admin/form-config?type=checkin"),
+        fetch("/api/admin/form-config?type=business_health_checklist"),
       ]);
 
       if (clientRes.ok) {
@@ -118,6 +121,11 @@ export default function ClientDetailPage() {
       if (configRes.ok) {
         const cfgData = await configRes.json();
         setCheckinConfig(cfgData.config);
+      }
+
+      if (businessHealthRes.ok) {
+        const cfgData = await businessHealthRes.json();
+        setBusinessHealthConfig(cfgData.config);
       }
     } finally {
       setLoading(false);
@@ -646,6 +654,50 @@ export default function ClientDetailPage() {
           <p className="text-text-secondary text-sm leading-relaxed">{client.goals}</p>
         </div>
       )}
+
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-heading font-bold text-text-primary">Business & Personal Health Checklist</h2>
+            <p className="text-xs text-text-muted mt-1">
+              Initial onboarding questionnaire completed inside the portal.
+            </p>
+          </div>
+          {client.business_health_checklist?.submitted_at ? (
+            <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+              Submitted {new Date(client.business_health_checklist.submitted_at).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          ) : (
+            <span className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
+              Not submitted yet
+            </span>
+          )}
+        </div>
+
+        {client.business_health_checklist && businessHealthConfig ? (
+          <div className="mt-5 space-y-5">
+            {businessHealthConfig.questions.map((question) => {
+              const answer = getQuestionAnswerLabel(question, client.business_health_checklist?.responses);
+              if (!answer) return null;
+
+              return (
+                <div key={question.id} className="rounded-xl border border-[rgba(255,255,255,0.04)] bg-bg-primary/60 px-4 py-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{question.label}</div>
+                  <p className="mt-1 text-sm leading-relaxed text-text-secondary whitespace-pre-line">{answer}</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-text-secondary">
+            The client has not completed this onboarding questionnaire yet.
+          </p>
+        )}
+      </div>
 
       {/* Activity Timeline */}
       <ActivityTimeline client={client} />
@@ -1330,6 +1382,16 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
         icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
       });
     }
+  }
+
+  if (client.business_health_checklist?.submitted_at) {
+    events.push({
+      type: "checkin",
+      date: client.business_health_checklist.submitted_at,
+      title: "Submitted Business & Personal Health Checklist",
+      color: "text-accent-bright",
+      icon: "M7 8h10M7 12h6m-6 8h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z",
+    });
   }
 
   // Business plan items completed

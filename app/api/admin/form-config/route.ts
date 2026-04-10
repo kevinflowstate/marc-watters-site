@@ -1,7 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-auth";
+import { BUSINESS_HEALTH_CHECKLIST_TYPE } from "@/lib/questionnaires";
 import { NextResponse } from "next/server";
+
+const allowedFormTypes = ["checkin", "business_plan", BUSINESS_HEALTH_CHECKLIST_TYPE] as const;
 
 export async function GET(request: Request) {
   // Form config is readable by any authenticated user (clients need it for check-in page)
@@ -12,7 +15,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
 
-  if (!type || !["checkin", "business_plan"].includes(type)) {
+  if (!type || !allowedFormTypes.includes(type as (typeof allowedFormTypes)[number])) {
     return NextResponse.json({ error: "Invalid form type" }, { status: 400 });
   }
 
@@ -36,7 +39,7 @@ export async function PUT(request: Request) {
 
   const { type, config } = await request.json();
 
-  if (!type || !["checkin", "business_plan"].includes(type)) {
+  if (!type || !allowedFormTypes.includes(type as (typeof allowedFormTypes)[number])) {
     return NextResponse.json({ error: "Invalid form type" }, { status: 400 });
   }
 
