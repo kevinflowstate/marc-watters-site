@@ -1,4 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getAccessibleModuleIds,
+  ONBOARDING_MODULE_TITLE,
+} from "@/lib/portal-training-access";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -65,6 +69,26 @@ export async function GET() {
 
   let modules: Array<{ id: string; title: string; created_at: string; content?: { id: string }[] }> = [];
   let recentModules: Array<{ id: string; title: string; created_at: string }> = [];
+  let onboardingModuleId: string | null = null;
+
+  const accessibleModuleIds = await getAccessibleModuleIds(admin, profile.id);
+  if (accessibleModuleIds.size > 0) {
+    const { data: moduleRows } = await admin
+      .from("training_modules")
+      .select("*, content:module_content(*)")
+      .eq("is_published", true)
+      .in("id", [...accessibleModuleIds])
+      .order("order_index");
+
+    modules = moduleRows || [];
+    recentModules = [...modules]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3)
+      .map(({ id, title, created_at }) => ({ id, title, created_at }));
+
+    onboardingModuleId =
+      modules.find((module) => module.title === ONBOARDING_MODULE_TITLE)?.id || null;
+  }
 
   // Get business plan phases and items if plan exists
   let planPhases: unknown[] = [];
@@ -82,35 +106,6 @@ export async function GET() {
         .select("*")
         .in("phase_id", phaseIds)
         .order("order_index");
-
-      const { data: links } = await admin
-        .from("phase_training_links")
-        .select("content_id")
-        .in("phase_id", phaseIds);
-
-      const contentIds = [...new Set((links || []).map((link: { content_id: string }) => link.content_id))];
-      if (contentIds.length > 0) {
-        const { data: contentItems } = await admin
-          .from("module_content")
-          .select("module_id")
-          .in("id", contentIds);
-
-        const moduleIds = [...new Set((contentItems || []).map((contentItem: { module_id: string }) => contentItem.module_id))];
-        if (moduleIds.length > 0) {
-          const { data: moduleRows } = await admin
-            .from("training_modules")
-            .select("*, content:module_content(*)")
-            .eq("is_published", true)
-            .in("id", moduleIds)
-            .order("order_index");
-
-          modules = moduleRows || [];
-          recentModules = [...modules]
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 3)
-            .map(({ id, title, created_at }) => ({ id, title, created_at }));
-        }
-      }
 
       planPhases = phases.map((phase: { id: string }) => ({
         ...phase,
@@ -140,6 +135,7 @@ export async function GET() {
     planPhases,
     checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
     recentModules,
+    onboardingModuleId,
     trainingProgress: {
       completedLessons,
       totalLessons,

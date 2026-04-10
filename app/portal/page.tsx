@@ -79,6 +79,7 @@ export default function PortalDashboard() {
   const [planPhases, setPlanPhases] = useState<BusinessPlanPhase[]>([]);
   const [checkinDay, setCheckinDay] = useState("monday");
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
+  const [onboardingModuleId, setOnboardingModuleId] = useState<string | null>(null);
   const [expandedCheckin, setExpandedCheckin] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +96,7 @@ export default function PortalDashboard() {
           setPlanPhases(data.planPhases || []);
           setCheckinDay(data.checkinDay || "monday");
           setRecentModules(data.recentModules || []);
+          setOnboardingModuleId(data.onboardingModuleId || null);
         }
       } finally {
         setLoading(false);
@@ -117,6 +119,8 @@ export default function PortalDashboard() {
   const currentPhaseLabel = currentPhase ? cleanPhaseName(currentPhase.name) : null;
 
   const totalModules = modules.length;
+  const isFirstLogin = !profile?.last_login;
+  const shouldShowOnboardingWelcome = Boolean(isFirstLogin && onboardingModuleId);
 
   const nextCheckinDate = getNextCheckinDate(checkinDay);
   const isCheckinToday = isToday(nextCheckinDate);
@@ -144,6 +148,35 @@ export default function PortalDashboard() {
           latestReply={checkins.find((c) => c.admin_reply)}
           planPct={planPct}
         />
+      )}
+
+      {shouldShowOnboardingWelcome && onboardingModuleId && (
+        <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-bg-card p-8 mb-8">
+          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_left,rgba(34,114,222,0.18),transparent_45%)] pointer-events-none" />
+          <div className="relative z-10 max-w-3xl">
+            <div className="inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent-bright mb-4">
+              Getting Started
+            </div>
+            <h2 className="text-3xl font-heading font-bold text-text-primary">
+              Welcome {userName ? userName.split(" ")[0] : ""}
+            </h2>
+            <p className="mt-2 text-lg text-text-secondary">
+              Welcome to The Construction Business Blueprint.
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+              Your business plan will be assigned soon, for now go straight to the onboarding materials to get started.
+            </p>
+            <Link
+              href={`/portal/training/${onboardingModuleId}`}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl gradient-accent px-5 py-3 text-sm font-semibold text-white no-underline hover:opacity-90 transition-opacity"
+            >
+              Start Onboarding
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
       )}
 
       {loading ? (
