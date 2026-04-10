@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAccessibleModuleIds } from "@/lib/portal-training-access";
 import { createClient } from "@/lib/supabase/server";
 import { trackAIUsage } from "@/lib/ai-usage";
 import { rateLimit } from "@/lib/rate-limit";
@@ -117,11 +118,27 @@ export async function POST(req: NextRequest) {
     .eq("id", userId)
     .single();
 
-  // Get assigned training modules with content
-  const { data: clientModules } = await admin
-    .from("client_modules")
-    .select("id, status, module:training_modules(id, title, description, content:module_content(id, title, content_type, duration_minutes, content_text))")
-    .eq("client_id", profile?.id || "");
+  const accessibleModuleIds = profile?.id
+    ? await getAccessibleModuleIds(admin, profile.id)
+    : new Set<string>();
+
+  const accessibleModuleIdList = [...accessibleModuleIds];
+
+  const { data: clientModuleRows } = accessibleModuleIdList.length > 0
+    ? await admin
+        .from("client_modules")
+        .select("id, status, module_id")
+        .eq("client_id", profile?.id || "")
+        .in("module_id", accessibleModuleIdList)
+    : { data: [] };
+
+  const { data: accessibleModules } = accessibleModuleIdList.length > 0
+    ? await admin
+        .from("training_modules")
+        .select("id, title, description, content:module_content(id, title, content_type, duration_minutes, content_text)")
+        .in("id", accessibleModuleIdList)
+        .eq("is_published", true)
+    : { data: [] };
 
   // Get business plan phases
   const { data: plans } = await admin
@@ -138,16 +155,16 @@ export async function POST(req: NextRequest) {
     .order("order_index");
 
   // Build context
-  const trainingContext = (clientModules || []).map((cm) => {
-    const mod = cm.module as unknown as Record<string, unknown>;
-    if (!mod) return null;
+  const clientModules = (accessibleModules || []).map((mod) => {
+    const trackingRow = (clientModuleRows || []).find((row) => row.module_id === mod.id);
     const content = (mod.content as Array<Record<string, unknown>>) || [];
     return {
-      clientModuleId: cm.id,
+      clientModuleId: trackingRow?.id || null,
       moduleId: mod.id,
       title: mod.title,
       description: mod.description,
-      status: cm.status,
+      status: trackingRow?.status || "available",
+      module: mod,
       lessons: content.map((c) => ({
         title: c.title,
         type: c.content_type,
@@ -155,7 +172,16 @@ export async function POST(req: NextRequest) {
         summary: c.content_text ? (c.content_text as string).slice(0, 200) : null,
       })),
     };
-  }).filter(Boolean);
+  });
+
+  const trainingContext = clientModules.map((cm) => ({
+    clientModuleId: cm.clientModuleId,
+    moduleId: cm.moduleId,
+    title: cm.title,
+    description: cm.description,
+    status: cm.status,
+    lessons: cm.lessons,
+  }));
 
   const planContext = phases?.map((p) => ({
     phase: p.name,
@@ -173,7 +199,6 @@ export async function POST(req: NextRequest) {
 
   if (searchTerms.length > 0) {
     // Search for chunks matching the user's question using ilike
-    const searchPattern = `%${searchTerms.join("%")}%`;
     const { data: chunks } = await admin
       .from("knowledge_chunks")
       .select("session_title, content")
@@ -329,7 +354,7 @@ async function handleToolCall(
   toolName: string,
   input: Record<string, string>,
   clientId: string,
-  clientModules: Array<{ id: string; status: string; module: unknown }>,
+  clientModules: Array<{ clientModuleId: string | null; moduleId: string; status: string; module: unknown }>,
   phases: Array<{ name: string; notes: string; items: unknown }>,
 ): Promise<string> {
   try {
@@ -339,8 +364,7 @@ async function handleToolCall(
 
       // Find the client_module record
       const cm = clientModules.find((m) => {
-        const mod = m.module as unknown as Record<string, unknown>;
-        return mod?.id === moduleId;
+        return m.moduleId === moduleId;
       });
 
       if (!cm) return "Module not found in client's assigned modules.";
@@ -349,10 +373,20 @@ async function handleToolCall(
       if (newStatus === "in_progress") updateData.started_at = new Date().toISOString();
       if (newStatus === "completed") updateData.completed_at = new Date().toISOString();
 
-      const { error } = await admin
-        .from("client_modules")
-        .update(updateData)
-        .eq("id", cm.id);
+      const { error } = cm.clientModuleId
+        ? await admin
+            .from("client_modules")
+            .update(updateData)
+            .eq("id", cm.clientModuleId)
+        : await admin
+            .from("client_modules")
+            .insert({
+              client_id: clientId,
+              module_id: moduleId,
+              status: newStatus,
+              started_at: newStatus === "in_progress" ? new Date().toISOString() : null,
+              completed_at: newStatus === "completed" ? new Date().toISOString() : null,
+            });
 
       if (error) return `Failed to update: ${error.message}`;
       return `Successfully marked module as ${newStatus}.`;

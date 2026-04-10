@@ -1,58 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeAttachments } from "@/lib/attachments";
+import { getAccessibleModuleIds } from "@/lib/portal-training-access";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse, type NextRequest } from "next/server";
-
-async function getAllowedModuleIds(admin: ReturnType<typeof createAdminClient>, clientId: string) {
-  const moduleIds = new Set<string>();
-
-  // Modules linked through active plan phases
-  const { data: plans } = await admin
-    .from("business_plans")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("status", "active");
-
-  if (plans && plans.length > 0) {
-    const planIds = plans.map((p) => p.id);
-    const { data: phases } = await admin
-      .from("business_plan_phases")
-      .select("id")
-      .in("plan_id", planIds);
-
-    if (phases && phases.length > 0) {
-      const phaseIds = phases.map((p) => p.id);
-      const { data: links } = await admin
-        .from("phase_training_links")
-        .select("content_id")
-        .in("phase_id", phaseIds);
-
-      if (links && links.length > 0) {
-        const contentIds = [...new Set(links.map((l) => l.content_id))];
-        const { data: contentItems } = await admin
-          .from("module_content")
-          .select("module_id")
-          .in("id", contentIds);
-
-        for (const item of contentItems || []) {
-          if (item.module_id) moduleIds.add(item.module_id);
-        }
-      }
-    }
-  }
-
-  // Modules explicitly assigned to the client
-  const { data: assignedModules } = await admin
-    .from("client_modules")
-    .select("module_id")
-    .eq("client_id", clientId);
-
-  for (const row of assignedModules || []) {
-    if (row.module_id) moduleIds.add(row.module_id);
-  }
-
-  return moduleIds;
-}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -77,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   // Enforce that module is either plan-linked or explicitly assigned to this client
-  const allowedModuleIds = await getAllowedModuleIds(admin, profile.id);
+  const allowedModuleIds = await getAccessibleModuleIds(admin, profile.id);
   if (!allowedModuleIds.has(id)) {
     return NextResponse.json({ error: "Not assigned to this module" }, { status: 403 });
   }
@@ -156,7 +106,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // Enforce module access parity with GET endpoint
-  const allowedModuleIds = await getAllowedModuleIds(admin, profile.id);
+  const allowedModuleIds = await getAccessibleModuleIds(admin, profile.id);
   if (!allowedModuleIds.has(moduleId)) {
     return NextResponse.json({ error: "Not assigned to this module" }, { status: 403 });
   }
