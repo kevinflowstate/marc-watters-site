@@ -6,10 +6,12 @@ import type {
   BusinessPlanItem,
   CheckIn,
   ClientQuestionnaireSubmission,
+  ClientMonthlyMetric,
   TrainingModule,
   ModuleContent,
 } from "./types";
 import { normalizeAttachments } from "./attachments";
+import { normalizeMonthlyMetricsHistory } from "./monthly-metrics";
 import { BUSINESS_HEALTH_CHECKLIST_TYPE } from "./questionnaires";
 
 // ============================================
@@ -34,6 +36,7 @@ export interface AdminClient {
   business_plan: BusinessPlan[];
   internal_notes?: string;
   business_health_checklist?: ClientQuestionnaireSubmission | null;
+  monthly_metrics?: ClientMonthlyMetric[];
 }
 
 // ============================================
@@ -269,6 +272,14 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     .eq("questionnaire_type", BUSINESS_HEALTH_CHECKLIST_TYPE)
     .maybeSingle();
 
+  const { data: monthlyMetrics } = await admin
+    .from("client_monthly_metrics")
+    .select(
+      "id, client_id, month_start, monthly_revenue, gross_profit_margin, lead_conversion_rate, average_job_value, pipeline_forward_book, submitted_at, updated_at",
+    )
+    .eq("client_id", id)
+    .order("month_start", { ascending: true });
+
   // Build nested structures
   const itemsByPhase = new Map<string, BusinessPlanItem[]>();
   for (const item of items || []) {
@@ -340,6 +351,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
           responses: (checklist.responses || {}) as Record<string, string>,
         }
       : null,
+    monthly_metrics: normalizeMonthlyMetricsHistory(monthlyMetrics || []),
   };
 }
 

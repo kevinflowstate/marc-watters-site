@@ -4,6 +4,12 @@ export type ModuleStatus = 'locked' | 'in_progress' | 'completed';
 export type ContentType = 'video' | 'pdf' | 'text' | 'checklist';
 export type CheckInMood = 'great' | 'good' | 'okay' | 'struggling' | string;
 export type QuestionnaireType = 'business_health_checklist';
+export type MonthlyMetricKey =
+  | 'monthly_revenue'
+  | 'gross_profit_margin'
+  | 'lead_conversion_rate'
+  | 'average_job_value'
+  | 'pipeline_forward_book';
 
 export interface User {
   id: string;
@@ -100,6 +106,19 @@ export interface ClientQuestionnaireSubmission {
   client_id: string;
   questionnaire_type: QuestionnaireType;
   responses: Record<string, string>;
+  submitted_at: string;
+  updated_at: string;
+}
+
+export interface ClientMonthlyMetric {
+  id: string;
+  client_id: string;
+  month_start: string;
+  monthly_revenue: number;
+  gross_profit_margin: number;
+  lead_conversion_rate: number;
+  average_job_value: number;
+  pipeline_forward_book: number;
   submitted_at: string;
   updated_at: string;
 }
@@ -224,4 +243,15 @@ export interface QuestionnaireFormConfig {
   success_title?: string;
   success_description?: string;
   questions: FormQuestion[];
+}
+
+export interface MonthlyMetricDefinition {
+  key: MonthlyMetricKey;
+  label: string;
+  short_label: string;
+  description?: string;
+  kind: 'currency' | 'percentage';
+  step: string;
+  min?: number;
+  max?: number;
 }

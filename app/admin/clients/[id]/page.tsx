@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import MonthlyMetricsOverview from "@/components/shared/MonthlyMetricsOverview";
 import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion, QuestionnaireFormConfig } from "@/lib/types";
+import { formatMetricsMonthLabel, getCurrentMetricsMonthStart } from "@/lib/monthly-metrics";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 
@@ -185,6 +187,10 @@ export default function ClientDetailPage() {
   const activePlan = activePlans.find((p) => p.phases.length > 0) || activePlans[0];
   const completedPlans = plans.filter((p) => p.status === "completed");
   const sc = statusConfig[client.status];
+  const currentMetricsMonthStart = getCurrentMetricsMonthStart();
+  const hasCurrentMonthMetrics = Boolean(
+    client.monthly_metrics?.some((entry) => entry.month_start === currentMetricsMonthStart),
+  );
 
   // Calculate plan stats from active plan
   const allItems = activePlan?.phases.flatMap((ph) => ph.items) || [];
@@ -654,6 +660,37 @@ export default function ClientDetailPage() {
           <p className="text-text-secondary text-sm leading-relaxed">{client.goals}</p>
         </div>
       )}
+
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-heading font-bold text-text-primary">Five Key Monthly Metrics</h2>
+            <p className="text-xs text-text-muted mt-1">
+              Submitted monthly by the client and charted over time so Marc can spot momentum or slippage quickly.
+            </p>
+          </div>
+          <span
+            className={`text-[11px] rounded-full px-3 py-1 ${
+              hasCurrentMonthMetrics
+                ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
+                : "text-amber-300 bg-amber-500/10 border border-amber-500/20"
+            }`}
+          >
+            {hasCurrentMonthMetrics
+              ? `${formatMetricsMonthLabel(currentMetricsMonthStart, { month: "long" })} submitted`
+              : `${formatMetricsMonthLabel(currentMetricsMonthStart, { month: "long" })} pending`}
+          </span>
+        </div>
+
+        <div className="mt-5">
+          <MonthlyMetricsOverview
+            history={client.monthly_metrics || []}
+            title=""
+            subtitle=""
+            emptyMessage="This client has not submitted any monthly metrics yet."
+          />
+        </div>
+      </div>
 
       <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

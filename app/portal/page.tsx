@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { ClientProfile, TrainingModule, CheckIn, CalendarEvent, BusinessPlanPhase } from "@/lib/types";
+import MonthlyMetricsSection from "@/components/portal/MonthlyMetricsSection";
+import type {
+  ClientProfile,
+  TrainingModule,
+  CheckIn,
+  CalendarEvent,
+  BusinessPlanPhase,
+  ClientMonthlyMetric,
+} from "@/lib/types";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
@@ -80,6 +88,8 @@ export default function PortalDashboard() {
   const [checkinDay, setCheckinDay] = useState("monday");
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
   const [onboardingModuleId, setOnboardingModuleId] = useState<string | null>(null);
+  const [monthlyMetrics, setMonthlyMetrics] = useState<ClientMonthlyMetric[]>([]);
+  const [currentMetricsMonthStart, setCurrentMetricsMonthStart] = useState("");
   const [expandedCheckin, setExpandedCheckin] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -97,6 +107,8 @@ export default function PortalDashboard() {
           setCheckinDay(data.checkinDay || "monday");
           setRecentModules(data.recentModules || []);
           setOnboardingModuleId(data.onboardingModuleId || null);
+          setMonthlyMetrics(data.monthlyMetrics || []);
+          setCurrentMetricsMonthStart(data.currentMetricsMonthStart || "");
         }
       } finally {
         setLoading(false);
@@ -237,6 +249,11 @@ export default function PortalDashboard() {
           </div>
         ))}
       </div>
+
+      <MonthlyMetricsSection
+        initialHistory={monthlyMetrics}
+        initialCurrentMonthStart={currentMetricsMonthStart}
+      />
 
       {/* Journey Progress */}
       <JourneyTracker phases={planPhases} />

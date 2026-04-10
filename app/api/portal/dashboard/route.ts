@@ -1,5 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  getCurrentMetricsMonthStart,
+  normalizeMonthlyMetricsHistory,
+} from "@/lib/monthly-metrics";
+import {
   getAccessibleModuleIds,
   ONBOARDING_MODULE_TITLE,
 } from "@/lib/portal-training-access";
@@ -66,6 +70,14 @@ export async function GET() {
       .eq("client_id", profile.id)
       .eq("completed", true),
   ]);
+
+  const { data: monthlyMetrics } = await admin
+    .from("client_monthly_metrics")
+    .select(
+      "id, client_id, month_start, monthly_revenue, gross_profit_margin, lead_conversion_rate, average_job_value, pipeline_forward_book, submitted_at, updated_at",
+    )
+    .eq("client_id", profile.id)
+    .order("month_start", { ascending: true });
 
   let modules: Array<{ id: string; title: string; created_at: string; content?: { id: string }[] }> = [];
   let recentModules: Array<{ id: string; title: string; created_at: string }> = [];
@@ -136,6 +148,8 @@ export async function GET() {
     checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
     recentModules,
     onboardingModuleId,
+    monthlyMetrics: normalizeMonthlyMetricsHistory(monthlyMetrics || []),
+    currentMetricsMonthStart: getCurrentMetricsMonthStart(),
     trainingProgress: {
       completedLessons,
       totalLessons,
