@@ -27,6 +27,7 @@ const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = 
   good: { bgClass: "bg-blue-500/10", textClass: "text-blue-400" },
   okay: { bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
   struggling: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
+  awful: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
 };
 
 const categoryIcons: Record<string, string> = {
@@ -1182,7 +1183,7 @@ export default function ClientDetailPage() {
           ) : (
             <div className="space-y-3">
               {client.checkins.map((c) => {
-                const mc = moodConfig[c.mood];
+                const mc = moodConfig[c.mood] || moodConfig.struggling;
                 return (
                   <div key={c.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-3">
@@ -1198,12 +1199,12 @@ export default function ClientDetailPage() {
                     {c.responses && checkinConfig ? (
                       /* Dynamic responses - render using config labels */
                       checkinConfig.questions.map((q: FormQuestion) => {
-                        const answer = c.responses?.[q.id];
+                        const answer = getQuestionAnswerLabel(q, c.responses);
                         if (!answer) return null;
                         return (
                           <div key={q.id} className="mb-2">
                             <span className="text-[10px] text-text-muted font-semibold uppercase tracking-wider">{q.label}</span>
-                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{answer}</p>
+                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed whitespace-pre-line">{answer}</p>
                           </div>
                         );
                       })

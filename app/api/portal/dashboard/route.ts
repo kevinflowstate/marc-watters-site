@@ -146,6 +146,7 @@ export async function GET() {
     businessPlan: planRes.data || null,
     planPhases,
     checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
+    checkinConfig: formConfigRes.data?.config || null,
     recentModules,
     onboardingModuleId,
     monthlyMetrics: normalizeMonthlyMetricsHistory(monthlyMetrics || []),

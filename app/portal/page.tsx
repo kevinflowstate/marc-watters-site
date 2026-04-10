@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import MonthlyMetricsSection from "@/components/portal/MonthlyMetricsSection";
+import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import type {
   ClientProfile,
   TrainingModule,
@@ -10,6 +11,8 @@ import type {
   CalendarEvent,
   BusinessPlanPhase,
   ClientMonthlyMetric,
+  CheckinFormConfig,
+  FormQuestion,
 } from "@/lib/types";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
@@ -86,6 +89,7 @@ export default function PortalDashboard() {
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [planPhases, setPlanPhases] = useState<BusinessPlanPhase[]>([]);
   const [checkinDay, setCheckinDay] = useState("monday");
+  const [checkinConfig, setCheckinConfig] = useState<CheckinFormConfig | null>(null);
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
   const [onboardingModuleId, setOnboardingModuleId] = useState<string | null>(null);
   const [monthlyMetrics, setMonthlyMetrics] = useState<ClientMonthlyMetric[]>([]);
@@ -105,6 +109,7 @@ export default function PortalDashboard() {
           setCheckins(data.checkins || []);
           setPlanPhases(data.planPhases || []);
           setCheckinDay(data.checkinDay || "monday");
+          setCheckinConfig(data.checkinConfig || null);
           setRecentModules(data.recentModules || []);
           setOnboardingModuleId(data.onboardingModuleId || null);
           setMonthlyMetrics(data.monthlyMetrics || []);
@@ -347,11 +352,22 @@ export default function PortalDashboard() {
                     </button>
                     <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                       <div className="px-4 pb-4 space-y-3">
-                        {c.responses && Object.entries(c.responses).map(([key, value]) => (
-                          <div key={key}>
-                            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
-                              {key === "wins" ? "Wins this week" : key === "challenges" ? "Challenges" : key === "questions" ? "Questions for Marc" : key}
+                        {c.responses && checkinConfig?.questions?.map((question: FormQuestion) => {
+                          const answer = getQuestionAnswerLabel(question, c.responses);
+                          if (!answer) return null;
+
+                          return (
+                            <div key={question.id}>
+                              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
+                                {question.label}
+                              </div>
+                              <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-line">{answer}</p>
                             </div>
+                          );
+                        })}
+                        {c.responses && !checkinConfig && Object.entries(c.responses).map(([key, value]) => (
+                          <div key={key}>
+                            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{key}</div>
                             <p className="text-xs text-text-secondary leading-relaxed">{value}</p>
                           </div>
                         ))}

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { defaultCheckinConfig, deriveCheckinMood } from "@/lib/checkins";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -22,10 +23,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
   }
 
-  const { mood, responses } = await request.json();
+  const requestBody = await request.json().catch(() => ({}));
+  const responses =
+    requestBody.responses && typeof requestBody.responses === "object" && !Array.isArray(requestBody.responses)
+      ? requestBody.responses
+      : {};
 
-  if (!mood) {
-    return NextResponse.json({ error: "Mood is required" }, { status: 400 });
+  const { data: configRow } = await admin
+    .from("form_config")
+    .select("config")
+    .eq("form_type", "checkin")
+    .maybeSingle();
+
+  const config = configRow?.config || defaultCheckinConfig;
+
+  for (const question of config.questions || []) {
+    if (!question?.required) continue;
+
+    const answer = responses[question.id];
+    if (!answer) {
+      return NextResponse.json({ error: `Please complete "${question.label}"` }, { status: 400 });
+    }
+
+    if (question.allow_other && answer === "other" && !responses[`${question.id}__other`]) {
+      return NextResponse.json({ error: `Please complete "${question.label}"` }, { status: 400 });
+    }
   }
 
   // Get next week number
@@ -42,11 +64,11 @@ export async function POST(request: Request) {
   const payload = {
     client_id: profile.id,
     week_number: weekNumber,
-    mood,
+    mood: config.mood_enabled ? requestBody.mood || "good" : deriveCheckinMood(responses),
     // Populate legacy columns for backward compatibility
-    wins: responses?.wins || null,
-    challenges: responses?.challenges || null,
-    questions: responses?.questions || null,
+    wins: responses?.what_went_well_detail || responses?.wins || null,
+    challenges: responses?.what_didnt_go_well_detail || responses?.challenges || null,
+    questions: responses?.need_anything_from_marc || responses?.questions || null,
     // Store full responses in JSONB
     responses: responses || null,
   };
