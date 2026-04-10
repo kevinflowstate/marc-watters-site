@@ -13,6 +13,10 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   );
 }
 
+function cleanPhaseName(name: string): string {
+  return name.replace(/^Phase\s*\d+\s*[:\-]\s*/i, "").trim();
+}
+
 function getNextOccurrence(event: CalendarEvent): Date | null {
   const now = new Date();
   if (event.recurrence === "none") {
@@ -76,7 +80,6 @@ export default function PortalDashboard() {
   const [checkinDay, setCheckinDay] = useState("monday");
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
   const [expandedCheckin, setExpandedCheckin] = useState<string | null>(null);
-  const [trainingProgress, setTrainingProgress] = useState<{ completedLessons: number; totalLessons: number }>({ completedLessons: 0, totalLessons: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,7 +95,6 @@ export default function PortalDashboard() {
           setPlanPhases(data.planPhases || []);
           setCheckinDay(data.checkinDay || "monday");
           setRecentModules(data.recentModules || []);
-          setTrainingProgress(data.trainingProgress || { completedLessons: 0, totalLessons: 0 });
         }
       } finally {
         setLoading(false);
@@ -105,9 +107,16 @@ export default function PortalDashboard() {
   const completedPlanItems = allPlanItems.filter((item) => item.completed).length;
   const totalPlanItems = allPlanItems.length;
   const planPct = totalPlanItems > 0 ? Math.round((completedPlanItems / totalPlanItems) * 100) : 0;
+  const completedPhaseCount = planPhases.filter((phase) => {
+    const items = phase.items || [];
+    return items.length > 0 && items.every((item) => item.completed);
+  }).length;
+  const currentPhase = planPhases.length > 0
+    ? planPhases[Math.min(completedPhaseCount, planPhases.length - 1)]
+    : null;
+  const currentPhaseLabel = currentPhase ? cleanPhaseName(currentPhase.name) : null;
 
   const totalModules = modules.length;
-  const currentWeek = checkins.length > 0 ? checkins[0].week_number : 1;
 
   const nextCheckinDate = getNextCheckinDate(checkinDay);
   const isCheckinToday = isToday(nextCheckinDate);
@@ -132,7 +141,6 @@ export default function PortalDashboard() {
           isCheckinToday={isCheckinToday}
           nextCheckinDate={nextCheckinDate}
           uncompletedModules={totalModules}
-          unrepliedCheckins={checkins.filter((c) => c.admin_reply && !expandedCheckin).length}
           latestReply={checkins.find((c) => c.admin_reply)}
           planPct={planPct}
         />
@@ -177,7 +185,11 @@ export default function PortalDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: "Plan Progress", value: `${planPct}%`, sub: `${completedPlanItems}/${totalPlanItems} actions done` },
-          { label: "Current Week", value: `Week ${currentWeek || "-"}` },
+          {
+            label: "Current Phase",
+            value: currentPhaseLabel || "Not Yet Assigned",
+            sub: currentPhaseLabel ? `${completedPhaseCount}/${planPhases.length} phases complete` : "Marc will assign your plan soon",
+          },
           { label: "Trainings", value: `${totalModules}`, sub: totalModules > 0 ? `${totalModules} module${totalModules !== 1 ? "s" : ""} available` : "Coming soon" },
           { label: "Status", value: profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-" },
         ].map((stat, i) => (
@@ -194,14 +206,7 @@ export default function PortalDashboard() {
       </div>
 
       {/* Journey Progress */}
-      <JourneyTracker
-        currentWeek={currentWeek}
-        completedModules={0}
-        totalModules={totalModules}
-        planPct={planPct}
-        totalCheckins={checkins.length}
-        phases={planPhases}
-      />
+      <JourneyTracker phases={planPhases} />
 
       {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -373,14 +378,12 @@ function BriefingBanner({
   isCheckinToday,
   nextCheckinDate,
   uncompletedModules,
-  unrepliedCheckins,
   latestReply,
   planPct,
 }: {
   isCheckinToday: boolean;
   nextCheckinDate: Date;
   uncompletedModules: number;
-  unrepliedCheckins: number;
   latestReply?: CheckIn;
   planPct: number;
 }) {
@@ -441,47 +444,46 @@ function BriefingBanner({
 }
 
 function JourneyTracker({
-  currentWeek,
-  completedModules,
-  totalModules,
-  planPct,
-  totalCheckins,
   phases,
 }: {
-  currentWeek: number;
-  completedModules: number;
-  totalModules: number;
-  planPct: number;
-  totalCheckins: number;
   phases: BusinessPlanPhase[];
 }) {
-  // Build milestones from business plan phases
-  const phaseCount = phases.length;
-  const milestones = phaseCount > 0
-    ? phases.map((phase, i) => {
-        // Strip "Phase N:" or "Phase N -" prefix for cleaner labels
-        const cleanName = phase.name.replace(/^Phase\s*\d+\s*[:\-]\s*/i, "");
-        // Truncate long names
-        const label = cleanName.length > 18 ? cleanName.slice(0, 16) + "..." : cleanName;
-        return { index: i, label };
-      })
-    : [
-        { index: 0, label: "Kickoff" },
-        { index: 1, label: "Foundation" },
-        { index: 2, label: "Halfway" },
-        { index: 3, label: "Systems" },
-        { index: 4, label: "Review" },
-      ];
+  if (phases.length === 0) {
+    return (
+      <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)]">
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-heading font-bold text-text-primary">Your Journey</h2>
+            <span className="text-xs text-text-muted">Waiting for plan</span>
+          </div>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            Your journey tracker will appear once Marc assigns your business plan. When that happens, this section will show each phase of your roadmap and your progress through it.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  // Calculate progress based on completed plan items per phase
+  const milestones = phases.map((phase, i) => {
+    const cleanName = cleanPhaseName(phase.name);
+    const label = cleanName.length > 18 ? `${cleanName.slice(0, 16)}...` : cleanName;
+    return { index: i, label, itemCount: (phase.items || []).length };
+  });
+
   const completedPhaseCount = phases.filter((phase) => {
     const items = phase.items || [];
     return items.length > 0 && items.every((item) => item.completed);
   }).length;
 
-  const progressPct = phaseCount > 0
-    ? Math.min(100, Math.round((completedPhaseCount / phaseCount) * 100))
-    : Math.min(100, Math.round((currentWeek / 12) * 100));
+  const currentPhase = phases[completedPhaseCount] || null;
+  const currentPhaseItems = currentPhase?.items || [];
+  const currentPhaseCompleted = currentPhaseItems.filter((item) => item.completed).length;
+  const currentPhaseFraction = currentPhaseItems.length > 0 ? currentPhaseCompleted / currentPhaseItems.length : 0;
+  const progressPct = completedPhaseCount >= phases.length
+    ? 100
+    : Math.round(((completedPhaseCount + currentPhaseFraction) / phases.length) * 100);
+  const currentPhaseLabel = currentPhase ? cleanPhaseName(currentPhase.name) : cleanPhaseName(phases[phases.length - 1].name);
 
   return (
     <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)]">
@@ -489,8 +491,11 @@ function JourneyTracker({
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-heading font-bold text-text-primary">Your Journey</h2>
-          <span className="text-xs text-text-muted">{phaseCount > 0 ? `${completedPhaseCount} of ${phaseCount} phases` : `Week ${currentWeek || 0} of 12`}</span>
+          <span className="text-xs text-text-muted">{completedPhaseCount} of {phases.length} phases complete</span>
         </div>
+        <p className="text-sm text-text-secondary mb-4">
+          Current phase: <span className="text-text-primary font-medium">{currentPhaseLabel}</span>
+        </p>
 
         {/* Progress bar with milestones */}
         <div className="relative mb-6">
@@ -499,16 +504,19 @@ function JourneyTracker({
           </div>
           <div className="flex justify-between mt-4">
             {milestones.map((m, i) => {
-              const reached = phaseCount > 0
-                ? m.index < completedPhaseCount
-                : currentWeek >= (m.index + 1);
+              const reached = m.index < completedPhaseCount;
+              const active = m.index === completedPhaseCount && completedPhaseCount < phases.length;
               const total = milestones.length;
               const isFirst = i === 0;
               const isLast = i === total - 1;
               return (
                 <div key={m.index} className={`flex flex-col items-center flex-1 ${isFirst ? "items-start" : isLast ? "items-end" : "items-center"}`}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${
-                    reached ? "bg-accent border-accent-bright" : "bg-bg-card border-[rgba(255,255,255,0.1)]"
+                    reached
+                      ? "bg-accent border-accent-bright"
+                      : active
+                      ? "bg-accent/10 border-accent-bright"
+                      : "bg-bg-card border-[rgba(255,255,255,0.1)]"
                   }`}>
                     {reached && (
                       <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -516,48 +524,15 @@ function JourneyTracker({
                       </svg>
                     )}
                   </div>
-                  <span className={`text-[9px] mt-2 text-center max-w-[90px] leading-tight ${reached ? "text-text-primary font-medium" : "text-text-muted"}`}>{m.label}</span>
+                  <span className={`text-[9px] mt-2 text-center max-w-[90px] leading-tight ${
+                    reached || active ? "text-text-primary font-medium" : "text-text-muted"
+                  }`}>{m.label}</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Achievement badges */}
-        <div className="flex flex-wrap gap-3 mt-10">
-          {totalCheckins >= 1 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-[10px] text-emerald-400 font-medium">{totalCheckins} Check-in{totalCheckins > 1 ? "s" : ""}</span>
-            </div>
-          )}
-          {totalModules > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20">
-              <svg className="w-3.5 h-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253" />
-              </svg>
-              <span className="text-[10px] text-accent-bright font-medium">{totalModules} Training{totalModules > 1 ? "s" : ""}</span>
-            </div>
-          )}
-          {planPct >= 25 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20">
-              <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <span className="text-[10px] text-purple-400 font-medium">Plan {planPct}%</span>
-            </div>
-          )}
-          {totalCheckins >= 4 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-              <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-              </svg>
-              <span className="text-[10px] text-amber-400 font-medium">4-Week Streak</span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
