@@ -260,7 +260,7 @@ function SettingsContent() {
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">New Password</label>
             <input
-              type="password"
+              type="text"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="At least 8 characters"
@@ -270,7 +270,7 @@ function SettingsContent() {
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">Confirm Password</label>
             <input
-              type="password"
+              type="text"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Type it again"

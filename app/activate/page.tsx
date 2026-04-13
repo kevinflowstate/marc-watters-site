@@ -153,7 +153,7 @@ function ActivateContent() {
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Create Password</label>
                 <input
-                  type="password"
+                  type="text"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
@@ -165,7 +165,7 @@ function ActivateContent() {
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Confirm Password</label>
                 <input
-                  type="password"
+                  type="text"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   required

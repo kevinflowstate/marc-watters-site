@@ -87,7 +87,7 @@ function LoginForm() {
           <div className="mb-6">
             <label className="block text-sm font-medium text-text-secondary mb-2">Password</label>
             <input
-              type="password"
+              type="text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
