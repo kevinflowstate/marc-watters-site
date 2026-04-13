@@ -113,7 +113,7 @@ export default function ClientsPage() {
               </div>
               <div>
                 <h3 className="text-lg font-heading font-bold text-text-primary">Add Client</h3>
-                <p className="text-xs text-text-muted">They&apos;ll receive an email to set up their account</p>
+                <p className="text-xs text-text-muted">They&apos;ll receive an activation email for their portal account</p>
               </div>
             </div>
 
@@ -133,7 +133,7 @@ export default function ClientsPage() {
                 </div>
                 {!inviteResult.passwordSet && !inviteResult.emailSent && inviteResult.setupUrl && (
                   <div className="mb-4">
-                    <p className="text-xs text-amber-400 mb-2">Email couldn&apos;t be sent (domain not verified yet). Share this setup link manually:</p>
+                    <p className="text-xs text-amber-400 mb-2">Email couldn&apos;t be sent (domain not verified yet). Share this activation link manually:</p>
                     <div className="bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2">
                       <p className="text-[10px] text-text-muted break-all select-all">{inviteResult.setupUrl}</p>
                     </div>

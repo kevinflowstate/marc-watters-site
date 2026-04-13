@@ -1,20 +1,12 @@
 import { requireAdmin } from "@/lib/admin-auth";
+import { createOrReplaceClientInvite } from "@/lib/client-invites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/email-templates";
-import { getSiteUrl } from "@/lib/site-url";
 import { NextResponse } from "next/server";
 
 function generateTemporaryPassword(): string {
   const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
   return `Tmp!${entropy.slice(0, 24)}aA1`;
-}
-
-function buildSetupUrl(tokenHash: string): string {
-  const url = new URL("/auth/callback", getSiteUrl());
-  url.searchParams.set("token_hash", tokenHash);
-  url.searchParams.set("type", "recovery");
-  url.searchParams.set("redirect", "/portal/settings?setup=true");
-  return url.toString();
 }
 
 export async function POST(request: Request) {
@@ -89,15 +81,13 @@ export async function POST(request: Request) {
     link: "/portal",
   });
 
-  // Generate password setup link
-  const { data: linkData } = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email: normalizedEmail,
-  });
-
-  const setupUrl = linkData?.properties?.hashed_token
-    ? buildSetupUrl(linkData.properties.hashed_token)
-    : linkData?.properties?.action_link || null;
+  const setupUrl = mustSetPasswordOnFirstLogin
+    ? (await createOrReplaceClientInvite({
+        userId: newUser.user.id,
+        email: normalizedEmail,
+        fullName: normalizedName,
+      })).activationUrl
+    : null;
 
   // Send welcome email via unified template
   let emailSent = false;
