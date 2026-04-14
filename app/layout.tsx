@@ -99,7 +99,7 @@ export default function RootLayout({
         {children}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}window.__pwaInstallPrompt=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaInstallPrompt=e});`,
+            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(registrations){return Promise.all(registrations.map(function(registration){return registration.unregister()}))}).catch(function(){});}if('caches' in window){caches.keys().then(function(keys){return Promise.all(keys.filter(function(key){return key.indexOf('cbb-portal-')===0}).map(function(key){return caches.delete(key)}))}).catch(function(){});}window.__pwaInstallPrompt=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaInstallPrompt=e});`,
           }}
         />
       </body>
