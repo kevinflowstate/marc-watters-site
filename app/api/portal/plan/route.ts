@@ -3,6 +3,35 @@ import { createClient } from "@/lib/supabase/server";
 import { togglePlanItem } from "@/lib/admin-data";
 import { NextResponse } from "next/server";
 
+function normalizeText(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizePlanItem(item: Record<string, unknown>) {
+  return {
+    id: normalizeText(item.id),
+    title: normalizeText(item.title, "Untitled action"),
+    completed: Boolean(item.completed),
+    completed_at: typeof item.completed_at === "string" ? item.completed_at : undefined,
+    order_index: normalizeNumber(item.order_index),
+  };
+}
+
+function normalizeLinkedTraining(training: Record<string, unknown>) {
+  return {
+    id: normalizeText(training.id),
+    title: normalizeText(training.title, "Untitled training"),
+    content_type: normalizeText(training.content_type),
+    duration_minutes: normalizeNumber(training.duration_minutes),
+    module_id: normalizeText(training.module_id),
+    moduleName: normalizeText(training.moduleName),
+  };
+}
+
 export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -141,11 +170,17 @@ export async function GET() {
   // Build phases with items and linked trainings
   const phasesWithData = phases.map((phase: { id: string }) => ({
     ...phase,
-    items: (items || []).filter((item: { phase_id: string }) => item.phase_id === phase.id),
+    name: normalizeText((phase as Record<string, unknown>).name, "Untitled phase"),
+    notes: normalizeText((phase as Record<string, unknown>).notes),
+    order_index: normalizeNumber((phase as Record<string, unknown>).order_index),
+    items: (items || [])
+      .filter((item: { phase_id: string }) => item.phase_id === phase.id)
+      .map((item) => normalizePlanItem(item as unknown as Record<string, unknown>)),
     linkedTrainings: (links || [])
       .filter((l: { phase_id: string }) => l.phase_id === phase.id)
       .map((l: { content_id: string }) => contentLookup[l.content_id])
-      .filter(Boolean),
+      .filter(Boolean)
+      .map((training) => normalizeLinkedTraining(training as unknown as Record<string, unknown>)),
   }));
 
   return NextResponse.json({ plan, phases: phasesWithData });

@@ -53,12 +53,50 @@ const phaseColors = [
 ];
 
 function getPhaseIcon(name: string): string {
+  if (typeof name !== "string") return phaseIcons.default;
   const lower = name.toLowerCase();
   if (lower.includes("financial") || lower.includes("foundation") || lower.includes("pricing")) return phaseIcons.financial;
   if (lower.includes("pipeline") || lower.includes("sales") || lower.includes("growth")) return phaseIcons.pipeline;
   if (lower.includes("team") || lower.includes("hire") || lower.includes("people")) return phaseIcons.team;
   if (lower.includes("system") || lower.includes("operation")) return phaseIcons.systems;
   return phaseIcons.default;
+}
+
+function normalizePhases(phases: unknown[]): PlanPhase[] {
+  return phases.map((phase, index) => {
+    const rawPhase = phase as Partial<PlanPhase> & {
+      items?: unknown[];
+      linkedTrainings?: unknown[];
+    };
+
+    return {
+      id: typeof rawPhase.id === "string" ? rawPhase.id : `phase-${index}`,
+      name: typeof rawPhase.name === "string" ? rawPhase.name : "Untitled phase",
+      notes: typeof rawPhase.notes === "string" ? rawPhase.notes : "",
+      order_index: typeof rawPhase.order_index === "number" ? rawPhase.order_index : index,
+      items: (Array.isArray(rawPhase.items) ? rawPhase.items : []).map((item, itemIndex) => {
+        const rawItem = item as Partial<PlanItem>;
+        return {
+          id: typeof rawItem.id === "string" ? rawItem.id : `item-${index}-${itemIndex}`,
+          title: typeof rawItem.title === "string" ? rawItem.title : "Untitled action",
+          completed: Boolean(rawItem.completed),
+          completed_at: typeof rawItem.completed_at === "string" ? rawItem.completed_at : undefined,
+          order_index: typeof rawItem.order_index === "number" ? rawItem.order_index : itemIndex,
+        };
+      }),
+      linkedTrainings: (Array.isArray(rawPhase.linkedTrainings) ? rawPhase.linkedTrainings : []).map((training, trainingIndex) => {
+        const rawTraining = training as Partial<LinkedTraining>;
+        return {
+          id: typeof rawTraining.id === "string" ? rawTraining.id : `training-${index}-${trainingIndex}`,
+          title: typeof rawTraining.title === "string" ? rawTraining.title : "Untitled training",
+          content_type: typeof rawTraining.content_type === "string" ? rawTraining.content_type : "",
+          duration_minutes: typeof rawTraining.duration_minutes === "number" ? rawTraining.duration_minutes : 0,
+          module_id: typeof rawTraining.module_id === "string" ? rawTraining.module_id : "",
+          moduleName: typeof rawTraining.moduleName === "string" ? rawTraining.moduleName : "",
+        };
+      }),
+    };
+  });
 }
 
 export default function BusinessPlanPage() {
@@ -73,7 +111,7 @@ export default function BusinessPlanPage() {
         if (res.ok) {
           const data = await res.json();
           setPlan(data.plan);
-          setPhases(data.phases || []);
+          setPhases(normalizePhases(Array.isArray(data.phases) ? data.phases : []));
         }
       } finally {
         setLoading(false);

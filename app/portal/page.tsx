@@ -25,7 +25,40 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 }
 
 function cleanPhaseName(name: string): string {
-  return name.replace(/^Phase\s*\d+\s*[:\-]\s*/i, "").trim();
+  if (typeof name !== "string") return "Untitled phase";
+  const cleaned = name.replace(/^Phase\s*\d+\s*[:\-]\s*/i, "").trim();
+  return cleaned || "Untitled phase";
+}
+
+function normalizePlanPhases(phases: unknown[]): BusinessPlanPhase[] {
+  return phases.map((phase, index) => {
+    const rawPhase = phase as Partial<BusinessPlanPhase> & {
+      items?: unknown[];
+      linked_trainings?: unknown[];
+    };
+    const rawItems = Array.isArray(rawPhase.items) ? rawPhase.items : [];
+    const rawLinkedTrainings = Array.isArray(rawPhase.linked_trainings) ? rawPhase.linked_trainings : [];
+
+    return {
+      id: typeof rawPhase.id === "string" ? rawPhase.id : `phase-${index}`,
+      name: typeof rawPhase.name === "string" ? rawPhase.name : "Untitled phase",
+      notes: typeof rawPhase.notes === "string" ? rawPhase.notes : "",
+      order_index: typeof rawPhase.order_index === "number" ? rawPhase.order_index : index,
+      items: rawItems.map((item, itemIndex) => {
+        const rawItem = item as Partial<BusinessPlanPhase["items"][number]> & Record<string, unknown>;
+        return {
+          id: typeof rawItem.id === "string" ? rawItem.id : `item-${index}-${itemIndex}`,
+          category: typeof rawItem.category === "string" ? rawItem.category : (typeof rawPhase.name === "string" ? rawPhase.name : "Untitled phase"),
+          title: typeof rawItem.title === "string" ? rawItem.title : "Untitled action",
+          completed: Boolean(rawItem.completed),
+          completed_at: typeof rawItem.completed_at === "string" ? rawItem.completed_at : undefined,
+          order_index: typeof rawItem.order_index === "number" ? rawItem.order_index : itemIndex,
+          phase_id: typeof rawItem.phase_id === "string" ? rawItem.phase_id : "",
+        };
+      }),
+      linked_trainings: rawLinkedTrainings.filter((trainingId): trainingId is string => typeof trainingId === "string"),
+    };
+  });
 }
 
 function getNextOccurrence(event: CalendarEvent): Date | null {
@@ -107,7 +140,7 @@ export default function PortalDashboard() {
           setUserName(data.userName);
           setModules(data.modules || []);
           setCheckins(data.checkins || []);
-          setPlanPhases(data.planPhases || []);
+          setPlanPhases(normalizePlanPhases(Array.isArray(data.planPhases) ? data.planPhases : []));
           setCheckinDay(data.checkinDay || "monday");
           setCheckinConfig(data.checkinConfig || null);
           setRecentModules(data.recentModules || []);
