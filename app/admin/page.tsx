@@ -23,6 +23,7 @@ const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = 
   good: { bgClass: "bg-blue-500/10", textClass: "text-blue-400" },
   okay: { bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
   struggling: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
+  awful: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
 };
 
 function timeAgo(dateStr: string): string {
@@ -856,7 +857,7 @@ function CheckInRow({
   isSending?: boolean;
   error?: string | null;
 }) {
-  const mc = moodConfig[checkin.mood];
+  const mc = moodConfig[checkin.mood] || moodConfig.struggling;
   const hasReply = checkin.admin_reply || sentReply;
 
   return (
