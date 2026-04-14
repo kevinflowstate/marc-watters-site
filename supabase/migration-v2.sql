@@ -75,9 +75,7 @@ ALTER TABLE public.internal_notes ENABLE ROW LEVEL SECURITY;
 
 -- Business plans: admins full access, clients can view their own
 CREATE POLICY "Admins can manage all business plans" ON public.business_plans
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 CREATE POLICY "Clients can view own business plans" ON public.business_plans
   FOR SELECT USING (
@@ -86,9 +84,7 @@ CREATE POLICY "Clients can view own business plans" ON public.business_plans
 
 -- Phases: admins full access, clients can view via plan ownership
 CREATE POLICY "Admins can manage all phases" ON public.business_plan_phases
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 CREATE POLICY "Clients can view own plan phases" ON public.business_plan_phases
   FOR SELECT USING (
@@ -101,9 +97,7 @@ CREATE POLICY "Clients can view own plan phases" ON public.business_plan_phases
 
 -- Items: admins full access, clients can view via phase->plan ownership
 CREATE POLICY "Admins can manage all plan items" ON public.business_plan_items
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 CREATE POLICY "Clients can view own plan items" ON public.business_plan_items
   FOR SELECT USING (
@@ -117,9 +111,7 @@ CREATE POLICY "Clients can view own plan items" ON public.business_plan_items
 
 -- Training links: admins full access, clients can view own
 CREATE POLICY "Admins can manage all training links" ON public.phase_training_links
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 CREATE POLICY "Clients can view own training links" ON public.phase_training_links
   FOR SELECT USING (
@@ -133,6 +125,4 @@ CREATE POLICY "Clients can view own training links" ON public.phase_training_lin
 
 -- Internal notes: admin-only (no client access)
 CREATE POLICY "Admins can manage all internal notes" ON public.internal_notes
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());

@@ -131,37 +131,43 @@ ALTER TABLE public.content_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.checkins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$;
+
 -- Users: can read own record, admins can read all
 CREATE POLICY "Users can view own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Admins can view all users" ON public.users
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR SELECT USING (public.is_admin());
 
 CREATE POLICY "Admins can update users" ON public.users
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR UPDATE USING (public.is_admin());
 
 -- Client profiles: clients see own, admins see all
 CREATE POLICY "Clients can view own profile" ON public.client_profiles
   FOR SELECT USING (user_id = auth.uid());
 
 CREATE POLICY "Admins can manage all client profiles" ON public.client_profiles
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Training modules: published visible to all authenticated, admins manage all
 CREATE POLICY "Authenticated users can view published modules" ON public.training_modules
   FOR SELECT USING (is_published = true AND auth.uid() IS NOT NULL);
 
 CREATE POLICY "Admins can manage all modules" ON public.training_modules
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Module content: visible if parent module is published
 CREATE POLICY "Users can view content of published modules" ON public.module_content
@@ -173,9 +179,7 @@ CREATE POLICY "Users can view content of published modules" ON public.module_con
   );
 
 CREATE POLICY "Admins can manage all content" ON public.module_content
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Client modules: clients see own, admins manage all
 CREATE POLICY "Clients can view own module assignments" ON public.client_modules
@@ -189,9 +193,7 @@ CREATE POLICY "Clients can update own module status" ON public.client_modules
   );
 
 CREATE POLICY "Admins can manage all module assignments" ON public.client_modules
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Content progress: clients manage own, admins see all
 CREATE POLICY "Clients can manage own progress" ON public.content_progress
@@ -200,9 +202,7 @@ CREATE POLICY "Clients can manage own progress" ON public.content_progress
   );
 
 CREATE POLICY "Admins can view all progress" ON public.content_progress
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR SELECT USING (public.is_admin());
 
 -- Check-ins: clients manage own, admins manage all
 CREATE POLICY "Clients can manage own checkins" ON public.checkins
@@ -211,9 +211,7 @@ CREATE POLICY "Clients can manage own checkins" ON public.checkins
   );
 
 CREATE POLICY "Admins can manage all checkins" ON public.checkins
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Notifications: users see own
 CREATE POLICY "Users can view own notifications" ON public.notifications
@@ -223,9 +221,7 @@ CREATE POLICY "Users can update own notifications" ON public.notifications
   FOR UPDATE USING (user_id = auth.uid());
 
 CREATE POLICY "Admins can manage all notifications" ON public.notifications
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- ============================================
 -- FUNCTION: Auto-create user record on signup

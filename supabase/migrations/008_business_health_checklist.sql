@@ -33,9 +33,7 @@ CREATE POLICY "Clients can manage own questionnaires" ON public.client_questionn
 
 DROP POLICY IF EXISTS "Admins can manage all questionnaires" ON public.client_questionnaires;
 CREATE POLICY "Admins can manage all questionnaires" ON public.client_questionnaires
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 INSERT INTO public.form_config (form_type, config) VALUES
 (

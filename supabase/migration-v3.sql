@@ -54,9 +54,7 @@ ALTER TABLE public.form_config ENABLE ROW LEVEL SECURITY;
 
 -- Admins can do everything
 CREATE POLICY "Admins can manage form config" ON public.form_config
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
 
 -- Clients can read config (needed to render check-in form)
 CREATE POLICY "Clients can read form config" ON public.form_config

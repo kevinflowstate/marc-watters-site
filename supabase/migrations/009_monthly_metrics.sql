@@ -43,6 +43,4 @@ CREATE POLICY "Clients can manage own monthly metrics" ON public.client_monthly_
 
 DROP POLICY IF EXISTS "Admins can manage all monthly metrics" ON public.client_monthly_metrics;
 CREATE POLICY "Admins can manage all monthly metrics" ON public.client_monthly_metrics
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());

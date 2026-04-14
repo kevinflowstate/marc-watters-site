@@ -21,6 +21,4 @@ ALTER TABLE public.client_invites ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins can manage client invites" ON public.client_invites;
 CREATE POLICY "Admins can manage client invites" ON public.client_invites
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR ALL USING (public.is_admin());
