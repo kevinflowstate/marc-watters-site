@@ -90,22 +90,13 @@ export default function ClientInboxClient() {
           Loading inbox...
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[linear-gradient(180deg,rgba(34,114,222,0.08),rgba(255,255,255,0.02))] px-5 py-4">
-            <div className="text-sm font-semibold text-text-primary">Conversation with Marc</div>
-            <div className="text-xs text-text-muted mt-1">
-              Use this space for questions, updates, blockers, or anything you need clarity on.
-            </div>
-          </div>
-
+        <div>
           <InboxThread
             messages={thread?.messages ?? []}
             currentRole="client"
             onSend={handleSend}
             sending={sending}
             error={error}
-            threadLabel="Marc Watters"
-            threadMeta="Direct support inside your portal"
             emptyTitle="Start the conversation"
             emptyDescription="If you need help, want to ask a question, or need clarity on your plan, send Marc a message here."
             composerPlaceholder="Message Marc..."
