@@ -179,6 +179,28 @@ export interface Notification {
   created_at: string;
 }
 
+export interface InboxMessage {
+  id: string;
+  client_id: string;
+  sender_user_id: string;
+  sender_role: "admin" | "client";
+  message: string;
+  read_by_admin: boolean;
+  read_by_client: boolean;
+  created_at: string;
+}
+
+export interface InboxConversation {
+  client_id: string;
+  client_name: string;
+  client_email: string;
+  business_name: string | null;
+  latest_message: string | null;
+  latest_message_at: string | null;
+  latest_sender_role: "admin" | "client" | null;
+  unread_count: number;
+}
+
 export type RecurrenceType = 'none' | 'weekly' | 'biweekly' | 'monthly';
 
 export interface CalendarEvent {
