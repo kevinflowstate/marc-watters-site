@@ -9,6 +9,8 @@ interface BusinessPlanBuilderProps {
   existingPlan?: BusinessPlan;
   onSave: (plan: BusinessPlan) => void;
   onCancel: () => void;
+  saving?: boolean;
+  error?: string | null;
 }
 
 function generateId() {
@@ -26,7 +28,14 @@ function createEmptyPhase(orderIndex: number): BusinessPlanPhase {
   };
 }
 
-export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, onCancel }: BusinessPlanBuilderProps) {
+export default function BusinessPlanBuilder({
+  clientId,
+  existingPlan,
+  onSave,
+  onCancel,
+  saving = false,
+  error = null,
+}: BusinessPlanBuilderProps) {
   const [summary, setSummary] = useState(existingPlan?.summary || "");
   const [phases, setPhases] = useState<BusinessPlanPhase[]>(
     existingPlan?.phases.length ? existingPlan.phases : [createEmptyPhase(0)]
@@ -146,21 +155,28 @@ export default function BusinessPlanBuilder({ clientId, existingPlan, onSave, on
           <div className="flex items-center gap-2">
             <button
               onClick={onCancel}
+              disabled={saving}
               className="px-4 py-2 text-xs font-medium text-text-muted hover:text-text-primary border border-[rgba(255,255,255,0.08)] rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              disabled={!summary.trim() || phases.length === 0}
+              disabled={saving || !summary.trim() || phases.length === 0}
               className="px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
             >
-              Save Plan
+              {saving ? "Saving..." : "Save Plan"}
             </button>
           </div>
         </div>
 
         <div className="p-6 space-y-6">
+          {error && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
           {/* Discovery Questions */}
           {bpConfig && bpConfig.questions.length > 0 && (
             <div>

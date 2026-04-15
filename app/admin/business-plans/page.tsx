@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { BusinessPlan, BusinessPlanPhase, TrafficLight } from "@/lib/types";
+import type { BusinessPlan, TrafficLight } from "@/lib/types";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
 
 interface PlanWithClient extends BusinessPlan {
@@ -32,6 +32,8 @@ export default function BusinessPlansPage() {
   const [builderClientId, setBuilderClientId] = useState<string | null>(null);
   const [builderPlan, setBuilderPlan] = useState<BusinessPlan | undefined>(undefined);
   const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planSaveError, setPlanSaveError] = useState<string | null>(null);
 
   async function loadData() {
     try {
@@ -50,37 +52,56 @@ export default function BusinessPlansPage() {
   useEffect(() => { loadData(); }, []);
 
   async function handleSavePlan(plan: BusinessPlan) {
-    // Complete existing active plan for this client if creating new
-    if (!builderPlan) {
-      const existingActive = plans.find(p => p.client_id === plan.client_id && p.status === "active");
-      if (existingActive) {
-        await fetch("/api/admin/business-plans", {
+    setPlanSaving(true);
+    setPlanSaveError(null);
+
+    try {
+      const existingActive = plans.find((p) => p.client_id === plan.client_id && p.status === "active" && p.id !== plan.id);
+
+      const saveRes = await fetch("/api/admin/business-plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+
+      if (!saveRes.ok) {
+        const data = await saveRes.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save business plan");
+      }
+
+      if (existingActive && !builderPlan) {
+        const completeRes = await fetch("/api/admin/business-plans", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "complete", plan_id: existingActive.id }),
         });
+
+        if (!completeRes.ok) {
+          const data = await completeRes.json().catch(() => ({}));
+          throw new Error(data.error || "Saved the new plan but failed to archive the previous active plan");
+        }
       }
+
+      setBuilderOpen(false);
+      setBuilderClientId(null);
+      setBuilderPlan(undefined);
+      await loadData();
+    } catch (err) {
+      setPlanSaveError(err instanceof Error ? err.message : "Failed to save business plan");
+    } finally {
+      setPlanSaving(false);
     }
-
-    await fetch("/api/admin/business-plans", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
-    });
-
-    setBuilderOpen(false);
-    setBuilderClientId(null);
-    setBuilderPlan(undefined);
-    await loadData();
   }
 
   function openCreateForClient(clientId: string) {
+    setPlanSaveError(null);
     setBuilderClientId(clientId);
     setBuilderPlan(undefined);
     setBuilderOpen(true);
   }
 
   function openEditPlan(plan: PlanWithClient) {
+    setPlanSaveError(null);
     setBuilderClientId(plan.client_id);
     setBuilderPlan(plan);
     setBuilderOpen(true);
@@ -408,7 +429,14 @@ export default function BusinessPlansPage() {
           clientId={builderClientId}
           existingPlan={builderPlan}
           onSave={handleSavePlan}
-          onCancel={() => { setBuilderOpen(false); setBuilderClientId(null); setBuilderPlan(undefined); }}
+          onCancel={() => {
+            setPlanSaveError(null);
+            setBuilderOpen(false);
+            setBuilderClientId(null);
+            setBuilderPlan(undefined);
+          }}
+          saving={planSaving}
+          error={planSaveError}
         />
       )}
     </>

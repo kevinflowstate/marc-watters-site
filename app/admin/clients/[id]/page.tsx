@@ -69,6 +69,8 @@ export default function ClientDetailPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [expandedHistoryPlan, setExpandedHistoryPlan] = useState<string | null>(null);
   const [builderMode, setBuilderMode] = useState<"closed" | "create" | "edit">("closed");
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planSaveError, setPlanSaveError] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [internalNotes, setInternalNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
@@ -256,29 +258,48 @@ export default function ClientDetailPage() {
   }
 
   async function handleSavePlan(plan: BusinessPlan) {
-    // If new plan, mark any active plan as completed first
-    const existingActive = plans.find((p) => p.status === "active" && p.id !== plan.id);
-    if (existingActive && !plans.find((p) => p.id === plan.id)) {
-      await fetch("/api/admin/business-plans", {
+    setPlanSaving(true);
+    setPlanSaveError(null);
+
+    try {
+      const existingActive = plans.find((p) => p.status === "active" && p.id !== plan.id);
+
+      const saveRes = await fetch("/api/admin/business-plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", plan_id: existingActive.id }),
+        body: JSON.stringify({ plan }),
       });
+
+      if (!saveRes.ok) {
+        const data = await saveRes.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save business plan");
+      }
+
+      // Only archive the previous active plan after the replacement has saved successfully.
+      if (existingActive && !plans.find((p) => p.id === plan.id)) {
+        const completeRes = await fetch("/api/admin/business-plans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "complete", plan_id: existingActive.id }),
+        });
+
+        if (!completeRes.ok) {
+          const data = await completeRes.json().catch(() => ({}));
+          throw new Error(data.error || "Saved the new plan but failed to archive the previous active plan");
+        }
+      }
+
+      await loadClient();
+      setBuilderMode("closed");
+    } catch (err) {
+      setPlanSaveError(err instanceof Error ? err.message : "Failed to save business plan");
+    } finally {
+      setPlanSaving(false);
     }
-
-    // Save the plan
-    await fetch("/api/admin/business-plans", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
-    });
-
-    // Refresh data
-    await loadClient();
-    setBuilderMode("closed");
   }
 
   function handleNewPlan() {
+    setPlanSaveError(null);
     setBuilderMode("create");
   }
 
@@ -800,7 +821,10 @@ export default function ClientDetailPage() {
               {activePlan ? (
                 <>
                   <button
-                    onClick={() => setBuilderMode("edit")}
+                    onClick={() => {
+                      setPlanSaveError(null);
+                      setBuilderMode("edit");
+                    }}
                     className="px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors inline-flex items-center gap-1.5"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -820,7 +844,7 @@ export default function ClientDetailPage() {
                 </>
               ) : (
                 <button
-                  onClick={() => setBuilderMode("create")}
+                  onClick={handleNewPlan}
                   className="px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1073,7 +1097,7 @@ export default function ClientDetailPage() {
               </div>
               <p className="text-sm text-text-muted mb-4">No active business plan for this client.</p>
               <button
-                onClick={() => setBuilderMode("create")}
+                onClick={handleNewPlan}
                 className="px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1379,7 +1403,12 @@ export default function ClientDetailPage() {
           clientId={client.id}
           existingPlan={builderMode === "edit" ? activePlan : undefined}
           onSave={handleSavePlan}
-          onCancel={() => setBuilderMode("closed")}
+          onCancel={() => {
+            setPlanSaveError(null);
+            setBuilderMode("closed");
+          }}
+          saving={planSaving}
+          error={planSaveError}
         />
       )}
     </>

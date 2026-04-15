@@ -394,19 +394,36 @@ export async function getRecentCheckins() {
 export async function savePlan(plan: BusinessPlan): Promise<{ error?: string }> {
   const admin = createAdminClient();
 
-  // Upsert the plan
-  const { error: planError } = await admin
+  const planPayload = {
+    id: plan.id,
+    client_id: plan.client_id,
+    summary: plan.summary,
+    status: plan.status,
+    created_at: plan.created_at,
+    completed_at: plan.completed_at || null,
+    discovery_answers: plan.discovery_answers || null,
+    pdf_url: plan.pdf_url || null,
+  };
+
+  // Some live environments still do not have business_plans.pdf_url. Retry without it
+  // so plan saves keep working while the schema catches up.
+  let { error: planError } = await admin
     .from("business_plans")
-    .upsert({
-      id: plan.id,
-      client_id: plan.client_id,
-      summary: plan.summary,
-      status: plan.status,
-      created_at: plan.created_at,
-      completed_at: plan.completed_at || null,
-      discovery_answers: plan.discovery_answers || null,
-      pdf_url: plan.pdf_url || null,
-    });
+    .upsert(planPayload);
+
+  if (planError?.message?.includes("pdf_url")) {
+    ({ error: planError } = await admin
+      .from("business_plans")
+      .upsert({
+        id: plan.id,
+        client_id: plan.client_id,
+        summary: plan.summary,
+        status: plan.status,
+        created_at: plan.created_at,
+        completed_at: plan.completed_at || null,
+        discovery_answers: plan.discovery_answers || null,
+      }));
+  }
 
   if (planError) return { error: planError.message };
 
