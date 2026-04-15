@@ -11,6 +11,9 @@ interface InboxThreadProps {
   error: string | null;
   emptyTitle: string;
   emptyDescription: string;
+  threadLabel?: string;
+  threadMeta?: string;
+  composerPlaceholder?: string;
 }
 
 function formatTime(timestamp: string) {
@@ -22,6 +25,33 @@ function formatTime(timestamp: string) {
   });
 }
 
+function formatDayLabel(timestamp: string) {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const sameDay =
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+
+  if (sameDay) return "Today";
+
+  const sameYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (sameYesterday) return "Yesterday";
+
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: today.getFullYear() === date.getFullYear() ? undefined : "numeric",
+  });
+}
+
 export default function InboxThread({
   messages,
   currentRole,
@@ -30,10 +60,30 @@ export default function InboxThread({
   error,
   emptyTitle,
   emptyDescription,
+  threadLabel,
+  threadMeta,
+  composerPlaceholder = "Write a message...",
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
 
-  const groupedMessages = useMemo(() => messages, [messages]);
+  const groupedMessages = useMemo(
+    () =>
+      messages.map((message, index) => {
+        const previous = messages[index - 1];
+        const showDayDivider =
+          !previous ||
+          new Date(previous.created_at).toDateString() !== new Date(message.created_at).toDateString();
+
+        return {
+          ...message,
+          showDayDivider,
+          dayLabel: showDayDivider ? formatDayLabel(message.created_at) : null,
+        };
+      }),
+    [messages],
+  );
+
+  const otherPartyLabel = currentRole === "admin" ? "Client" : "Marc";
 
   async function handleSubmit() {
     const trimmed = draft.trim();
@@ -51,6 +101,13 @@ export default function InboxThread({
 
   return (
     <div className="flex flex-col min-h-[32rem] rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden">
+      {(threadLabel || threadMeta) && (
+        <div className="border-b border-[rgba(255,255,255,0.05)] px-5 py-4 bg-[rgba(255,255,255,0.015)]">
+          {threadLabel && <div className="text-sm font-semibold text-text-primary">{threadLabel}</div>}
+          {threadMeta && <div className="text-xs text-text-muted mt-1">{threadMeta}</div>}
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
         {groupedMessages.length === 0 ? (
           <div className="h-full min-h-[18rem] flex flex-col items-center justify-center text-center px-6">
@@ -66,17 +123,30 @@ export default function InboxThread({
           groupedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
             return (
-              <div key={message.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                    isOwn
-                      ? "bg-accent/20 text-text-primary rounded-br-md"
-                      : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.05)] rounded-bl-md"
-                  }`}
-                >
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
-                  <div className={`mt-2 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
-                    {formatTime(message.created_at)}
+              <div key={message.id} className="space-y-4">
+                {message.showDayDivider && (
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-text-muted">{message.dayLabel}</div>
+                    <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
+                  </div>
+                )}
+
+                <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${
+                      isOwn
+                        ? "bg-[linear-gradient(180deg,rgba(34,114,222,0.22),rgba(34,114,222,0.14))] text-text-primary border border-[rgba(34,114,222,0.18)] rounded-br-md"
+                        : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.05)] rounded-bl-md"
+                    }`}
+                  >
+                    <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
+                      {isOwn ? "You" : otherPartyLabel}
+                    </div>
+                    <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
+                    <div className={`mt-2 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                      {formatTime(message.created_at)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -97,7 +167,7 @@ export default function InboxThread({
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder="Write a message..."
+            placeholder={composerPlaceholder}
             className="w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-4 py-3.5 pr-14 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors"
             style={{ minHeight: "52px", maxHeight: "140px" }}
           />
