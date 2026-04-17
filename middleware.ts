@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
   const path = request.nextUrl.pathname;
+  const isPortalRoot = hostname.startsWith('portal.') && path === '/';
 
   // Subdomain routing
   if (hostname.startsWith('calendar.')) {
@@ -12,14 +13,6 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = '/book-marc';
       return NextResponse.rewrite(url);
-    }
-  }
-
-  if (hostname.startsWith('portal.')) {
-    if (path === '/') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
     }
   }
 
@@ -64,16 +57,19 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect portal and admin routes
-  if ((path.startsWith('/portal') || path.startsWith('/admin')) && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('redirect', path);
-    return NextResponse.redirect(url);
-  }
+  let role: string | undefined;
+  const requiresPasswordSetup = user?.user_metadata?.requires_password_setup === true;
 
-  // Role-based routing: admin sees admin, client sees portal, never cross
-  if ((path.startsWith('/admin') || path.startsWith('/portal')) && user) {
+  const needsRoleLookup =
+    !!user &&
+    (
+      path === '/login' ||
+      isPortalRoot ||
+      path.startsWith('/portal') ||
+      path.startsWith('/admin')
+    );
+
+  if (needsRoleLookup) {
     // Use service role key to bypass RLS for role lookup
     const adminSupabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -92,9 +88,41 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    const role = profile?.role;
-    const requiresPasswordSetup = user.user_metadata?.requires_password_setup === true;
+    role = profile?.role;
+  }
 
+  if (isPortalRoot) {
+    const url = request.nextUrl.clone();
+    url.pathname = !user ? '/login' : role === 'admin' ? '/admin' : '/portal';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  if (path === '/login' && user) {
+    const requestedRedirect = request.nextUrl.searchParams.get('redirect');
+    const safeRedirect =
+      requestedRedirect &&
+      requestedRedirect.startsWith('/') &&
+      !requestedRedirect.startsWith('//')
+        ? requestedRedirect
+        : null;
+
+    const url = request.nextUrl.clone();
+    url.pathname = role === 'admin' ? '/admin' : safeRedirect || '/portal';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  // Protect portal and admin routes
+  if ((path.startsWith('/portal') || path.startsWith('/admin')) && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirect', path);
+    return NextResponse.redirect(url);
+  }
+
+  // Role-based routing: admin sees admin, client sees portal, never cross
+  if ((path.startsWith('/admin') || path.startsWith('/portal')) && user) {
     // First-login enforcement for clients created without a password
     if (path.startsWith('/portal') && role !== 'admin' && requiresPasswordSetup) {
       const isSettingsPage = path.startsWith('/portal/settings');
