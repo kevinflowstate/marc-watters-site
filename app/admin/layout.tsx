@@ -1,6 +1,7 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminMobileNav from "@/components/admin/AdminMobileNav";
 import AdminBackground from "@/components/admin/AdminBackground";
+import PushNotificationBanner from "@/components/portal/PushNotificationBanner";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata = {
@@ -15,6 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <AdminSidebar />
         <main className="lg:ml-[260px] min-h-screen pb-16 lg:pb-0 relative z-[1]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <PushNotificationBanner />
             {children}
           </div>
         </main>

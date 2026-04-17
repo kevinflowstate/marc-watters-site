@@ -5,10 +5,11 @@ export async function sendPushToUser(
   userId: string,
   notification: { title: string; body?: string; url?: string; tag?: string }
 ): Promise<{ sent: number; failed: number }> {
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY;
   const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
   if (!vapidPublicKey || !vapidPrivateKey) {
+    console.error("Push notification skipped because VAPID keys are not configured.");
     return { sent: 0, failed: 0 };
   }
 

@@ -17,6 +17,20 @@ async function persistSubscription(subscription: PushSubscription) {
   });
 }
 
+async function getPublicVapidKey() {
+  if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+    return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  }
+
+  const response = await fetch("/api/push/public-key", { cache: "no-store" });
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => ({}));
+  return typeof data.publicKey === "string" && data.publicKey ? data.publicKey : null;
+}
+
 async function ensureServiceWorkerRegistration() {
   if (!("serviceWorker" in navigator)) {
     return null;
@@ -40,6 +54,9 @@ export function usePush() {
     return "default";
   });
   const [subscribed, setSubscribed] = useState(false);
+  const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null,
+  );
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -66,6 +83,20 @@ export function usePush() {
       });
   }, []);
 
+  useEffect(() => {
+    if (vapidPublicKey) return;
+
+    getPublicVapidKey()
+      .then((key) => {
+        if (key) {
+          setVapidPublicKey(key);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load public VAPID key", error);
+      });
+  }, [vapidPublicKey]);
+
   const subscribe = useCallback(async () => {
     try {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -77,9 +108,13 @@ export function usePush() {
       if (perm !== "granted") return false;
 
       const reg = await ensureServiceWorkerRegistration();
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const vapidKey = vapidPublicKey ?? await getPublicVapidKey();
 
       if (!reg || !vapidKey) return false;
+
+      if (vapidKey !== vapidPublicKey) {
+        setVapidPublicKey(vapidKey);
+      }
 
       const existingSub = await reg.pushManager.getSubscription();
       const sub =
@@ -97,7 +132,7 @@ export function usePush() {
       setSubscribed(false);
       return false;
     }
-  }, []);
+  }, [vapidPublicKey]);
 
   return { permission, subscribed, subscribe };
 }

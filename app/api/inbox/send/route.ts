@@ -58,45 +58,54 @@ export async function POST(request: Request) {
   }
 
   const notificationUserId = viewer.role === "admin" ? clientProfile.user_id : null;
-  let adminRecipientId: string | null = null;
+  let adminRecipientIds: string[] = [];
 
   if (viewer.role === "client") {
-    const { data: adminUser } = await admin
+    const { data: adminUsers } = await admin
       .from("users")
       .select("id")
       .eq("role", "admin")
       .order("created_at", { ascending: true })
-      .limit(1)
-      .single<{ id: string }>();
-    adminRecipientId = adminUser?.id ?? null;
+      .returns<Array<{ id: string }>>();
+
+    adminRecipientIds = (adminUsers ?? []).map((user) => user.id);
   }
 
-  const recipientUserId = viewer.role === "admin" ? notificationUserId : adminRecipientId;
+  const recipientUserIds =
+    viewer.role === "admin"
+      ? (notificationUserId ? [notificationUserId] : [])
+      : adminRecipientIds;
 
-  if (recipientUserId) {
+  if (recipientUserIds.length > 0) {
     const title =
       viewer.role === "admin"
         ? "New inbox message from Marc"
         : `New inbox message from ${clientProfile.business_name || viewer.fullName}`;
     const link = viewer.role === "admin" ? "/portal/inbox" : `/admin/inbox?client=${clientProfile.id}`;
 
-    await admin.from("notifications").insert({
-      user_id: recipientUserId,
-      title,
-      message: trimmed.slice(0, 200),
-      link,
-    });
-
-    try {
-      await sendPushToUser(recipientUserId, {
+    await admin.from("notifications").insert(
+      recipientUserIds.map((userId) => ({
+        user_id: userId,
         title,
-        body: trimmed.slice(0, 140),
-        url: link,
-        tag: viewer.role === "admin" ? "inbox-from-marc" : `inbox-${clientProfile.id}`,
-      });
-    } catch (pushError) {
-      console.error("Failed to send inbox push notification:", pushError);
-    }
+        message: trimmed.slice(0, 200),
+        link,
+      })),
+    );
+
+    await Promise.all(
+      recipientUserIds.map(async (userId) => {
+        try {
+          await sendPushToUser(userId, {
+            title,
+            body: trimmed.slice(0, 140),
+            url: link,
+            tag: viewer.role === "admin" ? "inbox-from-marc" : `inbox-${clientProfile.id}`,
+          });
+        } catch (pushError) {
+          console.error("Failed to send inbox push notification:", pushError);
+        }
+      }),
+    );
   }
 
   return NextResponse.json({ message: row });
