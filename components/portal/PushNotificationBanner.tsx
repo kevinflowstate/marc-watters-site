@@ -125,7 +125,7 @@ export default function PushNotificationBanner() {
   }
 
   // Push notification banner
-  if (dismissed || permission === "granted" || subscribed) {
+  if (dismissed || subscribed) {
     return null;
   }
 
@@ -146,7 +146,9 @@ export default function PushNotificationBanner() {
           />
         </svg>
         <p className="text-sm text-text-muted">
-          Enable notifications to get check-in reminders and updates.
+          {permission === "granted"
+            ? "Finish enabling notifications so check-in reminders and updates can reach this device."
+            : "Enable notifications to get check-in reminders and updates."}
         </p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
