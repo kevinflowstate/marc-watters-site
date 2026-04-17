@@ -19,7 +19,7 @@ async function persistSubscription(subscription: PushSubscription) {
 
 async function getPublicVapidKey() {
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
-    return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY.replace(/\\n/g, "").trim();
   }
 
   const response = await fetch("/api/push/public-key", { cache: "no-store" });
@@ -28,7 +28,7 @@ async function getPublicVapidKey() {
   }
 
   const data = await response.json().catch(() => ({}));
-  return typeof data.publicKey === "string" && data.publicKey ? data.publicKey : null;
+  return typeof data.publicKey === "string" && data.publicKey ? data.publicKey.replace(/\\n/g, "").trim() : null;
 }
 
 async function ensureServiceWorkerRegistration() {
@@ -55,7 +55,7 @@ export function usePush() {
   });
   const [subscribed, setSubscribed] = useState(false);
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.replace(/\\n/g, "").trim() ?? null,
   );
 
   useEffect(() => {

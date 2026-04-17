@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getEnv } from '@/lib/env';
 
 
 export async function middleware(request: NextRequest) {
@@ -32,8 +33,8 @@ export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    getEnv('NEXT_PUBLIC_SUPABASE_URL')!,
+    getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')!,
     {
       cookies: {
         getAll() {
@@ -72,8 +73,8 @@ export async function middleware(request: NextRequest) {
   if (needsRoleLookup) {
     // Use service role key to bypass RLS for role lookup
     const adminSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      getEnv('NEXT_PUBLIC_SUPABASE_URL')!,
+      getEnv('SUPABASE_SERVICE_ROLE_KEY')!,
       {
         cookies: {
           getAll() { return []; },

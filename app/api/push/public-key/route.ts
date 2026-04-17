@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { getEnv } from "@/lib/env";
 
 export async function GET() {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || null;
+  const publicKey = getEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY") || getEnv("VAPID_PUBLIC_KEY") || null;
 
   return NextResponse.json(
     { publicKey },
