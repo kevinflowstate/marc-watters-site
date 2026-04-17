@@ -17,6 +17,21 @@ async function persistSubscription(subscription: PushSubscription) {
   });
 }
 
+async function ensureServiceWorkerRegistration() {
+  if (!("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  const existingRegistration = await navigator.serviceWorker.getRegistration();
+
+  if (existingRegistration) {
+    existingRegistration.update().catch(() => {});
+    return existingRegistration;
+  }
+
+  return navigator.serviceWorker.register("/sw.js", { scope: "/" });
+}
+
 export function usePush() {
   const [permission, setPermission] = useState<NotificationPermission>(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -27,9 +42,15 @@ export function usePush() {
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
-    // Check if already subscribed
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then(async (reg) => {
+    if (!("serviceWorker" in navigator)) return;
+
+    ensureServiceWorkerRegistration()
+      .then(async (reg) => {
+        if (!reg) {
+          setSubscribed(false);
+          return;
+        }
+
         const sub = await reg.pushManager.getSubscription();
         if (!sub) {
           setSubscribed(false);
@@ -38,38 +59,44 @@ export function usePush() {
 
         const res = await persistSubscription(sub);
         setSubscribed(res.ok);
+      })
+      .catch((error) => {
+        console.error("Failed to initialise push subscription state", error);
+        setSubscribed(false);
       });
-    }
   }, []);
 
   const subscribe = useCallback(async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        return false;
+      }
+
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== "granted") return false;
+
+      const reg = await ensureServiceWorkerRegistration();
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!reg || !vapidKey) return false;
+
+      const existingSub = await reg.pushManager.getSubscription();
+      const sub =
+        existingSub ||
+        await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+
+      const res = await persistSubscription(sub);
+      setSubscribed(res.ok);
+      return res.ok;
+    } catch (error) {
+      console.error("Failed to enable push notifications", error);
+      setSubscribed(false);
       return false;
     }
-
-    const perm = await Notification.requestPermission();
-    setPermission(perm);
-    if (perm !== "granted") return false;
-
-    const reg = await navigator.serviceWorker.ready;
-    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapidKey) return false;
-
-    const existingSub = await reg.pushManager.getSubscription();
-    const sub =
-      existingSub ||
-      await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
-
-    const res = await persistSubscription(sub);
-
-    if (res.ok) {
-      setSubscribed(true);
-      return true;
-    }
-    return false;
   }, []);
 
   return { permission, subscribed, subscribe };

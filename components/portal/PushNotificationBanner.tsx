@@ -34,11 +34,20 @@ export default function PushNotificationBanner() {
   });
   const [loading, setLoading] = useState(false);
   const [standalone] = useState(() => isStandalone());
+  const [error, setError] = useState<string | null>(null);
 
   const handleEnable = async () => {
+    setError(null);
     setLoading(true);
-    await subscribe();
-    setLoading(false);
+
+    try {
+      const success = await subscribe();
+      if (!success) {
+        setError("Notification setup could not finish on this device yet. Close and reopen the app, then try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const [showManual, setShowManual] = useState(false);
@@ -150,6 +159,11 @@ export default function PushNotificationBanner() {
             ? "Finish enabling notifications so check-in reminders and updates can reach this device."
             : "Enable notifications to get check-in reminders and updates."}
         </p>
+        {error && (
+          <p className="text-xs text-[#f0b57a]">
+            {error}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
