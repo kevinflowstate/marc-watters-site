@@ -56,8 +56,6 @@ export default function BusinessPlansPage() {
     setPlanSaveError(null);
 
     try {
-      const existingActive = plans.find((p) => p.client_id === plan.client_id && p.status === "active" && p.id !== plan.id);
-
       const saveRes = await fetch("/api/admin/business-plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,19 +65,6 @@ export default function BusinessPlansPage() {
       if (!saveRes.ok) {
         const data = await saveRes.json().catch(() => ({}));
         throw new Error(data.error || "Failed to save business plan");
-      }
-
-      if (existingActive && !builderPlan) {
-        const completeRes = await fetch("/api/admin/business-plans", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "complete", plan_id: existingActive.id }),
-        });
-
-        if (!completeRes.ok) {
-          const data = await completeRes.json().catch(() => ({}));
-          throw new Error(data.error || "Saved the new plan but failed to archive the previous active plan");
-        }
       }
 
       setBuilderOpen(false);

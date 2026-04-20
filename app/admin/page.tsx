@@ -217,8 +217,8 @@ export default function AdminDashboard() {
             {clients.map((client) => {
               const sl = statusLabel[client.status];
               const isExpanded = expandedClient === client.id;
-              const activePlan = client.business_plan.find((p) => p.status === "active");
-              const allItems = activePlan?.phases.flatMap((ph) => ph.items) || [];
+              const activePlans = client.business_plan.filter((p) => p.status === "active");
+              const allItems = activePlans.flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
               const planTotal = allItems.length;
               const planDone = allItems.filter((p) => p.completed).length;
               const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
@@ -449,9 +449,9 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
   const amberClients = clients.filter(c => c.status === "amber");
   const unrepliedCheckins = recentCheckins.filter(c => !c.admin_reply);
   const stalledClients = clients.filter(c => {
-    const activePlan = c.business_plan.find(p => p.status === "active");
-    if (!activePlan) return false;
-    const items = activePlan.phases.flatMap(ph => ph.items);
+    const activePlans = c.business_plan.filter(p => p.status === "active");
+    if (activePlans.length === 0) return false;
+    const items = activePlans.flatMap((plan) => plan.phases.flatMap(ph => ph.items));
     const total = items.length;
     const done = items.filter(i => i.completed).length;
     return total > 0 && (done / total) < 0.3 && c.current_week > 4;
@@ -488,8 +488,9 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
   }
 
   for (const c of stalledClients) {
-    const activePlan = c.business_plan.find(p => p.status === "active");
-    const items = activePlan!.phases.flatMap(ph => ph.items);
+    const items = c.business_plan
+      .filter((plan) => plan.status === "active")
+      .flatMap((plan) => plan.phases.flatMap(ph => ph.items));
     const pct = Math.round((items.filter(i => i.completed).length / items.length) * 100);
     insights.push({ id: `plan-${c.id}`, icon: "plan", text: `${c.name}'s plan is only ${pct}% complete at week ${c.current_week}`, action: { type: "view-plan", clientId: c.id } });
   }
