@@ -205,7 +205,7 @@ export default function BusinessPlansPage() {
                         <span className="text-sm font-semibold text-text-primary">{plan.client_name}</span>
                         <span className="text-[10px] text-text-muted">({plan.client_business})</span>
                       </div>
-                      <p className="text-xs text-text-muted truncate max-w-lg">{plan.summary}</p>
+                      <p className="text-xs text-text-muted max-w-lg whitespace-pre-line line-clamp-2">{plan.summary}</p>
                     </div>
                   </div>
 

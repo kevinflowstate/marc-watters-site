@@ -905,7 +905,7 @@ export default function ClientDetailPage() {
                                 Created {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                               </span>
                             </div>
-                            <p className="text-text-secondary text-sm leading-relaxed mt-2">{plan.summary}</p>
+                            <p className="text-text-secondary text-sm leading-relaxed mt-2 whitespace-pre-line">{plan.summary}</p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                             <div className="flex items-center gap-2 mr-1">
@@ -987,7 +987,7 @@ export default function ClientDetailPage() {
                                 <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-3">
                                   {phase.notes && (
                                     <div className="py-3 border-b border-[rgba(255,255,255,0.03)] mb-1">
-                                      <p className="text-xs text-text-muted leading-relaxed italic">{phase.notes}</p>
+                                      <p className="text-xs text-text-muted leading-relaxed italic whitespace-pre-line">{phase.notes}</p>
                                     </div>
                                   )}
 
@@ -1106,7 +1106,7 @@ export default function ClientDetailPage() {
                                   </svg>
                                 </div>
                               </div>
-                              <p className="text-xs text-text-muted leading-relaxed mb-1">{plan.summary}</p>
+                              <p className="text-xs text-text-muted leading-relaxed mb-1 whitespace-pre-line">{plan.summary}</p>
                               <div className="text-[10px] text-text-muted">
                                 {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
                               </div>
@@ -1124,7 +1124,7 @@ export default function ClientDetailPage() {
                                         <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
                                       </div>
                                       {phase.notes && (
-                                        <p className="text-[11px] text-text-muted italic mb-1.5">{phase.notes}</p>
+                                        <p className="text-[11px] text-text-muted italic mb-1.5 whitespace-pre-line">{phase.notes}</p>
                                       )}
                                       {phase.items.map((item) => (
                                         <div key={item.id} className="flex items-center gap-2 py-1 px-1">
@@ -1215,7 +1215,7 @@ export default function ClientDetailPage() {
                               </svg>
                             </div>
                           </div>
-                          <p className="text-xs text-text-muted leading-relaxed mb-1">{plan.summary}</p>
+                          <p className="text-xs text-text-muted leading-relaxed mb-1 whitespace-pre-line">{plan.summary}</p>
                           <div className="text-[10px] text-text-muted">
                             {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
                           </div>
@@ -1232,7 +1232,7 @@ export default function ClientDetailPage() {
                                     <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
                                   </div>
                                   {phase.notes && (
-                                    <p className="text-[11px] text-text-muted italic mb-1.5">{phase.notes}</p>
+                                    <p className="text-[11px] text-text-muted italic mb-1.5 whitespace-pre-line">{phase.notes}</p>
                                   )}
                                   {phase.items.map((item) => (
                                     <div key={item.id} className="flex items-center gap-2 py-1 px-1">

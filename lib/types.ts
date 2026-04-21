@@ -213,6 +213,7 @@ export interface CalendarEvent {
   recurrence_day?: number;
   link?: string;
   link_label?: string;
+  attachments?: Attachment[];
   is_active: boolean;
   created_at: string;
 }

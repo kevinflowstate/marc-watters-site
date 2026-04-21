@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   // Look up the client's email: checkin -> client_profile -> user
   const { data: checkin } = await admin
     .from("checkins")
-    .select("client_id")
+    .select("client_id, week_number")
     .eq("id", checkin_id)
     .single();
 
@@ -65,9 +65,9 @@ export async function POST(request: Request) {
       // Insert notification for the client
       await admin.from("notifications").insert({
         user_id: clientProfile.user_id,
-        title: "New reply from Marc",
+        title: `Marc replied to your Week ${checkin.week_number} check-in`,
         message: reply_text.trim().slice(0, 200),
-        link: "/portal",
+        link: `/portal/checkins/${checkin_id}`,
       });
 
       // Send email

@@ -1,3 +1,4 @@
+import { normalizeAttachments } from "@/lib/attachments";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json();
-  const { title, description, event_date, event_time, recurrence, recurrence_day, link, link_label } = body;
+  const { title, description, event_date, event_time, recurrence, recurrence_day, link, link_label, attachments } = body;
 
   if (!title?.trim() || !event_date || !event_time) {
     return NextResponse.json({ error: "title, event_date, and event_time are required" }, { status: 400 });
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       recurrence_day: recurrence_day ?? null,
       link: link?.trim() || null,
       link_label: link_label?.trim() || null,
+      attachments: normalizeAttachments(attachments),
       is_active: true,
     })
     .select()
@@ -65,10 +67,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
+  const normalizedUpdates: Record<string, unknown> = {
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+  if (updates.attachments !== undefined) {
+    normalizedUpdates.attachments = normalizeAttachments(updates.attachments);
+  }
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("calendar_events")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(normalizedUpdates)
     .eq("id", id)
     .select()
     .single();

@@ -504,7 +504,12 @@ function BriefingBanner({
     const replyDate = new Date(latestReply.replied_at);
     const daysDiff = Math.floor((currentTime - replyDate.getTime()) / (1000 * 60 * 60 * 24));
     if (daysDiff <= 3) {
-      items.push({ icon: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z", text: "Marc replied to your latest check-in", accent: true });
+      items.push({
+        icon: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z",
+        text: "Marc replied to your latest check-in",
+        href: `/portal/checkins/${latestReply.id}`,
+        accent: true,
+      });
     }
   }
 

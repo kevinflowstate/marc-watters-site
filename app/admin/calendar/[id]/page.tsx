@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import type { CalendarEvent, RecurrenceType } from "@/lib/types";
+import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
+import type { Attachment, CalendarEvent, RecurrenceType } from "@/lib/types";
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -21,12 +22,14 @@ export default function EventEditorPage() {
   const [recurrenceDay, setRecurrenceDay] = useState(0);
   const [link, setLink] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isActive, setIsActive] = useState(true);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -45,6 +48,7 @@ export default function EventEditorPage() {
             setRecurrenceDay(found.recurrence_day ?? 0);
             setLink(found.link || "");
             setLinkLabel(found.link_label || "");
+            setAttachments(found.attachments || []);
             setIsActive(found.is_active);
           }
         }
@@ -57,6 +61,30 @@ export default function EventEditorPage() {
     load();
   }, [id]);
 
+  async function uploadAttachments(files: FileList | File[]): Promise<Attachment[]> {
+    const uploaded: Attachment[] = [];
+
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "plan-documents");
+
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("upload_failed");
+
+      const data = await res.json();
+      uploaded.push({
+        id: crypto.randomUUID(),
+        name: data.fileName || file.name,
+        url: data.url,
+        type: guessAttachmentType(file.name, file.type),
+        size: formatFileSize(file.size),
+      });
+    }
+
+    return uploaded;
+  }
+
   async function saveField(updates: Partial<CalendarEvent>) {
     setSaving(true);
     try {
@@ -65,6 +93,7 @@ export default function EventEditorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...updates }),
       });
+      setEvent((prev) => (prev ? { ...prev, ...updates } : prev));
     } catch {
       // Silently fail
     } finally {
@@ -162,7 +191,7 @@ export default function EventEditorPage() {
             </div>
           ) : (
             <div className="group flex items-start gap-2 mb-4">
-              <p className="text-sm text-text-secondary leading-relaxed">{description || "No description"}</p>
+              <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{description || "No description"}</p>
               <button onClick={() => setEditingDesc(true)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-muted hover:text-accent-bright flex-shrink-0 mt-0.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -226,6 +255,65 @@ export default function EventEditorPage() {
             <a href={link} target="_blank" rel="noopener noreferrer" className="text-xs text-accent-bright hover:text-accent-light transition-colors truncate no-underline">{link}</a>
           </div>
         )}
+      </div>
+
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-6">
+        <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Attachments</h2>
+        <div className="space-y-3">
+          <input
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+            onChange={async (e) => {
+              const files = e.target.files;
+              if (!files?.length) return;
+              setUploadingAttachments(true);
+              try {
+                const uploaded = await uploadAttachments(files);
+                const nextAttachments = [...attachments, ...uploaded];
+                setAttachments(nextAttachments);
+                await saveField({ attachments: nextAttachments });
+              } finally {
+                setUploadingAttachments(false);
+                e.target.value = "";
+              }
+            }}
+            className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+          />
+          {uploadingAttachments && <p className="text-xs text-text-muted">Uploading...</p>}
+          {attachments.length === 0 ? (
+            <p className="text-sm text-text-muted">No attachments yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {attachments.map((attachment) => (
+                <div key={attachment.id} className="flex items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.04)] bg-bg-primary px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block truncate text-sm text-accent-bright no-underline hover:text-accent-light"
+                    >
+                      {attachment.name}
+                    </a>
+                    {attachment.size && <div className="text-xs text-text-muted">{attachment.size}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const nextAttachments = attachments.filter((item) => item.id !== attachment.id);
+                      setAttachments(nextAttachments);
+                      await saveField({ attachments: nextAttachments });
+                    }}
+                    className="text-xs text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Danger zone */}

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import type { CalendarEvent, RecurrenceType } from "@/lib/types";
+import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
+import type { Attachment, CalendarEvent, RecurrenceType } from "@/lib/types";
 
 const recurrenceLabels: Record<RecurrenceType, { label: string; color: string }> = {
   none: { label: "One-off", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
@@ -95,6 +96,8 @@ export default function AdminCalendarPage() {
   const [newRecurrenceDay, setNewRecurrenceDay] = useState(0);
   const [newLink, setNewLink] = useState("");
   const [newLinkLabel, setNewLinkLabel] = useState("");
+  const [newAttachments, setNewAttachments] = useState<Attachment[]>([]);
+  const [uploadingNewAttachments, setUploadingNewAttachments] = useState(false);
 
   const loadEvents = useCallback(async () => {
     try {
@@ -110,6 +113,30 @@ export default function AdminCalendarPage() {
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
 
+  async function uploadAttachments(files: FileList | File[]): Promise<Attachment[]> {
+    const uploaded: Attachment[] = [];
+
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "plan-documents");
+
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("upload_failed");
+
+      const data = await res.json();
+      uploaded.push({
+        id: crypto.randomUUID(),
+        name: data.fileName || file.name,
+        url: data.url,
+        type: guessAttachmentType(file.name, file.type),
+        size: formatFileSize(file.size),
+      });
+    }
+
+    return uploaded;
+  }
+
   async function handleCreate() {
     if (!newTitle.trim() || !newDate || !newTime) return;
     setSaving(true);
@@ -123,12 +150,13 @@ export default function AdminCalendarPage() {
           recurrence: newRecurrence,
           recurrence_day: newRecurrence !== "none" ? newRecurrenceDay : null,
           link: newLink, link_label: newLinkLabel,
+          attachments: newAttachments,
         }),
       });
       if (res.ok) {
         setShowAdd(false);
         setNewTitle(""); setNewDesc(""); setNewDate(""); setNewTime("19:00");
-        setNewRecurrence("none"); setNewRecurrenceDay(0); setNewLink(""); setNewLinkLabel("");
+        setNewRecurrence("none"); setNewRecurrenceDay(0); setNewLink(""); setNewLinkLabel(""); setNewAttachments([]);
         loadEvents();
       }
     } catch { /* */ } finally { setSaving(false); }
@@ -330,16 +358,37 @@ export default function AdminCalendarPage() {
           ) : (
             <div className="space-y-2">
               {selectedEvents.map((ev) => (
-                <div key={ev.id} className="flex items-center justify-between bg-bg-primary/50 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-3">
+                <div key={ev.id} className="flex items-start justify-between gap-4 bg-bg-primary/50 rounded-xl px-4 py-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
                     <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
                       <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-text-primary">{ev.title}</div>
                       <div className="text-xs text-text-muted">{formatTime(ev.event_time)}</div>
+                      {ev.description && (
+                        <p className="mt-1 text-xs text-text-secondary whitespace-pre-line">{ev.description}</p>
+                      )}
+                      {ev.attachments && ev.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {ev.attachments.map((attachment) => (
+                            <a
+                              key={attachment.id}
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-2.5 py-1 text-[11px] text-text-secondary no-underline hover:text-text-primary hover:border-[rgba(255,255,255,0.14)]"
+                            >
+                              <svg className="h-3.5 w-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                              </svg>
+                              <span className="truncate max-w-[180px]">{attachment.name}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -387,6 +436,11 @@ export default function AdminCalendarPage() {
                     {formatTime(event.event_time)}
                     {event.recurrence !== "none" && ` - Every ${event.recurrence === "biweekly" ? "other " : ""}${dayNamesFull[event.recurrence_day ?? new Date(event.event_date).getDay()]}`}
                   </div>
+                  {event.attachments && event.attachments.length > 0 && (
+                    <div className="text-[11px] text-text-muted mt-1">
+                      {event.attachments.length} attachment{event.attachments.length !== 1 ? "s" : ""}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -461,10 +515,53 @@ export default function AdminCalendarPage() {
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">Link Label</label>
                 <input type="text" value={newLinkLabel} onChange={(e) => setNewLinkLabel(e.target.value)} placeholder="e.g. Join Zoom" className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40" />
               </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Attachments</label>
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files?.length) return;
+                      setUploadingNewAttachments(true);
+                      try {
+                        const uploaded = await uploadAttachments(files);
+                        setNewAttachments((prev) => [...prev, ...uploaded]);
+                      } finally {
+                        setUploadingNewAttachments(false);
+                        e.target.value = "";
+                      }
+                    }}
+                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+                  />
+                  {uploadingNewAttachments && <p className="text-xs text-text-muted">Uploading...</p>}
+                  {newAttachments.length > 0 && (
+                    <div className="space-y-2">
+                      {newAttachments.map((attachment) => (
+                        <div key={attachment.id} className="flex items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-primary px-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm text-text-primary">{attachment.name}</div>
+                            {attachment.size && <div className="text-xs text-text-muted">{attachment.size}</div>}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setNewAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
+                            className="text-xs text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer">Cancel</button>
-              <button onClick={handleCreate} disabled={saving || !newTitle.trim() || !newDate} className="flex-1 px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer">
+              <button onClick={handleCreate} disabled={saving || uploadingNewAttachments || !newTitle.trim() || !newDate} className="flex-1 px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer">
                 {saving ? "Creating..." : "Create Event"}
               </button>
             </div>

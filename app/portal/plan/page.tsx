@@ -226,7 +226,7 @@ export default function BusinessPlanPage() {
             </a>
           )}
         </div>
-        <p className="text-text-secondary mt-2 leading-relaxed max-w-3xl">{plan.summary}</p>
+        <p className="text-text-secondary mt-2 leading-relaxed max-w-3xl whitespace-pre-line">{plan.summary}</p>
       </div>
 
       {/* Progress overview */}
@@ -279,7 +279,7 @@ export default function BusinessPlanPage() {
                 {phase.notes && (
                   <div className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl p-4">
                     <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-2">Notes from Marc</div>
-                    <p className="text-sm text-text-secondary leading-relaxed">{phase.notes}</p>
+                    <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{phase.notes}</p>
                   </div>
                 )}
 
