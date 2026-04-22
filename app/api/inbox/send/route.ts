@@ -1,4 +1,5 @@
 import { getInboxViewer } from "@/lib/inbox-server";
+import { normalizeAttachments } from "@/lib/attachments";
 import { sendPushToUser } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
@@ -10,11 +11,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { client_id, message } = await request.json().catch(() => ({}));
+  const { client_id, message, attachments } = await request.json().catch(() => ({}));
   const trimmed = typeof message === "string" ? message.trim() : "";
+  const normalizedAttachments = normalizeAttachments(attachments);
 
-  if (!trimmed) {
-    return NextResponse.json({ error: "message is required" }, { status: 400 });
+  if (!trimmed && normalizedAttachments.length === 0) {
+    return NextResponse.json({ error: "message or attachment is required" }, { status: 400 });
+  }
+
+  if (viewer.role !== "admin" && normalizedAttachments.length > 0) {
+    return NextResponse.json({ error: "Only admins can send attachments right now" }, { status: 403 });
   }
 
   const admin = createAdminClient();
@@ -43,6 +49,7 @@ export async function POST(request: Request) {
     sender_user_id: viewer.userId,
     sender_role: viewer.role,
     message: trimmed,
+    attachments: normalizedAttachments,
     read_by_admin: viewer.role === "admin",
     read_by_client: viewer.role === "client",
   };
@@ -77,6 +84,11 @@ export async function POST(request: Request) {
       : adminRecipientIds;
 
   if (recipientUserIds.length > 0) {
+    const preview =
+      trimmed ||
+      (normalizedAttachments.length === 1
+        ? `Attachment: ${normalizedAttachments[0].name}`
+        : `Sent ${normalizedAttachments.length} attachments`);
     const title =
       viewer.role === "admin"
         ? "New inbox message from Marc"
@@ -87,7 +99,7 @@ export async function POST(request: Request) {
       recipientUserIds.map((userId) => ({
         user_id: userId,
         title,
-        message: trimmed.slice(0, 200),
+        message: preview.slice(0, 200),
         link,
       })),
     );
@@ -97,7 +109,7 @@ export async function POST(request: Request) {
         try {
           await sendPushToUser(userId, {
             title,
-            body: trimmed.slice(0, 140),
+            body: preview.slice(0, 140),
             url: link,
             tag: viewer.role === "admin" ? "inbox-from-marc" : `inbox-${clientProfile.id}`,
           });
@@ -108,5 +120,10 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ message: row });
+  return NextResponse.json({
+    message: {
+      ...row,
+      attachments: normalizeAttachments(row?.attachments),
+    },
+  });
 }

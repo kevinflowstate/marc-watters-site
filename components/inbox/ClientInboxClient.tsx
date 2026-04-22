@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { InboxMessage } from "@/lib/types";
 import InboxThread from "@/components/inbox/InboxThread";
 import { useToast } from "@/components/ui/Toast";
+import type { Attachment, InboxMessage } from "@/lib/types";
 
 interface ThreadResponse {
   clientId: string;
@@ -11,6 +11,11 @@ interface ThreadResponse {
   clientEmail: string;
   businessName: string | null;
   messages: InboxMessage[];
+}
+
+interface SendPayload {
+  message: string;
+  attachments: Attachment[];
 }
 
 export default function ClientInboxClient() {
@@ -49,7 +54,7 @@ export default function ClientInboxClient() {
     return () => clearInterval(interval);
   }, [loadThread]);
 
-  async function handleSend(message: string) {
+  async function handleSend({ message }: SendPayload) {
     setSending(true);
     setError(null);
 

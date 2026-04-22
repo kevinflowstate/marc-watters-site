@@ -1,12 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { InboxMessage } from "@/lib/types";
+import type { Attachment, InboxMessage } from "@/lib/types";
+
+interface SendPayload {
+  message: string;
+  attachments: Attachment[];
+}
 
 interface InboxThreadProps {
   messages: InboxMessage[];
   currentRole: "admin" | "client";
-  onSend: (message: string) => Promise<void>;
+  onSend: (payload: SendPayload) => Promise<void>;
   sending: boolean;
   error: string | null;
   emptyTitle: string;
@@ -14,6 +19,9 @@ interface InboxThreadProps {
   threadLabel?: string;
   threadMeta?: string;
   composerPlaceholder?: string;
+  allowAttachments?: boolean;
+  onUploadAttachments?: (files: FileList | File[]) => Promise<Attachment[]>;
+  attachmentHelpText?: string;
 }
 
 function formatTime(timestamp: string) {
@@ -63,8 +71,14 @@ export default function InboxThread({
   threadLabel,
   threadMeta,
   composerPlaceholder = "Write a message...",
+  allowAttachments = false,
+  onUploadAttachments,
+  attachmentHelpText,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const groupedMessages = useMemo(
     () =>
@@ -87,9 +101,11 @@ export default function InboxThread({
 
   async function handleSubmit() {
     const trimmed = draft.trim();
-    if (!trimmed || sending) return;
-    await onSend(trimmed);
+    if ((!trimmed && pendingAttachments.length === 0) || sending || uploadingAttachments) return;
+    await onSend({ message: trimmed, attachments: pendingAttachments });
     setDraft("");
+    setPendingAttachments([]);
+    setAttachmentError(null);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -98,6 +114,26 @@ export default function InboxThread({
       void handleSubmit();
     }
   }
+
+  async function handleAttachmentChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files?.length || !onUploadAttachments) return;
+
+    setUploadingAttachments(true);
+    setAttachmentError(null);
+
+    try {
+      const uploaded = await onUploadAttachments(files);
+      setPendingAttachments((current) => [...current, ...uploaded]);
+    } catch (err) {
+      setAttachmentError(err instanceof Error ? err.message : "Failed to upload attachment.");
+    } finally {
+      setUploadingAttachments(false);
+      event.target.value = "";
+    }
+  }
+
+  const composerError = attachmentError || error;
 
   return (
     <div className="flex flex-col min-h-[32rem] rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden">
@@ -143,7 +179,37 @@ export default function InboxThread({
                     <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
                       {isOwn ? "You" : otherPartyLabel}
                     </div>
-                    <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
+                    {message.message.trim() && (
+                      <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
+                    )}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {message.attachments.map((attachment) => (
+                          <a
+                            key={attachment.id}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${
+                              isOwn
+                                ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)]"
+                                : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:bg-[rgba(255,255,255,0.05)]"
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium text-text-primary">{attachment.name}</div>
+                              <div className={`text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                                {attachment.type.toUpperCase()}
+                                {attachment.size ? ` • ${attachment.size}` : ""}
+                              </div>
+                            </div>
+                            <span className={`shrink-0 text-[11px] font-semibold ${isOwn ? "text-accent-light" : "text-accent-bright"}`}>
+                              Download
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     <div className={`mt-2 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
                       {formatTime(message.created_at)}
                     </div>
@@ -156,9 +222,52 @@ export default function InboxThread({
       </div>
 
       <div className="border-t border-[rgba(255,255,255,0.05)] p-4 space-y-3">
-        {error && (
+        {composerError && (
           <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {error}
+            {composerError}
+          </div>
+        )}
+        {allowAttachments && onUploadAttachments && (
+          <div className="space-y-3">
+            <div>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                onChange={(event) => void handleAttachmentChange(event)}
+                className="w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-4 py-3 text-sm text-text-primary file:mr-4 file:rounded-lg file:border-0 file:bg-accent-bright/15 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-accent-bright"
+              />
+              {attachmentHelpText && <p className="mt-2 text-xs text-text-muted">{attachmentHelpText}</p>}
+              {uploadingAttachments && <p className="mt-2 text-xs text-text-muted">Uploading attachments...</p>}
+            </div>
+            {pendingAttachments.length > 0 && (
+              <div className="space-y-2">
+                {pendingAttachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] px-4 py-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-text-primary">{attachment.name}</div>
+                      <div className="text-xs text-text-muted">
+                        {attachment.type.toUpperCase()}
+                        {attachment.size ? ` • ${attachment.size}` : ""}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
+                        setAttachmentError(null);
+                      }}
+                      className="text-xs text-text-muted transition-colors hover:text-red-400 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="relative">
@@ -173,7 +282,7 @@ export default function InboxThread({
           />
           <button
             onClick={() => void handleSubmit()}
-            disabled={sending || !draft.trim()}
+            disabled={sending || uploadingAttachments || (!draft.trim() && pendingAttachments.length === 0)}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-accent-bright/20 hover:bg-accent-bright/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
           >
             <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">

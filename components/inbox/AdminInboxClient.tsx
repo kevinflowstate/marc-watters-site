@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { InboxConversation, InboxMessage } from "@/lib/types";
+import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
 import InboxThread from "@/components/inbox/InboxThread";
 import { useToast } from "@/components/ui/Toast";
+import type { Attachment, InboxConversation, InboxMessage } from "@/lib/types";
 
 interface ThreadResponse {
   clientId: string;
@@ -16,6 +17,11 @@ interface ThreadResponse {
 
 interface ConversationResponse {
   conversations: InboxConversation[];
+}
+
+interface SendPayload {
+  message: string;
+  attachments: Attachment[];
 }
 
 function formatRelativeTime(timestamp: string | null) {
@@ -95,6 +101,33 @@ export default function AdminInboxClient() {
     }
   }, []);
 
+  async function uploadAttachments(files: FileList | File[]): Promise<Attachment[]> {
+    const uploaded: Attachment[] = [];
+
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "plan-documents");
+
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to upload ${file.name}`);
+      }
+
+      const data = await res.json();
+      uploaded.push({
+        id: crypto.randomUUID(),
+        name: data.fileName || file.name,
+        url: data.url,
+        type: guessAttachmentType(file.name, file.type),
+        size: formatFileSize(file.size),
+      });
+    }
+
+    return uploaded;
+  }
+
   const loadThread = useCallback(async (clientId: string) => {
     setLoadingThread(true);
     try {
@@ -144,7 +177,7 @@ export default function AdminInboxClient() {
     router.replace(next, { scroll: false });
   }, [pathname, router, searchParams, selectedClientId]);
 
-  async function handleSend(message: string) {
+  async function handleSend({ message, attachments }: SendPayload) {
     if (!selectedClientId) return;
     setSending(true);
     setError(null);
@@ -153,7 +186,7 @@ export default function AdminInboxClient() {
       const res = await fetch("/api/inbox/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: selectedClientId, message }),
+        body: JSON.stringify({ client_id: selectedClientId, message, attachments }),
       });
 
       if (!res.ok) {
@@ -161,7 +194,7 @@ export default function AdminInboxClient() {
         throw new Error(data.error || "Failed to send message.");
       }
 
-      toast("Message sent");
+      toast(attachments.length > 0 ? "Message and attachments sent" : "Message sent");
       await Promise.all([loadConversations(), loadThread(selectedClientId)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message.");
@@ -278,6 +311,9 @@ export default function AdminInboxClient() {
         emptyTitle="Start this conversation"
         emptyDescription="Send this client a message directly from Marc’s admin inbox."
         composerPlaceholder={`Message ${thread?.clientName || "client"}...`}
+        allowAttachments
+        onUploadAttachments={uploadAttachments}
+        attachmentHelpText="Attach PDFs, worksheets, spreadsheets, or other resources for this client."
       />
     )
   ) : (

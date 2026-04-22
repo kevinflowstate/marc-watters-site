@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeAttachments } from "@/lib/attachments";
 import type { InboxConversation, InboxMessage } from "@/lib/types";
 
 type UserRole = "admin" | "client";
@@ -87,7 +88,7 @@ export async function listInboxConversations(viewer: ViewerContext): Promise<Inb
     const conversation = buildConversations(
       [clientRows.data],
       [],
-      (messageRows.data ?? []) as InboxMessage[],
+      normalizeInboxMessages((messageRows.data ?? []) as InboxMessage[]),
       viewer.role,
     );
 
@@ -112,7 +113,7 @@ export async function listInboxConversations(viewer: ViewerContext): Promise<Inb
   return buildConversations(
     (clientsRes.data ?? []) as ClientRecord[],
     (usersRes.data ?? []) as UserRecord[],
-    (messagesRes.data ?? []) as InboxMessage[],
+    normalizeInboxMessages((messagesRes.data ?? []) as InboxMessage[]),
     viewer.role,
   );
 }
@@ -146,7 +147,7 @@ function buildConversations(
       client_name: client.business_name || user?.full_name || "Client",
       client_email: user?.email || "",
       business_name: client.business_name,
-      latest_message: latest?.message ?? null,
+      latest_message: getInboxPreview(latest),
       latest_message_at: latest?.created_at ?? null,
       latest_sender_role: latest?.sender_role ?? null,
       unread_count: unreadCount,
@@ -205,7 +206,7 @@ export async function getInboxThread(viewer: ViewerContext, requestedClientId?: 
     clientName: clientProfile.business_name || userRes.data?.full_name || "Client",
     clientEmail: userRes.data?.email || "",
     businessName: clientProfile.business_name,
-    messages: (messagesRes.data ?? []) as InboxMessage[],
+    messages: normalizeInboxMessages((messagesRes.data ?? []) as InboxMessage[]),
   };
 }
 
@@ -230,4 +231,29 @@ export async function getInboxUnreadCount(viewer: ViewerContext): Promise<number
     .eq("read_by_admin", false);
 
   return count ?? 0;
+}
+
+function normalizeInboxMessages(messages: InboxMessage[]): InboxMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    message: typeof message.message === "string" ? message.message : "",
+    attachments: normalizeAttachments((message as InboxMessage & { attachments?: unknown }).attachments),
+  }));
+}
+
+function getInboxPreview(message: InboxMessage | null): string | null {
+  if (!message) return null;
+
+  const trimmed = message.message.trim();
+  if (trimmed) return trimmed;
+
+  const attachments = message.attachments ?? [];
+  if (attachments.length === 1) {
+    return `Attachment: ${attachments[0].name}`;
+  }
+  if (attachments.length > 1) {
+    return `${attachments.length} attachments`;
+  }
+
+  return null;
 }

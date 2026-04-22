@@ -185,6 +185,7 @@ export interface InboxMessage {
   sender_user_id: string;
   sender_role: "admin" | "client";
   message: string;
+  attachments?: Attachment[];
   read_by_admin: boolean;
   read_by_client: boolean;
   created_at: string;
