@@ -1,0 +1,3 @@
+ALTER TABLE public.checkins
+ADD COLUMN IF NOT EXISTS client_reply TEXT,
+ADD COLUMN IF NOT EXISTS client_replied_at TIMESTAMPTZ;

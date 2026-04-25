@@ -1371,6 +1371,21 @@ export default function ClientDetailPage() {
                         </div>
                       </div>
                     )}
+                    {c.client_reply && (
+                      <div className="mt-3 pl-3 border-l-2 border-emerald-500/30 bg-emerald-500/5 rounded-r-lg py-2 pr-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
+                            Client Reply
+                          </div>
+                          {c.client_replied_at && (
+                            <span className="text-[10px] text-text-muted">
+                              {new Date(c.client_replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">{c.client_reply}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1515,6 +1530,16 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
         title: `Marc replied to Week ${c.week_number} check-in`,
         color: "text-accent-bright",
         icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
+      });
+    }
+    if (c.client_reply && c.client_replied_at) {
+      events.push({
+        type: "reply",
+        date: c.client_replied_at,
+        title: `Client replied to Week ${c.week_number} check-in`,
+        detail: c.client_reply,
+        color: "text-emerald-400",
+        icon: "M8 10h8M8 14h5m-9 5l3.5-3.5H18a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v12z",
       });
     }
   }

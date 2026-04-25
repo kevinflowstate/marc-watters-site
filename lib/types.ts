@@ -97,6 +97,8 @@ export interface CheckIn {
   responses?: Record<string, string>;
   admin_reply?: string;
   replied_at?: string;
+  client_reply?: string;
+  client_replied_at?: string;
   created_at: string;
   client?: ClientProfile;
 }

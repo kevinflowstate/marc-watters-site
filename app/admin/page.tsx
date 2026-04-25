@@ -691,6 +691,8 @@ interface EnrichedCheckin {
   questions?: string;
   admin_reply?: string;
   replied_at?: string;
+  client_reply?: string;
+  client_replied_at?: string;
   created_at: string;
   client_name: string;
   client_business: string;
@@ -920,6 +922,19 @@ function CheckInRow({
               <div>
                 <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Questions</div>
                 <p className="text-xs text-text-secondary leading-relaxed">{checkin.questions}</p>
+              </div>
+            )}
+            {checkin.client_reply && (
+              <div className="mt-2 pl-3 border-l-2 border-emerald-500/30 bg-emerald-500/5 rounded-r-lg py-2 pr-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Client Reply</div>
+                  {checkin.client_replied_at && (
+                    <span className="text-[10px] text-text-muted">
+                      {new Date(checkin.client_replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">{checkin.client_reply}</p>
               </div>
             )}
 

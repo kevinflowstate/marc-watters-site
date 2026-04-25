@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS public.checkins (
   questions TEXT,
   admin_reply TEXT,
   replied_at TIMESTAMPTZ,
+  client_reply TEXT,
+  client_replied_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

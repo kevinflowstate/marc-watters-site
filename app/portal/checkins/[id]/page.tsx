@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ClientCheckinReplyForm from "@/components/checkins/ClientCheckinReplyForm";
 import { defaultCheckinConfig } from "@/lib/checkins";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -180,21 +181,11 @@ export default async function PortalCheckinReplyPage({
             )}
           </div>
 
-          <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] p-5">
-            <div className="text-sm font-semibold text-text-primary">Need to reply back?</div>
-            <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-              If you want to ask a follow-up question about this check-in, send Marc a message in your inbox.
-            </p>
-            <Link
-              href="/portal/inbox"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent-bright no-underline hover:text-accent-light"
-            >
-              Open Inbox
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
+          <ClientCheckinReplyForm
+            checkinId={checkin.id}
+            initialReply={checkin.client_reply}
+            initialRepliedAt={checkin.client_replied_at}
+          />
         </aside>
       </div>
     </div>
