@@ -732,50 +732,6 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-heading font-bold text-text-primary">Business & Personal Health Checklist</h2>
-            <p className="text-xs text-text-muted mt-1">
-              Initial onboarding questionnaire completed inside the portal.
-            </p>
-          </div>
-          {client.business_health_checklist?.submitted_at ? (
-            <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
-              Submitted {new Date(client.business_health_checklist.submitted_at).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </span>
-          ) : (
-            <span className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
-              Not submitted yet
-            </span>
-          )}
-        </div>
-
-        {client.business_health_checklist && businessHealthConfig ? (
-          <div className="mt-5 space-y-5">
-            {businessHealthConfig.questions.map((question) => {
-              const answer = getQuestionAnswerLabel(question, client.business_health_checklist?.responses);
-              if (!answer) return null;
-
-              return (
-                <div key={question.id} className="rounded-xl border border-[rgba(255,255,255,0.04)] bg-bg-primary/60 px-4 py-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{question.label}</div>
-                  <p className="mt-1 text-sm leading-relaxed text-text-secondary whitespace-pre-line">{answer}</p>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-text-secondary">
-            The client has not completed this onboarding questionnaire yet.
-          </p>
-        )}
-      </div>
-
       {/* Activity Timeline */}
       <ActivityTimeline client={client} />
 
@@ -1392,6 +1348,50 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mt-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-heading font-bold text-text-primary">Business & Personal Health Checklist</h2>
+            <p className="text-xs text-text-muted mt-1">
+              Initial onboarding questionnaire completed inside the portal.
+            </p>
+          </div>
+          {client.business_health_checklist?.submitted_at ? (
+            <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+              Submitted {new Date(client.business_health_checklist.submitted_at).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          ) : (
+            <span className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
+              Not submitted yet
+            </span>
+          )}
+        </div>
+
+        {client.business_health_checklist && businessHealthConfig ? (
+          <div className="mt-5 space-y-5">
+            {businessHealthConfig.questions.map((question) => {
+              const answer = getQuestionAnswerLabel(question, client.business_health_checklist?.responses);
+              if (!answer) return null;
+
+              return (
+                <div key={question.id} className="rounded-xl border border-[rgba(255,255,255,0.04)] bg-bg-primary/60 px-4 py-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{question.label}</div>
+                  <p className="mt-1 text-sm leading-relaxed text-text-secondary whitespace-pre-line">{answer}</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-text-secondary">
+            The client has not completed this onboarding questionnaire yet.
+          </p>
+        )}
       </div>
 
       {/* Nudge Modal */}
