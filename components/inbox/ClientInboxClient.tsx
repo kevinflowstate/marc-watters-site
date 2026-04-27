@@ -81,6 +81,54 @@ export default function ClientInboxClient() {
     }
   }
 
+  async function handleEditMessage(messageId: string, message: string) {
+    setError(null);
+
+    try {
+      const res = await fetch("/api/inbox/message", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, message }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to edit message.");
+      }
+
+      toast("Message updated");
+      await loadThread();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to edit message.");
+      toast("Failed to edit message", "error");
+      throw err;
+    }
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    setError(null);
+
+    try {
+      const res = await fetch("/api/inbox/message", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to unsend message.");
+      }
+
+      toast("Message unsent");
+      await loadThread();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to unsend message.");
+      toast("Failed to unsend message", "error");
+      throw err;
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -105,6 +153,8 @@ export default function ClientInboxClient() {
             emptyTitle="Start the conversation"
             emptyDescription="If you need help, want to ask a question, or need clarity on your plan, send Marc a message here."
             composerPlaceholder="Message Marc..."
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
           />
         </div>
       )}

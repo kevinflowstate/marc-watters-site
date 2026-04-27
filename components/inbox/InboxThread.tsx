@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
 interface SendPayload {
@@ -22,6 +22,8 @@ interface InboxThreadProps {
   allowAttachments?: boolean;
   onUploadAttachments?: (files: FileList | File[]) => Promise<Attachment[]>;
   attachmentHelpText?: string;
+  onEditMessage?: (messageId: string, message: string) => Promise<void>;
+  onDeleteMessage?: (messageId: string) => Promise<void>;
 }
 
 function formatTime(timestamp: string) {
@@ -74,11 +76,18 @@ export default function InboxThread({
   allowAttachments = false,
   onUploadAttachments,
   attachmentHelpText,
+  onEditMessage,
+  onDeleteMessage,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
+  const [messageActionId, setMessageActionId] = useState<string | null>(null);
+  const [messageActionError, setMessageActionError] = useState<string | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const groupedMessages = useMemo(
     () =>
@@ -99,6 +108,15 @@ export default function InboxThread({
 
   const otherPartyLabel = currentRole === "admin" ? "Client" : "Marc";
 
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    if (!scrollArea) return;
+
+    requestAnimationFrame(() => {
+      scrollArea.scrollTop = scrollArea.scrollHeight;
+    });
+  }, [messages.length, threadLabel]);
+
   async function handleSubmit() {
     const trimmed = draft.trim();
     if ((!trimmed && pendingAttachments.length === 0) || sending || uploadingAttachments) return;
@@ -109,9 +127,59 @@ export default function InboxThread({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    const isTouchKeyboard =
+      typeof window !== "undefined" &&
+      (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0);
+
+    if (event.key === "Enter" && !event.shiftKey && !isTouchKeyboard) {
       event.preventDefault();
       void handleSubmit();
+    }
+  }
+
+  function startEditing(message: InboxMessage) {
+    setEditingMessageId(message.id);
+    setEditingDraft(message.message);
+    setMessageActionError(null);
+  }
+
+  async function submitEdit(message: InboxMessage) {
+    if (!onEditMessage || messageActionId) return;
+
+    const trimmed = editingDraft.trim();
+    if (!trimmed && (!message.attachments || message.attachments.length === 0)) return;
+
+    setMessageActionId(message.id);
+    setMessageActionError(null);
+
+    try {
+      await onEditMessage(message.id, trimmed);
+      setEditingMessageId(null);
+      setEditingDraft("");
+    } catch (err) {
+      setMessageActionError(err instanceof Error ? err.message : "Could not edit message.");
+    } finally {
+      setMessageActionId(null);
+    }
+  }
+
+  async function handleDelete(messageId: string) {
+    if (!onDeleteMessage || messageActionId) return;
+    if (!window.confirm("Unsend this message?")) return;
+
+    setMessageActionId(messageId);
+    setMessageActionError(null);
+
+    try {
+      await onDeleteMessage(messageId);
+      if (editingMessageId === messageId) {
+        setEditingMessageId(null);
+        setEditingDraft("");
+      }
+    } catch (err) {
+      setMessageActionError(err instanceof Error ? err.message : "Could not unsend message.");
+    } finally {
+      setMessageActionId(null);
     }
   }
 
@@ -133,7 +201,7 @@ export default function InboxThread({
     }
   }
 
-  const composerError = attachmentError || error;
+  const composerError = attachmentError || messageActionError || error;
 
   return (
     <div className="flex flex-col min-h-[32rem] rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden">
@@ -144,7 +212,7 @@ export default function InboxThread({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
         {groupedMessages.length === 0 ? (
           <div className="h-full min-h-[18rem] flex flex-col items-center justify-center text-center px-6">
             <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
@@ -179,8 +247,39 @@ export default function InboxThread({
                     <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
                       {isOwn ? "You" : otherPartyLabel}
                     </div>
-                    {message.message.trim() && (
-                      <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
+                    {editingMessageId === message.id ? (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={editingDraft}
+                          onChange={(event) => setEditingDraft(event.target.value)}
+                          rows={3}
+                          className="w-full resize-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-primary/70 px-3 py-2 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.35)]"
+                        />
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingMessageId(null);
+                              setEditingDraft("");
+                            }}
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void submitEdit(message)}
+                            disabled={messageActionId === message.id || (!editingDraft.trim() && (!message.attachments || message.attachments.length === 0))}
+                            className="rounded-lg bg-accent-bright/20 px-3 py-1.5 text-xs font-semibold text-accent-bright transition-colors hover:bg-accent-bright/30 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {messageActionId === message.id ? "Saving..." : "Save"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      message.message.trim() && (
+                        <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
+                      )
                     )}
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="mt-3 space-y-2">
@@ -210,8 +309,32 @@ export default function InboxThread({
                         ))}
                       </div>
                     )}
-                    <div className={`mt-2 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
-                      {formatTime(message.created_at)}
+                    <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                      <span>{formatTime(message.created_at)}</span>
+                      {isOwn && editingMessageId !== message.id && (onEditMessage || onDeleteMessage) && (
+                        <span className="flex items-center gap-2">
+                          {onEditMessage && (
+                            <button
+                              type="button"
+                              onClick={() => startEditing(message)}
+                              disabled={messageActionId === message.id}
+                              className="font-medium transition-colors hover:text-text-primary disabled:opacity-50"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {onDeleteMessage && (
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(message.id)}
+                              disabled={messageActionId === message.id}
+                              className="font-medium transition-colors hover:text-red-300 disabled:opacity-50"
+                            >
+                              {messageActionId === message.id ? "Removing..." : "Unsend"}
+                            </button>
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

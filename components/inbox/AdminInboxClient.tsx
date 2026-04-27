@@ -205,6 +205,56 @@ export default function AdminInboxClient() {
     }
   }
 
+  async function handleEditMessage(messageId: string, message: string) {
+    if (!selectedClientId) return;
+    setError(null);
+
+    try {
+      const res = await fetch("/api/inbox/message", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, message }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to edit message.");
+      }
+
+      toast("Message updated");
+      await Promise.all([loadConversations(), loadThread(selectedClientId)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to edit message.");
+      toast("Failed to edit message", "error");
+      throw err;
+    }
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    if (!selectedClientId) return;
+    setError(null);
+
+    try {
+      const res = await fetch("/api/inbox/message", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to unsend message.");
+      }
+
+      toast("Message unsent");
+      await Promise.all([loadConversations(), loadThread(selectedClientId)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to unsend message.");
+      toast("Failed to unsend message", "error");
+      throw err;
+    }
+  }
+
   function handleSelectConversation(clientId: string) {
     setSelectedClientId(clientId);
     setMobileThreadOpen(true);
@@ -314,6 +364,8 @@ export default function AdminInboxClient() {
         allowAttachments
         onUploadAttachments={uploadAttachments}
         attachmentHelpText="Attach PDFs, worksheets, spreadsheets, or other resources for this client."
+        onEditMessage={handleEditMessage}
+        onDeleteMessage={handleDeleteMessage}
       />
     )
   ) : (
