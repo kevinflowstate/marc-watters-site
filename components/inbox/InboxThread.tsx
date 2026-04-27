@@ -108,6 +108,7 @@ export default function InboxThread({
       }),
     [messages],
   );
+  const displayedMessages = scrollPageToLatest ? [...groupedMessages].reverse() : groupedMessages;
 
   const otherPartyLabel = currentRole === "admin" ? "Client" : "Marc";
 
@@ -115,11 +116,10 @@ export default function InboxThread({
     const scrollArea = scrollAreaRef.current;
     if (!scrollArea) return;
 
-    scrollArea.scrollTop = scrollArea.scrollHeight;
+    scrollArea.scrollTop = scrollPageToLatest ? 0 : scrollArea.scrollHeight;
 
     if (scrollPageToLatest) {
-      bottomRef.current?.scrollIntoView({ block: "end", inline: "nearest", behavior: "auto" });
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" });
+      bottomRef.current?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
     }
   }, [scrollPageToLatest]);
 
@@ -220,7 +220,11 @@ export default function InboxThread({
   const composerError = attachmentError || messageActionError || error;
 
   return (
-    <div className="flex flex-col min-h-[32rem] rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden">
+    <div
+      className={`flex flex-col rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden ${
+        scrollPageToLatest ? "h-[calc(100svh-13rem)] min-h-[32rem]" : "min-h-[32rem]"
+      }`}
+    >
       {(threadLabel || threadMeta) && (
         <div className="border-b border-[rgba(255,255,255,0.05)] px-5 py-4 bg-[rgba(255,255,255,0.015)]">
           {threadLabel && <div className="text-sm font-semibold text-text-primary">{threadLabel}</div>}
@@ -228,7 +232,12 @@ export default function InboxThread({
         </div>
       )}
 
-      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+      <div
+        ref={scrollAreaRef}
+        className={`flex-1 min-h-0 overflow-y-auto p-5 ${
+          scrollPageToLatest && displayedMessages.length > 0 ? "flex flex-col-reverse gap-4" : "space-y-4"
+        }`}
+      >
         {groupedMessages.length === 0 ? (
           <div className="h-full min-h-[18rem] flex flex-col items-center justify-center text-center px-6">
             <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
@@ -240,7 +249,7 @@ export default function InboxThread({
             <p className="text-sm text-text-muted max-w-md">{emptyDescription}</p>
           </div>
         ) : (
-          groupedMessages.map((message) => {
+          displayedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
             return (
               <div key={message.id} className="space-y-4">
