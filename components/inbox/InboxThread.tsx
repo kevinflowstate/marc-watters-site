@@ -88,6 +88,7 @@ export default function InboxThread({
   const [messageActionId, setMessageActionId] = useState<string | null>(null);
   const [messageActionError, setMessageActionError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const groupedMessages = useMemo(
     () =>
@@ -114,6 +115,7 @@ export default function InboxThread({
 
     requestAnimationFrame(() => {
       scrollArea.scrollTop = scrollArea.scrollHeight;
+      bottomRef.current?.scrollIntoView({ block: "end" });
     });
   }, [messages.length, threadLabel]);
 
@@ -359,6 +361,7 @@ export default function InboxThread({
             );
           })
         )}
+        <div ref={bottomRef} aria-hidden="true" />
       </div>
 
       <div className="border-t border-[rgba(255,255,255,0.05)] p-4 space-y-3">

@@ -67,6 +67,8 @@ export async function GET(request: Request) {
 
   // Send push + email to clients who haven't checked in yet
   let pushSent = 0;
+  let pushFailed = 0;
+  let pushMissing = 0;
   let emailSent = 0;
   let skipped = 0;
 
@@ -93,6 +95,8 @@ export async function GET(request: Request) {
       tag: "checkin-reminder",
     });
     if (result.sent > 0) pushSent++;
+    if (result.failed > 0) pushFailed++;
+    if (result.sent === 0 && result.failed === 0) pushMissing++;
 
     // Email fallback
     const startDate = clientStartDates.get(client.id);
@@ -116,13 +120,19 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({
+  const summary = {
     message: "Check-in reminders sent",
     today,
     checkinDay,
     pushSent,
+    pushFailed,
+    pushMissing,
     emailSent,
     skipped,
     totalClients: clients.length,
-  });
+  };
+
+  console.info("Check-in reminder cron finished", summary);
+
+  return NextResponse.json(summary);
 }

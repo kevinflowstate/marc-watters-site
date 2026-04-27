@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
 import { sendCheckinReplyEmail } from "@/lib/email-templates";
+import { sendPushToUser } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -130,6 +131,18 @@ export async function POST(request: Request) {
         message: reply_text.trim().slice(0, 200),
         link: "/portal/inbox",
       });
+
+      try {
+        await sendPushToUser(clientProfile.user_id, {
+          title: `Marc replied to your Week ${checkin.week_number} check-in`,
+          body: reply_text.trim().slice(0, 140),
+          url: "/portal/inbox",
+          tag: `checkin-reply-${checkin_id}`,
+        });
+      } catch (pushErr) {
+        // Reply delivery should not fail if a device push cannot be sent.
+        console.error("Failed to send check-in reply push:", pushErr);
+      }
 
       // Send email
       try {
