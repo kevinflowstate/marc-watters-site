@@ -1,23 +1,40 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
+import { defaultCheckinConfig } from "@/lib/checkins";
 import { sendCheckinReplyEmail } from "@/lib/email-templates";
+import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import { sendPushToUser } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
+import type { CheckinFormConfig, FormQuestion } from "@/lib/types";
 import { NextResponse } from "next/server";
+
+const SUMMARY_QUESTION_LABELS: Record<string, string> = {
+  overall_week_rating: "Week rating",
+  business_feeling: "Feeling",
+  what_went_well: "Went well",
+  what_didnt_go_well: "Needs attention",
+  headline_goal_next_week: "Next focus",
+  need_anything_from_marc: "Needs from Marc",
+};
+
+const SUMMARY_QUESTION_ORDER = [
+  "overall_week_rating",
+  "business_feeling",
+  "what_went_well",
+  "what_didnt_go_well",
+  "headline_goal_next_week",
+  "need_anything_from_marc",
+];
 
 function summarizeCheckin(checkin: {
   wins?: string | null;
   challenges?: string | null;
   questions?: string | null;
   responses?: Record<string, unknown> | null;
-}) {
-  const responseSummary =
-    checkin.responses && typeof checkin.responses === "object"
-      ? Object.values(checkin.responses)
-          .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-          .slice(0, 3)
-          .join(" ")
-      : "";
+}, questions: FormQuestion[]) {
+  const responses = normalizeResponses(checkin.responses);
+  const questionMap = new Map(questions.map((question) => [question.id, question]));
+  const responseSummary = responses ? buildResponseSummary(responses, questionMap) : "";
 
   const summary =
     responseSummary ||
@@ -27,6 +44,38 @@ function summarizeCheckin(checkin: {
     "Open the check-in for the full context.";
 
   return summary.length > 260 ? `${summary.slice(0, 257)}...` : summary;
+}
+
+function normalizeResponses(raw: Record<string, unknown> | null | undefined): Record<string, string> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const entries = Object.entries(raw).flatMap(([key, value]) => {
+    if (typeof value !== "string") return [];
+    const trimmed = value.trim();
+    return trimmed ? [[key, trimmed]] : [];
+  });
+
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+function buildResponseSummary(responses: Record<string, string>, questionMap: Map<string, FormQuestion>) {
+  const orderedQuestions = [
+    ...SUMMARY_QUESTION_ORDER.map((id) => questionMap.get(id)).filter((question): question is FormQuestion => Boolean(question)),
+    ...Array.from(questionMap.values()).filter((question) => !SUMMARY_QUESTION_ORDER.includes(question.id)),
+  ];
+
+  const parts = orderedQuestions
+    .map((question) => {
+      const answer = getQuestionAnswerLabel(question, responses);
+      if (!answer) return null;
+
+      const label = SUMMARY_QUESTION_LABELS[question.id] || question.label;
+      return `${label}: ${answer}`;
+    })
+    .filter((value): value is string => Boolean(value))
+    .slice(0, 4);
+
+  return parts.join("; ");
 }
 
 export async function POST(request: Request) {
@@ -84,6 +133,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Checkin not found" }, { status: 404 });
   }
 
+  const { data: configRow } = await admin
+    .from("form_config")
+    .select("config")
+    .eq("form_type", "checkin")
+    .single<{ config: CheckinFormConfig | null }>();
+
+  const checkinQuestions = configRow?.config?.questions?.length
+    ? configRow.config.questions
+    : defaultCheckinConfig.questions;
+
   const { data: clientProfile } = await admin
     .from("client_profiles")
     .select("user_id")
@@ -113,7 +172,7 @@ export async function POST(request: Request) {
         reply_context: {
           type: "checkin",
           title: `Week ${checkin.week_number} check-in`,
-          body: summarizeCheckin(checkin),
+          body: summarizeCheckin(checkin, checkinQuestions),
           href: `/portal/checkins/${checkin_id}`,
         },
         read_by_admin: true,
