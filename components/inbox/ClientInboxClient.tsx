@@ -155,6 +155,7 @@ export default function ClientInboxClient() {
             composerPlaceholder="Message Marc..."
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
+            scrollPageToLatest
           />
         </div>
       )}

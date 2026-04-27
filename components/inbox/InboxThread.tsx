@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
 interface SendPayload {
@@ -24,6 +24,7 @@ interface InboxThreadProps {
   attachmentHelpText?: string;
   onEditMessage?: (messageId: string, message: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
+  scrollPageToLatest?: boolean;
 }
 
 function formatTime(timestamp: string) {
@@ -78,6 +79,7 @@ export default function InboxThread({
   attachmentHelpText,
   onEditMessage,
   onDeleteMessage,
+  scrollPageToLatest = false,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
@@ -109,15 +111,27 @@ export default function InboxThread({
 
   const otherPartyLabel = currentRole === "admin" ? "Client" : "Marc";
 
-  useEffect(() => {
+  const scrollToLatest = useCallback(() => {
     const scrollArea = scrollAreaRef.current;
     if (!scrollArea) return;
 
-    requestAnimationFrame(() => {
-      scrollArea.scrollTop = scrollArea.scrollHeight;
-      bottomRef.current?.scrollIntoView({ block: "end" });
-    });
-  }, [messages.length, threadLabel]);
+    scrollArea.scrollTop = scrollArea.scrollHeight;
+
+    if (scrollPageToLatest) {
+      bottomRef.current?.scrollIntoView({ block: "end", inline: "nearest", behavior: "auto" });
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" });
+    }
+  }, [scrollPageToLatest]);
+
+  useLayoutEffect(() => {
+    scrollToLatest();
+  }, [messages.length, threadLabel, scrollToLatest]);
+
+  useEffect(() => {
+    const delays = [0, 75, 200, 500];
+    const timers = delays.map((delay) => window.setTimeout(scrollToLatest, delay));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [messages.length, threadLabel, scrollToLatest]);
 
   async function handleSubmit() {
     const trimmed = draft.trim();
