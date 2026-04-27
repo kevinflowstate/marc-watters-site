@@ -238,7 +238,28 @@ function normalizeInboxMessages(messages: InboxMessage[]): InboxMessage[] {
     ...message,
     message: typeof message.message === "string" ? message.message : "",
     attachments: normalizeAttachments((message as InboxMessage & { attachments?: unknown }).attachments),
+    reply_context: normalizeReplyContext((message as InboxMessage & { reply_context?: unknown }).reply_context),
   }));
+}
+
+function normalizeReplyContext(raw: unknown): InboxMessage["reply_context"] | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+
+  const record = raw as Record<string, unknown>;
+  if (record.type !== "checkin") return undefined;
+
+  const title = typeof record.title === "string" ? record.title.trim() : "";
+  const body = typeof record.body === "string" ? record.body.trim() : "";
+  const href = typeof record.href === "string" ? record.href : undefined;
+
+  if (!title || !body) return undefined;
+
+  return {
+    type: "checkin",
+    title,
+    body,
+    href,
+  };
 }
 
 function getInboxPreview(message: InboxMessage | null): string | null {

@@ -45,7 +45,7 @@ export async function sendWelcomeEmail(to: string, name: string, activationUrl: 
   });
 }
 
-export async function sendCheckinReplyEmail(to: string, clientName: string, replyText: string) {
+export async function sendCheckinReplyEmail(to: string, clientName: string, replyText: string, portalUrl = `${getSiteUrl()}/portal/inbox`) {
   const firstName = clientName.split(" ")[0];
   const resend = await getResend(); return resend.emails.send({
     from: FROM,
@@ -59,7 +59,7 @@ export async function sendCheckinReplyEmail(to: string, clientName: string, repl
       <div style="background: #f8f9fa; border-left: 3px solid #2272de; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 0 0 24px;">
         <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(replyText)}</p>
       </div>
-      ${button(`${getSiteUrl()}/portal`, "View in Portal")}
+      ${button(portalUrl, "Open Inbox")}
     `),
   });
 }

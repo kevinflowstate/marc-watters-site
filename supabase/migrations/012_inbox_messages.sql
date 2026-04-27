@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS public.inbox_messages (
   sender_user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   sender_role TEXT NOT NULL CHECK (sender_role IN ('admin', 'client')),
   message TEXT NOT NULL,
+  reply_context JSONB NOT NULL DEFAULT '{}'::jsonb,
   read_by_admin BOOLEAN NOT NULL DEFAULT false,
   read_by_client BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()

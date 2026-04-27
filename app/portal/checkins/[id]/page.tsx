@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ClientCheckinReplyForm from "@/components/checkins/ClientCheckinReplyForm";
 import { defaultCheckinConfig } from "@/lib/checkins";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -181,11 +180,37 @@ export default async function PortalCheckinReplyPage({
             )}
           </div>
 
-          <ClientCheckinReplyForm
-            checkinId={checkin.id}
-            initialReply={checkin.client_reply}
-            initialRepliedAt={checkin.client_replied_at}
-          />
+          {checkin.client_reply && (
+            <div className="rounded-3xl border border-[rgba(34,197,94,0.18)] bg-[rgba(34,197,94,0.08)] p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
+                Your Previous Reply
+              </div>
+              <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-text-primary">
+                {checkin.client_reply}
+              </p>
+              {checkin.client_replied_at && (
+                <div className="mt-4 text-xs text-text-muted">
+                  Sent {formatCheckinDate(checkin.client_replied_at)}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] p-5">
+            <div className="text-sm font-semibold text-text-primary">Reply in Inbox</div>
+            <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+              Marc&apos;s reply also appears in your inbox with this check-in attached for context, so follow-up messages stay in one conversation.
+            </p>
+            <Link
+              href="/portal/inbox"
+              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent-bright no-underline hover:text-accent-light"
+            >
+              Open Inbox
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
         </aside>
       </div>
     </div>

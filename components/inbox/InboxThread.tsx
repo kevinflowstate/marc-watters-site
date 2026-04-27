@@ -247,6 +247,23 @@ export default function InboxThread({
                     <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
                       {isOwn ? "You" : otherPartyLabel}
                     </div>
+                    {message.reply_context && (
+                      <a
+                        href={message.reply_context.href || "#"}
+                        className={`mt-3 block rounded-xl border-l-4 px-3 py-2 no-underline ${
+                          isOwn
+                            ? "border-accent-bright bg-[rgba(255,255,255,0.08)]"
+                            : "border-accent-bright bg-[rgba(34,114,222,0.08)]"
+                        }`}
+                      >
+                        <div className="text-xs font-semibold text-accent-bright">
+                          {message.reply_context.title}
+                        </div>
+                        <div className="mt-1 line-clamp-3 text-sm leading-relaxed text-text-secondary">
+                          {message.reply_context.body}
+                        </div>
+                      </a>
+                    )}
                     {editingMessageId === message.id ? (
                       <div className="mt-3 space-y-2">
                         <textarea
