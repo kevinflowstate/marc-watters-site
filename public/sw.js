@@ -1,4 +1,4 @@
-const CACHE_NAME = "cbb-portal-v5";
+const CACHE_NAME = "cbb-portal-v6";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -6,11 +6,26 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      await self.clients.claim();
+
+      const windowClients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      await Promise.all(
+        windowClients.map((client) => {
+          if ("navigate" in client && client.url.startsWith(self.location.origin)) {
+            return client.navigate(client.url).catch(() => undefined);
+          }
+          return undefined;
+        })
+      );
+    })()
   );
-  self.clients.claim();
 });
 
 // Push notification handler
