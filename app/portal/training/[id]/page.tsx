@@ -53,8 +53,6 @@ const contentTypeLabels: Record<ContentType, { label: string; icon: string; colo
 export default function ModuleView() {
   const { id } = useParams();
   const [module, setModule] = useState<TrainingModule | null>(null);
-  const [progress, setProgress] = useState<Record<string, boolean>>({});
-  const [profileId, setProfileId] = useState<string | null>(null);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -68,8 +66,6 @@ export default function ModuleView() {
             data.module.content?.sort((a: ModuleContent, b: ModuleContent) => a.order_index - b.order_index);
             setModule(data.module);
           }
-          setProgress(data.progress || {});
-          setProfileId(data.profileId);
         }
       } finally {
         setLoading(false);
@@ -77,17 +73,6 @@ export default function ModuleView() {
     }
     load();
   }, [id]);
-
-  async function toggleComplete(contentId: string) {
-    if (!profileId) return;
-    const isCompleted = progress[contentId];
-    setProgress((prev) => ({ ...prev, [contentId]: !isCompleted }));
-    await fetch(`/api/portal/training/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contentId, completed: !isCompleted, profileId }),
-    });
-  }
 
   if (loading) return (
     <div className="space-y-4">
@@ -118,10 +103,7 @@ export default function ModuleView() {
 
   const lessons = module.content || [];
   const totalDuration = lessons.reduce((sum, c) => sum + (c.duration_minutes || 0), 0);
-  const completedCount = lessons.filter((c) => progress[c.id]).length;
-  const finalLesson = lessons[lessons.length - 1];
   const isOnboardingModule = module.title === "Welcome & Onboarding";
-  const checklistUnlocked = !finalLesson || Boolean(progress[finalLesson.id]);
 
   return (
     <>
@@ -149,12 +131,6 @@ export default function ModuleView() {
               </svg>
               {totalDuration} min total
             </div>
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {completedCount}/{lessons.length} completed
-            </div>
           </div>
         </div>
       </div>
@@ -165,7 +141,6 @@ export default function ModuleView() {
         {lessons.map((lesson, i) => {
           const ct = contentTypeLabels[lesson.content_type];
           const isExpanded = expandedLesson === lesson.id;
-          const isCompleted = progress[lesson.id];
 
           return (
             <div key={lesson.id} className="group/lesson relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(34,114,222,0.15)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.2),0_0_30px_rgba(34,114,222,0.04)] will-change-transform">
@@ -178,20 +153,6 @@ export default function ModuleView() {
                 onClick={() => setExpandedLesson(isExpanded ? null : lesson.id)}
                 className="w-full flex items-center gap-4 p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
               >
-                {/* Completion checkbox */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleComplete(lesson.id); }}
-                  className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all cursor-pointer ${
-                    isCompleted ? "bg-emerald-500 border-emerald-500" : "border-[rgba(255,255,255,0.15)] hover:border-accent"
-                  }`}
-                >
-                  {isCompleted && (
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </button>
-
                 <div className="text-text-muted text-sm font-mono w-6 text-center flex-shrink-0">{i + 1}</div>
 
                 <div className={`w-8 h-8 rounded-lg ${ct.color} flex items-center justify-center flex-shrink-0`}>
@@ -201,7 +162,7 @@ export default function ModuleView() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-medium ${isCompleted ? "text-text-muted line-through" : "text-text-primary"}`}>{lesson.title}</div>
+                  <div className="text-sm font-medium text-text-primary">{lesson.title}</div>
                   <div className="flex items-center gap-3 text-xs text-text-muted mt-0.5">
                     <span>{ct.label}</span>
                     {lesson.duration_minutes && <span>{lesson.duration_minutes} min</span>}
@@ -282,7 +243,7 @@ export default function ModuleView() {
       </div>
 
       {isOnboardingModule && (
-        <BusinessHealthChecklistCard isUnlocked={checklistUnlocked} />
+        <BusinessHealthChecklistCard isUnlocked />
       )}
     </>
   );

@@ -54,91 +54,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     : null;
 
-  // Get progress
-  const progress: Record<string, boolean> = {};
-  const { data: progressData } = await admin
-    .from("content_progress")
-    .select("content_id, completed")
-    .eq("client_id", profile.id);
-
-  if (progressData) {
-    progressData.forEach((p: { content_id: string; completed: boolean }) => {
-      progress[p.content_id] = p.completed;
-    });
-  }
-
   return NextResponse.json({
     module: normalizedModule,
-    progress,
-    profileId: profile.id,
   });
 }
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id: moduleId } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const admin = createAdminClient();
-  const { contentId, completed, profileId } = await request.json();
-
-  if (!contentId) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-  }
-
-  const { data: profile } = await admin
-    .from("client_profiles")
-    .select("id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!profile) {
-    return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
-  }
-
-  // Keep backward compatibility with existing client payloads while enforcing ownership
-  if (profileId && profileId !== profile.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  // Enforce module access parity with GET endpoint
-  const allowedModuleIds = await getAccessibleModuleIds(admin, profile.id);
-  if (!allowedModuleIds.has(moduleId)) {
-    return NextResponse.json({ error: "Not assigned to this module" }, { status: 403 });
-  }
-
-  // Ensure content item belongs to this module
-  const { data: lesson } = await admin
-    .from("module_content")
-    .select("id")
-    .eq("id", contentId)
-    .eq("module_id", moduleId)
-    .single();
-
-  if (!lesson) {
-    return NextResponse.json({ error: "Invalid lesson for this module" }, { status: 400 });
-  }
-
-  if (completed) {
-    const { error } = await admin.from("content_progress").upsert({
-      client_id: profile.id,
-      content_id: contentId,
-      completed: true,
-      completed_at: new Date().toISOString(),
-    }, { onConflict: "client_id,content_id" });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  } else {
-    const { error } = await admin
-      .from("content_progress")
-      .update({ completed: false, completed_at: null })
-      .eq("client_id", profile.id)
-      .eq("content_id", contentId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
+export async function POST() {
+  return NextResponse.json(
+    { error: "Training completion is managed from the business plan." },
+    { status: 410 },
+  );
 }

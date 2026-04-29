@@ -241,9 +241,9 @@ export default function BusinessHealthChecklistCard({
 
       {!isUnlocked && !submission ? (
         <div className="rounded-2xl border border-[rgba(255,255,255,0.06)] bg-bg-primary/70 p-5">
-          <p className="text-sm font-medium text-text-primary">Finish the final onboarding lesson to unlock this checklist.</p>
+          <p className="text-sm font-medium text-text-primary">This checklist is locked for now.</p>
           <p className="mt-1 text-sm text-text-muted">
-            Once that last training is marked complete, this questionnaire becomes your final onboarding step inside the portal.
+            Marc will let you know when this final onboarding step is ready.
           </p>
         </div>
       ) : (
