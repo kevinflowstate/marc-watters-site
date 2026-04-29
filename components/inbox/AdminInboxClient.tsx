@@ -366,6 +366,7 @@ export default function AdminInboxClient() {
         attachmentHelpText="Attach PDFs, worksheets, spreadsheets, or other resources for this client."
         onEditMessage={handleEditMessage}
         onDeleteMessage={handleDeleteMessage}
+        newestFirst
       />
     )
   ) : (

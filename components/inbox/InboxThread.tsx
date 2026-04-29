@@ -25,6 +25,7 @@ interface InboxThreadProps {
   onEditMessage?: (messageId: string, message: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
   scrollPageToLatest?: boolean;
+  newestFirst?: boolean;
 }
 
 function formatTime(timestamp: string) {
@@ -80,6 +81,7 @@ export default function InboxThread({
   onEditMessage,
   onDeleteMessage,
   scrollPageToLatest = false,
+  newestFirst = false,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
@@ -93,9 +95,11 @@ export default function InboxThread({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const groupedMessages = useMemo(
-    () =>
-      messages.map((message, index) => {
-        const previous = messages[index - 1];
+    () => {
+      const orderedMessages = newestFirst ? [...messages].reverse() : messages;
+
+      return orderedMessages.map((message, index) => {
+        const previous = orderedMessages[index - 1];
         const showDayDivider =
           !previous ||
           new Date(previous.created_at).toDateString() !== new Date(message.created_at).toDateString();
@@ -105,10 +109,10 @@ export default function InboxThread({
           showDayDivider,
           dayLabel: showDayDivider ? formatDayLabel(message.created_at) : null,
         };
-      }),
-    [messages],
+      });
+    },
+    [messages, newestFirst],
   );
-  const displayedMessages = scrollPageToLatest ? [...groupedMessages].reverse() : groupedMessages;
 
   const otherPartyLabel = currentRole === "admin" ? "Client" : "Marc";
 
@@ -116,12 +120,12 @@ export default function InboxThread({
     const scrollArea = scrollAreaRef.current;
     if (!scrollArea) return;
 
-    scrollArea.scrollTop = scrollPageToLatest ? 0 : scrollArea.scrollHeight;
+    scrollArea.scrollTop = newestFirst ? 0 : scrollArea.scrollHeight;
 
-    if (scrollPageToLatest) {
+    if (scrollPageToLatest && !newestFirst) {
       bottomRef.current?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
     }
-  }, [scrollPageToLatest]);
+  }, [newestFirst, scrollPageToLatest]);
 
   useLayoutEffect(() => {
     scrollToLatest();
@@ -234,9 +238,7 @@ export default function InboxThread({
 
       <div
         ref={scrollAreaRef}
-        className={`flex-1 min-h-0 overflow-y-auto p-5 ${
-          scrollPageToLatest && displayedMessages.length > 0 ? "flex flex-col-reverse gap-4" : "space-y-4"
-        }`}
+        className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4"
       >
         {groupedMessages.length === 0 ? (
           <div className="h-full min-h-[18rem] flex flex-col items-center justify-center text-center px-6">
@@ -249,7 +251,7 @@ export default function InboxThread({
             <p className="text-sm text-text-muted max-w-md">{emptyDescription}</p>
           </div>
         ) : (
-          displayedMessages.map((message) => {
+          groupedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
             return (
               <div key={message.id} className="space-y-4">
