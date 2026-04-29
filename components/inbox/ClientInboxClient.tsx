@@ -156,7 +156,6 @@ export default function ClientInboxClient() {
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
             scrollPageToLatest
-            newestFirst
           />
         </div>
       )}

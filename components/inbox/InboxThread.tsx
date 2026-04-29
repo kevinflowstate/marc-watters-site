@@ -25,7 +25,6 @@ interface InboxThreadProps {
   onEditMessage?: (messageId: string, message: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
   scrollPageToLatest?: boolean;
-  newestFirst?: boolean;
 }
 
 function formatTime(timestamp: string) {
@@ -81,7 +80,6 @@ export default function InboxThread({
   onEditMessage,
   onDeleteMessage,
   scrollPageToLatest = false,
-  newestFirst = false,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
@@ -93,13 +91,12 @@ export default function InboxThread({
   const [messageActionError, setMessageActionError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const latestMessageKey = messages.length > 0 ? messages[messages.length - 1].id : "empty";
 
   const groupedMessages = useMemo(
-    () => {
-      const orderedMessages = newestFirst ? [...messages].reverse() : messages;
-
-      return orderedMessages.map((message, index) => {
-        const previous = orderedMessages[index - 1];
+    () =>
+      messages.map((message, index) => {
+        const previous = messages[index - 1];
         const showDayDivider =
           !previous ||
           new Date(previous.created_at).toDateString() !== new Date(message.created_at).toDateString();
@@ -109,9 +106,8 @@ export default function InboxThread({
           showDayDivider,
           dayLabel: showDayDivider ? formatDayLabel(message.created_at) : null,
         };
-      });
-    },
-    [messages, newestFirst],
+      }),
+    [messages],
   );
 
   const otherPartyLabel = currentRole === "admin" ? "Client" : "Marc";
@@ -120,22 +116,25 @@ export default function InboxThread({
     const scrollArea = scrollAreaRef.current;
     if (!scrollArea) return;
 
-    scrollArea.scrollTop = newestFirst ? 0 : scrollArea.scrollHeight;
+    scrollArea.scrollTop = scrollArea.scrollHeight;
 
-    if (scrollPageToLatest && !newestFirst) {
-      bottomRef.current?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+    if (scrollPageToLatest) {
+      bottomRef.current?.scrollIntoView({ block: "end", inline: "nearest", behavior: "auto" });
     }
-  }, [newestFirst, scrollPageToLatest]);
+  }, [scrollPageToLatest]);
 
   useLayoutEffect(() => {
-    scrollToLatest();
-  }, [messages.length, threadLabel, scrollToLatest]);
+    requestAnimationFrame(() => {
+      scrollToLatest();
+      requestAnimationFrame(scrollToLatest);
+    });
+  }, [latestMessageKey, threadLabel, scrollToLatest]);
 
   useEffect(() => {
-    const delays = [0, 75, 200, 500];
+    const delays = [0, 50, 150, 300, 800, 1500];
     const timers = delays.map((delay) => window.setTimeout(scrollToLatest, delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [messages.length, threadLabel, scrollToLatest]);
+  }, [latestMessageKey, threadLabel, scrollToLatest]);
 
   async function handleSubmit() {
     const trimmed = draft.trim();
