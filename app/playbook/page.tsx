@@ -63,21 +63,49 @@ export default function PlaybookOptIn() {
             free.
           </p>
 
-          {/* VSL THUMBNAIL */}
+          {/* HERO MOCKUP - book + tablets + VSL composite, blended into page */}
           <a
             href="#get"
-            className="block max-w-[920px] mx-auto mb-10 group relative rounded-[18px] overflow-hidden border border-[rgba(34,114,222,0.18)] shadow-[0_30px_80px_rgba(0,0,0,0.45),0_0_50px_rgba(34,114,222,0.08)] transition-transform duration-300 hover:-translate-y-1"
+            className="block relative max-w-[1100px] mx-auto -mb-6 group"
             aria-label="Get the playbook"
+            style={{ marginTop: "-12px" }}
           >
-            <Image
-              src="/images/playbook-vsl-thumbnail.png"
-              alt="Marc Watters - 5x Revenue, 2x Profit Margin training"
-              width={1660}
-              height={930}
-              priority
-              className="w-full h-auto block"
+            {/* Ambient glow behind the mockup, bleeds into the page bg */}
+            <div
+              className="absolute -inset-x-20 -inset-y-10 pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(ellipse 60% 55% at 30% 50%, rgba(120,60,220,0.18) 0%, transparent 65%), radial-gradient(ellipse 55% 50% at 75% 55%, rgba(34,114,222,0.22) 0%, transparent 65%)",
+                filter: "blur(20px)",
+                zIndex: 0,
+              }}
             />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.25)_100%)] pointer-events-none" />
+            {/* The mockup, with bottom fade into page so it doesn't sit like a card */}
+            <Image
+              src="/images/playbook-hero-mockup.png"
+              alt="Marc Watters 10-Step Playbook book and training preview"
+              width={1660}
+              height={935}
+              priority
+              className="relative z-[1] w-full h-auto block transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 6%, black 70%, transparent 100%)",
+                maskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 6%, black 70%, transparent 100%)",
+                filter:
+                  "drop-shadow(0 30px 60px rgba(0,0,0,0.55)) drop-shadow(0 0 80px rgba(34,114,222,0.18))",
+              }}
+            />
+            {/* Floor reflection / fade out band so it merges into the next section */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[80%] h-[12%] pointer-events-none z-[2]"
+              style={{
+                background:
+                  "radial-gradient(ellipse at 50% 0%, rgba(34,114,222,0.10) 0%, transparent 70%)",
+                filter: "blur(12px)",
+              }}
+            />
           </a>
 
           {/* Stats strip */}
@@ -234,6 +262,69 @@ export default function PlaybookOptIn() {
               Ireland. Written plainly. Built for trade and construction.
               Nothing held back.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* PRODUCT SHOWCASE */}
+      <section className="relative pt-6 pb-0 -mb-px overflow-hidden">
+        {/* Vertical gradient that bleeds bg-primary into bg-secondary so the image lands on a continuous backdrop */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to bottom, var(--color-bg-primary, #050507) 0%, #07070c 60%, var(--color-bg-secondary, #0a0a12) 100%)",
+          }}
+        />
+        {/* Ambient side glows that match the lighting baked into the image */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 45% 50% at 18% 55%, rgba(120,60,220,0.18) 0%, transparent 65%), radial-gradient(ellipse 50% 50% at 82% 60%, rgba(34,114,222,0.18) 0%, transparent 65%)",
+            filter: "blur(10px)",
+          }}
+        />
+
+        <div className="relative max-w-[1100px] mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-[640px] mx-auto pb-2">
+            <div className="text-[0.72rem] font-bold text-accent uppercase tracking-[3px] mb-3">
+              The Playbook · Yours Free
+            </div>
+            <h3 className="font-heading text-[1.5rem] sm:text-[1.85rem] font-black leading-[1.1] tracking-[-1px] mb-3">
+              30 pages. No filler. The exact 10 steps.
+            </h3>
+            <p className="text-text-secondary text-[0.95rem] leading-[1.7]">
+              Read it on the laptop, the iPad, the phone on a Sunday morning -
+              wherever you actually have ten quiet minutes.
+            </p>
+          </div>
+
+          <div className="relative">
+            <Image
+              src="/images/playbook-book-tablets.png"
+              alt="The 10-Step Tradesman to Business Owner Framework - book and tablet preview"
+              width={1660}
+              height={935}
+              className="w-full h-auto block relative z-[1]"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 8%, black 72%, transparent 100%)",
+                maskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 8%, black 72%, transparent 100%)",
+                filter:
+                  "drop-shadow(0 25px 50px rgba(0,0,0,0.55)) drop-shadow(0 0 80px rgba(34,114,222,0.15))",
+              }}
+            />
+            {/* Floor highlight bleeds the mockup into the next section */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[78%] h-[10%] pointer-events-none z-[2]"
+              style={{
+                background:
+                  "radial-gradient(ellipse at 50% 0%, rgba(34,114,222,0.10) 0%, transparent 70%)",
+                filter: "blur(14px)",
+              }}
+            />
           </div>
         </div>
       </section>
