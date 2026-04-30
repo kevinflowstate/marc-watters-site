@@ -113,7 +113,7 @@ export default function PlaybookThankYou() {
 
           <div className="space-y-4 max-w-[540px] mx-auto">
             {[
-              "The 10 steps Dan used to 5X his revenue and double his margins",
+              "The 10 steps Dan used to go from £90k per year to £140k per month and triple his margins",
               "Why the order matters - and what breaks if you skip ahead",
               "The signs each stage is broken in your business right now",
               "What most trade and construction owners get wrong at every stage",

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title:
     "From Tradesman to Business Owner | The 10-Step Playbook (Free PDF)",
   description:
-    "How Dan 5X'd his revenue, doubled his margins, and walked off the tools for good. The 10 steps he took, written down. Free download.",
+    "How Dan went from £90k per year to £140k per month, tripled his margins, and walked off the tools for good. The exact 10 steps he took - written down, free.",
 };
 
 export default function PlaybookOptIn() {
@@ -58,9 +58,9 @@ export default function PlaybookOptIn() {
 
           {/* Sub */}
           <p className="text-center text-[1.05rem] lg:text-[1.2rem] text-text-secondary leading-[1.6] mb-10 max-w-[680px] mx-auto">
-            How Dan 5X&apos;d his revenue, doubled his margins, and walked off
-            the tools for good. The exact 10 steps he took - written down,
-            free.
+            How Dan went from £90k per year, to £140k per month, tripled his
+            margins, and walked off the tools for good. The exact 10 steps he
+            took - written down, free.
           </p>
 
           {/* HERO MOCKUP - book + tablets + VSL composite, blended into page */}
@@ -111,8 +111,8 @@ export default function PlaybookOptIn() {
           {/* Stats strip */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-[680px] mx-auto mb-10">
             {[
-              { stat: "5X", label: "Revenue Growth" },
-              { stat: "2X", label: "Profit Margins" },
+              { stat: "£140k", label: "Per Month Revenue" },
+              { stat: "3X", label: "Profit Margins" },
               { stat: "0", label: "Days On The Tools" },
             ].map((s, i) => (
               <div
