@@ -149,6 +149,48 @@ export default function PlaybookThankYou() {
             id="4SOIodvlfHYmyzKvIAmn_playbook_thankyou"
           />
         </div>
+
+        {/* Testimonials */}
+        <div className="mt-16">
+          <div className="text-center mb-8">
+            <div className="text-[0.7rem] font-bold text-accent uppercase tracking-[2px] mb-2">
+              Results
+            </div>
+            <div className="font-heading text-[1.5rem] sm:text-[1.85rem] font-black tracking-[-0.8px] mb-2">
+              What clients say
+            </div>
+            <p className="text-text-secondary text-[0.92rem] leading-[1.7] max-w-[520px] mx-auto">
+              Real outcomes from trade and construction business owners on the
+              programme.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {[
+              { id: "obge0_bDhqg", title: "Client Testimonial 1" },
+              { id: "1FILP9frS9E", title: "Client Testimonial 2" },
+              { id: "7eRY9Wgr67c", title: "Client Testimonial 3" },
+            ].map((v) => (
+              <div
+                key={v.id}
+                className="bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden backdrop-blur-[10px]"
+              >
+                <div
+                  className="relative w-full"
+                  style={{ paddingTop: "177.78%" }}
+                >
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${v.id}`}
+                    title={v.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </main>
   );

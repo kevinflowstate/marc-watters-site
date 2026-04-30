@@ -13,99 +13,97 @@ export default function PlaybookOptIn() {
   return (
     <main>
       {/* HERO */}
-      <section className="min-h-[85vh] flex items-center pt-12 pb-20 px-8 relative overflow-hidden">
+      <section className="pt-10 pb-16 lg:pt-14 lg:pb-20 px-6 lg:px-8 relative overflow-hidden">
         <div
-          className="absolute inset-0 z-[1] pointer-events-none"
+          className="absolute inset-0 z-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse at 70% 40%, rgba(34,114,222,0.07) 0%, transparent 55%), radial-gradient(ellipse at 20% 80%, rgba(34,114,222,0.04) 0%, transparent 40%), radial-gradient(ellipse at 50% 100%, rgba(5,5,7,1) 0%, transparent 50%)",
+              "radial-gradient(ellipse at 70% 30%, rgba(34,114,222,0.10) 0%, transparent 55%), radial-gradient(ellipse at 20% 80%, rgba(34,114,222,0.05) 0%, transparent 45%), radial-gradient(ellipse at 50% 100%, rgba(5,5,7,1) 0%, transparent 60%)",
           }}
         />
 
-        {/* Mobile hero */}
-        <div className="absolute inset-0 lg:hidden z-0 pointer-events-none">
-          <Image
-            src="/images/marc-hero.png"
-            alt="Marc Watters"
-            width={800}
-            height={900}
-            className="w-full h-full object-cover object-[center_top] brightness-[0.3] contrast-[1.1]"
-            priority
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to top, #050507 5%, rgba(5,5,7,0.7) 50%, transparent 100%)",
-            }}
-          />
-        </div>
+        <div className="max-w-[1240px] mx-auto w-full relative z-[2]">
+          {/* Brand bar */}
+          <div className="flex items-center justify-center gap-3 mb-8 lg:mb-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/cbb-logo.png"
+              alt="CBB"
+              width={32}
+              height={32}
+              className="h-[30px] w-auto"
+            />
+            <span className="font-heading font-extrabold text-[0.85rem] tracking-[-0.3px]">
+              <span className="text-text-primary">CONSTRUCTION</span>{" "}
+              <span className="text-accent-bright">BUSINESS BLUEPRINT</span>
+            </span>
+          </div>
 
-        <div className="max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center relative z-[3]">
-          <div className="max-w-[600px] lg:pl-8">
-            <div className="flex items-center gap-3 mb-8">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/cbb-logo.png"
-                alt="CBB"
-                width={34}
-                height={34}
-                className="h-[34px] w-auto"
-              />
-              <span className="font-heading font-extrabold text-[0.95rem] tracking-[-0.3px]">
-                <span className="text-text-primary">CONSTRUCTION</span>{" "}
-                <span className="text-accent-bright">BUSINESS BLUEPRINT</span>
-              </span>
-            </div>
-
-            <div className="inline-flex items-center gap-2 bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.2)] rounded-full px-[18px] py-[7px] text-[0.78rem] font-semibold text-accent-bright mb-6 tracking-[0.5px] uppercase">
+          {/* Eyebrow */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center gap-2 bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.2)] rounded-full px-[18px] py-[7px] text-[0.78rem] font-semibold text-accent-bright tracking-[0.5px] uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--color-accent),0_0_20px_rgba(34,114,222,0.3)] animate-[pulse-dot_2s_ease-in-out_infinite]" />
-              Free 10-Step Playbook
+              Free 10-Step Playbook · PDF
             </div>
+          </div>
 
-            <h1 className="font-heading text-[2.4rem] md:text-[3.5rem] font-black leading-[1.05] tracking-[-2px] mb-5">
-              From Tradesman to{" "}
-              <span className="text-accent-bright relative">
-                Business Owner.
-                <span className="absolute bottom-0.5 left-0 right-0 h-[3px] gradient-accent rounded-sm opacity-50" />
-              </span>
-            </h1>
+          {/* Headline */}
+          <h1 className="font-heading text-center text-[2.1rem] sm:text-[2.6rem] lg:text-[3.6rem] font-black leading-[1.04] tracking-[-1.8px] mb-5 max-w-[920px] mx-auto">
+            From Tradesman to{" "}
+            <span className="text-accent-bright relative whitespace-nowrap">
+              Business Owner.
+              <span className="absolute -bottom-0.5 left-0 right-0 h-[3px] gradient-accent rounded-sm opacity-60" />
+            </span>
+          </h1>
 
-            <p className="text-[1.15rem] text-text-secondary leading-[1.7] mb-4 max-w-[520px]">
-              How Dan 5X&apos;d his revenue, doubled his margins, and walked
-              off the tools for good. The 10 steps he took. Written down.
-              Free.
-            </p>
+          {/* Sub */}
+          <p className="text-center text-[1.05rem] lg:text-[1.2rem] text-text-secondary leading-[1.6] mb-10 max-w-[680px] mx-auto">
+            How Dan 5X&apos;d his revenue, doubled his margins, and walked off
+            the tools for good. The exact 10 steps he took - written down,
+            free.
+          </p>
 
-            <p className="text-[0.92rem] text-text-muted leading-[1.7] mb-8 max-w-[520px]">
-              Under £90k a year, six days a week on site, evenings and
-              weekends gone. Six months later he replaced his entire annual
-              turnover in a single month - and stepped off the tools
-              completely. This is the playbook he followed.
-            </p>
+          {/* VSL THUMBNAIL */}
+          <a
+            href="#get"
+            className="block max-w-[920px] mx-auto mb-10 group relative rounded-[18px] overflow-hidden border border-[rgba(34,114,222,0.18)] shadow-[0_30px_80px_rgba(0,0,0,0.45),0_0_50px_rgba(34,114,222,0.08)] transition-transform duration-300 hover:-translate-y-1"
+            aria-label="Get the playbook"
+          >
+            <Image
+              src="/images/playbook-vsl-thumbnail.png"
+              alt="Marc Watters - 5x Revenue, 2x Profit Margin training"
+              width={1660}
+              height={930}
+              priority
+              className="w-full h-auto block"
+            />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.25)_100%)] pointer-events-none" />
+          </a>
 
-            {/* Stats strip */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              {[
-                { stat: "500%", label: "Revenue Growth" },
-                { stat: "2X", label: "Profit Margins" },
-                { stat: "0", label: "Days On The Tools" },
-              ].map((s, i) => (
-                <div
-                  key={i}
-                  className="py-4 px-3 bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.06)] rounded-[14px] backdrop-blur-[10px] text-center"
-                >
-                  <div className="font-heading font-black text-accent-bright text-[1.5rem] md:text-[1.75rem] leading-none mb-1 tracking-[-1px]">
-                    {s.stat}
-                  </div>
-                  <div className="text-[0.65rem] text-text-muted uppercase tracking-[1px] leading-tight">
-                    {s.label}
-                  </div>
+          {/* Stats strip */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-[680px] mx-auto mb-10">
+            {[
+              { stat: "5X", label: "Revenue Growth" },
+              { stat: "2X", label: "Profit Margins" },
+              { stat: "0", label: "Days On The Tools" },
+            ].map((s, i) => (
+              <div
+                key={i}
+                className="py-4 px-3 bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.06)] rounded-[14px] backdrop-blur-[10px] text-center"
+              >
+                <div className="font-heading font-black text-accent-bright text-[1.6rem] sm:text-[1.9rem] leading-none mb-1 tracking-[-1px]">
+                  {s.stat}
                 </div>
-              ))}
-            </div>
+                <div className="text-[0.62rem] sm:text-[0.7rem] text-text-muted uppercase tracking-[1px] leading-tight">
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
 
-            <PlaybookCTA className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-9 py-4 rounded-[10px] font-bold text-base no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)] cursor-pointer">
+          {/* CTA */}
+          <div className="text-center">
+            <PlaybookCTA className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-10 py-[18px] rounded-[12px] font-bold text-[1.05rem] no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)] cursor-pointer">
               Send Me The Playbook
               <svg
                 width="16"
@@ -125,26 +123,6 @@ export default function PlaybookOptIn() {
             <p className="text-[0.82rem] text-text-muted mt-3">
               Free PDF. No upsell. Just the playbook.
             </p>
-          </div>
-
-          <div className="relative hidden lg:flex justify-end items-center -mr-8">
-            <div className="absolute w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(34,114,222,0.1)_0%,transparent_70%)] rounded-full top-[40%] right-[15%] -translate-y-1/2 pointer-events-none z-0" />
-            <Image
-              src="/images/marc-hero.png"
-              alt="Marc Watters"
-              width={800}
-              height={900}
-              className="w-[115%] max-w-none h-[85vh] min-h-[550px] object-cover object-[center_top] relative z-[1] brightness-[0.85] contrast-[1.1]"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 15%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,1) 60%, rgba(0,0,0,0.6) 90%, transparent 100%), linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 70%, transparent 100%)",
-                WebkitMaskComposite: "source-in",
-                maskImage:
-                  "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 15%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,1) 60%, rgba(0,0,0,0.6) 90%, transparent 100%), linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 70%, transparent 100%)",
-                maskComposite: "intersect",
-              }}
-              priority
-            />
           </div>
         </div>
       </section>
