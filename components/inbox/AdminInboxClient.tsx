@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
 import InboxThread from "@/components/inbox/InboxThread";
 import { useToast } from "@/components/ui/Toast";
 import type { Attachment, InboxConversation, InboxMessage } from "@/lib/types";
@@ -102,27 +101,25 @@ export default function AdminInboxClient() {
   }, []);
 
   async function uploadAttachments(files: FileList | File[]): Promise<Attachment[]> {
+    if (!selectedClientId) {
+      throw new Error("Choose a client before attaching files.");
+    }
+
     const uploaded: Attachment[] = [];
 
     for (const file of Array.from(files)) {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("bucket", "plan-documents");
+      fd.append("client_id", selectedClientId);
 
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const res = await fetch("/api/inbox/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Failed to upload ${file.name}`);
       }
 
       const data = await res.json();
-      uploaded.push({
-        id: crypto.randomUUID(),
-        name: data.fileName || file.name,
-        url: data.url,
-        type: guessAttachmentType(file.name, file.type),
-        size: formatFileSize(file.size),
-      });
+      uploaded.push(data.attachment);
     }
 
     return uploaded;
@@ -362,6 +359,7 @@ export default function AdminInboxClient() {
         emptyDescription="Send this client a message directly from Marc’s admin inbox."
         composerPlaceholder={`Message ${thread?.clientName || "client"}...`}
         allowAttachments
+        allowVoiceNotes
         onUploadAttachments={uploadAttachments}
         attachmentHelpText="Attach PDFs, worksheets, spreadsheets, or other resources for this client."
         onEditMessage={handleEditMessage}

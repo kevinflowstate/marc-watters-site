@@ -51,7 +51,7 @@ export interface Attachment {
   id: string;
   name: string;
   url: string;
-  type: 'pdf' | 'sheet' | 'doc' | 'image' | 'other';
+  type: 'pdf' | 'sheet' | 'doc' | 'image' | 'audio' | 'other';
   size?: string;
 }
 

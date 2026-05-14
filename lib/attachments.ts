@@ -54,6 +54,7 @@ export function guessAttachmentType(fileName: string, mimeType?: string): Attach
     return "doc";
   }
   if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/.test(lower)) return "image";
+  if (mime.startsWith("audio/") || /\.(webm|m4a|mp3|wav|ogg|oga|aac)$/.test(lower)) return "audio";
   return "other";
 }
 
@@ -73,5 +74,5 @@ export function formatFileSize(bytes: number): string {
 }
 
 function isAttachmentType(value: string): value is Attachment["type"] {
-  return ["pdf", "sheet", "doc", "image", "other"].includes(value);
+  return ["pdf", "sheet", "doc", "image", "audio", "other"].includes(value);
 }

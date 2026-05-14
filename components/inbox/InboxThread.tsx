@@ -20,6 +20,7 @@ interface InboxThreadProps {
   threadMeta?: string;
   composerPlaceholder?: string;
   allowAttachments?: boolean;
+  allowVoiceNotes?: boolean;
   onUploadAttachments?: (files: FileList | File[]) => Promise<Attachment[]>;
   attachmentHelpText?: string;
   onEditMessage?: (messageId: string, message: string) => Promise<void>;
@@ -63,6 +64,152 @@ function formatDayLabel(timestamp: string) {
   });
 }
 
+function getSupportedAudioMimeType() {
+  if (typeof MediaRecorder === "undefined") return "";
+
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/aac",
+  ];
+
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function getAudioExtension(mimeType: string) {
+  if (mimeType.includes("mp4") || mimeType.includes("aac")) return "m4a";
+  if (mimeType.includes("ogg")) return "ogg";
+  if (mimeType.includes("wav")) return "wav";
+  return "webm";
+}
+
+function formatAudioTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+
+  const wholeSeconds = Math.floor(seconds);
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+function VoiceNotePlayer({ attachment, isOwn }: { attachment: Attachment; isOwn: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  async function togglePlayback() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      await audio.play();
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+    }
+  }
+
+  function handleLoadedMetadata() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+  }
+
+  function handleSeek(event: React.ChangeEvent<HTMLInputElement>) {
+    const nextTime = Number(event.target.value);
+    const audio = audioRef.current;
+
+    setCurrentTime(nextTime);
+    if (audio) {
+      audio.currentTime = nextTime;
+    }
+  }
+
+  return (
+    <div
+      className={`min-w-[15rem] rounded-2xl border px-3 py-3 ${
+        isOwn
+          ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.07)]"
+          : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]"
+      }`}
+    >
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        src={attachment.url}
+        onLoadedMetadata={handleLoadedMetadata}
+        onDurationChange={handleLoadedMetadata}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(duration);
+        }}
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void togglePlayback()}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors cursor-pointer ${
+            isOwn
+              ? "bg-accent-bright/25 text-accent-light hover:bg-accent-bright/35"
+              : "bg-accent-bright/20 text-accent-bright hover:bg-accent-bright/30"
+          }`}
+          aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
+          title={isPlaying ? "Pause voice note" : "Play voice note"}
+        >
+          {isPlaying ? (
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 5h4v14H7V5zm6 0h4v14h-4V5z" />
+            </svg>
+          ) : (
+            <svg className="ml-0.5 h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7L8 5z" />
+            </svg>
+          )}
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="truncate text-sm font-medium text-text-primary">Voice note</span>
+            <span className={`shrink-0 text-[11px] tabular-nums ${isOwn ? "text-accent-light/75" : "text-text-muted"}`}>
+              {formatAudioTime(currentTime)} / {duration > 0 ? formatAudioTime(duration) : "--:--"}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            step="0.1"
+            value={Math.min(currentTime, duration || currentTime)}
+            onChange={handleSeek}
+            disabled={!duration}
+            aria-label="Voice note progress"
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(34,114,222,0.25)] [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+            style={{
+              background: `linear-gradient(90deg, rgba(34,114,222,0.95) ${progress}%, rgba(255,255,255,0.18) ${progress}%)`,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InboxThread({
   messages,
   currentRole,
@@ -75,6 +222,7 @@ export default function InboxThread({
   threadMeta,
   composerPlaceholder = "Write a message...",
   allowAttachments = false,
+  allowVoiceNotes = false,
   onUploadAttachments,
   attachmentHelpText,
   onEditMessage,
@@ -85,12 +233,18 @@ export default function InboxThread({
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [recordingVoiceNote, setRecordingVoiceNote] = useState(false);
+  const [voiceNoteError, setVoiceNoteError] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
   const [messageActionId, setMessageActionId] = useState<string | null>(null);
   const [messageActionError, setMessageActionError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const latestMessageKey = messages.length > 0 ? messages[messages.length - 1].id : "empty";
 
   const groupedMessages = useMemo(
@@ -136,9 +290,16 @@ export default function InboxThread({
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [latestMessageKey, threadLabel, scrollToLatest]);
 
+  useEffect(() => {
+    return () => {
+      mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
   async function handleSubmit() {
     const trimmed = draft.trim();
-    if ((!trimmed && pendingAttachments.length === 0) || sending || uploadingAttachments) return;
+    if ((!trimmed && pendingAttachments.length === 0) || sending || uploadingAttachments || recordingVoiceNote) return;
     await onSend({ message: trimmed, attachments: pendingAttachments });
     setDraft("");
     setPendingAttachments([]);
@@ -220,7 +381,90 @@ export default function InboxThread({
     }
   }
 
-  const composerError = attachmentError || messageActionError || error;
+  async function startVoiceRecording() {
+    if (!allowVoiceNotes || !onUploadAttachments || recordingVoiceNote || uploadingAttachments) return;
+
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setVoiceNoteError("Voice notes are not supported in this browser.");
+      return;
+    }
+
+    setVoiceNoteError(null);
+    setAttachmentError(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getSupportedAudioMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      audioChunksRef.current = [];
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setVoiceNoteError("Could not record this voice note.");
+        setRecordingVoiceNote(false);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.onstop = () => {
+        const recordedMimeType = recorder.mimeType || mimeType || "audio/webm";
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        mediaStreamRef.current = null;
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (chunks.length === 0) {
+          setVoiceNoteError("No audio was captured. Please try again.");
+          return;
+        }
+
+        const blob = new Blob(chunks, { type: recordedMimeType });
+        const extension = getAudioExtension(recordedMimeType);
+        const file = new File([blob], `voice-note-${Date.now()}.${extension}`, { type: recordedMimeType });
+
+        setUploadingAttachments(true);
+        void onUploadAttachments([file])
+          .then((uploaded) => {
+            setPendingAttachments((current) => [...current, ...uploaded]);
+            setVoiceNoteError(null);
+          })
+          .catch((err) => {
+            setVoiceNoteError(err instanceof Error ? err.message : "Failed to upload voice note.");
+          })
+          .finally(() => {
+            setUploadingAttachments(false);
+          });
+      };
+
+      recorder.start();
+      setRecordingVoiceNote(true);
+    } catch (err) {
+      setVoiceNoteError(err instanceof Error ? err.message : "Could not access the microphone.");
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }
+
+  function stopVoiceRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+
+    recorder.stop();
+    setRecordingVoiceNote(false);
+  }
+
+  const composerError = attachmentError || voiceNoteError || messageActionError || error;
+  const showPaperclip = allowAttachments && Boolean(onUploadAttachments);
+  const showVoiceButton = allowVoiceNotes && Boolean(onUploadAttachments);
+  const composerPadding = showPaperclip && showVoiceButton ? "pl-24" : showPaperclip || showVoiceButton ? "pl-14" : "pl-4";
 
   return (
     <div
@@ -327,28 +571,32 @@ export default function InboxThread({
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {message.attachments.map((attachment) => (
-                          <a
-                            key={attachment.id}
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${
-                              isOwn
-                                ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)]"
-                                : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:bg-[rgba(255,255,255,0.05)]"
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-medium text-text-primary">{attachment.name}</div>
-                              <div className={`text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
-                                {attachment.type.toUpperCase()}
-                                {attachment.size ? ` • ${attachment.size}` : ""}
+                          attachment.type === "audio" ? (
+                            <VoiceNotePlayer key={attachment.id} attachment={attachment} isOwn={isOwn} />
+                          ) : (
+                            <a
+                              key={attachment.id}
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${
+                                isOwn
+                                  ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)]"
+                                  : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:bg-[rgba(255,255,255,0.05)]"
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-text-primary">{attachment.name}</div>
+                                <div className={`text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                                  {attachment.type.toUpperCase()}
+                                  {attachment.size ? ` • ${attachment.size}` : ""}
+                                </div>
                               </div>
-                            </div>
-                            <span className={`shrink-0 text-[11px] font-semibold ${isOwn ? "text-accent-light" : "text-accent-bright"}`}>
-                              Download
-                            </span>
-                          </a>
+                              <span className={`shrink-0 text-[11px] font-semibold ${isOwn ? "text-accent-light" : "text-accent-bright"}`}>
+                                Download
+                              </span>
+                            </a>
+                          )
                         ))}
                       </div>
                     )}
@@ -394,19 +642,8 @@ export default function InboxThread({
             {composerError}
           </div>
         )}
-        {allowAttachments && onUploadAttachments && (
+        {showPaperclip && (
           <div className="space-y-3">
-            <div>
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
-                onChange={(event) => void handleAttachmentChange(event)}
-                className="w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-4 py-3 text-sm text-text-primary file:mr-4 file:rounded-lg file:border-0 file:bg-accent-bright/15 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-accent-bright"
-              />
-              {attachmentHelpText && <p className="mt-2 text-xs text-text-muted">{attachmentHelpText}</p>}
-              {uploadingAttachments && <p className="mt-2 text-xs text-text-muted">Uploading attachments...</p>}
-            </div>
             {pendingAttachments.length > 0 && (
               <div className="space-y-2">
                 {pendingAttachments.map((attachment) => (
@@ -437,22 +674,80 @@ export default function InboxThread({
             )}
           </div>
         )}
+        {(uploadingAttachments || recordingVoiceNote) && (
+          <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
+            {recordingVoiceNote && <span className="text-red-200">Recording voice note...</span>}
+            {uploadingAttachments && !recordingVoiceNote && <span>Preparing upload...</span>}
+          </div>
+        )}
         <div className="relative">
+          {showPaperclip && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+              onChange={(event) => void handleAttachmentChange(event)}
+              disabled={uploadingAttachments || recordingVoiceNote}
+              className="hidden"
+            />
+          )}
+          {(showPaperclip || showVoiceButton) && (
+            <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1.5">
+              {showPaperclip && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAttachments || recordingVoiceNote}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl text-base transition-colors hover:bg-[rgba(255,255,255,0.06)] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  aria-label="Attach file"
+                  title={attachmentHelpText || "Attach file"}
+                >
+                  <span aria-hidden="true">📎</span>
+                </button>
+              )}
+              {showVoiceButton && (
+                <button
+                  type="button"
+                  onClick={() => (recordingVoiceNote ? stopVoiceRecording() : void startVoiceRecording())}
+                  disabled={uploadingAttachments && !recordingVoiceNote}
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+                    recordingVoiceNote
+                      ? "bg-red-500/15 text-red-200"
+                      : "text-text-muted hover:bg-[rgba(255,255,255,0.06)] hover:text-text-primary"
+                  }`}
+                  aria-label={recordingVoiceNote ? "Stop recording voice note" : "Record voice note"}
+                  title={recordingVoiceNote ? "Stop recording" : "Record voice note"}
+                >
+                  {recordingVoiceNote ? (
+                    <span className="h-3 w-3 rounded-sm bg-red-300" aria-hidden="true" />
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 11a7 7 0 01-14 0M12 18v3m-4 0h8" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={composerPlaceholder}
-            className="w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-4 py-3.5 pr-14 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors"
+            className={`w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] py-3.5 pr-14 ${composerPadding} text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors`}
             style={{ minHeight: "52px", maxHeight: "140px" }}
           />
           <button
             onClick={() => void handleSubmit()}
-            disabled={sending || uploadingAttachments || (!draft.trim() && pendingAttachments.length === 0)}
+            disabled={sending || uploadingAttachments || recordingVoiceNote || (!draft.trim() && pendingAttachments.length === 0)}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-accent-bright/20 hover:bg-accent-bright/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Send message"
+            title="Send"
           >
-            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-9.193-5.106A1 1 0 004 6.94v10.12a1 1 0 001.559.832l9.193-6.126a1 1 0 000-1.664z" />
             </svg>
           </button>

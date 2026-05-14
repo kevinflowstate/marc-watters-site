@@ -270,6 +270,7 @@ function getInboxPreview(message: InboxMessage | null): string | null {
 
   const attachments = message.attachments ?? [];
   if (attachments.length === 1) {
+    if (attachments[0].type === "audio") return "Voice note";
     return `Attachment: ${attachments[0].name}`;
   }
   if (attachments.length > 1) {
