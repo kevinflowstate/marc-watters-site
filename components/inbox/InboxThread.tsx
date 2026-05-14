@@ -703,7 +703,7 @@ export default function InboxThread({
                   aria-label="Attach file"
                   title={attachmentHelpText || "Attach file"}
                 >
-                  <span aria-hidden="true">📎</span>
+                  <span className="-translate-y-px" aria-hidden="true">📎</span>
                 </button>
               )}
               {showVoiceButton && (
@@ -737,7 +737,7 @@ export default function InboxThread({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={composerPlaceholder}
-            className={`w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] py-3.5 pr-14 ${composerPadding} text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors`}
+            className={`w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] py-4 pr-14 ${composerPadding} text-sm leading-5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors`}
             style={{ minHeight: "52px", maxHeight: "140px" }}
           />
           <button
@@ -747,7 +747,7 @@ export default function InboxThread({
             aria-label="Send message"
             title="Send"
           >
-            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="w-4 h-4 -translate-y-px text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-9.193-5.106A1 1 0 004 6.94v10.12a1 1 0 001.559.832l9.193-6.126a1 1 0 000-1.664z" />
             </svg>
           </button>
