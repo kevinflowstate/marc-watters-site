@@ -46,14 +46,24 @@ function renderContent(text: string) {
     });
     if (line.trim() === "") return <br key={i} />;
     if (line.startsWith("- ") || line.startsWith("* ")) {
+      const listBody = line.slice(2);
       return (
         <li key={i} className="ml-4 list-disc text-text-secondary">
-          {rendered.slice(0, 1)}
-          {boldParts.length > 1 ? rendered.slice(1) : renderMarkdown(line.slice(2))}
+          {renderContentLine(listBody)}
         </li>
       );
     }
     return <p key={i}>{rendered}</p>;
+  });
+}
+
+function renderContentLine(line: string) {
+  const boldParts = line.split(/(\*\*.*?\*\*)/g);
+  return boldParts.map((part, j) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={j} className="font-semibold text-text-primary">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={j}>{renderMarkdown(part)}</span>;
   });
 }
 
