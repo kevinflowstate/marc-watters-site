@@ -45,6 +45,22 @@ export async function sendWelcomeEmail(to: string, name: string, activationUrl: 
   });
 }
 
+export async function sendPasswordResetEmail(to: string, name: string, activationUrl: string) {
+  const firstName = name.split(" ")[0];
+  const resend = await getResend(); return resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Reset your Construction Business Blueprint portal password",
+    html: wrap(`
+      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Hey ${escapeHtml(firstName)},</h2>
+      <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+        Marc has sent you a fresh link to set your portal password. Click below and choose a password to access your dashboard.
+      </p>
+      ${button(activationUrl, "Reset Password")}
+    `),
+  });
+}
+
 export async function sendCheckinReplyEmail(to: string, clientName: string, replyText: string, portalUrl = `${getSiteUrl()}/portal/inbox`) {
   const firstName = clientName.split(" ")[0];
   const resend = await getResend(); return resend.emails.send({

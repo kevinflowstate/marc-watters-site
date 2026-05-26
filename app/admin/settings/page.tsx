@@ -52,22 +52,26 @@ export default function AdminSettingsPage() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/admin/create-client", {
+      const res = await fetch("/api/admin/invite-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, full_name: fullName }),
+        body: JSON.stringify({ email, name: fullName }),
       });
 
-      const data = await res.json();
-      if (data.error) {
-        setMessage(`Error: ${data.error}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.error) {
+        setMessage(`Error: ${data?.error || "Failed to create client account"}`);
       } else {
-        setMessage(`Client account created for ${email}. They will receive a password reset email.`);
+        const action = data.alreadyExisted ? "Password reset" : "Client account";
+        const delivery = data.emailSent
+          ? data.alreadyExisted ? "email sent." : "setup email sent."
+          : "link generated. Use the Clients page if you need to copy it manually.";
+        setMessage(`${action} for ${email}. ${delivery}`);
         setEmail("");
         setFullName("");
       }
     } catch {
-      setMessage("Failed to create client. Check the console for details.");
+      setMessage("Failed to create client account. Please try again.");
     }
 
     setCreating(false);
