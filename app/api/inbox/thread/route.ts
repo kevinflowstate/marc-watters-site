@@ -17,5 +17,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  return NextResponse.json(thread);
+  return NextResponse.json({
+    ...thread,
+    viewerUserId: viewer.userId,
+  });
 }

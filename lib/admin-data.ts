@@ -391,8 +391,16 @@ export async function getRecentCheckins() {
 // Save business plan (create or update)
 // ============================================
 
-export async function savePlan(plan: BusinessPlan): Promise<{ error?: string }> {
+export async function savePlan(plan: BusinessPlan): Promise<{ error?: string; created?: boolean }> {
   const admin = createAdminClient();
+
+  const { data: existingPlan } = await admin
+    .from("business_plans")
+    .select("id")
+    .eq("id", plan.id)
+    .maybeSingle<{ id: string }>();
+
+  const created = !existingPlan;
 
   const planPayload = {
     id: plan.id,
@@ -482,7 +490,7 @@ export async function savePlan(plan: BusinessPlan): Promise<{ error?: string }> 
     }
   }
 
-  return {};
+  return { created };
 }
 
 // ============================================

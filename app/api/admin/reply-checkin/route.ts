@@ -2,8 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
 import { defaultCheckinConfig } from "@/lib/checkins";
 import { sendCheckinReplyEmail } from "@/lib/email-templates";
+import { notifyPortalUsers } from "@/lib/notifications";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
-import { sendPushToUser } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
 import type { CheckinFormConfig, FormQuestion } from "@/lib/types";
 import { NextResponse } from "next/server";
@@ -183,25 +183,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: inboxError.message }, { status: 500 });
       }
 
-      // Insert notification for the client
-      await admin.from("notifications").insert({
-        user_id: clientProfile.user_id,
+      await notifyPortalUsers(admin, [{
+        userId: clientProfile.user_id,
         title: `Marc replied to your Week ${checkin.week_number} check-in`,
-        message: reply_text.trim().slice(0, 200),
+        message: reply_text.trim(),
         link: "/portal/inbox",
-      });
-
-      try {
-        await sendPushToUser(clientProfile.user_id, {
-          title: `Marc replied to your Week ${checkin.week_number} check-in`,
-          body: reply_text.trim().slice(0, 140),
-          url: "/portal/inbox",
-          tag: `checkin-reply-${checkin_id}`,
-        });
-      } catch (pushErr) {
-        // Reply delivery should not fail if a device push cannot be sent.
-        console.error("Failed to send check-in reply push:", pushErr);
-      }
+        pushBody: reply_text.trim(),
+        pushTag: `checkin-reply-${checkin_id}`,
+      }]);
 
       // Send email
       try {

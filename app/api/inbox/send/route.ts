@@ -1,6 +1,6 @@
 import { getInboxViewer } from "@/lib/inbox-server";
 import { normalizeAttachments } from "@/lib/attachments";
-import { sendPushToUser } from "@/lib/push";
+import { notifyPortalUsers } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
@@ -95,28 +95,16 @@ export async function POST(request: Request) {
         : `New inbox message from ${clientProfile.business_name || viewer.fullName}`;
     const link = viewer.role === "admin" ? "/portal/inbox" : `/admin/inbox?client=${clientProfile.id}`;
 
-    await admin.from("notifications").insert(
+    await notifyPortalUsers(
+      admin,
       recipientUserIds.map((userId) => ({
-        user_id: userId,
+        userId,
         title,
         message: preview.slice(0, 200),
         link,
+        pushBody: preview.slice(0, 140),
+        pushTag: viewer.role === "admin" ? "inbox-from-marc" : `inbox-${clientProfile.id}`,
       })),
-    );
-
-    await Promise.all(
-      recipientUserIds.map(async (userId) => {
-        try {
-          await sendPushToUser(userId, {
-            title,
-            body: preview.slice(0, 140),
-            url: link,
-            tag: viewer.role === "admin" ? "inbox-from-marc" : `inbox-${clientProfile.id}`,
-          });
-        } catch (pushError) {
-          console.error("Failed to send inbox push notification:", pushError);
-        }
-      }),
     );
   }
 

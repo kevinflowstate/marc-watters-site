@@ -10,6 +10,7 @@ interface ThreadResponse {
   clientName: string;
   clientEmail: string;
   businessName: string | null;
+  viewerUserId: string;
   messages: InboxMessage[];
 }
 
@@ -129,6 +130,26 @@ export default function ClientInboxClient() {
     }
   }
 
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    try {
+      const res = await fetch("/api/inbox/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, emoji }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update reaction.");
+      }
+
+      await loadThread();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update reaction.");
+      throw err;
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -147,6 +168,7 @@ export default function ClientInboxClient() {
           <InboxThread
             messages={thread?.messages ?? []}
             currentRole="client"
+            currentUserId={thread?.viewerUserId}
             onSend={handleSend}
             sending={sending}
             error={error}
@@ -155,6 +177,7 @@ export default function ClientInboxClient() {
             composerPlaceholder="Message Marc..."
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
+            onToggleReaction={handleToggleReaction}
             scrollPageToLatest
           />
         </div>

@@ -43,6 +43,7 @@ export default function ModuleEditorPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [module, setModule] = useState<TrainingModule | null>(null);
+  const [modules, setModules] = useState<TrainingModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -69,7 +70,9 @@ export default function ModuleEditorPage() {
       const res = await fetch("/api/admin/training");
       if (res.ok) {
         const data = await res.json();
-        const found = (data.modules || []).find((m: TrainingModule) => m.id === id);
+        const allModules = (data.modules || []) as TrainingModule[];
+        setModules(allModules);
+        const found = allModules.find((m) => m.id === id);
         if (found) {
           setModule(found);
           setModuleTitle(found.title);
@@ -561,6 +564,7 @@ export default function ModuleEditorPage() {
               if (res.ok) { toast("Lesson updated"); await loadModule(); }
               else { toast("Failed to update lesson", "error"); }
             }}
+            modules={modules}
           />
         ))}
       </div>
@@ -598,6 +602,7 @@ function LessonCard({
   onMoveUp,
   onMoveDown,
   onSave,
+  modules,
 }: {
   lesson: ModuleContent;
   index: number;
@@ -609,6 +614,7 @@ function LessonCard({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onSave: (updates: Record<string, unknown>) => Promise<void>;
+  modules: TrainingModule[];
 }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -617,6 +623,7 @@ function LessonCard({
   const [editText, setEditText] = useState(lesson.content_text || "");
   const [editDuration, setEditDuration] = useState(String(lesson.duration_minutes || ""));
   const [editType, setEditType] = useState<ContentType>(lesson.content_type);
+  const [editModuleId, setEditModuleId] = useState(lesson.module_id);
   const [editAttachments, setEditAttachments] = useState<Attachment[]>(lesson.attachments || []);
   const [savingLesson, setSavingLesson] = useState(false);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
@@ -739,6 +746,25 @@ function LessonCard({
                   <input type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} placeholder="e.g. 15" className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40" />
                 </div>
                 <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Move to module</label>
+                  <select
+                    value={editModuleId}
+                    onChange={(e) => setEditModuleId(e.target.value)}
+                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-accent/40"
+                  >
+                    {modules.map((mod) => (
+                      <option key={mod.id} value={mod.id}>
+                        {mod.title}
+                      </option>
+                    ))}
+                  </select>
+                  {editModuleId !== lesson.module_id && (
+                    <p className="mt-1.5 text-xs text-amber-300">
+                      Saving will move this lesson out of the current module.
+                    </p>
+                  )}
+                </div>
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-text-secondary mb-1.5">Description / Notes</label>
                   <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} placeholder="Lesson description..." className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none" />
                 </div>
@@ -806,6 +832,7 @@ function LessonCard({
                       content_url: editUrl || null,
                       content_text: editText || null,
                       duration_minutes: editDuration ? parseInt(editDuration) : null,
+                      module_id: editModuleId,
                       attachments: editAttachments,
                     });
                     setSavingLesson(false);
@@ -822,6 +849,7 @@ function LessonCard({
                     setEditText(lesson.content_text || "");
                     setEditDuration(String(lesson.duration_minutes || ""));
                     setEditType(lesson.content_type);
+                    setEditModuleId(lesson.module_id);
                     setEditAttachments(lesson.attachments || []);
                     setEditing(false);
                   }}

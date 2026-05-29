@@ -81,6 +81,7 @@ export default function AdminCalendarPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState("all");
 
   // Calendar navigation
   const today = new Date();
@@ -90,6 +91,7 @@ export default function AdminCalendarPage() {
   // New event form
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newFolder, setNewFolder] = useState("General");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("19:00");
   const [newRecurrence, setNewRecurrence] = useState<RecurrenceType>("none");
@@ -146,6 +148,7 @@ export default function AdminCalendarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle, description: newDesc,
+          folder: newFolder,
           event_date: `${newDate}T${newTime}:00`, event_time: newTime,
           recurrence: newRecurrence,
           recurrence_day: newRecurrence !== "none" ? newRecurrenceDay : null,
@@ -155,7 +158,7 @@ export default function AdminCalendarPage() {
       });
       if (res.ok) {
         setShowAdd(false);
-        setNewTitle(""); setNewDesc(""); setNewDate(""); setNewTime("19:00");
+        setNewTitle(""); setNewDesc(""); setNewFolder("General"); setNewDate(""); setNewTime("19:00");
         setNewRecurrence("none"); setNewRecurrenceDay(0); setNewLink(""); setNewLinkLabel(""); setNewAttachments([]);
         loadEvents();
       }
@@ -173,7 +176,9 @@ export default function AdminCalendarPage() {
   }
 
   // Find next upcoming event
-  const activeEvents = events.filter(e => e.is_active);
+  const folders = Array.from(new Set(events.map((event) => event.folder || "General"))).sort();
+  const filteredEvents = selectedFolder === "all" ? events : events.filter((event) => (event.folder || "General") === selectedFolder);
+  const activeEvents = filteredEvents.filter(e => e.is_active);
   const upNext = activeEvents
     .map(e => ({ event: e, next: getNextOccurrence(e) }))
     .filter(x => x.next !== null)
@@ -234,6 +239,24 @@ export default function AdminCalendarPage() {
           Add Event
         </button>
       </div>
+
+      {folders.length > 1 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {["all", ...folders].map((folder) => (
+            <button
+              key={folder}
+              onClick={() => setSelectedFolder(folder)}
+              className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                selectedFolder === folder
+                  ? "border-accent/30 bg-accent/10 text-accent-bright"
+                  : "border-[rgba(255,255,255,0.06)] bg-bg-card/60 text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {folder === "all" ? "All folders" : folder}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Up Next card */}
       {upNext && (
@@ -415,7 +438,7 @@ export default function AdminCalendarPage() {
         <h2 className="text-lg font-heading font-bold text-text-primary mb-3">All Events</h2>
       </div>
       <div className="space-y-3">
-        {events.map((event) => {
+        {filteredEvents.map((event) => {
           const rec = recurrenceLabels[event.recurrence];
           return (
             <div key={event.id} className={`bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-4 flex items-center justify-between transition-all ${
@@ -433,6 +456,8 @@ export default function AdminCalendarPage() {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${rec.color}`}>{rec.label}</span>
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
+                    <span>{event.folder || "General"}</span>
+                    <span> - </span>
                     {formatTime(event.event_time)}
                     {event.recurrence !== "none" && ` - Every ${event.recurrence === "biweekly" ? "other " : ""}${dayNamesFull[event.recurrence_day ?? new Date(event.event_date).getDay()]}`}
                   </div>
@@ -481,6 +506,10 @@ export default function AdminCalendarPage() {
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">Description</label>
                 <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} rows={2} placeholder="Brief description" className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Folder</label>
+                <input type="text" value={newFolder} onChange={(e) => setNewFolder(e.target.value)} placeholder="e.g. Catch-up calls" className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">Date</label>

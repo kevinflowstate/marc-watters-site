@@ -11,6 +11,7 @@ interface SendPayload {
 interface InboxThreadProps {
   messages: InboxMessage[];
   currentRole: "admin" | "client";
+  currentUserId?: string;
   onSend: (payload: SendPayload) => Promise<void>;
   sending: boolean;
   error: string | null;
@@ -24,8 +25,11 @@ interface InboxThreadProps {
   attachmentHelpText?: string;
   onEditMessage?: (messageId: string, message: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
+  onToggleReaction?: (messageId: string, emoji: string) => Promise<void>;
   scrollPageToLatest?: boolean;
 }
+
+const reactionOptions = ["👍", "🔥", "✅", "👏", "🙏"];
 
 function formatTime(timestamp: string) {
   return new Date(timestamp).toLocaleString("en-GB", {
@@ -66,6 +70,7 @@ function formatDayLabel(timestamp: string) {
 export default function InboxThread({
   messages,
   currentRole,
+  currentUserId,
   onSend,
   sending,
   error,
@@ -79,6 +84,7 @@ export default function InboxThread({
   attachmentHelpText,
   onEditMessage,
   onDeleteMessage,
+  onToggleReaction,
   scrollPageToLatest = false,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
@@ -89,6 +95,7 @@ export default function InboxThread({
   const [editingDraft, setEditingDraft] = useState("");
   const [messageActionId, setMessageActionId] = useState<string | null>(null);
   const [messageActionError, setMessageActionError] = useState<string | null>(null);
+  const [reactionActionKey, setReactionActionKey] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const latestMessageKey = messages.length > 0 ? messages[messages.length - 1].id : "empty";
@@ -202,6 +209,22 @@ export default function InboxThread({
     }
   }
 
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    if (!onToggleReaction || reactionActionKey) return;
+
+    const actionKey = `${messageId}:${emoji}`;
+    setReactionActionKey(actionKey);
+    setMessageActionError(null);
+
+    try {
+      await onToggleReaction(messageId, emoji);
+    } catch (err) {
+      setMessageActionError(err instanceof Error ? err.message : "Could not update reaction.");
+    } finally {
+      setReactionActionKey(null);
+    }
+  }
+
   async function handleAttachmentChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
     if (!files?.length || !onUploadAttachments) return;
@@ -253,7 +276,7 @@ export default function InboxThread({
           groupedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
             return (
-              <div key={message.id} className="space-y-4">
+              <div key={message.id} className="group space-y-4">
                 {message.showDayDivider && (
                   <div className="flex items-center gap-3 py-1">
                     <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
@@ -350,6 +373,40 @@ export default function InboxThread({
                             </span>
                           </a>
                         ))}
+                      </div>
+                    )}
+                    {onToggleReaction && (
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        {reactionOptions.map((emoji) => {
+                          const reactions = (message.reactions ?? []).filter((reaction) => reaction.emoji === emoji);
+                          const reacted = Boolean(currentUserId && reactions.some((reaction) => reaction.user_id === currentUserId));
+                          const actionKey = `${message.id}:${emoji}`;
+                          const label =
+                            reactions.length > 0
+                              ? reactions.map((reaction) => reaction.user_name || "Someone").join(", ")
+                              : `React ${emoji}`;
+
+                          return (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => void handleToggleReaction(message.id, emoji)}
+                              disabled={reactionActionKey === actionKey}
+                              title={label}
+                              className={`inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-full border px-2 text-xs transition-colors disabled:opacity-50 ${
+                                reacted
+                                  ? "border-accent/30 bg-accent/15 text-text-primary"
+                                  : reactions.length > 0
+                                    ? "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.05)] text-text-secondary hover:text-text-primary"
+                                    : "border-transparent bg-transparent text-text-muted hover:border-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.04)] hover:text-text-primary"
+                              }`}
+                              aria-label={`${reacted ? "Remove" : "Add"} ${emoji} reaction`}
+                            >
+                              <span>{emoji}</span>
+                              {reactions.length > 0 && <span>{reactions.length}</span>}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                     <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
