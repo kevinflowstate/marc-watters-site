@@ -733,7 +733,7 @@ export default function InboxThread({
                     {onToggleReaction && (
                       <div
                         data-reaction-picker-root
-                        className="relative mb-1 flex h-9 w-9 shrink-0 items-center justify-center"
+                        className="relative mb-1 flex h-10 w-10 shrink-0 items-center justify-center"
                       >
                         {openReactionPickerMessageId === message.id && (
                           <div
@@ -764,14 +764,16 @@ export default function InboxThread({
                           onClick={() =>
                             setOpenReactionPickerMessageId((current) => (current === message.id ? null : message.id))
                           }
-                          className={`flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-bg-secondary/90 text-text-muted shadow-[0_8px_22px_rgba(0,0,0,0.18)] transition-colors hover:border-[rgba(255,255,255,0.16)] hover:text-text-primary ${
-                            openReactionPickerMessageId === message.id ? "border-accent/30 text-text-primary" : ""
+                          className={`flex h-9 w-9 items-center justify-center rounded-full border text-text-secondary shadow-[0_10px_26px_rgba(0,0,0,0.25)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                            openReactionPickerMessageId === message.id
+                              ? "border-accent/45 bg-accent/20 text-text-primary"
+                              : "border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.12)] hover:border-accent/35 hover:bg-[rgba(255,255,255,0.18)] hover:text-text-primary"
                           }`}
                           aria-expanded={openReactionPickerMessageId === message.id}
                           aria-label="React to message"
                           title="React"
                         >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 10h.01M15 10h.01M8.5 14.5a5 5 0 007 0" />
                           </svg>
