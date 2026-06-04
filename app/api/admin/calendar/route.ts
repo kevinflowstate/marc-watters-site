@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json();
-  const { title, description, event_date, event_time, recurrence, recurrence_day, link, link_label, attachments } = body;
+  const { title, description, folder, event_date, event_time, recurrence, recurrence_day, link, link_label, attachments } = body;
 
   if (!title?.trim() || !event_date || !event_time) {
     return NextResponse.json({ error: "title, event_date, and event_time are required" }, { status: 400 });
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     .insert({
       title: title.trim(),
       description: description?.trim() || null,
+      folder: folder?.trim() || "General",
       event_date,
       event_time,
       recurrence: recurrence || "none",
@@ -80,6 +81,9 @@ export async function PATCH(request: Request) {
   };
   if (updates.attachments !== undefined) {
     normalizedUpdates.attachments = normalizeAttachments(updates.attachments);
+  }
+  if (updates.folder !== undefined) {
+    normalizedUpdates.folder = typeof updates.folder === "string" && updates.folder.trim() ? updates.folder.trim() : "General";
   }
 
   const admin = createAdminClient();
