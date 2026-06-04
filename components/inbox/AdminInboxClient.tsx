@@ -11,6 +11,7 @@ interface ThreadResponse {
   clientName: string;
   clientEmail: string;
   businessName: string | null;
+  viewerUserId: string;
   messages: InboxMessage[];
 }
 
@@ -252,6 +253,28 @@ export default function AdminInboxClient() {
     }
   }
 
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    if (!selectedClientId) return;
+
+    try {
+      const res = await fetch("/api/inbox/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, emoji }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update reaction.");
+      }
+
+      await loadThread(selectedClientId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update reaction.");
+      throw err;
+    }
+  }
+
   function handleSelectConversation(clientId: string) {
     setSelectedClientId(clientId);
     setMobileThreadOpen(true);
@@ -346,6 +369,7 @@ export default function AdminInboxClient() {
       <InboxThread
         messages={thread?.messages ?? []}
         currentRole="admin"
+        currentUserId={thread?.viewerUserId}
         onSend={handleSend}
         sending={sending}
         error={error}
@@ -364,6 +388,7 @@ export default function AdminInboxClient() {
         attachmentHelpText="Attach PDFs, worksheets, spreadsheets, or other resources for this client."
         onEditMessage={handleEditMessage}
         onDeleteMessage={handleDeleteMessage}
+        onToggleReaction={handleToggleReaction}
         scrollPageToLatest
       />
     )

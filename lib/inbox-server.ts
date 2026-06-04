@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeAttachments } from "@/lib/attachments";
-import type { InboxConversation, InboxMessage } from "@/lib/types";
+import type { InboxConversation, InboxMessage, InboxMessageReaction } from "@/lib/types";
 
 type UserRole = "admin" | "client";
 
@@ -169,6 +169,7 @@ export async function getInboxThread(viewer: ViewerContext, requestedClientId?: 
   clientName: string;
   clientEmail: string;
   businessName: string | null;
+  viewerUserId: string;
   messages: InboxMessage[];
 } | null> {
   const admin = createAdminClient();
@@ -201,12 +202,17 @@ export async function getInboxThread(viewer: ViewerContext, requestedClientId?: 
       .single<{ id: string; full_name: string; email: string }>(),
   ]);
 
+  const rawMessages = (messagesRes.data ?? []) as InboxMessage[];
+  const messageIds = rawMessages.map((message) => message.id);
+  const reactionsByMessage = await getReactionsByMessage(admin, messageIds);
+
   return {
     clientId: clientProfile.id,
     clientName: clientProfile.business_name || userRes.data?.full_name || "Client",
     clientEmail: userRes.data?.email || "",
     businessName: clientProfile.business_name,
-    messages: normalizeInboxMessages((messagesRes.data ?? []) as InboxMessage[]),
+    viewerUserId: viewer.userId,
+    messages: normalizeInboxMessages(rawMessages, reactionsByMessage),
   };
 }
 
@@ -233,13 +239,70 @@ export async function getInboxUnreadCount(viewer: ViewerContext): Promise<number
   return count ?? 0;
 }
 
-function normalizeInboxMessages(messages: InboxMessage[]): InboxMessage[] {
+async function getReactionsByMessage(
+  admin: ReturnType<typeof createAdminClient>,
+  messageIds: string[],
+): Promise<Map<string, InboxMessageReaction[]>> {
+  const reactionsByMessage = new Map<string, InboxMessageReaction[]>();
+  if (messageIds.length === 0) return reactionsByMessage;
+
+  const { data } = await admin
+    .from("inbox_message_reactions")
+    .select("id, message_id, user_id, emoji, created_at, user:users(full_name)")
+    .in("message_id", messageIds)
+    .order("created_at", { ascending: true });
+
+  for (const reaction of data ?? []) {
+    const normalized = normalizeInboxReaction(reaction);
+    if (!normalized) continue;
+
+    const bucket = reactionsByMessage.get(normalized.message_id) ?? [];
+    bucket.push(normalized);
+    reactionsByMessage.set(normalized.message_id, bucket);
+  }
+
+  return reactionsByMessage;
+}
+
+function normalizeInboxMessages(
+  messages: InboxMessage[],
+  reactionsByMessage = new Map<string, InboxMessageReaction[]>(),
+): InboxMessage[] {
   return messages.map((message) => ({
     ...message,
     message: typeof message.message === "string" ? message.message : "",
     attachments: normalizeAttachments((message as InboxMessage & { attachments?: unknown }).attachments),
+    reactions: reactionsByMessage.get(message.id) ?? [],
     reply_context: normalizeReplyContext((message as InboxMessage & { reply_context?: unknown }).reply_context),
   }));
+}
+
+function normalizeInboxReaction(raw: unknown): InboxMessageReaction | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const record = raw as Record<string, unknown>;
+  const id = typeof record.id === "string" ? record.id : "";
+  const messageId = typeof record.message_id === "string" ? record.message_id : "";
+  const userId = typeof record.user_id === "string" ? record.user_id : "";
+  const emoji = typeof record.emoji === "string" ? record.emoji : "";
+  const createdAt = typeof record.created_at === "string" ? record.created_at : "";
+  const rawUser = record.user;
+  const user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+  const userName =
+    user && typeof user === "object" && !Array.isArray(user) && typeof (user as Record<string, unknown>).full_name === "string"
+      ? ((user as Record<string, unknown>).full_name as string)
+      : undefined;
+
+  if (!id || !messageId || !userId || !emoji || !createdAt) return null;
+
+  return {
+    id,
+    message_id: messageId,
+    user_id: userId,
+    emoji,
+    created_at: createdAt,
+    user_name: userName,
+  };
 }
 
 function normalizeReplyContext(raw: unknown): InboxMessage["reply_context"] | undefined {

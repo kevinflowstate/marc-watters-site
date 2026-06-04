@@ -1,5 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { getClients, savePlan, completePlan } from "@/lib/admin-data";
+import { notifyPortalUsers } from "@/lib/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -47,9 +49,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "plan is required" }, { status: 400 });
   }
 
+  const admin = createAdminClient();
+  const { data: existingPlan } = await admin
+    .from("business_plans")
+    .select("id")
+    .eq("id", body.plan.id)
+    .maybeSingle<{ id: string }>();
+
   const result = await savePlan(body.plan);
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 500 });
+  }
+
+  const { data: clientProfile } = await admin
+    .from("client_profiles")
+    .select("user_id")
+    .eq("id", body.plan.client_id)
+    .single<{ user_id: string }>();
+
+  if (clientProfile?.user_id) {
+    const created = !existingPlan;
+    const title = created ? "Business plan issued" : "Business plan updated";
+    await notifyPortalUsers(admin, [{
+      userId: clientProfile.user_id,
+      title,
+      message: created
+        ? "Marc has issued your business plan. Open the portal to review it."
+        : "Marc has updated your business plan. Open the portal to review the latest version.",
+      link: "/portal/plan",
+      pushTag: `business-plan-${body.plan.id}`,
+    }]);
   }
 
   return NextResponse.json({ success: true });
