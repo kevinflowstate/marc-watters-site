@@ -11,6 +11,7 @@ interface SendPayload {
 interface InboxThreadProps {
   messages: InboxMessage[];
   currentRole: "admin" | "client";
+  currentUserId?: string;
   onSend: (payload: SendPayload) => Promise<void>;
   sending: boolean;
   error: string | null;
@@ -25,8 +26,11 @@ interface InboxThreadProps {
   attachmentHelpText?: string;
   onEditMessage?: (messageId: string, message: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
+  onToggleReaction?: (messageId: string, emoji: string) => Promise<void>;
   scrollPageToLatest?: boolean;
 }
+
+const reactionOptions = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
 
 function formatTime(timestamp: string) {
   return new Date(timestamp).toLocaleString("en-GB", {
@@ -213,6 +217,7 @@ function VoiceNotePlayer({ attachment, isOwn }: { attachment: Attachment; isOwn:
 export default function InboxThread({
   messages,
   currentRole,
+  currentUserId,
   onSend,
   sending,
   error,
@@ -227,6 +232,7 @@ export default function InboxThread({
   attachmentHelpText,
   onEditMessage,
   onDeleteMessage,
+  onToggleReaction,
   scrollPageToLatest = false,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
@@ -239,6 +245,8 @@ export default function InboxThread({
   const [editingDraft, setEditingDraft] = useState("");
   const [messageActionId, setMessageActionId] = useState<string | null>(null);
   const [messageActionError, setMessageActionError] = useState<string | null>(null);
+  const [reactionActionKey, setReactionActionKey] = useState<string | null>(null);
+  const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -296,6 +304,30 @@ export default function InboxThread({
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  useEffect(() => {
+    if (!openReactionPickerMessageId) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-reaction-picker-root]")) return;
+      setOpenReactionPickerMessageId(null);
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenReactionPickerMessageId(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [openReactionPickerMessageId]);
 
   async function handleSubmit() {
     const trimmed = draft.trim();
@@ -361,6 +393,27 @@ export default function InboxThread({
     } finally {
       setMessageActionId(null);
     }
+  }
+
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    if (!onToggleReaction || reactionActionKey) return;
+
+    const actionKey = `${messageId}:${emoji}`;
+    setReactionActionKey(actionKey);
+    setMessageActionError(null);
+
+    try {
+      await onToggleReaction(messageId, emoji);
+    } catch (err) {
+      setMessageActionError(err instanceof Error ? err.message : "Could not update reaction.");
+    } finally {
+      setReactionActionKey(null);
+    }
+  }
+
+  async function handlePickReaction(messageId: string, emoji: string) {
+    await handleToggleReaction(messageId, emoji);
+    setOpenReactionPickerMessageId(null);
   }
 
   async function handleAttachmentChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -496,6 +549,25 @@ export default function InboxThread({
         ) : (
           groupedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
+            const reactionGroups = Array.from(new Set((message.reactions ?? []).map((reaction) => reaction.emoji)))
+              .sort((first, second) => {
+                const firstIndex = reactionOptions.indexOf(first);
+                const secondIndex = reactionOptions.indexOf(second);
+
+                if (firstIndex === -1 && secondIndex === -1) return first.localeCompare(second);
+                if (firstIndex === -1) return 1;
+                if (secondIndex === -1) return -1;
+                return firstIndex - secondIndex;
+              })
+              .map((emoji) => {
+                const reactions = (message.reactions ?? []).filter((reaction) => reaction.emoji === emoji);
+                return {
+                  emoji,
+                  reactions,
+                  reacted: Boolean(currentUserId && reactions.some((reaction) => reaction.user_id === currentUserId)),
+                };
+              });
+
             return (
               <div key={message.id} className="space-y-4">
                 {message.showDayDivider && (
@@ -507,126 +579,205 @@ export default function InboxThread({
                 )}
 
                 <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${
-                      isOwn
-                        ? "bg-[linear-gradient(180deg,rgba(34,114,222,0.22),rgba(34,114,222,0.14))] text-text-primary border border-[rgba(34,114,222,0.18)] rounded-br-md"
-                        : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.05)] rounded-bl-md"
-                    }`}
-                  >
-                    <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
-                      {isOwn ? "You" : otherPartyLabel}
-                    </div>
-                    {message.reply_context && (
-                      <a
-                        href={message.reply_context.href || "#"}
-                        className={`mt-3 block rounded-xl border-l-4 px-3 py-2 no-underline ${
+                  <div className={`group/message flex max-w-[92%] items-end gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+                    <div className={`min-w-0 flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                      <div
+                        className={`max-w-full rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${
                           isOwn
-                            ? "border-accent-bright bg-[rgba(255,255,255,0.08)]"
-                            : "border-accent-bright bg-[rgba(34,114,222,0.08)]"
+                            ? "bg-[linear-gradient(180deg,rgba(34,114,222,0.22),rgba(34,114,222,0.14))] text-text-primary border border-[rgba(34,114,222,0.18)] rounded-br-md"
+                            : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.05)] rounded-bl-md"
                         }`}
                       >
-                        <div className="text-xs font-semibold text-accent-bright">
-                          {message.reply_context.title}
+                        <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
+                          {isOwn ? "You" : otherPartyLabel}
                         </div>
-                        <div className="mt-1 line-clamp-3 text-sm leading-relaxed text-text-secondary">
-                          {message.reply_context.body}
-                        </div>
-                      </a>
-                    )}
-                    {editingMessageId === message.id ? (
-                      <div className="mt-3 space-y-2">
-                        <textarea
-                          value={editingDraft}
-                          onChange={(event) => setEditingDraft(event.target.value)}
-                          rows={3}
-                          className="w-full resize-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-primary/70 px-3 py-2 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.35)]"
-                        />
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingMessageId(null);
-                              setEditingDraft("");
-                            }}
-                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
+                        {message.reply_context && (
+                          <a
+                            href={message.reply_context.href || "#"}
+                            className={`mt-3 block rounded-xl border-l-4 px-3 py-2 no-underline ${
+                              isOwn
+                                ? "border-accent-bright bg-[rgba(255,255,255,0.08)]"
+                                : "border-accent-bright bg-[rgba(34,114,222,0.08)]"
+                            }`}
                           >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void submitEdit(message)}
-                            disabled={messageActionId === message.id || (!editingDraft.trim() && (!message.attachments || message.attachments.length === 0))}
-                            className="rounded-lg bg-accent-bright/20 px-3 py-1.5 text-xs font-semibold text-accent-bright transition-colors hover:bg-accent-bright/30 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {messageActionId === message.id ? "Saving..." : "Save"}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      message.message.trim() && (
-                        <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
-                      )
-                    )}
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {message.attachments.map((attachment) => (
-                          attachment.type === "audio" ? (
-                            <VoiceNotePlayer key={attachment.id} attachment={attachment} isOwn={isOwn} />
-                          ) : (
-                            <a
-                              key={attachment.id}
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${
-                                isOwn
-                                  ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)]"
-                                  : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:bg-[rgba(255,255,255,0.05)]"
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-text-primary">{attachment.name}</div>
-                                <div className={`text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
-                                  {attachment.type.toUpperCase()}
-                                  {attachment.size ? ` • ${attachment.size}` : ""}
-                                </div>
-                              </div>
-                              <span className={`shrink-0 text-[11px] font-semibold ${isOwn ? "text-accent-light" : "text-accent-bright"}`}>
-                                Download
-                              </span>
-                            </a>
+                            <div className="text-xs font-semibold text-accent-bright">
+                              {message.reply_context.title}
+                            </div>
+                            <div className="mt-1 line-clamp-3 text-sm leading-relaxed text-text-secondary">
+                              {message.reply_context.body}
+                            </div>
+                          </a>
+                        )}
+                        {editingMessageId === message.id ? (
+                          <div className="mt-3 space-y-2">
+                            <textarea
+                              value={editingDraft}
+                              onChange={(event) => setEditingDraft(event.target.value)}
+                              rows={3}
+                              className="w-full resize-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-primary/70 px-3 py-2 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.35)]"
+                            />
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingMessageId(null);
+                                  setEditingDraft("");
+                                }}
+                                className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void submitEdit(message)}
+                                disabled={messageActionId === message.id || (!editingDraft.trim() && (!message.attachments || message.attachments.length === 0))}
+                                className="rounded-lg bg-accent-bright/20 px-3 py-1.5 text-xs font-semibold text-accent-bright transition-colors hover:bg-accent-bright/30 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {messageActionId === message.id ? "Saving..." : "Save"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          message.message.trim() && (
+                            <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
                           )
-                        ))}
+                        )}
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            {message.attachments.map((attachment) => (
+                              attachment.type === "audio" ? (
+                                <VoiceNotePlayer key={attachment.id} attachment={attachment} isOwn={isOwn} />
+                              ) : (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${
+                                    isOwn
+                                      ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)]"
+                                      : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:bg-[rgba(255,255,255,0.05)]"
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-text-primary">{attachment.name}</div>
+                                    <div className={`text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                                      {attachment.type.toUpperCase()}
+                                      {attachment.size ? ` • ${attachment.size}` : ""}
+                                    </div>
+                                  </div>
+                                  <span className={`shrink-0 text-[11px] font-semibold ${isOwn ? "text-accent-light" : "text-accent-bright"}`}>
+                                    Download
+                                  </span>
+                                </a>
+                              )
+                            ))}
+                          </div>
+                        )}
+                        <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                          <span>{formatTime(message.created_at)}</span>
+                          {isOwn && editingMessageId !== message.id && (onEditMessage || onDeleteMessage) && (
+                            <span className="flex items-center gap-2">
+                              {onEditMessage && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditing(message)}
+                                  disabled={messageActionId === message.id}
+                                  className="font-medium transition-colors hover:text-text-primary disabled:opacity-50"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {onDeleteMessage && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDelete(message.id)}
+                                  disabled={messageActionId === message.id}
+                                  className="font-medium transition-colors hover:text-red-300 disabled:opacity-50"
+                                >
+                                  {messageActionId === message.id ? "Removing..." : "Unsend"}
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
-                      <span>{formatTime(message.created_at)}</span>
-                      {isOwn && editingMessageId !== message.id && (onEditMessage || onDeleteMessage) && (
-                        <span className="flex items-center gap-2">
-                          {onEditMessage && (
-                            <button
-                              type="button"
-                              onClick={() => startEditing(message)}
-                              disabled={messageActionId === message.id}
-                              className="font-medium transition-colors hover:text-text-primary disabled:opacity-50"
-                            >
-                              Edit
-                            </button>
-                          )}
-                          {onDeleteMessage && (
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(message.id)}
-                              disabled={messageActionId === message.id}
-                              className="font-medium transition-colors hover:text-red-300 disabled:opacity-50"
-                            >
-                              {messageActionId === message.id ? "Removing..." : "Unsend"}
-                            </button>
-                          )}
-                        </span>
+                      {reactionGroups.length > 0 && (
+                        <div className={`-mt-1 flex flex-wrap gap-1.5 px-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+                          {reactionGroups.map(({ emoji, reactions, reacted }) => {
+                            const actionKey = `${message.id}:${emoji}`;
+                            const label = reactions.map((reaction) => reaction.user_name || "Someone").join(", ");
+
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => void handleToggleReaction(message.id, emoji)}
+                                disabled={!onToggleReaction || reactionActionKey === actionKey}
+                                title={label}
+                                className={`inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-full border px-2 text-[11px] shadow-[0_8px_20px_rgba(0,0,0,0.18)] transition-colors disabled:cursor-default disabled:opacity-70 ${
+                                  reacted
+                                    ? "border-accent/30 bg-accent/25 text-text-primary"
+                                    : "border-[rgba(255,255,255,0.1)] bg-bg-secondary text-text-secondary hover:text-text-primary"
+                                }`}
+                                aria-label={`${reacted ? "Remove" : "Add"} ${emoji} reaction`}
+                              >
+                                <span aria-hidden="true">{emoji}</span>
+                                {reactions.length > 1 && <span>{reactions.length}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
+                    {onToggleReaction && (
+                      <div
+                        data-reaction-picker-root
+                        className="relative mb-1 flex h-9 w-9 shrink-0 items-center justify-center"
+                      >
+                        {openReactionPickerMessageId === message.id && (
+                          <div
+                            className={`absolute bottom-11 z-30 flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.12)] bg-bg-secondary/95 px-2 py-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur ${
+                              isOwn ? "right-0" : "left-0"
+                            }`}
+                          >
+                            {reactionOptions.map((emoji) => {
+                              const actionKey = `${message.id}:${emoji}`;
+
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => void handlePickReaction(message.id, emoji)}
+                                  disabled={reactionActionKey === actionKey}
+                                  className="flex h-9 w-9 items-center justify-center rounded-full text-xl leading-none transition-transform hover:scale-110 hover:bg-[rgba(255,255,255,0.08)] disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label={`React ${emoji}`}
+                                >
+                                  <span aria-hidden="true">{emoji}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenReactionPickerMessageId((current) => (current === message.id ? null : message.id))
+                          }
+                          className={`flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(255,255,255,0.08)] bg-bg-secondary/90 text-text-muted shadow-[0_8px_22px_rgba(0,0,0,0.18)] transition-colors hover:border-[rgba(255,255,255,0.16)] hover:text-text-primary ${
+                            openReactionPickerMessageId === message.id ? "border-accent/30 text-text-primary" : ""
+                          }`}
+                          aria-expanded={openReactionPickerMessageId === message.id}
+                          aria-label="React to message"
+                          title="React"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 10h.01M15 10h.01M8.5 14.5a5 5 0 007 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

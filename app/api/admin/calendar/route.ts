@@ -1,4 +1,5 @@
 import { normalizeAttachments } from "@/lib/attachments";
+import { notifyPortalUsers } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
@@ -53,6 +54,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  await notifyCalendarClients(admin, {
+    title: "New calendar event",
+    message: `${data.title} has been added to your portal calendar.`,
+    tag: `calendar-event-${data.id}`,
+  });
+
   return NextResponse.json({ event: data });
 }
 
@@ -61,7 +68,7 @@ export async function PATCH(request: Request) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id, notify_clients, ...updates } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -85,6 +92,14 @@ export async function PATCH(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (notify_clients) {
+    await notifyCalendarClients(admin, {
+      title: "Calendar event updated",
+      message: `${data.title} has been updated in your portal calendar.`,
+      tag: `calendar-event-${data.id}`,
+    });
   }
 
   return NextResponse.json({ event: data });
@@ -111,4 +126,26 @@ export async function DELETE(request: Request) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+async function notifyCalendarClients(
+  admin: ReturnType<typeof createAdminClient>,
+  notification: { title: string; message: string; tag: string },
+) {
+  const { data: clientProfiles } = await admin
+    .from("client_profiles")
+    .select("user_id");
+
+  const userIds = [...new Set((clientProfiles ?? []).map((profile) => profile.user_id).filter(Boolean))];
+
+  await notifyPortalUsers(
+    admin,
+    userIds.map((userId) => ({
+      userId,
+      title: notification.title,
+      message: notification.message,
+      link: "/portal/calendar",
+      pushTag: notification.tag,
+    })),
+  );
 }
