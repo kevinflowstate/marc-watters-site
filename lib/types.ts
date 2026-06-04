@@ -226,6 +226,7 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;
+  folder?: string;
   event_date: string;
   event_time: string;
   recurrence: RecurrenceType;
