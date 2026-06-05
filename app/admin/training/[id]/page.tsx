@@ -615,7 +615,6 @@ function LessonCard({
   onMoveDown: () => void;
   modules: TrainingModule[];
   onSave: (updates: Record<string, unknown>) => Promise<void>;
-  modules: TrainingModule[];
 }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
