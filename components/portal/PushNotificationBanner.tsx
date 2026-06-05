@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePush } from "@/lib/use-push";
 import { useInstall } from "@/lib/use-install";
 
@@ -20,7 +20,7 @@ function hasPushSupport() {
 }
 
 export default function PushNotificationBanner() {
-  const { permission, subscribed, subscribe } = usePush();
+  const { permission, subscribed, checking, support, subscribe } = usePush();
   const { canInstall, installed, install } = useInstall();
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -134,9 +134,11 @@ export default function PushNotificationBanner() {
   }
 
   // Push notification banner
-  if (dismissed || subscribed) {
+  if (checking || dismissed || subscribed || support === "unsupported") {
     return null;
   }
+
+  const denied = support === "denied";
 
   return (
     <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(12,12,18,0.6)] px-5 py-4">
@@ -155,7 +157,9 @@ export default function PushNotificationBanner() {
           />
         </svg>
         <p className="text-sm text-text-muted">
-          {permission === "granted"
+          {denied
+            ? "Notifications are blocked for this browser. Enable them in your browser or device settings to receive reminders."
+            : permission === "granted"
             ? "Finish enabling notifications so check-in reminders and updates can reach this device."
             : "Enable notifications to get check-in reminders and updates."}
         </p>
@@ -166,13 +170,15 @@ export default function PushNotificationBanner() {
         )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          onClick={handleEnable}
-          disabled={loading}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-accent-primary text-white hover:bg-accent-light transition-colors disabled:opacity-50 cursor-pointer"
-        >
-          {loading ? "Enabling..." : "Enable"}
-        </button>
+        {!denied && (
+          <button
+            onClick={handleEnable}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-accent-primary text-white hover:bg-accent-light transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {loading ? "Enabling..." : "Enable"}
+          </button>
+        )}
         <button
           onClick={handleDismissPush}
           className="p-1.5 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
