@@ -6,8 +6,6 @@ export default function AppUpdateManager() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    let reloading = false;
-
     async function updateServiceWorker() {
       try {
         const registration =
@@ -20,12 +18,6 @@ export default function AppUpdateManager() {
       }
     }
 
-    function handleControllerChange() {
-      if (reloading) return;
-      reloading = true;
-      window.location.reload();
-    }
-
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
         void updateServiceWorker();
@@ -33,14 +25,12 @@ export default function AppUpdateManager() {
     }
 
     void updateServiceWorker();
-    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
     window.addEventListener("focus", updateServiceWorker);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const interval = window.setInterval(updateServiceWorker, 30 * 60 * 1000);
 
     return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       window.removeEventListener("focus", updateServiceWorker);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);

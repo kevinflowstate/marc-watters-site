@@ -2,6 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+export type PushSupportStatus = "supported" | "unsupported" | "denied";
+
+function hasPushSupport() {
+  return (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window
+  );
+}
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -13,7 +24,11 @@ async function persistSubscription(subscription: PushSubscription) {
   return fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(subscription.toJSON()),
+    body: JSON.stringify({
+      ...subscription.toJSON(),
+      userAgent: navigator.userAgent,
+      platform: navigator.platform || null,
+    }),
   });
 }
 
@@ -54,12 +69,13 @@ export function usePush() {
     return "default";
   });
   const [subscribed, setSubscribed] = useState(false);
+  const [checking, setChecking] = useState(() => hasPushSupport());
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.replace(/\\n/g, "").trim() ?? null,
   );
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    if (!hasPushSupport()) return;
 
     ensureServiceWorkerRegistration()
       .then(async (reg) => {
@@ -80,6 +96,9 @@ export function usePush() {
       .catch((error) => {
         console.error("Failed to initialise push subscription state", error);
         setSubscribed(false);
+      })
+      .finally(() => {
+        setChecking(false);
       });
   }, []);
 
@@ -134,5 +153,12 @@ export function usePush() {
     }
   }, [vapidPublicKey]);
 
-  return { permission, subscribed, subscribe };
+  const support: PushSupportStatus =
+    !hasPushSupport()
+      ? "unsupported"
+      : permission === "denied"
+        ? "denied"
+        : "supported";
+
+  return { permission, subscribed, checking, support, subscribe };
 }
