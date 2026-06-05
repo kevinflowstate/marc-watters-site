@@ -96,23 +96,6 @@ export async function sendCheckinReminderEmail(to: string, clientName: string, w
   });
 }
 
-export async function sendAzuraEmail(clientName: string, postalAddress: string) {
-  const resend = await getResend();
-  return resend.emails.send({
-    from: FROM,
-    to: "orders@azurasport.com",
-    subject: "Welcome Pack Order - Marc Watters",
-    html: wrap(`
-      <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-        Please send welcome pack to:
-      </p>
-      <p style="color: #111; font-size: 16px; line-height: 1.6; margin: 0; white-space: pre-line;">
-        <strong>${escapeHtml(clientName)}</strong><br>${escapeHtml(postalAddress)}
-      </p>
-    `),
-  });
-}
-
 export async function sendWeeklySummaryEmail(to: string, summary: {
   totalClients: number;
   checkedIn: string[];

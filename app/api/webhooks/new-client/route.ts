@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
-import { sendWelcomeEmail, sendAzuraEmail } from "@/lib/email-templates";
+import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
 function generateTemporaryPassword(): string {
@@ -25,14 +25,6 @@ export async function POST(request: Request) {
   if (!name || !email) {
     return NextResponse.json({ error: "name and email are required" }, { status: 400 });
   }
-
-  // Build postal address from GHL address fields (multiple possible field names)
-  const addressLine = (body.address1 || body.address || body.street || "").trim();
-  const city = (body.city || "").trim();
-  const state = (body.state || body.county || "").trim();
-  const postalCode = (body.postalCode || body.postal_code || body.postcode || body.zip || "").trim();
-  const country = (body.country || "").trim();
-  const postalAddress = [addressLine, city, state, postalCode, country].filter(Boolean).join(", ");
 
   const admin = createAdminClient();
 
@@ -78,11 +70,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
   }
 
-  // Store postal address if provided
-  if (postalAddress) {
-    await admin.from("client_profiles").update({ postal_address: postalAddress }).eq("id", profile.id);
-  }
-
   // The published "Welcome & Onboarding" module is auto-assigned by the DB trigger on client_profiles.
 
   // Create welcome notification
@@ -110,21 +97,11 @@ export async function POST(request: Request) {
     console.log("[WEBHOOK] Welcome email failed:", e instanceof Error ? e.message : e);
   }
 
-  // Notify Azura to send welcome pack (fires once — new clients only; split payments are skipped by alreadyExisted check above)
-  let azuraNotified = false;
-  try {
-    await sendAzuraEmail(name, postalAddress || "Address not provided");
-    azuraNotified = true;
-  } catch (e) {
-    console.log("[WEBHOOK] Azura email failed:", e instanceof Error ? e.message : e);
-  }
-
   return NextResponse.json({
     success: true,
     userId: newUser.user.id,
     profileId: profile.id,
     emailSent,
-    azuraNotified,
     setupUrl: emailSent ? null : setupUrl,
   });
 }
