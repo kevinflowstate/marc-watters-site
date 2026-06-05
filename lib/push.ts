@@ -61,6 +61,7 @@ export async function sendPushToUser(
     .from("push_subscriptions")
     .select("id, endpoint, keys")
     .eq("user_id", userId)
+    .is("revoked_at", null)
     .returns<PushSubscriptionRow[]>();
 
   if (!subscriptions || subscriptions.length === 0) {
