@@ -1,4 +1,5 @@
 import { normalizeAttachments } from "@/lib/attachments";
+import { notifyPortalUsers } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json();
-  const { title, description, event_date, event_time, recurrence, recurrence_day, link, link_label, attachments } = body;
+  const { title, description, folder, event_date, event_time, recurrence, recurrence_day, link, link_label, attachments } = body;
 
   if (!title?.trim() || !event_date || !event_time) {
     return NextResponse.json({ error: "title, event_date, and event_time are required" }, { status: 400 });
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     .insert({
       title: title.trim(),
       description: description?.trim() || null,
+      folder: folder?.trim() || "General",
       event_date,
       event_time,
       recurrence: recurrence || "none",
@@ -53,6 +55,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  await notifyCalendarClients(admin, {
+    title: "New calendar event",
+    message: `${data.title} has been added to your portal calendar.`,
+    tag: `calendar-event-${data.id}`,
+  });
+
   return NextResponse.json({ event: data });
 }
 
@@ -61,7 +69,7 @@ export async function PATCH(request: Request) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id, notify_clients, ...updates } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -74,6 +82,9 @@ export async function PATCH(request: Request) {
   if (updates.attachments !== undefined) {
     normalizedUpdates.attachments = normalizeAttachments(updates.attachments);
   }
+  if (updates.folder !== undefined) {
+    normalizedUpdates.folder = typeof updates.folder === "string" && updates.folder.trim() ? updates.folder.trim() : "General";
+  }
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -85,6 +96,14 @@ export async function PATCH(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (notify_clients) {
+    await notifyCalendarClients(admin, {
+      title: "Calendar event updated",
+      message: `${data.title} has been updated in your portal calendar.`,
+      tag: `calendar-event-${data.id}`,
+    });
   }
 
   return NextResponse.json({ event: data });
@@ -111,4 +130,26 @@ export async function DELETE(request: Request) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+async function notifyCalendarClients(
+  admin: ReturnType<typeof createAdminClient>,
+  notification: { title: string; message: string; tag: string },
+) {
+  const { data: clientProfiles } = await admin
+    .from("client_profiles")
+    .select("user_id");
+
+  const userIds = [...new Set((clientProfiles ?? []).map((profile) => profile.user_id).filter(Boolean))];
+
+  await notifyPortalUsers(
+    admin,
+    userIds.map((userId) => ({
+      userId,
+      title: notification.title,
+      message: notification.message,
+      link: "/portal/calendar",
+      pushTag: notification.tag,
+    })),
+  );
 }

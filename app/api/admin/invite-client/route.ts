@@ -1,12 +1,37 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "@/lib/email-templates";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
 function generateTemporaryPassword(): string {
   const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
   return `Tmp!${entropy.slice(0, 24)}aA1`;
+}
+
+async function findAuthUserIdByEmail(admin: ReturnType<typeof createAdminClient>, email: string): Promise<string | null> {
+  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) return null;
+  return data.users.find((user) => user.email?.toLowerCase() === email)?.id || null;
+}
+
+async function ensureClientProfile(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<{ id: string; created: boolean } | null> {
+  const { data: existingProfile } = await admin
+    .from("client_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingProfile?.id) return { id: existingProfile.id, created: false };
+
+  const { data: profile, error } = await admin
+    .from("client_profiles")
+    .insert({ user_id: userId })
+    .select("id")
+    .single();
+
+  if (error) return null;
+  return { id: profile.id, created: true };
 }
 
 export async function POST(request: Request) {
@@ -28,71 +53,109 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+  let userId: string | null = null;
+  let clientAlreadyExisted = false;
 
-  // Check if user already exists
-  const { data: existing } = await admin
+  const { data: existingUser } = await admin
     .from("users")
-    .select("id")
+    .select("id, role, full_name")
     .eq("email", normalizedEmail)
-    .limit(1);
+    .maybeSingle();
 
-  if (existing && existing.length > 0) {
-    return NextResponse.json({ error: "A client with this email already exists" }, { status: 409 });
+  if (existingUser) {
+    if (existingUser.role !== "client") {
+      return NextResponse.json({ error: "This email belongs to an admin user" }, { status: 409 });
+    }
+
+    userId = existingUser.id;
+    clientAlreadyExisted = true;
+
+    if (existingUser.full_name !== normalizedName) {
+      await admin.from("users").update({ full_name: normalizedName }).eq("id", userId);
+    }
   }
 
-  // Create user in Supabase Auth (triggers handle_new_user + handle_new_client)
-  const { data: newUser, error: authError } = await admin.auth.admin.createUser({
-    email: normalizedEmail,
-    email_confirm: true,
-    password: providedPassword || generateTemporaryPassword(),
-    user_metadata: {
-      full_name: normalizedName,
-      role: "client",
-      app_name: "marc-watters-portal",
-      requires_password_setup: mustSetPasswordOnFirstLogin,
-    },
-  });
+  if (!userId) {
+    const { data: newUser, error: authError } = await admin.auth.admin.createUser({
+      email: normalizedEmail,
+      email_confirm: true,
+      password: providedPassword || generateTemporaryPassword(),
+      user_metadata: {
+        full_name: normalizedName,
+        role: "client",
+        app_name: "marc-watters-portal",
+        requires_password_setup: mustSetPasswordOnFirstLogin,
+      },
+    });
 
-  if (authError) {
-    return NextResponse.json({ error: authError.message }, { status: 500 });
+    if (authError) {
+      const authUserId = await findAuthUserIdByEmail(admin, normalizedEmail);
+      if (!authUserId) {
+        return NextResponse.json({ error: authError.message }, { status: 500 });
+      }
+
+      userId = authUserId;
+      clientAlreadyExisted = true;
+
+      await admin.from("users").upsert({
+        id: userId,
+        email: normalizedEmail,
+        full_name: normalizedName,
+        role: "client",
+      });
+    } else {
+      userId = newUser.user.id;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }
 
-  // Wait for DB triggers to create profile
-  await new Promise((r) => setTimeout(r, 1000));
-
-  // Get the client profile
-  const { data: profile } = await admin
-    .from("client_profiles")
-    .select("id")
-    .eq("user_id", newUser.user.id)
-    .single();
-
+  const profile = await ensureClientProfile(admin, userId);
   if (!profile) {
     return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
   }
 
-  // The published "Welcome & Onboarding" module is auto-assigned by the DB trigger on client_profiles.
+  if (providedPassword && clientAlreadyExisted) {
+    const { data: authUser } = await admin.auth.admin.getUserById(userId);
+    const existingMetadata = authUser?.user?.user_metadata || {};
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      password: providedPassword,
+      user_metadata: {
+        ...existingMetadata,
+        full_name: normalizedName,
+        role: "client",
+        app_name: "marc-watters-portal",
+        requires_password_setup: false,
+      },
+    });
 
-  // Create welcome notification
-  await admin.from("notifications").insert({
-    user_id: newUser.user.id,
-    title: "Welcome to the Blueprint",
-    message: `Welcome ${normalizedName.split(" ")[0]}! Your portal is set up and ready. Start by exploring your training modules and completing your first check-in.`,
-    link: "/portal",
-  });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+
+  if (!clientAlreadyExisted) {
+    await admin.from("notifications").insert({
+      user_id: userId,
+      title: "Welcome to the Blueprint",
+      message: `Welcome ${normalizedName.split(" ")[0]}! Your portal is set up and ready. Start by exploring your training modules and completing your first check-in.`,
+      link: "/portal",
+    });
+  }
 
   const setupUrl = mustSetPasswordOnFirstLogin
     ? (await createOrReplaceClientInvite({
-        userId: newUser.user.id,
+        userId,
         email: normalizedEmail,
         fullName: normalizedName,
       })).activationUrl
     : null;
 
-  // Send welcome email via unified template
   let emailSent = false;
   try {
-    if (setupUrl) {
+    if (setupUrl && clientAlreadyExisted) {
+      await sendPasswordResetEmail(normalizedEmail, normalizedName, setupUrl);
+      emailSent = true;
+    } else if (setupUrl) {
       await sendWelcomeEmail(normalizedEmail, normalizedName, setupUrl);
       emailSent = true;
     }
@@ -102,10 +165,12 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    userId: newUser.user.id,
+    userId,
     profileId: profile.id,
+    alreadyExisted: clientAlreadyExisted,
+    profileWasRepaired: clientAlreadyExisted && profile.created,
     emailSent,
     passwordSet: !mustSetPasswordOnFirstLogin,
-    setupUrl: emailSent ? null : setupUrl, // Return URL if email didn't send, so Marc can share manually
+    setupUrl: emailSent ? null : setupUrl,
   });
 }

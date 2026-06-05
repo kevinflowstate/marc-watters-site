@@ -6,12 +6,6 @@ import { useToast } from "@/components/ui/Toast";
 import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, CheckIn } from "@/lib/types";
 
-const glowClass: Record<TrafficLight, string> = {
-  green: "glow-green",
-  amber: "glow-amber",
-  red: "glow-red",
-};
-
 const statusLabel: Record<TrafficLight, { text: string; dotClass: string; bgClass: string; textClass: string }> = {
   red: { text: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
   amber: { text: "Check In Due", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
@@ -47,11 +41,17 @@ function formatDate(date: Date): string {
 }
 
 export default function AdminDashboard() {
+  const { toast } = useToast();
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [recentCheckins, setRecentCheckins] = useState<EnrichedCheckin[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [adminName, setAdminName] = useState("");
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastError, setBroadcastError] = useState("");
+  const [broadcastSuccess, setBroadcastSuccess] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "" });
   const [inviteSending, setInviteSending] = useState(false);
@@ -128,6 +128,39 @@ export default function AdminDashboard() {
   const redCount = clients.filter((c) => c.status === "red").length;
   const unreplied = recentCheckins.filter((c) => !c.admin_reply).length;
 
+  async function sendBroadcast() {
+    const trimmed = broadcastMessage.trim();
+    if (!trimmed || broadcastSending) return;
+
+    setBroadcastSending(true);
+    setBroadcastError("");
+    setBroadcastSuccess("");
+
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send broadcast");
+      }
+
+      const summary = `Broadcast sent to ${data.clients} client${data.clients === 1 ? "" : "s"}.`;
+      setBroadcastSuccess(summary);
+      setBroadcastMessage("");
+      toast(summary);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to send broadcast";
+      setBroadcastError(message);
+      toast("Failed to send broadcast", "error");
+    } finally {
+      setBroadcastSending(false);
+    }
+  }
+
   return (
     <>
       <div className="mb-8">
@@ -191,6 +224,20 @@ export default function AdminDashboard() {
           </svg>
           Add New Training
         </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setBroadcastOpen(true);
+            setBroadcastError("");
+            setBroadcastSuccess("");
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.06)] rounded-xl text-sm font-medium text-text-primary hover:border-accent/30 hover:bg-accent/5 transition-all cursor-pointer group"
+        >
+          <svg className="w-4 h-4 text-accent-bright group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
+          </svg>
+          Broadcasts
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -314,6 +361,92 @@ export default function AdminDashboard() {
         {/* Recent check-ins - grouped by week */}
         <CheckInsPanel checkins={recentCheckins} />
       </div>
+
+      {broadcastOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              if (!broadcastSending) setBroadcastOpen(false);
+            }}
+          />
+          <div className="relative bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-lg font-heading font-bold text-text-primary">Broadcasts</h3>
+                <p className="mt-1 text-sm text-text-secondary">
+                  Send one direct inbox message and push notification to every client.
+                </p>
+              </div>
+              <button
+                onClick={() => setBroadcastOpen(false)}
+                disabled={broadcastSending}
+                className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Close broadcast dialog"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-[rgba(34,114,222,0.16)] bg-accent/5 px-4 py-3 text-sm text-text-secondary">
+                This will appear as an individual message from Marc in each client&apos;s inbox. It will not create a group thread.
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">Message</label>
+                <textarea
+                  value={broadcastMessage}
+                  onChange={(event) => {
+                    setBroadcastMessage(event.target.value);
+                    setBroadcastError("");
+                    setBroadcastSuccess("");
+                  }}
+                  rows={6}
+                  maxLength={2000}
+                  placeholder="Type the message all clients should receive..."
+                  className="w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-bg-primary px-4 py-3 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                />
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs text-text-muted">
+                  <span>{clients.length} client{clients.length === 1 ? "" : "s"} will receive this.</span>
+                  <span>{broadcastMessage.length}/2000</span>
+                </div>
+              </div>
+
+              {broadcastError && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  {broadcastError}
+                </div>
+              )}
+              {broadcastSuccess && (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                  {broadcastSuccess}
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setBroadcastOpen(false)}
+                  disabled={broadcastSending}
+                  className="rounded-xl border border-[rgba(255,255,255,0.08)] px-5 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void sendBroadcast()}
+                  disabled={broadcastSending || !broadcastMessage.trim() || clients.length === 0}
+                  className="rounded-xl gradient-accent px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  {broadcastSending ? "Sending..." : "Send to all"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {inviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

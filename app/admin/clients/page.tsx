@@ -38,7 +38,7 @@ export default function ClientsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePassword, setInvitePassword] = useState("");
   const [inviteSending, setInviteSending] = useState(false);
-  const [inviteResult, setInviteResult] = useState<{ success: boolean; emailSent?: boolean; passwordSet?: boolean; setupUrl?: string; error?: string } | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ success: boolean; alreadyExisted?: boolean; emailSent?: boolean; passwordSet?: boolean; setupUrl?: string; error?: string } | null>(null);
 
   async function loadClients() {
     try {
@@ -126,14 +126,18 @@ export default function ClientsPage() {
                   <span className="text-sm text-emerald-400 font-medium">
                     {inviteResult.passwordSet
                       ? "Client added - password set, ready to log in"
-                      : inviteResult.emailSent
-                        ? "Client added and email sent"
-                        : "Client added"}
+                      : inviteResult.alreadyExisted
+                        ? inviteResult.emailSent
+                          ? "Password reset email sent"
+                          : "Client found - reset link ready"
+                        : inviteResult.emailSent
+                          ? "Client added and email sent"
+                          : "Client added"}
                   </span>
                 </div>
                 {!inviteResult.passwordSet && !inviteResult.emailSent && inviteResult.setupUrl && (
                   <div className="mb-4">
-                    <p className="text-xs text-amber-400 mb-2">Email couldn&apos;t be sent (domain not verified yet). Share this activation link manually:</p>
+                    <p className="text-xs text-amber-400 mb-2">Email couldn&apos;t be sent. Share this {inviteResult.alreadyExisted ? "reset" : "activation"} link manually:</p>
                     <div className="bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2">
                       <p className="text-[10px] text-text-muted break-all select-all">{inviteResult.setupUrl}</p>
                     </div>
@@ -208,7 +212,7 @@ export default function ClientsPage() {
                         });
                         const data = await res.json();
                         if (res.ok) {
-                          setInviteResult({ success: true, emailSent: data.emailSent, passwordSet: data.passwordSet, setupUrl: data.setupUrl });
+                          setInviteResult({ success: true, alreadyExisted: data.alreadyExisted, emailSent: data.emailSent, passwordSet: data.passwordSet, setupUrl: data.setupUrl });
                         } else {
                           setInviteResult({ success: false, error: data.error });
                         }

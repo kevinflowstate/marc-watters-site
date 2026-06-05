@@ -10,6 +10,7 @@ interface ThreadResponse {
   clientName: string;
   clientEmail: string;
   businessName: string | null;
+  viewerUserId: string;
   messages: InboxMessage[];
 }
 
@@ -54,7 +55,27 @@ export default function ClientInboxClient() {
     return () => clearInterval(interval);
   }, [loadThread]);
 
-  async function handleSend({ message }: SendPayload) {
+  async function uploadAttachments(files: FileList | File[]): Promise<Attachment[]> {
+    const uploaded: Attachment[] = [];
+
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/inbox/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to upload ${file.name}`);
+      }
+
+      const data = await res.json();
+      uploaded.push(data.attachment);
+    }
+
+    return uploaded;
+  }
+
+  async function handleSend({ message, attachments }: SendPayload) {
     setSending(true);
     setError(null);
 
@@ -62,7 +83,7 @@ export default function ClientInboxClient() {
       const res = await fetch("/api/inbox/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, attachments }),
       });
 
       if (!res.ok) {
@@ -70,7 +91,7 @@ export default function ClientInboxClient() {
         throw new Error(data.error || "Failed to send message.");
       }
 
-      toast("Message sent");
+      toast(attachments.length > 0 ? "Message and attachments sent" : "Message sent");
       await loadThread();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message.");
@@ -129,6 +150,26 @@ export default function ClientInboxClient() {
     }
   }
 
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    try {
+      const res = await fetch("/api/inbox/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, emoji }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update reaction.");
+      }
+
+      await loadThread();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update reaction.");
+      throw err;
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -147,14 +188,19 @@ export default function ClientInboxClient() {
           <InboxThread
             messages={thread?.messages ?? []}
             currentRole="client"
+            currentUserId={thread?.viewerUserId}
             onSend={handleSend}
             sending={sending}
             error={error}
             emptyTitle="Start the conversation"
             emptyDescription="If you need help, want to ask a question, or need clarity on your plan, send Marc a message here."
             composerPlaceholder="Message Marc..."
+            allowAttachments
+            onUploadAttachments={uploadAttachments}
+            attachmentHelpText="Attach files or images for Marc to review."
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
+            onToggleReaction={handleToggleReaction}
             scrollPageToLatest
           />
         </div>

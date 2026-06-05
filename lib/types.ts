@@ -51,7 +51,7 @@ export interface Attachment {
   id: string;
   name: string;
   url: string;
-  type: 'pdf' | 'sheet' | 'doc' | 'image' | 'other';
+  type: 'pdf' | 'sheet' | 'doc' | 'image' | 'audio' | 'other';
   size?: string;
 }
 
@@ -188,6 +188,7 @@ export interface InboxMessage {
   sender_role: "admin" | "client";
   message: string;
   attachments?: Attachment[];
+  reactions?: InboxMessageReaction[];
   reply_context?: {
     type: "checkin";
     title: string;
@@ -197,6 +198,15 @@ export interface InboxMessage {
   read_by_admin: boolean;
   read_by_client: boolean;
   created_at: string;
+}
+
+export interface InboxMessageReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+  user_name?: string;
 }
 
 export interface InboxConversation {
@@ -216,6 +226,7 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;
+  folder?: string;
   event_date: string;
   event_time: string;
   recurrence: RecurrenceType;

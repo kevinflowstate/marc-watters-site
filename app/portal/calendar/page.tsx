@@ -73,6 +73,7 @@ export default function PortalCalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState("all");
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -92,7 +93,9 @@ export default function PortalCalendarPage() {
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
 
-  const activeEvents = events.filter(e => e.is_active);
+  const folders = Array.from(new Set(events.map((event) => event.folder || "General"))).sort();
+  const filteredEvents = selectedFolder === "all" ? events : events.filter((event) => (event.folder || "General") === selectedFolder);
+  const activeEvents = filteredEvents.filter(e => e.is_active);
 
   // Up next
   const upNext = activeEvents
@@ -143,6 +146,24 @@ export default function PortalCalendarPage() {
         <p className="text-text-secondary mt-1 text-sm">Upcoming events and coaching sessions.</p>
       </div>
 
+      {folders.length > 1 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {["all", ...folders].map((folder) => (
+            <button
+              key={folder}
+              onClick={() => setSelectedFolder(folder)}
+              className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                selectedFolder === folder
+                  ? "border-accent/30 bg-accent/10 text-accent-bright"
+                  : "border-[rgba(255,255,255,0.06)] bg-bg-card/60 text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {folder === "all" ? "All folders" : folder}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Up Next card */}
       {upNext && (
         <div className="bg-bg-card/80 backdrop-blur-sm border border-accent/15 rounded-2xl p-5 mb-6">
@@ -151,6 +172,7 @@ export default function PortalCalendarPage() {
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-heading font-bold text-text-primary">{upNext.event.title}</h3>
               <div className="flex items-center gap-3 text-xs text-text-muted mt-1">
+                <span>{upNext.event.folder || "General"}</span>
                 <span>
                   {upNext.next!.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
                 </span>
@@ -294,7 +316,7 @@ export default function PortalCalendarPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-text-primary">{ev.title}</div>
-                      <div className="text-xs text-text-muted">{formatTime(ev.event_time)}</div>
+                      <div className="text-xs text-text-muted">{ev.folder || "General"} - {formatTime(ev.event_time)}</div>
                       {ev.description && (
                         <p className="text-xs text-text-secondary mt-1 whitespace-pre-line">{ev.description}</p>
                       )}

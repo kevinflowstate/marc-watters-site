@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
 import type { Attachment, CalendarEvent, RecurrenceType } from "@/lib/types";
 
@@ -11,11 +12,13 @@ const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 export default function EventEditorPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [folder, setFolder] = useState("General");
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("19:00");
   const [recurrence, setRecurrence] = useState<RecurrenceType>("none");
@@ -42,6 +45,7 @@ export default function EventEditorPage() {
             setEvent(found);
             setTitle(found.title);
             setDescription(found.description || "");
+            setFolder(found.folder || "General");
             setEventDate(found.event_date.split("T")[0]);
             setEventTime(found.event_time);
             setRecurrence(found.recurrence);
@@ -101,6 +105,28 @@ export default function EventEditorPage() {
     }
   }
 
+  async function notifyClients() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/calendar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, notify_clients: true }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to notify clients");
+      }
+
+      toast("Clients notified");
+    } catch {
+      toast("Failed to notify clients", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete() {
     try {
       await fetch("/api/admin/calendar", {
@@ -147,16 +173,25 @@ export default function EventEditorPage() {
             </svg>
           </div>
           <div className="absolute top-4 right-4">
-            <button
-              onClick={() => { setIsActive(!isActive); saveField({ is_active: !isActive }); }}
-              className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
-                isActive
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
-                  : "bg-white/10 text-white/60 border border-white/10 hover:border-white/20"
-              }`}
-            >
-              {isActive ? "Active" : "Inactive - Click to Activate"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={notifyClients}
+                disabled={saving}
+                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all bg-accent/15 text-accent-bright border border-accent/25 hover:bg-accent/25 disabled:opacity-50"
+              >
+                Notify Clients
+              </button>
+              <button
+                onClick={() => { setIsActive(!isActive); saveField({ is_active: !isActive }); }}
+                className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
+                  isActive
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                    : "bg-white/10 text-white/60 border border-white/10 hover:border-white/20"
+                }`}
+              >
+                {isActive ? "Active" : "Inactive - Click to Activate"}
+              </button>
+            </div>
           </div>
           {saving && (
             <div className="absolute top-4 left-4 text-[10px] text-white/50">Saving...</div>
@@ -231,6 +266,17 @@ export default function EventEditorPage() {
               </select>
             </div>
           )}
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Folder</label>
+            <input
+              type="text"
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              onBlur={() => saveField({ folder: folder || "General" })}
+              placeholder="e.g. Catch-up calls"
+              className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+            />
+          </div>
         </div>
       </div>
 

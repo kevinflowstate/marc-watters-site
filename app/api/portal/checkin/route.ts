@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   const config = configRow?.config || defaultCheckinConfig;
+  const moodOptions = Array.isArray(config.mood_options) ? config.mood_options : [];
+  const moodRequired = Boolean(config.mood_enabled && moodOptions.length > 0);
 
   for (const question of config.questions || []) {
     if (!question?.required) continue;
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
   const payload = {
     client_id: profile.id,
     week_number: weekNumber,
-    mood: config.mood_enabled ? requestBody.mood || "good" : deriveCheckinMood(responses),
+    mood: moodRequired ? requestBody.mood || "good" : deriveCheckinMood(responses),
     // Populate legacy columns for backward compatibility
     wins: responses?.what_went_well_detail || responses?.wins || null,
     challenges: responses?.what_didnt_go_well_detail || responses?.challenges || null,

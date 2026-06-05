@@ -1,8 +1,16 @@
 import { getInboxViewer } from "@/lib/inbox-server";
 import { normalizeAttachments } from "@/lib/attachments";
+import { getEnv } from "@/lib/env";
 import { sendPushToUser } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+
+function isInboxStorageUrl(url: string, clientId: string) {
+  const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL")?.replace(/\/$/, "");
+  if (!supabaseUrl) return false;
+
+  return url.startsWith(`${supabaseUrl}/storage/v1/object/public/plan-documents/inbox/${clientId}/`);
+}
 
 export async function POST(request: Request) {
   const viewer = await getInboxViewer();
@@ -17,10 +25,6 @@ export async function POST(request: Request) {
 
   if (!trimmed && normalizedAttachments.length === 0) {
     return NextResponse.json({ error: "message or attachment is required" }, { status: 400 });
-  }
-
-  if (viewer.role !== "admin" && normalizedAttachments.length > 0) {
-    return NextResponse.json({ error: "Only admins can send attachments right now" }, { status: 403 });
   }
 
   const admin = createAdminClient();
@@ -42,6 +46,10 @@ export async function POST(request: Request) {
 
   if (viewer.role === "client" && clientProfile.id !== viewer.clientProfileId) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  }
+
+  if (normalizedAttachments.some((attachment) => !isInboxStorageUrl(attachment.url, clientProfile.id))) {
+    return NextResponse.json({ error: "Attachments must be uploaded through the inbox first" }, { status: 400 });
   }
 
   const insertPayload = {

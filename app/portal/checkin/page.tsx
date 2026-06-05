@@ -158,13 +158,16 @@ export default function CheckInPage() {
     return groups;
   }, [config?.questions]);
 
+  const moodOptions = config?.mood_options || [];
+  const moodRequired = Boolean(config?.mood_enabled && moodOptions.length > 0);
+
   function setResponse(questionId: string, value: string) {
     setResponses((prev) => ({ ...prev, [questionId]: value }));
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (config?.mood_enabled && !mood) return;
+    if (moodRequired && !mood) return;
     setError(false);
     setSubmitting(true);
 
@@ -249,11 +252,11 @@ export default function CheckInPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {config.mood_enabled && config.mood_options.length > 0 && (
+        {moodRequired && (
           <div>
             <label className="block text-sm font-medium text-text-primary mb-3">How are you feeling this week?</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {config.mood_options.map((option) => (
+              {moodOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -300,7 +303,7 @@ export default function CheckInPage() {
 
         <button
           type="submit"
-          disabled={(config.mood_enabled && !mood) || submitting}
+          disabled={(moodRequired && !mood) || submitting}
           className="w-full py-4 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity"
         >
           {submitting ? "Submitting..." : "Submit Check-In"}
