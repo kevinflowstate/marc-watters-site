@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { Suspense } from "react";
+import { usePush } from "@/lib/use-push";
 
 export default function SettingsPage() {
   return (
@@ -33,6 +34,9 @@ function SettingsContent() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isSetup, setIsSetup] = useState(false);
+  const { permission, subscribed, checking: pushChecking, support: pushSupport, subscribe } = usePush();
+  const [pushSaving, setPushSaving] = useState(false);
+  const [pushMessage, setPushMessage] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
 
@@ -111,6 +115,21 @@ function SettingsContent() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
+  }
+
+  async function handleEnableNotifications() {
+    setPushSaving(true);
+    setPushMessage(null);
+    try {
+      const success = await subscribe();
+      setPushMessage(
+        success
+          ? "Notifications are enabled on this device."
+          : "Notification setup could not finish on this device. Check browser settings and try again.",
+      );
+    } finally {
+      setPushSaving(false);
+    }
   }
 
   if (loading) return (
@@ -246,6 +265,41 @@ function SettingsContent() {
               className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none"
             />
           </div>
+        </div>
+
+        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-heading font-bold text-text-primary">Notifications</h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Manage reminders for check-ins, messages, calendar updates, and portal changes on this device.
+            </p>
+          </div>
+          <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-primary px-4 py-3">
+            <p className="text-sm text-text-primary">
+              {pushChecking
+                ? "Checking notification status..."
+                : pushSupport === "unsupported"
+                  ? "This browser does not support web push notifications."
+                  : pushSupport === "denied"
+                    ? "Notifications are blocked. Enable them in your browser or device settings, then return here."
+                    : subscribed
+                      ? "Notifications are enabled on this device."
+                      : permission === "granted"
+                        ? "Permission is granted, but this device needs to finish registering for notifications."
+                        : "Notifications are not enabled on this device."}
+            </p>
+            {pushMessage && <p className="text-xs text-text-muted mt-2">{pushMessage}</p>}
+          </div>
+          {pushSupport === "supported" && !subscribed && (
+            <button
+              type="button"
+              onClick={handleEnableNotifications}
+              disabled={pushChecking || pushSaving}
+              className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-accent-primary text-white hover:bg-accent-light transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {pushSaving ? "Enabling..." : "Enable notifications"}
+            </button>
+          )}
         </div>
 
         {/* Password section */}
