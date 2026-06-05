@@ -565,7 +565,6 @@ export default function ModuleEditorPage() {
               if (res.ok) { toast("Lesson updated"); await loadModule(); }
               else { toast("Failed to update lesson", "error"); }
             }}
-            modules={modules}
           />
         ))}
       </div>
