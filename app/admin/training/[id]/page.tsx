@@ -604,7 +604,6 @@ function LessonCard({
   onMoveDown,
   modules,
   onSave,
-  modules,
 }: {
   lesson: ModuleContent;
   index: number;
