@@ -20,6 +20,41 @@ const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = 
   awful: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
 };
 
+const BRIEFING_DISMISSAL_STORAGE_PREFIX = "blueprint-briefing-dismissed";
+
+function getLocalDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getBriefingDismissalStorageKey(): string {
+  return `${BRIEFING_DISMISSAL_STORAGE_PREFIX}:${getLocalDateKey()}`;
+}
+
+function loadDismissedBriefingIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+
+  try {
+    const stored = window.localStorage.getItem(getBriefingDismissalStorageKey());
+    const parsed = stored ? JSON.parse(stored) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissedBriefingIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(getBriefingDismissalStorageKey(), JSON.stringify([...ids]));
+  } catch {
+    // Dismissal persistence is a convenience; the dashboard should still work without localStorage.
+  }
+}
+
 function timeAgo(dateStr: string): string {
   const now = new Date();
   const d = new Date(dateStr);
@@ -572,11 +607,20 @@ interface BriefingInsight {
 }
 
 function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]; recentCheckins: EnrichedCheckin[] }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissed, setDismissed] = useState<Set<string>>(loadDismissedBriefingIds);
   const [nudgeTarget, setNudgeTarget] = useState<{ name: string; userId: string } | null>(null);
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [nudgeSending, setNudgeSending] = useState(false);
   const [nudgeSent, setNudgeSent] = useState(false);
+
+  function dismissInsight(insightId: string) {
+    setDismissed(prev => {
+      const next = new Set(prev);
+      next.add(insightId);
+      saveDismissedBriefingIds(next);
+      return next;
+    });
+  }
 
   const redClients = clients.filter(c => c.status === "red");
   const amberClients = clients.filter(c => c.status === "amber");
@@ -671,7 +715,7 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
       const result = await res.json().catch(() => ({}));
       if (res.ok && result.sent > 0) {
         setNudgeSent(true);
-        setDismissed(prev => new Set([...prev, insightId]));
+        dismissInsight(insightId);
         setTimeout(() => { setNudgeTarget(null); }, 1500);
       } else {
         alert("Push notification could not be delivered. Client may not have notifications enabled.");
@@ -731,7 +775,7 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
                       </Link>
                     )}
                     <button
-                      onClick={() => setDismissed(prev => new Set([...prev, insight.id]))}
+                      onClick={() => dismissInsight(insight.id)}
                       className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text-secondary hover:bg-[rgba(255,255,255,0.05)] transition-colors cursor-pointer"
                     >
                       Dismiss
