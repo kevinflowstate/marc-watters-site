@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import Spinner from "@/components/ui/Spinner";
 
 function LoginForm() {
   const router = useRouter();
@@ -99,8 +100,9 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-11 gradient-accent rounded-xl flex items-center justify-center text-white font-semibold text-sm disabled:opacity-60 transition-opacity"
+            className="w-full h-11 gradient-accent rounded-xl flex items-center justify-center gap-2 text-white font-semibold text-sm disabled:opacity-60 transition-opacity"
           >
+            {loading && <Spinner size="sm" className="!border-white/30 !border-t-white" />}
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>

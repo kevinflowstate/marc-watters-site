@@ -230,3 +230,99 @@ body::after {
 ::-webkit-scrollbar-track { background: var(--color-bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ============================================================
+   BRANDED LOADERS  —  CBB / Cinematic Dark
+   ============================================================ */
+
+/* Shimmer sweep for skeleton placeholders */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-card-hover);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(34, 114, 222, 0.08) 45%,
+    rgba(74, 146, 240, 0.14) 50%,
+    rgba(34, 114, 222, 0.08) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.6s ease-in-out infinite;
+  /* No border-radius here: this rule is unlayered and would override Tailwind's
+     rounded-* utilities. Each skeleton element supplies its own rounded class. */
+}
+.light .skeleton {
+  background: rgba(0, 0, 0, 0.05);
+  background-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(34, 114, 222, 0.06) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+}
+
+/* Branded spinner ring */
+@keyframes spin { to { transform: rotate(360deg); } }
+.brand-spinner {
+  border-radius: 9999px;
+  border-style: solid;
+  border-color: rgba(34, 114, 222, 0.18);
+  border-top-color: var(--color-accent-bright);
+  animation: spin 0.7s linear infinite;
+}
+
+/* Full-screen branded loader — logo pulse + halo */
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(1);    opacity: 0.92; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+@keyframes halo-pulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.35; }
+  50%      { transform: scale(1.25); opacity: 0;    }
+}
+@keyframes loader-bar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(0%);    }
+  100% { transform: translateX(100%);  }
+}
+.brand-loader-logo  { animation: logo-breathe 2.2s ease-in-out infinite; }
+.brand-loader-halo  {
+  background: radial-gradient(circle, rgba(34, 114, 222, 0.45) 0%, rgba(34, 114, 222, 0) 70%);
+  animation: halo-pulse 2.2s ease-in-out infinite;
+}
+.brand-loader-bar   { animation: loader-bar 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+
+/* PWA / initial splash — covers screen until hydrate, then fades */
+@keyframes splash-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+#cbb-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.75rem;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(34, 114, 222, 0.12) 0%, rgba(5, 5, 7, 0) 55%),
+    var(--color-bg-primary);
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+#cbb-splash.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+#cbb-splash .splash-logo { animation: splash-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both, logo-breathe 2.2s ease-in-out 0.6s infinite; }

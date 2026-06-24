@@ -106,10 +106,10 @@ function ActivateContent() {
         <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-[20px] p-8">
           {loading ? (
             <div className="space-y-4">
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-40" />
-              <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-11" />
-              <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-11" />
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-xl h-11" />
+              <div className="skeleton rounded-lg h-5 w-40" />
+              <div className="skeleton rounded-xl h-11" />
+              <div className="skeleton rounded-xl h-11" />
+              <div className="skeleton rounded-xl h-11" />
             </div>
           ) : error ? (
             <div>

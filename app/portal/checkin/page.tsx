@@ -228,17 +228,17 @@ export default function CheckInPage() {
     return (
       <div className="max-w-3xl">
         <div className="mb-8">
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-48 mb-2" />
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-72" />
+          <div className="skeleton rounded-lg h-8 w-48 mb-2" />
+          <div className="skeleton rounded-lg h-4 w-72" />
         </div>
         <div className="space-y-6">
           {[...Array(5)].map((_, i) => (
             <div key={i}>
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-40 mb-2" />
-              <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-24 border border-[rgba(255,255,255,0.06)]" />
+              <div className="skeleton rounded-lg h-4 w-40 mb-2" />
+              <div className="skeleton rounded-xl h-24 border border-[rgba(255,255,255,0.06)]" />
             </div>
           ))}
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-xl h-14" />
+          <div className="skeleton rounded-xl h-14" />
         </div>
       </div>
     );

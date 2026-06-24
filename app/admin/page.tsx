@@ -133,23 +133,23 @@ export default function AdminDashboard() {
     return (
       <>
         <div className="mb-8">
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-64 mb-2" />
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-48" />
+          <div className="skeleton rounded-lg h-8 w-64 mb-2" />
+          <div className="skeleton rounded-lg h-4 w-48" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-20 mb-3" />
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-12" />
+              <div className="skeleton rounded-lg h-3 w-20 mb-3" />
+              <div className="skeleton rounded-lg h-8 w-12" />
             </div>
           ))}
         </div>
         <div className="grid lg:grid-cols-2 gap-6">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-32 mb-4" />
+              <div className="skeleton rounded-lg h-5 w-32 mb-4" />
               {[...Array(4)].map((_, j) => (
-                <div key={j} className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-10 w-full mb-2" />
+                <div key={j} className="skeleton rounded-lg h-10 w-full mb-2" />
               ))}
             </div>
           ))}
