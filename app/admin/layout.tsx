@@ -3,6 +3,7 @@ import AdminMobileNav from "@/components/admin/AdminMobileNav";
 import AdminBackground from "@/components/admin/AdminBackground";
 import PushNotificationBanner from "@/components/portal/PushNotificationBanner";
 import { ToastProvider } from "@/components/ui/Toast";
+import Splash from "@/components/Splash";
 
 export const metadata = {
   title: "Admin - Marc Watters",
@@ -11,6 +12,7 @@ export const metadata = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
+      <Splash />
       <div className="min-h-screen bg-bg-primary relative">
         <AdminBackground />
         <AdminSidebar />

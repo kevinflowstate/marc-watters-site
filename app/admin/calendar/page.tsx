@@ -214,9 +214,9 @@ export default function AdminCalendarPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-48 mb-6" />
-        <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-2xl h-20 mb-4" />
-        <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-2xl h-80" />
+        <div className="skeleton rounded-lg h-8 w-48 mb-6" />
+        <div className="skeleton rounded-2xl h-20 mb-4" />
+        <div className="skeleton rounded-2xl h-80" />
       </div>
     );
   }

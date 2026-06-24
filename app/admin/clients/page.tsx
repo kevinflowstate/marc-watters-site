@@ -58,21 +58,21 @@ export default function ClientsPage() {
     return (
       <>
         <div className="mb-8">
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-32 mb-2" />
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-40" />
+          <div className="skeleton rounded-lg h-8 w-32 mb-2" />
+          <div className="skeleton rounded-lg h-4 w-40" />
         </div>
         <div className="flex gap-2 mb-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-10 w-24 border border-[rgba(255,255,255,0.06)]" />
+            <div key={i} className="skeleton rounded-xl h-10 w-24 border border-[rgba(255,255,255,0.06)]" />
           ))}
         </div>
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 flex items-center gap-4">
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-full w-11 h-11" />
+              <div className="skeleton rounded-full w-11 h-11" />
               <div className="flex-1 space-y-2">
-                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-36" />
-                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-48" />
+                <div className="skeleton rounded-lg h-4 w-36" />
+                <div className="skeleton rounded-lg h-3 w-48" />
               </div>
             </div>
           ))}

@@ -135,23 +135,23 @@ function SettingsContent() {
   if (loading) return (
     <div className="max-w-2xl space-y-6">
       <div className="mb-8">
-        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-8 w-32 mb-2" />
-        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-56" />
+        <div className="skeleton rounded-lg h-8 w-32 mb-2" />
+        <div className="skeleton rounded-lg h-4 w-56" />
       </div>
       <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-        <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-32 mb-4" />
+        <div className="skeleton rounded-lg h-5 w-32 mb-4" />
         <div className="flex items-center gap-5">
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-full w-20 h-20" />
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-xl h-9 w-28" />
+          <div className="skeleton rounded-full w-20 h-20" />
+          <div className="skeleton rounded-xl h-9 w-28" />
         </div>
       </div>
       {[...Array(2)].map((_, i) => (
         <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 space-y-5">
-          <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-24" />
+          <div className="skeleton rounded-lg h-5 w-24" />
           {[...Array(2)].map((_, j) => (
             <div key={j}>
-              <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-4 w-20 mb-2" />
-              <div className="animate-pulse bg-[rgba(255,255,255,0.04)] rounded-xl h-12 border border-[rgba(255,255,255,0.06)]" />
+              <div className="skeleton rounded-lg h-4 w-20 mb-2" />
+              <div className="skeleton rounded-xl h-12 border border-[rgba(255,255,255,0.06)]" />
             </div>
           ))}
         </div>

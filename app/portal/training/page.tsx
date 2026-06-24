@@ -53,11 +53,11 @@ export default function TrainingLibrary() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-              <div className="h-36 animate-pulse bg-[rgba(255,255,255,0.04)]" />
+              <div className="h-36 skeleton" />
               <div className="p-5 space-y-3">
-                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-5 w-3/4" />
-                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-full" />
-                <div className="animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg h-3 w-1/2" />
+                <div className="skeleton rounded-lg h-5 w-3/4" />
+                <div className="skeleton rounded-lg h-3 w-full" />
+                <div className="skeleton rounded-lg h-3 w-1/2" />
               </div>
             </div>
           ))}

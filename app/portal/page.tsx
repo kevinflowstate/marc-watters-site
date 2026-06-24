@@ -183,9 +183,13 @@ export default function PortalDashboard() {
     <>
       {/* Welcome */}
       <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-text-primary">
-          {loading ? "Loading..." : `Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}
-        </h1>
+        {loading ? (
+          <div className="skeleton rounded-lg h-9 w-64 mb-2" />
+        ) : (
+          <h1 className="text-3xl font-heading font-bold text-text-primary">
+            {`Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}
+          </h1>
+        )}
         <p className="text-text-secondary mt-1">Here&apos;s your progress overview.</p>
       </div>
 
@@ -434,7 +438,7 @@ export default function PortalDashboard() {
 }
 
 function SkeletonPulse({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-[rgba(255,255,255,0.06)] rounded-lg ${className || ""}`} />;
+  return <div className={`skeleton rounded-lg ${className || ""}`} />;
 }
 
 function DashboardSkeleton() {
