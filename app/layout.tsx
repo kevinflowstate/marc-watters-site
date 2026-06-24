@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import AppUpdateManager from "@/components/AppUpdateManager";
-import SplashController from "@/components/SplashController";
+import Splash from "@/components/Splash";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -96,33 +96,9 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `setTimeout(function(){var e=document.getElementById('cbb-splash');if(e)e.classList.add('is-hidden')},4000);`,
-          }}
-        />
       </head>
       <body className={`${inter.variable} ${montserrat.variable} antialiased`}>
-        <div id="cbb-splash" aria-hidden="true">
-          <div className="splash-logo relative flex items-center justify-center">
-            <span className="brand-loader-halo absolute h-32 w-32 rounded-full" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/cbb-logo.png"
-              alt=""
-              width={72}
-              height={72}
-              className="relative h-16 w-auto"
-            />
-          </div>
-          <div
-            className="h-[3px] w-44 overflow-hidden rounded-full"
-            style={{ background: "rgba(34,114,222,0.12)" }}
-          >
-            <div className="brand-loader-bar h-full w-1/2 gradient-accent rounded-full" />
-          </div>
-        </div>
-        <SplashController />
+        <Splash />
         <AppUpdateManager />
         {children}
         <script
