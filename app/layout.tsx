@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import AppUpdateManager from "@/components/AppUpdateManager";
-import Splash from "@/components/Splash";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -98,7 +97,6 @@ export default function RootLayout({
         </noscript>
       </head>
       <body className={`${inter.variable} ${montserrat.variable} antialiased`}>
-        <Splash />
         <AppUpdateManager />
         {children}
         <script
