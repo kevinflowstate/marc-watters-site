@@ -34,6 +34,7 @@ export default function BusinessPlansPage() {
   const [clientPickerOpen, setClientPickerOpen] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
   const [planSaveError, setPlanSaveError] = useState<string | null>(null);
+  const [planSaveNotice, setPlanSaveNotice] = useState<string | null>(null);
 
   async function loadData() {
     try {
@@ -54,6 +55,7 @@ export default function BusinessPlansPage() {
   async function handleSavePlan(plan: BusinessPlan) {
     setPlanSaving(true);
     setPlanSaveError(null);
+    setPlanSaveNotice(null);
 
     try {
       const saveRes = await fetch("/api/admin/business-plans", {
@@ -62,14 +64,15 @@ export default function BusinessPlansPage() {
         body: JSON.stringify({ plan }),
       });
 
+      const data = await saveRes.json().catch(() => ({}));
       if (!saveRes.ok) {
-        const data = await saveRes.json().catch(() => ({}));
         throw new Error(data.error || "Failed to save business plan");
       }
 
       setBuilderOpen(false);
       setBuilderClientId(null);
       setBuilderPlan(undefined);
+      setPlanSaveNotice(`Saved ${data.itemCount ?? 0} action item${data.itemCount === 1 ? "" : "s"} across ${data.phaseCount ?? plan.phases.length} phase${data.phaseCount === 1 ? "" : "s"}.`);
       await loadData();
     } catch (err) {
       setPlanSaveError(err instanceof Error ? err.message : "Failed to save business plan");
@@ -129,6 +132,15 @@ export default function BusinessPlansPage() {
           Create Plan
         </button>
       </div>
+
+      {planSaveNotice && (
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          <span>{planSaveNotice}</span>
+          <button type="button" onClick={() => setPlanSaveNotice(null)} className="text-emerald-200/70 hover:text-emerald-100">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1 mb-6 bg-bg-card/50 rounded-xl p-1 w-fit">

@@ -37,6 +37,9 @@ export interface AdminClient {
   internal_notes?: string;
   business_health_checklist?: ClientQuestionnaireSubmission | null;
   monthly_metrics?: ClientMonthlyMetric[];
+  archived_at: string | null;
+  archived_by: string | null;
+  archive_reason: string | null;
 }
 
 // ============================================
@@ -70,46 +73,46 @@ function computeCurrentWeek(startDate: string): number {
 // Fetch all clients (for dashboard / client list)
 // ============================================
 
-export async function getClients(): Promise<AdminClient[]> {
+export async function getClients(options: { includeArchived?: boolean } = {}): Promise<AdminClient[]> {
   const admin = createAdminClient();
 
   // Fetch client profiles joined with user
-  const { data: profiles, error } = await admin
+  let profilesQuery = admin
     .from("client_profiles")
     .select(`
       id, user_id, phone, business_name, business_type, goals,
       start_date, last_login, last_checkin, created_at,
+      archived_at, archived_by, archive_reason,
       user:users!client_profiles_user_id_fkey(email, full_name)
     `)
     .order("created_at", { ascending: true });
 
-  if (error || !profiles) return [];
+  if (!options.includeArchived) {
+    profilesQuery = profilesQuery.is("archived_at", null);
+  }
 
-  // Fetch all checkins
-  const { data: allCheckins } = await admin
-    .from("checkins")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data: profiles, error } = await profilesQuery;
 
-  // Fetch all business plans with phases + items + training links
-  const { data: plans } = await admin
-    .from("business_plans")
-    .select("*")
-    .order("created_at", { ascending: false });
+  if (error || !profiles || profiles.length === 0) return [];
+  const profileIds = profiles.map((profile) => profile.id);
 
-  const { data: phases } = await admin
-    .from("business_plan_phases")
-    .select("*")
-    .order("order_index", { ascending: true });
+  const [{ data: allCheckins }, { data: plans }] = await Promise.all([
+    admin.from("checkins").select("*").in("client_id", profileIds).order("created_at", { ascending: false }),
+    admin.from("business_plans").select("*").in("client_id", profileIds).order("created_at", { ascending: false }),
+  ]);
 
-  const { data: items } = await admin
-    .from("business_plan_items")
-    .select("*")
-    .order("order_index", { ascending: true });
+  const planIds = (plans || []).map((plan) => plan.id);
+  const { data: phases } = planIds.length
+    ? await admin.from("business_plan_phases").select("*").in("plan_id", planIds).order("order_index", { ascending: true })
+    : { data: [] };
 
-  const { data: links } = await admin
-    .from("phase_training_links")
-    .select("phase_id, content_id");
+  const phaseIds = (phases || []).map((phase) => phase.id);
+  const [{ data: items }, { data: links }] = phaseIds.length
+    ? await Promise.all([
+        admin.from("business_plan_items").select("*").in("phase_id", phaseIds).order("order_index", { ascending: true }),
+        admin.from("phase_training_links").select("phase_id, content_id").in("phase_id", phaseIds),
+      ])
+    : [{ data: [] }, { data: [] }];
 
   // Build lookup maps
   const checkinsByClient = new Map<string, CheckIn[]>();
@@ -188,6 +191,9 @@ export async function getClients(): Promise<AdminClient[]> {
       last_checkin: p.last_checkin || p.created_at,
       checkins: checkinsByClient.get(p.id) || [],
       business_plan: plansByClient.get(p.id) || [],
+      archived_at: p.archived_at,
+      archived_by: p.archived_by,
+      archive_reason: p.archive_reason,
     };
   });
 
@@ -210,6 +216,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     .select(`
       id, user_id, phone, business_name, business_type, goals,
       start_date, last_login, last_checkin, created_at,
+      archived_at, archived_by, archive_reason,
       user:users!client_profiles_user_id_fkey(email, full_name)
     `)
     .eq("id", id)
@@ -352,6 +359,9 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
         }
       : null,
     monthly_metrics: normalizeMonthlyMetricsHistory(monthlyMetrics || []),
+    archived_at: p.archived_at,
+    archived_by: p.archived_by,
+    archive_reason: p.archive_reason,
   };
 }
 
@@ -367,14 +377,17 @@ export async function getRecentCheckins() {
     .select(`
       *,
       client:client_profiles!checkins_client_id_fkey(
-        id, business_name,
+        id, business_name, archived_at,
         user:users!client_profiles_user_id_fkey(full_name)
       )
     `)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  return (checkins || []).map((ck) => {
+  return (checkins || []).filter((ck) => {
+    const client = Array.isArray(ck.client) ? ck.client[0] : ck.client;
+    return client?.archived_at === null;
+  }).map((ck) => {
     const client = Array.isArray(ck.client) ? ck.client[0] : ck.client;
     const user = client?.user;
     const userName = Array.isArray(user) ? user[0]?.full_name : user?.full_name;
@@ -391,98 +404,36 @@ export async function getRecentCheckins() {
 // Save business plan (create or update)
 // ============================================
 
-export async function savePlan(plan: BusinessPlan): Promise<{ error?: string }> {
+export interface SavePlanResult {
+  planId?: string;
+  phaseCount?: number;
+  itemCount?: number;
+  trainingLinkCount?: number;
+  error?: string;
+}
+
+export async function savePlan(plan: BusinessPlan): Promise<SavePlanResult> {
   const admin = createAdminClient();
+  const expectedItemCount = plan.phases.reduce((total, phase) => total + phase.items.length, 0);
+  const expectedTrainingLinkCount = plan.phases.reduce(
+    (total, phase) => total + phase.linked_trainings.length,
+    0,
+  );
 
-  const planPayload = {
-    id: plan.id,
-    client_id: plan.client_id,
-    summary: plan.summary,
-    status: plan.status,
-    created_at: plan.created_at,
-    completed_at: plan.completed_at || null,
-    discovery_answers: plan.discovery_answers || null,
-    pdf_url: plan.pdf_url || null,
-  };
+  const { data, error } = await admin.rpc("save_business_plan_atomic", { p_plan: plan });
+  if (error) return { error: error.message };
 
-  // Some live environments still do not have business_plans.pdf_url. Retry without it
-  // so plan saves keep working while the schema catches up.
-  let { error: planError } = await admin
-    .from("business_plans")
-    .upsert(planPayload);
-
-  if (planError?.message?.includes("pdf_url")) {
-    ({ error: planError } = await admin
-      .from("business_plans")
-      .upsert({
-        id: plan.id,
-        client_id: plan.client_id,
-        summary: plan.summary,
-        status: plan.status,
-        created_at: plan.created_at,
-        completed_at: plan.completed_at || null,
-        discovery_answers: plan.discovery_answers || null,
-      }));
+  const result = data as Omit<SavePlanResult, "error"> | null;
+  if (
+    !result
+    || result.phaseCount !== plan.phases.length
+    || result.itemCount !== expectedItemCount
+    || result.trainingLinkCount !== expectedTrainingLinkCount
+  ) {
+    return { error: "Business plan save verification failed. No partial changes were kept." };
   }
 
-  if (planError) return { error: planError.message };
-
-  // Delete existing phases for this plan (cascade deletes items + links)
-  await admin
-    .from("business_plan_phases")
-    .delete()
-    .eq("plan_id", plan.id);
-
-  // Insert phases
-  for (const phase of plan.phases) {
-    const { data: insertedPhase, error: phaseError } = await admin
-      .from("business_plan_phases")
-      .insert({
-        id: phase.id,
-        plan_id: plan.id,
-        name: phase.name,
-        notes: phase.notes,
-        order_index: phase.order_index,
-      })
-      .select("id")
-      .single();
-
-    if (phaseError) return { error: phaseError.message };
-
-    const phaseId = insertedPhase.id;
-
-    // Insert items
-    if (phase.items.length > 0) {
-      const { error: itemsError } = await admin
-        .from("business_plan_items")
-        .insert(
-          phase.items.map((item, idx) => ({
-            id: item.id,
-            phase_id: phaseId,
-            title: item.title,
-            completed: item.completed,
-            completed_at: item.completed_at || null,
-            order_index: idx,
-          }))
-        );
-      if (itemsError) return { error: itemsError.message };
-    }
-
-    // Insert training links
-    if (phase.linked_trainings.length > 0) {
-      const { error: linksError } = await admin
-        .from("phase_training_links")
-        .insert(
-          phase.linked_trainings.map((contentId) => ({
-            phase_id: phaseId,
-            content_id: contentId,
-          }))
-        );
-      if (linksError) return { error: linksError.message };
-    }
-  }
-
-  return {};
+  return result;
 }
 
 // ============================================

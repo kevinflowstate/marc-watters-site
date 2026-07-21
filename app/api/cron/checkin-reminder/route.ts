@@ -59,7 +59,8 @@ export async function GET(request: Request) {
   // Get client_profiles to map user_id -> client_id
   const { data: profiles } = await admin
     .from("client_profiles")
-    .select("id, user_id");
+    .select("id, user_id")
+    .is("archived_at", null);
 
   const userToClientId = new Map(
     (profiles || []).map((p) => [p.user_id, p.id])
@@ -75,12 +76,14 @@ export async function GET(request: Request) {
   // Get week number for email
   const { data: profilesWithStart } = await admin
     .from("client_profiles")
-    .select("id, user_id, start_date");
+    .select("id, user_id, start_date")
+    .is("archived_at", null);
   const clientStartDates = new Map(
     (profilesWithStart || []).map((p: { user_id: string; start_date: string }) => [p.user_id, p.start_date])
   );
 
-  for (const client of clients) {
+  const activeUserIds = new Set((profiles || []).map((profile) => profile.user_id));
+  for (const client of clients.filter((candidate) => activeUserIds.has(candidate.id))) {
     const clientId = userToClientId.get(client.id);
     if (clientId && checkedInClientIds.has(clientId)) {
       skipped++;

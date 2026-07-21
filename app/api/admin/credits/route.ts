@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { topUpCredits } from "@/lib/ai-usage";
 import { NextRequest, NextResponse } from "next/server";
+import { getClientAccess } from "@/lib/client-lifecycle";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin();
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
   const { data: profiles } = await admin
     .from("client_profiles")
     .select("id, user_id, ai_credits, business_name, user:users!client_profiles_user_id_fkey(full_name, email)")
+    .is("archived_at", null)
     .order("created_at", { ascending: true });
 
   return NextResponse.json({ clients: profiles || [] });
@@ -68,6 +70,9 @@ export async function POST(req: NextRequest) {
   const { userId, amount } = await req.json();
   if (!userId || typeof amount !== "number" || amount <= 0) {
     return NextResponse.json({ error: "userId and positive amount (in pounds) required" }, { status: 400 });
+  }
+  if (!(await getClientAccess(userId)).active) {
+    return NextResponse.json({ error: "Archived client records are read-only." }, { status: 409 });
   }
 
   const amountPence = Math.round(amount * 100);

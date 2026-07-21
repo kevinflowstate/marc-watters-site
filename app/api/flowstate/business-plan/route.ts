@@ -4,6 +4,7 @@ import { notifyPortalUsers } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BusinessPlan, BusinessPlanItem, BusinessPlanPhase } from "@/lib/types";
 import { NextResponse } from "next/server";
+import { isClientActive } from "@/lib/client-lifecycle";
 
 type PlanPhaseInput = {
   id?: unknown;
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
 
   if (clientError || !client) {
     return NextResponse.json({ ok: false, error: "client_not_found" }, { status: 404 });
+  }
+  if (!(await isClientActive(clientId))) {
+    return NextResponse.json({ ok: false, error: "archived_client_read_only" }, { status: 409 });
   }
 
   const planInput = objectValue(body.plan) || body;

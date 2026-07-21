@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 // GET: Fetch notifications for authenticated user
 export async function GET() {
@@ -11,6 +12,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const { data: notifications, error } = await supabase
     .from("notifications")
@@ -38,6 +41,8 @@ export async function PATCH(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const { ids } = await request.json();
 

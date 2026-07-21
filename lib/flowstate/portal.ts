@@ -57,6 +57,7 @@ export async function buildPortalSummary() {
     admin
       .from("client_profiles")
       .select("id, user_id, business_name, business_type, goals, start_date, last_login, last_checkin, created_at, user:users!client_profiles_user_id_fkey(full_name)")
+      .is("archived_at", null)
       .order("created_at", { ascending: true }),
     admin
       .from("checkins")
@@ -99,12 +100,15 @@ export async function buildPortalSummary() {
     };
   });
 
-  const unansweredCheckins = checkins
+  const activeCheckins = checkins.filter((checkin) => clientMap.has(checkin.client_id));
+  const unansweredCheckins = activeCheckins
     .filter((checkin) => !checkin.admin_reply)
     .map(summariseCheckin)
     .slice(0, 20);
 
-  const unreadInbox = ((inboxRes.data || []) as InboxMessageRow[]).map((message) => {
+  const unreadInbox = ((inboxRes.data || []) as InboxMessageRow[])
+    .filter((message) => clientMap.has(message.client_id))
+    .map((message) => {
     const client = clientMap.get(message.client_id);
     return {
       messageId: message.id,
@@ -116,7 +120,7 @@ export async function buildPortalSummary() {
     };
   });
 
-  const recentActivity = checkins.slice(0, 12).map((checkin) => ({
+  const recentActivity = activeCheckins.slice(0, 12).map((checkin) => ({
     type: checkin.admin_reply ? "checkin_replied" : "checkin_received",
     checkinId: checkin.id,
     clientId: checkin.client_id,

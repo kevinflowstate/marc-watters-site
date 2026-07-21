@@ -114,6 +114,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
   }
 
+  const { data: lifecycle } = await admin
+    .from("client_profiles")
+    .select("archived_at")
+    .eq("id", profile.id)
+    .single();
+  if (lifecycle?.archived_at) {
+    return NextResponse.json(
+      { error: "This client is archived. Restore access before sending a new invite." },
+      { status: 409 },
+    );
+  }
+
   if (providedPassword && clientAlreadyExisted) {
     const { data: authUser } = await admin.auth.admin.getUserById(userId);
     const existingMetadata = authUser?.user?.user_metadata || {};

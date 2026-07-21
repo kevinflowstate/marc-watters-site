@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { togglePlanItem } from "@/lib/admin-data";
 import { NextResponse } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 function normalizeText(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -36,6 +37,8 @@ export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const { itemId } = await request.json();
   if (!itemId) return NextResponse.json({ error: "itemId required" }, { status: 400 });
@@ -91,6 +94,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const userId = user.id;
 

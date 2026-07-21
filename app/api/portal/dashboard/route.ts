@@ -9,6 +9,7 @@ import {
 } from "@/lib/portal-training-access";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 function normalizeText(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -37,6 +38,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const userId = user.id;
 

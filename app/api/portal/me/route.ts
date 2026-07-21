@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 // Used by sidebar and settings to get current user info
 export async function GET() {
@@ -11,6 +12,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const userId = user.id;
 

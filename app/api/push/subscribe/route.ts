@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -9,6 +10,8 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const subscription = await request.json();
   const admin = createAdminClient();

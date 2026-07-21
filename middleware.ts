@@ -59,6 +59,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   let role: string | undefined;
+  let archivedAt: string | null | undefined;
   const requiresPasswordSetup = user?.user_metadata?.requires_password_setup === true;
 
   const needsRoleLookup =
@@ -90,11 +91,20 @@ export async function middleware(request: NextRequest) {
       .single();
 
     role = profile?.role;
+
+    if (role !== 'admin') {
+      const { data: clientProfile } = await adminSupabase
+        .from('client_profiles')
+        .select('archived_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      archivedAt = clientProfile?.archived_at;
+    }
   }
 
   if (isPortalRoot) {
     const url = request.nextUrl.clone();
-    url.pathname = !user ? '/login' : role === 'admin' ? '/admin' : '/portal';
+    url.pathname = !user ? '/login' : role === 'admin' ? '/admin' : archivedAt ? '/access-archived' : '/portal';
     url.search = '';
     return NextResponse.redirect(url);
   }
@@ -109,7 +119,7 @@ export async function middleware(request: NextRequest) {
         : null;
 
     const url = request.nextUrl.clone();
-    url.pathname = role === 'admin' ? '/admin' : safeRedirect || '/portal';
+    url.pathname = role === 'admin' ? '/admin' : archivedAt ? '/access-archived' : safeRedirect || '/portal';
     url.search = '';
     return NextResponse.redirect(url);
   }
@@ -124,6 +134,12 @@ export async function middleware(request: NextRequest) {
 
   // Role-based routing: admin sees admin, client sees portal, never cross
   if ((path.startsWith('/admin') || path.startsWith('/portal')) && user) {
+    if (path.startsWith('/portal') && role !== 'admin' && archivedAt) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/access-archived';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
     // First-login enforcement for clients created without a password
     if (path.startsWith('/portal') && role !== 'admin' && requiresPasswordSetup) {
       const isSettingsPage = path.startsWith('/portal/settings');
