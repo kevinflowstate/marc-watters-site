@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const bucket = (formData.get("bucket") as string) || "training-resources";
+  const planId = formData.get("planId");
 
   if (!file) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -37,8 +38,34 @@ export async function POST(request: NextRequest) {
 
   const { data: urlData } = admin.storage.from(bucket).getPublicUrl(fileName);
 
+  let linkedToPlan = false;
+  if (bucket === "plan-documents" && typeof planId === "string" && planId) {
+    const { data: existingPlan, error: planLookupError } = await admin
+      .from("business_plans")
+      .select("id")
+      .eq("id", planId)
+      .maybeSingle<{ id: string }>();
+
+    if (planLookupError) {
+      return NextResponse.json({ error: planLookupError.message }, { status: 500 });
+    }
+
+    if (existingPlan) {
+      const { error: planUpdateError } = await admin
+        .from("business_plans")
+        .update({ pdf_url: urlData.publicUrl })
+        .eq("id", planId);
+
+      if (planUpdateError) {
+        return NextResponse.json({ error: planUpdateError.message }, { status: 500 });
+      }
+      linkedToPlan = true;
+    }
+  }
+
   return NextResponse.json({
     url: urlData.publicUrl,
     fileName: file.name,
+    linkedToPlan,
   });
 }

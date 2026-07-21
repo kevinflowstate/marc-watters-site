@@ -40,6 +40,7 @@ export default function BusinessPlanBuilder({
   saving = false,
   error = null,
 }: BusinessPlanBuilderProps) {
+  const [planId] = useState(() => existingPlan?.id || generateId());
   const [summary, setSummary] = useState(existingPlan?.summary || "");
   const [phases, setPhases] = useState<BusinessPlanPhase[]>(
     existingPlan?.phases.length ? existingPlan.phases : [createEmptyPhase(0)]
@@ -128,7 +129,7 @@ export default function BusinessPlanBuilder({
     setNewItemTexts({});
 
     const plan: BusinessPlan = {
-      id: existingPlan?.id || generateId(),
+      id: planId,
       client_id: clientId,
       summary,
       status: existingPlan?.status || "active",
@@ -235,6 +236,7 @@ export default function BusinessPlanBuilder({
                     const fd = new FormData();
                     fd.append("file", file);
                     fd.append("bucket", "plan-documents");
+                    fd.append("planId", planId);
                     try {
                       const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
                       if (res.ok) {

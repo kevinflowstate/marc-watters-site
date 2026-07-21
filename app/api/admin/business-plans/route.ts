@@ -108,6 +108,7 @@ export async function POST(request: Request) {
       phaseCount: result.phaseCount,
       itemCount: result.itemCount,
       trainingLinkCount: result.trainingLinkCount,
+      pdfUrl: result.pdfUrl,
     },
     { headers: NO_STORE_HEADERS },
   );
