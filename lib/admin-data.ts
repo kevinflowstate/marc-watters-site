@@ -14,6 +14,82 @@ import { normalizeAttachments } from "./attachments";
 import { normalizeMonthlyMetricsHistory } from "./monthly-metrics";
 import { BUSINESS_HEALTH_CHECKLIST_TYPE } from "./questionnaires";
 
+const SUPABASE_PAGE_SIZE = 1_000;
+const SUPABASE_FILTER_CHUNK_SIZE = 100;
+
+interface BusinessPlanItemRow {
+  id: string;
+  phase_id: string;
+  title: string;
+  completed: boolean;
+  completed_at: string | null;
+  order_index: number;
+}
+
+interface PhaseTrainingLinkRow {
+  phase_id: string;
+  content_id: string;
+}
+
+function chunkValues<T>(values: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function getAllBusinessPlanItems(
+  admin: ReturnType<typeof createAdminClient>,
+  phaseIds: string[],
+): Promise<BusinessPlanItemRow[]> {
+  const items: BusinessPlanItemRow[] = [];
+
+  for (const phaseIdChunk of chunkValues(phaseIds, SUPABASE_FILTER_CHUNK_SIZE)) {
+    for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+      const { data, error } = await admin
+        .from("business_plan_items")
+        .select("id, phase_id, title, completed, completed_at, order_index")
+        .in("phase_id", phaseIdChunk)
+        .order("order_index", { ascending: true })
+        .range(from, from + SUPABASE_PAGE_SIZE - 1);
+
+      if (error) throw new Error(`Failed to load business plan items: ${error.message}`);
+
+      const page = (data || []) as BusinessPlanItemRow[];
+      items.push(...page);
+      if (page.length < SUPABASE_PAGE_SIZE) break;
+    }
+  }
+
+  return items;
+}
+
+async function getAllPhaseTrainingLinks(
+  admin: ReturnType<typeof createAdminClient>,
+  phaseIds: string[],
+): Promise<PhaseTrainingLinkRow[]> {
+  const links: PhaseTrainingLinkRow[] = [];
+
+  for (const phaseIdChunk of chunkValues(phaseIds, SUPABASE_FILTER_CHUNK_SIZE)) {
+    for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+      const { data, error } = await admin
+        .from("phase_training_links")
+        .select("phase_id, content_id")
+        .in("phase_id", phaseIdChunk)
+        .range(from, from + SUPABASE_PAGE_SIZE - 1);
+
+      if (error) throw new Error(`Failed to load phase training links: ${error.message}`);
+
+      const page = (data || []) as PhaseTrainingLinkRow[];
+      links.push(...page);
+      if (page.length < SUPABASE_PAGE_SIZE) break;
+    }
+  }
+
+  return links;
+}
+
 // ============================================
 // Types for admin data layer
 // ============================================
@@ -107,12 +183,12 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
     : { data: [] };
 
   const phaseIds = (phases || []).map((phase) => phase.id);
-  const [{ data: items }, { data: links }] = phaseIds.length
+  const [items, links] = phaseIds.length
     ? await Promise.all([
-        admin.from("business_plan_items").select("*").in("phase_id", phaseIds).order("order_index", { ascending: true }),
-        admin.from("phase_training_links").select("phase_id, content_id").in("phase_id", phaseIds),
+        getAllBusinessPlanItems(admin, phaseIds),
+        getAllPhaseTrainingLinks(admin, phaseIds),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [[], []];
 
   // Build lookup maps
   const checkinsByClient = new Map<string, CheckIn[]>();
@@ -123,20 +199,20 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
   }
 
   const itemsByPhase = new Map<string, BusinessPlanItem[]>();
-  for (const item of items || []) {
+  for (const item of items) {
     const list = itemsByPhase.get(item.phase_id) || [];
     list.push({
       id: item.id,
       category: "",
       title: item.title,
       completed: item.completed,
-      completed_at: item.completed_at,
+      completed_at: item.completed_at || undefined,
     });
     itemsByPhase.set(item.phase_id, list);
   }
 
   const linksByPhase = new Map<string, string[]>();
-  for (const link of links || []) {
+  for (const link of links) {
     const list = linksByPhase.get(link.phase_id) || [];
     list.push(link.content_id);
     linksByPhase.set(link.phase_id, list);
@@ -411,6 +487,7 @@ export interface SavePlanResult {
   phaseCount?: number;
   itemCount?: number;
   trainingLinkCount?: number;
+  pdfUrl?: string | null;
   error?: string;
 }
 
@@ -452,7 +529,21 @@ export async function savePlan(plan: BusinessPlan): Promise<SavePlanResult> {
     return { error: "Business plan save verification failed. No partial changes were kept." };
   }
 
-  return result;
+  const { data: savedPlan, error: savedPlanError } = await admin
+    .from("business_plans")
+    .select("pdf_url")
+    .eq("id", plan.id)
+    .single<{ pdf_url: string | null }>();
+
+  if (savedPlanError) return { error: savedPlanError.message };
+
+  const expectedPdfUrl = planToSave.pdf_url?.trim() || null;
+  const savedPdfUrl = savedPlan.pdf_url?.trim() || null;
+  if (savedPdfUrl !== expectedPdfUrl) {
+    return { error: "Business plan PDF verification failed. The plan was not reported as saved." };
+  }
+
+  return { ...result, pdfUrl: savedPdfUrl };
 }
 
 // ============================================
