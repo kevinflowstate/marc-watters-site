@@ -38,7 +38,9 @@ export default function BusinessPlansPage() {
 
   async function loadData() {
     try {
-      const res = await fetch("/api/admin/business-plans");
+      const res = await fetch(`/api/admin/business-plans?fresh=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
         setPlans(data.plans || []);
@@ -69,6 +71,11 @@ export default function BusinessPlansPage() {
         throw new Error(data.error || "Failed to save business plan");
       }
 
+      setPlans((currentPlans) => currentPlans.map((currentPlan) => (
+        currentPlan.id === plan.id
+          ? { ...currentPlan, ...plan }
+          : currentPlan
+      )));
       setBuilderOpen(false);
       setBuilderClientId(null);
       setBuilderPlan(undefined);

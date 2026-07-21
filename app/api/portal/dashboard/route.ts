@@ -11,6 +11,13 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+};
+
 function normalizeText(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
@@ -164,22 +171,25 @@ export async function GET() {
   const totalLessons = allLessons.length;
   const completedLessons = allLessons.filter((id: string) => completedContentIds.has(id)).length;
 
-  return NextResponse.json({
-    userName: userData?.full_name || "",
-    profile,
-    modules,
-    checkins: checkinsRes.data || [],
-    businessPlan: planRes.data || null,
-    planPhases,
-    checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
-    checkinConfig: formConfigRes.data?.config || null,
-    recentModules,
-    onboardingModuleId,
-    monthlyMetrics: normalizeMonthlyMetricsHistory(monthlyMetrics || []),
-    currentMetricsMonthStart: getCurrentMetricsMonthStart(),
-    trainingProgress: {
-      completedLessons,
-      totalLessons,
+  return NextResponse.json(
+    {
+      userName: userData?.full_name || "",
+      profile,
+      modules,
+      checkins: checkinsRes.data || [],
+      businessPlan: planRes.data || null,
+      planPhases,
+      checkinDay: formConfigRes.data?.config?.checkin_day || "monday",
+      checkinConfig: formConfigRes.data?.config || null,
+      recentModules,
+      onboardingModuleId,
+      monthlyMetrics: normalizeMonthlyMetricsHistory(monthlyMetrics || []),
+      currentMetricsMonthStart: getCurrentMetricsMonthStart(),
+      trainingProgress: {
+        completedLessons,
+        totalLessons,
+      },
     },
-  });
+    { headers: NO_STORE_HEADERS },
+  );
 }

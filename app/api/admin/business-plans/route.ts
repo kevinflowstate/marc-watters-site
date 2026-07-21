@@ -5,6 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isClientActive } from "@/lib/client-lifecycle";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+};
+
 export async function GET() {
   const auth = await requireAdmin();
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -27,7 +34,10 @@ export async function GET() {
 
   const allClients = clients.map(c => ({ id: c.id, name: c.name, business_name: c.business_name }));
 
-  return NextResponse.json({ plans, clientsWithoutPlan, allClients });
+  return NextResponse.json(
+    { plans, clientsWithoutPlan, allClients },
+    { headers: NO_STORE_HEADERS },
+  );
 }
 
 export async function POST(request: Request) {
@@ -91,11 +101,14 @@ export async function POST(request: Request) {
     }]);
   }
 
-  return NextResponse.json({
-    success: true,
-    planId: result.planId,
-    phaseCount: result.phaseCount,
-    itemCount: result.itemCount,
-    trainingLinkCount: result.trainingLinkCount,
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      planId: result.planId,
+      phaseCount: result.phaseCount,
+      itemCount: result.itemCount,
+      trainingLinkCount: result.trainingLinkCount,
+    },
+    { headers: NO_STORE_HEADERS },
+  );
 }
