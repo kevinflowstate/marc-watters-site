@@ -100,7 +100,7 @@ export default function ClientDetailPage() {
   const loadClient = useCallback(async () => {
     try {
       const [clientRes, trainingRes, configRes, businessHealthRes] = await Promise.all([
-        fetch(`/api/admin/clients/${id}`),
+        fetch(`/api/admin/clients/${id}?fresh=${Date.now()}`, { cache: "no-store" }),
         fetch("/api/admin/training"),
         fetch("/api/admin/form-config?type=checkin"),
         fetch("/api/admin/form-config?type=business_health_checklist"),
@@ -279,10 +279,24 @@ export default function ClientDetailPage() {
         throw new Error(data.error || "Failed to save business plan");
       }
 
-      await loadClient();
+      const upsertSavedPlan = (currentPlans: BusinessPlan[]) => {
+        const existingIndex = currentPlans.findIndex((currentPlan) => currentPlan.id === plan.id);
+        if (existingIndex === -1) return [plan, ...currentPlans];
+
+        return currentPlans.map((currentPlan) => (
+          currentPlan.id === plan.id ? { ...currentPlan, ...plan } : currentPlan
+        ));
+      };
+
+      setPlans(upsertSavedPlan);
+      setClient((currentClient) => currentClient
+        ? { ...currentClient, business_plan: upsertSavedPlan(currentClient.business_plan) }
+        : currentClient
+      );
       setPlanSaveNotice(`Saved ${data.itemCount ?? 0} action item${data.itemCount === 1 ? "" : "s"} across ${data.phaseCount ?? plan.phases.length} phase${data.phaseCount === 1 ? "" : "s"}.`);
       setSelectedPlanId(null);
       setBuilderMode("closed");
+      await loadClient();
     } catch (err) {
       setPlanSaveError(err instanceof Error ? err.message : "Failed to save business plan");
     } finally {

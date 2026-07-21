@@ -135,7 +135,9 @@ export default function BusinessPlanBuilder({
       created_at: existingPlan?.created_at || new Date().toISOString(),
       phases: phasesWithDrafts,
       discovery_answers: Object.keys(discoveryAnswers).length > 0 ? discoveryAnswers : undefined,
-      pdf_url: pdfUrl || undefined,
+      // An empty string is an explicit removal. Omitting this field is reserved
+      // for callers that do not manage plan documents and must preserve it.
+      pdf_url: pdfUrl,
     };
     onSave(plan);
   }

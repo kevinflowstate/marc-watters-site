@@ -416,13 +416,30 @@ export interface SavePlanResult {
 
 export async function savePlan(plan: BusinessPlan): Promise<SavePlanResult> {
   const admin = createAdminClient();
+  let planToSave = plan;
+
+  // Some non-UI callers do not send a PDF field. Preserve an existing document
+  // unless the caller explicitly sends an empty string to remove it.
+  if (plan.pdf_url === undefined) {
+    const { data: existingPlan, error: existingPlanError } = await admin
+      .from("business_plans")
+      .select("pdf_url")
+      .eq("id", plan.id)
+      .maybeSingle<{ pdf_url: string | null }>();
+
+    if (existingPlanError) return { error: existingPlanError.message };
+    if (existingPlan?.pdf_url) {
+      planToSave = { ...plan, pdf_url: existingPlan.pdf_url };
+    }
+  }
+
   const expectedItemCount = plan.phases.reduce((total, phase) => total + phase.items.length, 0);
   const expectedTrainingLinkCount = plan.phases.reduce(
     (total, phase) => total + phase.linked_trainings.length,
     0,
   );
 
-  const { data, error } = await admin.rpc("save_business_plan_atomic", { p_plan: plan });
+  const { data, error } = await admin.rpc("save_business_plan_atomic", { p_plan: planToSave });
   if (error) return { error: error.message };
 
   const result = data as Omit<SavePlanResult, "error"> | null;
