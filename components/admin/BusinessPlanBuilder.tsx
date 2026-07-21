@@ -6,6 +6,7 @@ import {
   appendPlanItem,
   commitPlanItemDrafts,
 } from "@/lib/business-plan-drafts";
+import { createClient } from "@/lib/supabase/client";
 import TrainingPicker from "./TrainingPicker";
 
 interface BusinessPlanBuilderProps {
@@ -54,6 +55,7 @@ export default function BusinessPlanBuilder({
   );
   const [pdfUrl, setPdfUrl] = useState(existingPlan?.pdf_url || "");
   const [uploading, setUploading] = useState(false);
+  const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -233,18 +235,51 @@ export default function BusinessPlanBuilder({
                     const file = e.target.files?.[0];
                     if (!file) return;
                     setUploading(true);
-                    const fd = new FormData();
-                    fd.append("file", file);
-                    fd.append("bucket", "plan-documents");
-                    fd.append("planId", planId);
+                    setPdfUploadError(null);
                     try {
-                      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setPdfUrl(data.url);
-                      } else {
-                        alert("Upload failed");
+                      const signRes = await fetch("/api/admin/upload", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "create-signed-upload",
+                          bucket: "plan-documents",
+                          fileName: file.name,
+                          fileSize: file.size,
+                        }),
+                      });
+                      const signedUpload = await signRes.json().catch(() => ({}));
+                      if (!signRes.ok) {
+                        throw new Error(signedUpload.error || "Could not prepare PDF upload");
                       }
+
+                      const supabase = createClient();
+                      const { error: uploadError } = await supabase.storage
+                        .from("plan-documents")
+                        .uploadToSignedUrl(signedUpload.path, signedUpload.token, file, {
+                          contentType: file.type || "application/pdf",
+                        });
+                      if (uploadError) throw uploadError;
+
+                      const finalizeRes = await fetch("/api/admin/upload", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          bucket: "plan-documents",
+                          path: signedUpload.path,
+                          planId,
+                          fileName: file.name,
+                        }),
+                      });
+                      const finalizedUpload = await finalizeRes.json().catch(() => ({}));
+                      if (!finalizeRes.ok) {
+                        throw new Error(finalizedUpload.error || "Could not attach PDF to plan");
+                      }
+
+                      setPdfUrl(finalizedUpload.url);
+                    } catch (uploadError) {
+                      setPdfUploadError(
+                        uploadError instanceof Error ? uploadError.message : "PDF upload failed",
+                      );
                     } finally {
                       setUploading(false);
                     }
@@ -252,6 +287,7 @@ export default function BusinessPlanBuilder({
                   className="w-full bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
                 />
                 {uploading && <p className="text-xs text-text-muted mt-1">Uploading...</p>}
+                {pdfUploadError && <p className="text-xs text-red-400 mt-1">{pdfUploadError}</p>}
                 <p className="text-xs text-text-muted mt-1">Upload the PDF version of this plan. Clients can view and download it.</p>
               </div>
             )}
