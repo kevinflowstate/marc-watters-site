@@ -168,6 +168,7 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
       completed_at: plan.completed_at,
       phases: phasesByPlan.get(plan.id) || [],
       discovery_answers: plan.discovery_answers || undefined,
+      pdf_url: plan.pdf_url || undefined,
     });
     plansByClient.set(plan.client_id, list);
   }
@@ -331,6 +332,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     completed_at: plan.completed_at,
     phases: phasesByPlan.get(plan.id) || [],
     discovery_answers: plan.discovery_answers || undefined,
+    pdf_url: plan.pdf_url || undefined,
   }));
 
   const user = Array.isArray(p.user) ? p.user[0] : p.user;

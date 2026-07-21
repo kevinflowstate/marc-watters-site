@@ -105,19 +105,37 @@ export default function BusinessPlanPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
-        const res = await fetch("/api/portal/plan");
+        const res = await fetch(`/api/portal/plan?fresh=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
+          if (cancelled) return;
           setPlan(data.plan);
           setPhases(normalizePhases(Array.isArray(data.phases) ? data.phases : []));
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    load();
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") void load();
+    }
+
+    void load();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   async function toggleItem(phaseId: string, itemId: string) {

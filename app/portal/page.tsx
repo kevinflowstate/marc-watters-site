@@ -131,11 +131,16 @@ export default function PortalDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
-        const res = await fetch("/api/portal/dashboard");
+        const res = await fetch(`/api/portal/dashboard?fresh=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
+          if (cancelled) return;
           setProfile(data.profile);
           setUserName(data.userName);
           setModules(data.modules || []);
@@ -149,10 +154,23 @@ export default function PortalDashboard() {
           setCurrentMetricsMonthStart(data.currentMetricsMonthStart || "");
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    load();
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") void load();
+    }
+
+    void load();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   const allPlanItems = planPhases.flatMap((p) => p.items || []);
