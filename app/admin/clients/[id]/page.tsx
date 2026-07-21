@@ -1575,6 +1575,7 @@ export default function ClientDetailPage() {
           clientId={client.id}
           existingPlan={builderMode === "edit" ? selectedPlan : undefined}
           onSave={handleSavePlan}
+          onPdfUploaded={loadClient}
           onCancel={() => {
             setPlanSaveError(null);
             setSelectedPlanId(null);
