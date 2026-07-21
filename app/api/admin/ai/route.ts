@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       id, business_name, business_type, goals, start_date, last_login, last_checkin,
       user:users!client_profiles_user_id_fkey(full_name, email)
     `)
+    .is("archived_at", null)
     .order("created_at", { ascending: true });
 
   // Fetch recent check-ins
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     .from("checkins")
     .select(`
       mood, wins, challenges, questions, admin_reply, created_at,
-      client:client_profiles!checkins_client_id_fkey(business_name, user:users!client_profiles_user_id_fkey(full_name))
+      client:client_profiles!checkins_client_id_fkey(business_name, archived_at, user:users!client_profiles_user_id_fkey(full_name))
     `)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -118,7 +119,10 @@ export async function POST(req: NextRequest) {
   });
 
   // Format recent check-ins
-  const checkinSummaries = (recentCheckins || []).map((ck) => {
+  const checkinSummaries = (recentCheckins || []).filter((ck) => {
+    const client = Array.isArray(ck.client) ? ck.client[0] : ck.client;
+    return client?.archived_at === null;
+  }).map((ck) => {
     const client = Array.isArray(ck.client) ? ck.client[0] : ck.client;
     const user = (client as Record<string, unknown>)?.user;
     const userName = Array.isArray(user) ? (user[0] as Record<string, string>)?.full_name : (user as Record<string, string>)?.full_name;

@@ -3,6 +3,7 @@ import { normalizeAttachments } from "@/lib/attachments";
 import { getAccessibleModuleIds } from "@/lib/portal-training-access";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse, type NextRequest } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +14,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const userId = user.id;
 

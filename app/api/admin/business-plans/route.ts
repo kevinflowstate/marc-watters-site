@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { getClients, savePlan, completePlan } from "@/lib/admin-data";
 import { notifyPortalUsers } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isClientActive } from "@/lib/client-lifecycle";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -37,6 +38,11 @@ export async function POST(request: Request) {
 
   // If action is "complete", mark a plan as completed
   if (body.action === "complete" && body.plan_id) {
+    const admin = createAdminClient();
+    const { data: plan } = await admin.from("business_plans").select("client_id").eq("id", body.plan_id).maybeSingle();
+    if (!plan || !(await isClientActive(plan.client_id))) {
+      return NextResponse.json({ error: "Archived client records are read-only." }, { status: 409 });
+    }
     const result = await completePlan(body.plan_id);
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 500 });
@@ -47,6 +53,10 @@ export async function POST(request: Request) {
   // Otherwise, save/update a full plan
   if (!body.plan) {
     return NextResponse.json({ error: "plan is required" }, { status: 400 });
+  }
+
+  if (!(await isClientActive(body.plan.client_id))) {
+    return NextResponse.json({ error: "Archived client records are read-only." }, { status: 409 });
   }
 
   const admin = createAdminClient();
@@ -81,5 +91,11 @@ export async function POST(request: Request) {
     }]);
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    planId: result.planId,
+    phaseCount: result.phaseCount,
+    itemCount: result.itemCount,
+    trainingLinkCount: result.trainingLinkCount,
+  });
 }

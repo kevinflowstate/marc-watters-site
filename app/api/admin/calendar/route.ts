@@ -138,7 +138,8 @@ async function notifyCalendarClients(
 ) {
   const { data: clientProfiles } = await admin
     .from("client_profiles")
-    .select("user_id");
+    .select("user_id")
+    .is("archived_at", null);
 
   const userIds = [...new Set((clientProfiles ?? []).map((profile) => profile.user_id).filter(Boolean))];
 

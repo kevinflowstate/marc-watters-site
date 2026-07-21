@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   const { data: profiles } = await admin
     .from("client_profiles")
     .select("id, user_id, business_name, last_login, last_checkin, created_at, users!inner(full_name, email)")
+    .is("archived_at", null)
     .order("status");
 
   if (!profiles || profiles.length === 0) {

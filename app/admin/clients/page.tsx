@@ -33,6 +33,7 @@ export default function ClientsPage() {
   const [allClients, setAllClients] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TrafficLight | "all">("all");
+  const [lifecycle, setLifecycle] = useState<"active" | "archived">("active");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -42,7 +43,7 @@ export default function ClientsPage() {
 
   async function loadClients() {
     try {
-      const res = await fetch("/api/admin/clients");
+      const res = await fetch("/api/admin/clients?includeArchived=true");
       if (res.ok) {
         const data = await res.json();
         setAllClients(data.clients || []);
@@ -81,14 +82,19 @@ export default function ClientsPage() {
     );
   }
 
-  const filtered = filter === "all" ? allClients : allClients.filter((c) => c.status === filter);
+  const activeClients = allClients.filter((client) => !client.archived_at);
+  const archivedClients = allClients.filter((client) => Boolean(client.archived_at));
+  const lifecycleClients = lifecycle === "active" ? activeClients : archivedClients;
+  const filtered = lifecycle === "archived" || filter === "all"
+    ? lifecycleClients
+    : lifecycleClients.filter((client) => client.status === filter);
 
   return (
     <>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-heading font-bold text-text-primary">Clients</h1>
-          <p className="text-text-secondary mt-1">{allClients.length} total clients</p>
+          <p className="text-text-secondary mt-1">{activeClients.length} active · {archivedClients.length} archived</p>
         </div>
         <button
           onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
@@ -241,8 +247,23 @@ export default function ClientsPage() {
         </div>
       )}
 
+      <div className="mb-4 flex w-full gap-2 rounded-xl border border-[rgba(255,255,255,0.06)] bg-white/[0.02] p-1 sm:w-fit">
+        {(["active", "archived"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setLifecycle(value)}
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold capitalize transition-colors sm:flex-none ${
+              lifecycle === value ? "bg-accent/15 text-accent-bright" : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            {value} ({value === "active" ? activeClients.length : archivedClients.length})
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
-      <div className="flex gap-2 mb-6">
+      {lifecycle === "active" && <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {(["all", "red", "amber", "green"] as const).map((f) => (
           <button
             key={f}
@@ -254,11 +275,11 @@ export default function ClientsPage() {
             }`}
           >
             {f === "all"
-              ? `All (${allClients.length})`
-              : `${statusConfig[f].label} (${allClients.filter((c) => c.status === f).length})`}
+              ? `All (${activeClients.length})`
+              : `${statusConfig[f].label} (${activeClients.filter((c) => c.status === f).length})`}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Client cards */}
       <div className="space-y-3">
@@ -268,6 +289,7 @@ export default function ClientsPage() {
           </div>
         ) : (
           filtered.map((client) => {
+            const isArchived = Boolean(client.archived_at);
             const sc = statusConfig[client.status];
             const activePlans = client.business_plan.filter((p) => p.status === "active");
             const allItems = activePlans.flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
@@ -279,12 +301,12 @@ export default function ClientsPage() {
               <Link
                 key={client.id}
                 href={`/admin/clients/${client.id}`}
-                className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 overflow-hidden transition-all duration-300 no-underline hover:-translate-y-0.5 cursor-pointer ${glowClass[client.status]}`}
+                className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 overflow-hidden transition-all duration-300 no-underline hover:-translate-y-0.5 cursor-pointer ${isArchived ? "border-white/10 opacity-80" : glowClass[client.status]}`}
               >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
                 <div className="flex items-center justify-between relative">
                   <div className="flex items-center gap-4">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold ${sc.bgClass} ${sc.textClass} border ${
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold ${isArchived ? "bg-white/5 text-text-muted border-white/10" : `${sc.bgClass} ${sc.textClass}`} border ${
                       client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
                     }`}>
                       {client.name.split(" ").map((n) => n[0]).join("")}
@@ -296,7 +318,7 @@ export default function ClientsPage() {
                   </div>
 
                   <div className="flex items-center gap-6">
-                    <div className="text-right hidden sm:block">
+                    {!isArchived && <div className="text-right hidden sm:block">
                       <div className="text-xs text-text-muted">Week {client.current_week}/12</div>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="h-1.5 w-20 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
@@ -309,9 +331,9 @@ export default function ClientsPage() {
                         </div>
                         <span className="text-[10px] text-text-muted">{planPct}%</span>
                       </div>
-                    </div>
+                    </div>}
 
-                    <div className="text-right hidden md:block">
+                    {!isArchived && <div className="text-right hidden md:block">
                       <div className="text-xs text-text-muted">Last Check-In</div>
                       <div className={`text-xs font-medium mt-0.5 ${
                         new Date().getTime() - new Date(client.last_checkin).getTime() > 7 * 24 * 60 * 60 * 1000
@@ -319,9 +341,9 @@ export default function ClientsPage() {
                       }`}>
                         {timeAgo(client.last_checkin)}
                       </div>
-                    </div>
+                    </div>}
 
-                    <div className="text-right hidden md:block">
+                    {!isArchived && <div className="text-right hidden md:block">
                       <div className="text-xs text-text-muted">Last Login</div>
                       <div className={`text-xs font-medium mt-0.5 ${
                         new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000
@@ -329,11 +351,11 @@ export default function ClientsPage() {
                       }`}>
                         {timeAgo(client.last_login)}
                       </div>
-                    </div>
+                    </div>}
 
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${sc.bgClass} ${sc.textClass}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${sc.dotClass}`} />
-                      {sc.label}
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
+                      {isArchived ? "Archived" : sc.label}
                     </span>
 
                     <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">

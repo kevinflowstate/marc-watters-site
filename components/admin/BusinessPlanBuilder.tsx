@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { BusinessPlan, BusinessPlanPhase, BusinessPlanItem, TrainingModule, BusinessPlanFormConfig } from "@/lib/types";
+import type { BusinessPlan, BusinessPlanPhase, TrainingModule, BusinessPlanFormConfig } from "@/lib/types";
+import {
+  appendPlanItem,
+  commitPlanItemDrafts,
+} from "@/lib/business-plan-drafts";
 import TrainingPicker from "./TrainingPicker";
 
 interface BusinessPlanBuilderProps {
@@ -99,15 +103,7 @@ export default function BusinessPlanBuilder({
   function addItem(phaseId: string) {
     const text = newItemTexts[phaseId]?.trim();
     if (!text) return;
-    const phase = phases.find((p) => p.id === phaseId);
-    if (!phase) return;
-    const newItem: BusinessPlanItem = {
-      id: generateId(),
-      category: phase.name,
-      title: text,
-      completed: false,
-    };
-    updatePhase(phaseId, { items: [...phase.items, newItem] });
+    setPhases((currentPhases) => appendPlanItem(currentPhases, phaseId, text, generateId));
     setNewItemTexts((prev) => ({ ...prev, [phaseId]: "" }));
   }
 
@@ -127,13 +123,17 @@ export default function BusinessPlanBuilder({
   }
 
   function handleSave() {
+    const phasesWithDrafts = commitPlanItemDrafts(phases, newItemTexts, generateId);
+    setPhases(phasesWithDrafts);
+    setNewItemTexts({});
+
     const plan: BusinessPlan = {
       id: existingPlan?.id || generateId(),
       client_id: clientId,
       summary,
-      status: "active",
+      status: existingPlan?.status || "active",
       created_at: existingPlan?.created_at || new Date().toISOString(),
-      phases,
+      phases: phasesWithDrafts,
       discovery_answers: Object.keys(discoveryAnswers).length > 0 ? discoveryAnswers : undefined,
       pdf_url: pdfUrl || undefined,
     };
@@ -310,7 +310,12 @@ export default function BusinessPlanBuilder({
 
                   {/* Action items */}
                   <div>
-                    <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">Action Items</label>
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
+                      <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-wider">Action Items</label>
+                      <span className="text-[10px] text-text-muted">
+                        {phase.items.length + (newItemTexts[phase.id]?.trim() ? 1 : 0)} item{phase.items.length + (newItemTexts[phase.id]?.trim() ? 1 : 0) === 1 ? "" : "s"}
+                      </span>
+                    </div>
                     <div className="space-y-1">
                       {phase.items.map((item) => (
                         <div key={item.id} className="flex items-center gap-2 group py-1">
@@ -356,6 +361,11 @@ export default function BusinessPlanBuilder({
                         Add
                       </button>
                     </div>
+                    {newItemTexts[phase.id]?.trim() && (
+                      <p className="mt-1.5 text-[10px] text-amber-300">
+                        This draft will be added automatically when you save the plan.
+                      </p>
+                    )}
                   </div>
 
                   {/* Linked trainings */}

@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Activation link is invalid" }, { status: 404 });
     }
 
+    if (invite.revoked_at) {
+      return NextResponse.json({ error: "Activation link has been revoked" }, { status: 410 });
+    }
+
     if (invite.used_at) {
       return NextResponse.json({ error: "Activation link has already been used" }, { status: 410 });
     }
@@ -57,6 +61,10 @@ export async function POST(request: NextRequest) {
     const invite = await getClientInviteByToken(token);
     if (!invite) {
       return NextResponse.json({ error: "Activation link is invalid" }, { status: 404 });
+    }
+
+    if (invite.revoked_at) {
+      return NextResponse.json({ error: "Activation link has been revoked" }, { status: 410 });
     }
 
     if (invite.used_at) {

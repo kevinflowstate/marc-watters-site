@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { getInternalNotes, saveInternalNotes } from "@/lib/admin-data";
 import { NextResponse } from "next/server";
+import { isClientActive } from "@/lib/client-lifecycle";
 
 export async function GET(
   _request: Request,
@@ -22,6 +23,9 @@ export async function PUT(
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { clientId } = await params;
+  if (!(await isClientActive(clientId))) {
+    return NextResponse.json({ error: "Archived client records are read-only." }, { status: 409 });
+  }
   const { content } = await request.json();
 
   const result = await saveInternalNotes(clientId, content || "");

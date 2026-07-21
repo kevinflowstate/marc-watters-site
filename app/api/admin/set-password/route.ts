@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { getClientAccess } from "@/lib/client-lifecycle";
 
 export async function POST(request: Request) {
   const auth = await requireAdmin();
@@ -14,6 +15,10 @@ export async function POST(request: Request) {
 
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+  }
+
+  if (!(await getClientAccess(user_id)).active) {
+    return NextResponse.json({ error: "Restore this archived client before changing their password." }, { status: 409 });
   }
 
   // Only allow setting password for client-role users, not other admins

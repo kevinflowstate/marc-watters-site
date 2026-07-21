@@ -28,6 +28,7 @@ export async function POST(request: Request) {
   const { data: clients, error: clientsError } = await admin
     .from("client_profiles")
     .select("id, user_id, business_name")
+    .is("archived_at", null)
     .order("created_at", { ascending: true })
     .returns<Array<{ id: string; user_id: string; business_name: string | null }>>();
 

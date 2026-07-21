@@ -3,6 +3,7 @@ import { requireFlowstateAccess } from "@/lib/flowstate/auth";
 import { sendPushToUser } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { isClientActive } from "@/lib/client-lifecycle";
 
 type ClientProfile = {
   id: string;
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
 
     if (!clientProfile) {
       return NextResponse.json({ ok: false, error: "client_not_found" }, { status: 404 });
+    }
+    if (!(await isClientActive(clientId))) {
+      return NextResponse.json({ ok: false, error: "archived_client_read_only" }, { status: 409 });
     }
 
     const { data: row, error: inboxError } = await admin

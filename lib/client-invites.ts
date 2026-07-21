@@ -38,6 +38,7 @@ export async function createOrReplaceClientInvite({
       last_sent_at: new Date().toISOString(),
       used_at: null,
       used_ip: null,
+      revoked_at: null,
     },
     { onConflict: "user_id" },
   );
@@ -58,7 +59,7 @@ export async function getClientInviteByToken(token: string) {
 
   const { data, error } = await admin
     .from("client_invites")
-    .select("id, user_id, email, full_name, token_hash, created_at, last_sent_at, used_at")
+    .select("id, user_id, email, full_name, token_hash, created_at, last_sent_at, used_at, revoked_at")
     .eq("token_hash", tokenHash)
     .maybeSingle();
 

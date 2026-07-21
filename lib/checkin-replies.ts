@@ -5,6 +5,7 @@ import { sendPushToUser } from "@/lib/push";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CheckinFormConfig, FormQuestion } from "@/lib/types";
+import { isClientActive } from "@/lib/client-lifecycle";
 
 const SUMMARY_QUESTION_LABELS: Record<string, string> = {
   overall_week_rating: "Week rating",
@@ -115,6 +116,12 @@ export async function sendCheckinReply({
   if (checkinError || !checkin) {
     const error = new Error("checkin_not_found");
     (error as Error & { status?: number }).status = 404;
+    throw error;
+  }
+
+  if (!(await isClientActive(checkin.client_id))) {
+    const error = new Error("archived_client_read_only");
+    (error as Error & { status?: number }).status = 409;
     throw error;
   }
 

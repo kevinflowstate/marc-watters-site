@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import MonthlyMetricsOverview from "@/components/shared/MonthlyMetricsOverview";
 import type { AdminClient } from "@/lib/admin-data";
@@ -61,7 +61,6 @@ function timeAgo(dateStr: string): string {
 
 export default function ClientDetailPage() {
   const { id } = useParams();
-  const router = useRouter();
   const [client, setClient] = useState<AdminClient | null>(null);
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<BusinessPlan[]>([]);
@@ -72,6 +71,7 @@ export default function ClientDetailPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [planSaving, setPlanSaving] = useState(false);
   const [planSaveError, setPlanSaveError] = useState<string | null>(null);
+  const [planSaveNotice, setPlanSaveNotice] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [internalNotes, setInternalNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
@@ -83,9 +83,11 @@ export default function ClientDetailPage() {
   const [checkinConfig, setCheckinConfig] = useState<CheckinFormConfig | null>(null);
   const [businessHealthConfig, setBusinessHealthConfig] = useState<QuestionnaireFormConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [revokeModalOpen, setRevokeModalOpen] = useState(false);
-  const [revokeConfirmText, setRevokeConfirmText] = useState("");
-  const [revoking, setRevoking] = useState(false);
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveSaving, setArchiveSaving] = useState(false);
+  const [restoreSaving, setRestoreSaving] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [newClientPassword, setNewClientPassword] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -141,6 +143,7 @@ export default function ClientDetailPage() {
   useEffect(() => { loadClient(); }, [loadClient]);
 
   async function handleReply(checkinId: string) {
+    if (client?.archived_at) return;
     const text = replyTexts[checkinId];
     if (!text?.trim()) return;
     setSendingReply(checkinId);
@@ -187,6 +190,7 @@ export default function ClientDetailPage() {
   }
 
   const activePlans = plans.filter((p) => p.status === "active");
+  const isArchived = Boolean(client.archived_at);
   const completedPlans = plans.filter((p) => p.status === "completed");
   const sc = statusConfig[client.status];
   const currentMetricsMonthStart = getCurrentMetricsMonthStart();
@@ -201,6 +205,7 @@ export default function ClientDetailPage() {
   const selectedPlan = selectedPlanId ? plans.find((plan) => plan.id === selectedPlanId) : undefined;
 
   async function toggleItem(phaseId: string, itemId: string) {
+    if (isArchived) return;
     // Optimistic update
     setPlans((prev) =>
       prev.map((plan) => {
@@ -257,8 +262,10 @@ export default function ClientDetailPage() {
   }
 
   async function handleSavePlan(plan: BusinessPlan) {
+    if (isArchived) return;
     setPlanSaving(true);
     setPlanSaveError(null);
+    setPlanSaveNotice(null);
 
     try {
       const saveRes = await fetch("/api/admin/business-plans", {
@@ -267,12 +274,13 @@ export default function ClientDetailPage() {
         body: JSON.stringify({ plan }),
       });
 
+      const data = await saveRes.json().catch(() => ({}));
       if (!saveRes.ok) {
-        const data = await saveRes.json().catch(() => ({}));
         throw new Error(data.error || "Failed to save business plan");
       }
 
       await loadClient();
+      setPlanSaveNotice(`Saved ${data.itemCount ?? 0} action item${data.itemCount === 1 ? "" : "s"} across ${data.phaseCount ?? plan.phases.length} phase${data.phaseCount === 1 ? "" : "s"}.`);
       setSelectedPlanId(null);
       setBuilderMode("closed");
     } catch (err) {
@@ -283,18 +291,21 @@ export default function ClientDetailPage() {
   }
 
   function handleNewPlan() {
+    if (isArchived) return;
     setPlanSaveError(null);
     setSelectedPlanId(null);
     setBuilderMode("create");
   }
 
   function handleEditPlan(planId: string) {
+    if (isArchived) return;
     setPlanSaveError(null);
     setSelectedPlanId(planId);
     setBuilderMode("edit");
   }
 
   async function handleCompletePlan(planId: string) {
+    if (isArchived) return;
     setPlanSaveError(null);
 
     try {
@@ -322,7 +333,7 @@ export default function ClientDetailPage() {
   }
 
   async function saveNotes() {
-    if (!client) return;
+    if (!client || isArchived) return;
     setNotesSaving(true);
     await fetch(`/api/admin/internal-notes/${client.id}`, {
       method: "PUT",
@@ -358,8 +369,8 @@ export default function ClientDetailPage() {
       </Link>
 
       {/* Header with glow */}
-      <div className={`bg-bg-card border rounded-2xl p-6 mb-6 transition-all duration-300 overflow-visible ${glowClass[client.status]}`}>
-        <div className="flex items-start justify-between">
+      <div className={`bg-bg-card border rounded-2xl p-6 mb-6 transition-all duration-300 overflow-visible ${isArchived ? "border-white/10" : glowClass[client.status]}`}>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
             <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
               client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
@@ -374,11 +385,41 @@ export default function ClientDetailPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${sc.bgClass} ${sc.textClass}`}>
-              <span className={`w-2 h-2 rounded-full ${sc.dotClass}`} />
-              {sc.label}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
+              <span className={`w-2 h-2 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
+              {isArchived ? "Archived" : sc.label}
             </span>
+            <a
+              href={`/api/admin/clients/${client.id}/export`}
+              className="inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-text-secondary no-underline hover:bg-white/10"
+            >
+              Export record
+            </a>
+            {isArchived && (
+              <button
+                type="button"
+                disabled={restoreSaving}
+                onClick={async () => {
+                  setRestoreSaving(true);
+                  setLifecycleError(null);
+                  try {
+                    const res = await fetch(`/api/admin/clients/${client.id}/restore`, { method: "POST" });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || "Failed to restore client");
+                    await loadClient();
+                  } catch (error) {
+                    setLifecycleError(error instanceof Error ? error.message : "Failed to restore client");
+                  } finally {
+                    setRestoreSaving(false);
+                  }
+                }}
+                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {restoreSaving ? "Restoring…" : "Restore access"}
+              </button>
+            )}
+            {!isArchived && (
             <div className="relative">
               <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
@@ -403,24 +444,45 @@ export default function ClientDetailPage() {
                       Set Password
                     </button>
                     <button
-                      onClick={() => { setSettingsOpen(false); setRevokeModalOpen(true); }}
+                      onClick={() => { setSettingsOpen(false); setArchiveModalOpen(true); setArchiveReason(""); setLifecycleError(null); }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                       </svg>
-                      Revoke Access
+                      Archive Client
                     </button>
                   </div>
                 </>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Revoke Access Modal */}
-      {revokeModalOpen && (
+      {isArchived && (
+        <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <strong className="font-semibold">Read-only archive.</strong> Portal access is blocked and this client is excluded from reminders, broadcasts and active-client reporting. All historical records remain viewable and exportable.
+          {client.archived_at && <span className="mt-1 block text-xs text-amber-200/70">Archived {new Date(client.archived_at).toLocaleString()}{client.archive_reason ? ` — ${client.archive_reason}` : ""}</span>}
+        </div>
+      )}
+
+      {lifecycleError && (
+        <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{lifecycleError}</div>
+      )}
+
+      {planSaveNotice && (
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          <span>{planSaveNotice}</span>
+          <button type="button" onClick={() => setPlanSaveNotice(null)} className="text-emerald-200/70 hover:text-emerald-100">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Archive Client Modal */}
+      {archiveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
@@ -429,48 +491,56 @@ export default function ClientDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-heading font-bold text-text-primary">Revoke Client Access</h3>
+              <h3 className="text-lg font-heading font-bold text-text-primary">Archive Client</h3>
             </div>
             <p className="text-sm text-text-secondary mb-4 leading-relaxed">
-              This will permanently remove <span className="text-text-primary font-semibold">{client.name}</span> and all their data (business plans, check-ins, training progress). This cannot be undone.
+              This blocks <span className="text-text-primary font-semibold">{client.name}</span> from signing in and removes them from active-client workflows. Their plans, activity and history will be retained for viewing or export, and access can be restored later.
             </p>
-            <input
-              type="text"
-              value={revokeConfirmText}
-              onChange={(e) => setRevokeConfirmText(e.target.value)}
-              placeholder='Type "confirm" to proceed'
-              className="w-full px-4 py-2.5 bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-red-500/50 mb-4"
+            <label className="mb-1.5 block text-xs font-medium text-text-secondary" htmlFor="archive-reason">Reason for archive</label>
+            <textarea
+              id="archive-reason"
+              value={archiveReason}
+              onChange={(e) => setArchiveReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="e.g. Client agreement ended"
+              className="mb-4 w-full resize-none rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-red-500/50"
             />
             <div className="flex gap-3">
               <button
-                onClick={() => { setRevokeModalOpen(false); setRevokeConfirmText(""); }}
+                onClick={() => { setArchiveModalOpen(false); setArchiveReason(""); }}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
               >
                 Cancel
               </button>
               <button
-                disabled={revokeConfirmText !== "confirm" || revoking}
+                disabled={!archiveReason.trim() || archiveSaving}
                 onClick={async () => {
-                  setRevoking(true);
+                  setArchiveSaving(true);
+                  setLifecycleError(null);
                   try {
-                    const res = await fetch(`/api/admin/clients/${id}`, {
-                      method: "DELETE",
+                    const res = await fetch(`/api/admin/clients/${id}/archive`, {
+                      method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ user_id: client.user_id }),
+                      body: JSON.stringify({ reason: archiveReason }),
                     });
                     if (res.ok) {
-                      router.push("/admin/clients");
+                      setArchiveModalOpen(false);
+                      setArchiveReason("");
+                      await loadClient();
                     } else {
                       const data = await res.json().catch(() => ({}));
-                      alert(data.error || "Failed to revoke access");
+                      throw new Error(data.error || "Failed to archive client");
                     }
+                  } catch (error) {
+                    setLifecycleError(error instanceof Error ? error.message : "Failed to archive client");
                   } finally {
-                    setRevoking(false);
+                    setArchiveSaving(false);
                   }
                 }}
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {revoking ? "Revoking..." : "Revoke Access"}
+                {archiveSaving ? "Archiving…" : "Archive Client"}
               </button>
             </div>
           </div>
@@ -567,7 +637,7 @@ export default function ClientDetailPage() {
       )}
 
       {/* Status alert banner */}
-      {client.status === "red" && (
+      {!isArchived && client.status === "red" && (
         <div className="bg-red-500/[0.06] border border-red-500/20 rounded-2xl px-5 py-4 mb-6">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -598,7 +668,7 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {client.status === "amber" && (
+      {!isArchived && client.status === "amber" && (
         <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl px-5 py-4 mb-6">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -769,18 +839,19 @@ export default function ClientDetailPage() {
             <textarea
               value={internalNotes}
               onChange={(e) => setInternalNotes(e.target.value)}
+              readOnly={isArchived}
               rows={4}
               placeholder="Add private notes about this client... e.g. follow-up items, context for next session, personal circumstances"
               className="w-full mt-3 bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-y"
             />
             <div className="flex items-center gap-2 mt-1.5">
-              <button
+              {!isArchived && <button
                 onClick={saveNotes}
                 disabled={notesSaving}
                 className="text-[10px] font-medium text-accent-bright hover:text-accent-light transition-colors disabled:opacity-50"
               >
                 {notesSaving ? "Saving..." : "Save Notes"}
-              </button>
+              </button>}
             </div>
           </div>
         )}
@@ -803,7 +874,8 @@ export default function ClientDetailPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleNewPlan}
-                className="px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
+                disabled={isArchived}
+                className={`${isArchived ? "hidden" : "inline-flex"} px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg items-center gap-1.5`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -875,7 +947,8 @@ export default function ClientDetailPage() {
                             </div>
                             <button
                               onClick={() => handleEditPlan(plan.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors inline-flex items-center gap-1.5"
+                              disabled={isArchived}
+                              className={`${isArchived ? "hidden" : "inline-flex"} px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors items-center gap-1.5`}
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -884,7 +957,8 @@ export default function ClientDetailPage() {
                             </button>
                             <button
                               onClick={() => handleCompletePlan(plan.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                              disabled={isArchived}
+                              className={`${isArchived ? "hidden" : "inline-flex"} px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-lg transition-colors items-center gap-1.5`}
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -951,6 +1025,7 @@ export default function ClientDetailPage() {
                                     <button
                                       key={item.id}
                                       onClick={() => toggleItem(phase.id, item.id)}
+                                      disabled={isArchived}
                                       className="w-full flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left group"
                                     >
                                       <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
@@ -1121,7 +1196,8 @@ export default function ClientDetailPage() {
               <p className="text-sm text-text-muted mb-4">No active business plan for this client.</p>
               <button
                 onClick={handleNewPlan}
-                className="px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5"
+                disabled={isArchived}
+                className={`${isArchived ? "hidden" : "inline-flex"} px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg items-center gap-1.5`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1287,7 +1363,7 @@ export default function ClientDetailPage() {
                         </div>
                         <p className="text-xs text-text-secondary leading-relaxed">{sentReplies[c.id] || c.admin_reply}</p>
                       </div>
-                    ) : (
+                    ) : !isArchived ? (
                       <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)]">
                         <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">Reply to this check-in</div>
                         <textarea
@@ -1326,7 +1402,7 @@ export default function ClientDetailPage() {
                           </button>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                     {c.client_reply && (
                       <div className="mt-3 pl-3 border-l-2 border-emerald-500/30 bg-emerald-500/5 rounded-r-lg py-2 pr-3">
                         <div className="flex items-center gap-2 mb-1">
@@ -1395,7 +1471,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Nudge Modal */}
-      {nudgeOpen && (
+      {nudgeOpen && !isArchived && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
@@ -1480,7 +1556,7 @@ export default function ClientDetailPage() {
       )}
 
       {/* Business Plan Builder Modal */}
-      {builderMode !== "closed" && (
+      {builderMode !== "closed" && !isArchived && (
         <BusinessPlanBuilder
           clientId={client.id}
           existingPlan={builderMode === "edit" ? selectedPlan : undefined}

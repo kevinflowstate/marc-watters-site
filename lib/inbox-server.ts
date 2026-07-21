@@ -48,9 +48,11 @@ export async function getInboxViewer(): Promise<ViewerContext | null> {
   if (profile.role === "client") {
     const { data: clientProfile } = await admin
       .from("client_profiles")
-      .select("id")
+      .select("id, archived_at")
       .eq("user_id", user.id)
-      .single<{ id: string }>();
+      .single<{ id: string; archived_at: string | null }>();
+
+    if (!clientProfile || clientProfile.archived_at) return null;
 
     clientProfileId = clientProfile?.id ?? null;
   }
@@ -99,6 +101,7 @@ export async function listInboxConversations(viewer: ViewerContext): Promise<Inb
     admin
       .from("client_profiles")
       .select("id, user_id, business_name")
+      .is("archived_at", null)
       .order("created_at", { ascending: true }),
     admin
       .from("users")

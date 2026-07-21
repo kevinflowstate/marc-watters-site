@@ -8,6 +8,7 @@ import {
 } from "@/lib/monthly-metrics";
 import type { ClientMonthlyMetric, MonthlyMetricKey } from "@/lib/types";
 import { NextResponse } from "next/server";
+import { inactiveClientResponse } from "@/lib/client-lifecycle";
 
 function normalizeMetricValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -85,6 +86,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const clientId = await getClientProfileId(user.id);
   if (!clientId) {
@@ -110,6 +113,8 @@ export async function PUT(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const inactiveResponse = await inactiveClientResponse(user.id);
+  if (inactiveResponse) return inactiveResponse;
 
   const clientId = await getClientProfileId(user.id);
   if (!clientId) {
