@@ -13,6 +13,7 @@ interface BusinessPlanBuilderProps {
   clientId: string;
   existingPlan?: BusinessPlan;
   onSave: (plan: BusinessPlan) => void;
+  onPdfUploaded?: () => void | Promise<void>;
   onCancel: () => void;
   saving?: boolean;
   error?: string | null;
@@ -37,6 +38,7 @@ export default function BusinessPlanBuilder({
   clientId,
   existingPlan,
   onSave,
+  onPdfUploaded,
   onCancel,
   saving = false,
   error = null,
@@ -276,6 +278,7 @@ export default function BusinessPlanBuilder({
                       }
 
                       setPdfUrl(finalizedUpload.url);
+                      await onPdfUploaded?.();
                     } catch (uploadError) {
                       setPdfUploadError(
                         uploadError instanceof Error ? uploadError.message : "PDF upload failed",

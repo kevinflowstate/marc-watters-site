@@ -433,6 +433,7 @@ export default function BusinessPlansPage() {
           clientId={builderClientId}
           existingPlan={builderPlan}
           onSave={handleSavePlan}
+          onPdfUploaded={loadData}
           onCancel={() => {
             setPlanSaveError(null);
             setBuilderOpen(false);
