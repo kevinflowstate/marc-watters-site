@@ -103,6 +103,8 @@ export default function BusinessPlanPage() {
   const [plan, setPlan] = useState<BusinessPlan | null>(null);
   const [phases, setPhases] = useState<PlanPhase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
+  const [failedItemId, setFailedItemId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +141,9 @@ export default function BusinessPlanPage() {
   }, []);
 
   async function toggleItem(phaseId: string, itemId: string) {
+    if (pendingItemId) return;
+    setPendingItemId(itemId);
+    setFailedItemId(null);
     // Optimistic update
     setPhases((prev) =>
       prev.map((phase) => {
@@ -154,12 +159,14 @@ export default function BusinessPlanPage() {
       })
     );
     // Persist - rollback on failure
-    const res = await fetch("/api/portal/plan", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId }),
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/portal/plan", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId }),
+      });
+      if (!res.ok) throw new Error("Could not update action");
+    } catch {
       // Reverse the optimistic update
       setPhases((prev) =>
         prev.map((phase) => {
@@ -174,6 +181,9 @@ export default function BusinessPlanPage() {
           };
         })
       );
+      setFailedItemId(itemId);
+    } finally {
+      setPendingItemId(null);
     }
   }
 
@@ -224,18 +234,25 @@ export default function BusinessPlanPage() {
   const completedItems = allItems.filter((i) => i.completed).length;
   const totalItems = allItems.length;
   const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const currentPhaseIndex = phases.findIndex((phase) => phase.items.some((item) => !item.completed));
+  const activePhaseIndex = currentPhaseIndex === -1 ? Math.max(phases.length - 1, 0) : currentPhaseIndex;
+  const nextAction = allItems.find((item) => !item.completed);
 
   return (
     <>
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-heading font-bold text-text-primary">Your Business Plan</h1>
+      <div className="mb-7 sm:mb-9">
+        <div className="v2-eyebrow mb-3">Your roadmap</div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="v2-page-title">Your Business Plan</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-secondary whitespace-pre-line">{plan.summary}</p>
+          </div>
           {plan.pdf_url && (
             <a
               href={plan.pdf_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold no-underline inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
+              className="v2-button-secondary shrink-0"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -244,36 +261,43 @@ export default function BusinessPlanPage() {
             </a>
           )}
         </div>
-        <p className="text-text-secondary mt-2 leading-relaxed max-w-3xl whitespace-pre-line">{plan.summary}</p>
       </div>
 
-      {/* Progress overview */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-heading font-bold text-text-primary">Overall Progress</span>
-          <span className="text-sm text-text-muted">{completedItems}/{totalItems} actions - {pct}%</span>
+      <section className="v2-surface-strong mb-6 overflow-hidden p-5 sm:p-7">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
+          <div>
+            <div className="v2-eyebrow">Next action</div>
+            <h2 className="mt-3 max-w-3xl font-heading text-xl font-bold leading-snug text-text-primary sm:text-2xl">
+              {nextAction?.title || "All current actions are complete"}
+            </h2>
+            <p className="mt-2 text-sm text-text-secondary">
+              {phases[activePhaseIndex]?.name || "Your plan"}
+            </p>
+          </div>
+          <div className="lg:text-right">
+            <div className="font-heading text-4xl font-bold tracking-[-0.04em] text-text-primary">{pct}%</div>
+            <div className="mt-1 text-xs text-text-muted">{completedItems} of {totalItems} actions complete</div>
+          </div>
         </div>
-        <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-3">
-          <div className="h-3 rounded-full gradient-accent transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full rounded-full bg-accent-bright transition-all duration-500" style={{ width: `${pct}%` }} />
         </div>
-      </div>
+      </section>
 
       {/* Phases */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-5">
         {phases.map((phase, i) => {
           const color = phaseColors[i % phaseColors.length];
           const phaseCompleted = phase.items.filter((item) => item.completed).length;
           const phaseTotal = phase.items.length;
           const phasePct = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
+          const isCurrent = i === activePhaseIndex && phasePct < 100;
+          const isComplete = phasePct === 100 && phaseTotal > 0;
 
           return (
-            <div key={phase.id} className="group/phase relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(34,114,222,0.15)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.2),0_0_30px_rgba(34,114,222,0.04)] will-change-transform">
-                {/* Bento dot pattern */}
-                <div className="absolute inset-0 opacity-0 group-hover/phase:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
-                {/* Bento gradient border */}
-                <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover/phase:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div key={phase.id} className={`v2-surface overflow-hidden ${isCurrent ? "!border-accent/30" : ""}`}>
               {/* Phase header */}
-              <div className={`p-6 border-b border-[rgba(255,255,255,0.04)] ${color.bg}`}>
+              <div className={`p-5 sm:p-6 border-b border-[rgba(255,255,255,0.05)] ${isCurrent ? "bg-accent/[0.07]" : color.bg}`}>
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl ${color.bg} border ${color.border} flex items-center justify-center`}>
                     <svg className={`w-6 h-6 ${color.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,9 +305,14 @@ export default function BusinessPlanPage() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-heading font-bold text-text-primary">{phase.name}</h2>
-                      <span className="text-xs text-text-muted">{phaseCompleted}/{phaseTotal} - {phasePct}%</span>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">Phase {i + 1}</div>
+                        <h2 className="mt-1 text-lg font-heading font-bold text-text-primary">{phase.name}</h2>
+                      </div>
+                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isComplete ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : isCurrent ? "border-accent/25 bg-accent/10 text-accent-bright" : "border-white/10 bg-white/[0.03] text-text-muted"}`}>
+                        {isComplete ? "Complete" : isCurrent ? "Current phase" : `${phaseCompleted}/${phaseTotal} actions`}
+                      </span>
                     </div>
                     <div className="w-full bg-[rgba(255,255,255,0.06)] rounded-full h-1.5 mt-2">
                       <div className="h-1.5 rounded-full gradient-accent transition-all duration-500" style={{ width: `${phasePct}%` }} />
@@ -292,39 +321,46 @@ export default function BusinessPlanPage() {
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-5 sm:p-6 space-y-6">
                 {/* Notes from Marc */}
                 {phase.notes && (
                   <div className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl p-4">
-                    <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-2">Notes from Marc</div>
+                    <div className="v2-eyebrow mb-2">Notes from Marc</div>
                     <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{phase.notes}</p>
                   </div>
                 )}
 
                 {/* Action items */}
                 <div>
-                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Action Items</h3>
-                  <div className="space-y-2">
+                  <h3 className="v2-eyebrow mb-3 !text-text-muted">Action Items</h3>
+                  <div className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.06] bg-black/10">
                     {phase.items.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => toggleItem(phase.id, item.id)}
-                        className="w-full flex items-center gap-3 py-2 px-1 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer group"
+                        disabled={pendingItemId !== null}
+                        aria-pressed={item.completed}
+                        className="group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.025] disabled:cursor-wait disabled:opacity-70"
                       >
-                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                           item.completed ? "bg-emerald-500 border-emerald-500" : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
                         }`}>
-                          {item.completed && (
+                          {pendingItemId === item.id ? (
+                            <span className="brand-spinner h-3.5 w-3.5 border-2" />
+                          ) : item.completed && (
                             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           )}
                         </div>
-                        <span className={`text-sm transition-all duration-200 ${item.completed ? "text-text-muted line-through" : "text-text-primary group-hover:text-accent-bright"}`}>
-                          {item.title}
+                        <span className="min-w-0 flex-1">
+                          <span className={`block text-sm leading-relaxed transition-all duration-200 ${item.completed ? "text-text-muted line-through" : "text-text-primary group-hover:text-accent-bright"}`}>
+                            {item.title}
+                          </span>
+                          {failedItemId === item.id && <span className="mt-0.5 block text-xs text-red-300">Couldn&apos;t save. Tap to try again.</span>}
                         </span>
-                        {item.completed_at && (
-                          <span className="text-[10px] text-text-muted ml-auto">
+                        {item.completed_at && pendingItemId !== item.id && (
+                          <span className="ml-auto hidden text-[10px] text-text-muted sm:block">
                             {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                           </span>
                         )}

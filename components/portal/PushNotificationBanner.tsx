@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePush } from "@/lib/use-push";
 import { useInstall } from "@/lib/use-install";
 
@@ -22,19 +22,20 @@ function hasPushSupport() {
 export default function PushNotificationBanner() {
   const { permission, subscribed, checking, support, subscribe } = usePush();
   const { canInstall, installed, install } = useInstall();
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === "undefined") return true;
-    if (!hasPushSupport()) return true;
-    return localStorage.getItem(DISMISSED_KEY) === "true";
-  });
-  const [installDismissed, setInstallDismissed] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const standaloneMode = isStandalone();
-    return localStorage.getItem(INSTALL_DISMISSED_KEY) === "true" || standaloneMode;
-  });
+  const [ready, setReady] = useState(false);
+  const [dismissed, setDismissed] = useState(true);
+  const [installDismissed, setInstallDismissed] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [standalone] = useState(() => isStandalone());
+  const [standalone, setStandalone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const standaloneMode = isStandalone();
+    setStandalone(standaloneMode);
+    setDismissed(!hasPushSupport() || localStorage.getItem(DISMISSED_KEY) === "true");
+    setInstallDismissed(localStorage.getItem(INSTALL_DISMISSED_KEY) === "true" || standaloneMode);
+    setReady(true);
+  }, []);
 
   const handleEnable = async () => {
     setError(null);
@@ -75,9 +76,11 @@ export default function PushNotificationBanner() {
   };
 
   // Show install banner if not standalone and not dismissed
+  if (!ready) return null;
+
   if (!installDismissed && !standalone && !installed) {
     return (
-      <div className="mb-6 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(12,12,18,0.6)] px-5 py-4">
+      <div className="v2-surface mb-6 px-4 py-3 sm:px-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <svg
@@ -95,10 +98,10 @@ export default function PushNotificationBanner() {
             </svg>
             <div>
               <p className="text-sm font-medium text-text-primary mb-1">
-                Install this app on your phone
+                Install the Blueprint Portal
               </p>
               <p className="text-xs text-text-muted leading-relaxed">
-                Get quick access from your home screen with push notifications and a full-screen experience.
+                Add it to your home screen for quicker access and reminders.
               </p>
               {showManual && (
                 <div className="text-xs text-accent-light leading-relaxed mt-2 space-y-1">

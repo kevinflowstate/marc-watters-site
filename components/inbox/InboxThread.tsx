@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { EmptyState, InlineNotice } from "@/components/ui/PortalState";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
 interface SendPayload {
@@ -518,15 +519,18 @@ export default function InboxThread({
   const showPaperclip = allowAttachments && Boolean(onUploadAttachments);
   const showVoiceButton = allowVoiceNotes && Boolean(onUploadAttachments);
   const composerPadding = showPaperclip && showVoiceButton ? "pl-24" : showPaperclip || showVoiceButton ? "pl-14" : "pl-4";
+  const viewportHeight = !scrollPageToLatest
+    ? "min-h-[32rem]"
+    : currentRole === "admin"
+      ? "h-[calc(100svh-29rem)] min-h-[22rem] lg:h-[calc(100svh-22rem)] lg:min-h-[28rem]"
+      : "h-[calc(100svh-20rem)] min-h-[26rem] lg:h-[calc(100svh-17rem)] lg:min-h-[30rem]";
 
   return (
     <div
-      className={`flex flex-col rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden ${
-        scrollPageToLatest ? "h-[calc(100svh-13rem)] min-h-[32rem]" : "min-h-[32rem]"
-      }`}
+      className={`portal-v2-inbox-thread v2-surface flex flex-col overflow-hidden ${viewportHeight}`}
     >
       {(threadLabel || threadMeta) && (
-        <div className="border-b border-[rgba(255,255,255,0.05)] px-5 py-4 bg-[rgba(255,255,255,0.015)]">
+        <div className="border-b border-white/[0.06] bg-white/[0.015] px-4 py-4 sm:px-5">
           {threadLabel && <div className="text-sm font-semibold text-text-primary">{threadLabel}</div>}
           {threadMeta && <div className="text-xs text-text-muted mt-1">{threadMeta}</div>}
         </div>
@@ -534,18 +538,17 @@ export default function InboxThread({
 
       <div
         ref={scrollAreaRef}
-        className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4"
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-black/[0.08] p-3 sm:p-5"
       >
         {groupedMessages.length === 0 ? (
-          <div className="h-full min-h-[18rem] flex flex-col items-center justify-center text-center px-6">
-            <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <EmptyState
+            className="h-full"
+            icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4v-4z" />
-              </svg>
-            </div>
-            <h2 className="text-lg font-semibold text-text-primary mb-2">{emptyTitle}</h2>
-            <p className="text-sm text-text-muted max-w-md">{emptyDescription}</p>
-          </div>
+              </svg>}
+            title={emptyTitle}
+            description={emptyDescription}
+          />
         ) : (
           groupedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
@@ -571,24 +574,24 @@ export default function InboxThread({
             return (
               <div key={message.id} className="space-y-4">
                 {message.showDayDivider && (
-                  <div className="flex items-center gap-3 py-1">
+                  <div className="flex items-center gap-3 py-2">
                     <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-text-muted">{message.dayLabel}</div>
+                    <div className="text-xs font-medium text-text-muted">{message.dayLabel}</div>
                     <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
                   </div>
                 )}
 
                 <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                  <div className={`group/message flex max-w-[92%] items-end gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+                  <div className={`group/message flex max-w-[94%] items-end gap-1.5 sm:max-w-[82%] sm:gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
                     <div className={`min-w-0 flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                       <div
-                        className={`max-w-full rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${
+                        className={`max-w-full rounded-2xl px-4 py-3 ${
                           isOwn
-                            ? "bg-[linear-gradient(180deg,rgba(34,114,222,0.22),rgba(34,114,222,0.14))] text-text-primary border border-[rgba(34,114,222,0.18)] rounded-br-md"
-                            : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.05)] rounded-bl-md"
+                            ? "rounded-br-md border border-accent/25 bg-accent/16 text-text-primary"
+                            : "rounded-bl-md border border-white/[0.07] bg-white/[0.035] text-text-secondary"
                         }`}
                       >
-                        <div className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
+                        <div className={`text-[11px] font-semibold ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
                           {isOwn ? "You" : otherPartyLabel}
                         </div>
                         {message.reply_context && (
@@ -789,11 +792,9 @@ export default function InboxThread({
         <div ref={bottomRef} aria-hidden="true" />
       </div>
 
-      <div className="border-t border-[rgba(255,255,255,0.05)] p-4 space-y-3">
+      <div className="space-y-3 border-t border-white/[0.06] bg-bg-primary/70 p-3 backdrop-blur-xl sm:p-4">
         {composerError && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {composerError}
-          </div>
+          <InlineNotice tone="error">{composerError}</InlineNotice>
         )}
         {showPaperclip && (
           <div className="space-y-3">
@@ -890,17 +891,17 @@ export default function InboxThread({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={composerPlaceholder}
-            className={`w-full resize-none rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] py-4 pr-14 ${composerPadding} text-sm leading-5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)] transition-colors`}
+            className={`w-full resize-none rounded-[var(--cbb-radius-md)] border border-white/[0.1] bg-white/[0.025] py-4 pr-14 ${composerPadding} text-sm leading-5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/45 focus:ring-2 focus:ring-accent/10 transition-colors`}
             style={{ minHeight: "52px", maxHeight: "140px" }}
           />
           <button
             onClick={() => void handleSubmit()}
             disabled={sending || uploadingAttachments || recordingVoiceNote || (!draft.trim() && pendingAttachments.length === 0)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-accent-bright/20 hover:bg-accent-bright/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+            className="absolute right-2.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-accent text-white shadow-[0_8px_20px_rgba(34,114,222,0.2)] transition-colors hover:bg-accent-light disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-text-muted disabled:shadow-none cursor-pointer"
             aria-label="Send message"
             title="Send"
           >
-            <svg className="w-4 h-4 -translate-y-px text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="w-4 h-4 -translate-y-px" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-9.193-5.106A1 1 0 004 6.94v10.12a1 1 0 001.559.832l9.193-6.126a1 1 0 000-1.664z" />
             </svg>
           </button>

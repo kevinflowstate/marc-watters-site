@@ -185,6 +185,9 @@ export default function PortalDashboard() {
     ? planPhases[Math.min(completedPhaseCount, planPhases.length - 1)]
     : null;
   const currentPhaseLabel = currentPhase ? cleanPhaseName(currentPhase.name) : null;
+  const nextPlanItem = currentPhase?.items?.find((item) => !item.completed)
+    || allPlanItems.find((item) => !item.completed)
+    || null;
 
   const totalModules = modules.length;
   const isFirstLogin = !profile?.last_login;
@@ -199,28 +202,17 @@ export default function PortalDashboard() {
 
   return (
     <>
-      {/* Welcome */}
-      <div className="mb-8">
+      <div className="mb-7 sm:mb-9">
+        <div className="v2-eyebrow mb-3">Client dashboard</div>
         {loading ? (
           <div className="skeleton rounded-lg h-9 w-64 mb-2" />
         ) : (
-          <h1 className="text-3xl font-heading font-bold text-text-primary">
+          <h1 className="v2-page-title">
             {`Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}
           </h1>
         )}
-        <p className="text-text-secondary mt-1">Here&apos;s your progress overview.</p>
+        <p className="mt-2 max-w-2xl text-sm text-text-secondary">Your plan, progress and next steps in one place.</p>
       </div>
-
-      {/* Briefing Banner */}
-      {!loading && (
-        <BriefingBanner
-          isCheckinToday={isCheckinToday}
-          nextCheckinDate={nextCheckinDate}
-          uncompletedModules={totalModules}
-          latestReply={checkins.find((c) => c.admin_reply)}
-          planPct={planPct}
-        />
-      )}
 
       {shouldShowOnboardingWelcome && onboardingModuleId && (
         <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-bg-card p-8 mb-8">
@@ -255,39 +247,71 @@ export default function PortalDashboard() {
         <DashboardSkeleton />
       ) : (
       <>
-      {/* Top Row: Next Event + What's New */}
-      <div className={`grid grid-cols-1 ${newModules.length > 0 ? 'lg:grid-cols-2' : ''} gap-4 mb-8`}>
-        <NextEventCard />
-        {newModules.length > 0 && (
-          <div className="group relative bg-bg-card border border-emerald-500/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/20 hover:shadow-[0_2px_12px_rgba(16,185,129,0.04)]">
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)] mb-5">
+        <section className="v2-surface-strong relative overflow-hidden p-6 sm:p-7">
+          <div className="absolute right-0 top-0 h-48 w-48 translate-x-16 -translate-y-20 rounded-full bg-accent/10 blur-3xl" aria-hidden />
+          <div className="relative">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="v2-eyebrow">Current focus</div>
+                <h2 className="mt-3 max-w-2xl font-heading text-2xl font-bold tracking-[-0.025em] text-text-primary sm:text-3xl">
+                  {nextPlanItem?.title || currentPhaseLabel || "Your business plan is being prepared"}
+                </h2>
+                <p className="mt-3 text-sm text-text-secondary">
+                  {currentPhaseLabel ? `Part of ${currentPhaseLabel}` : "Marc will assign your next actions here."}
+                </p>
               </div>
-              <div className="text-xs text-text-muted uppercase tracking-wider">What&apos;s New</div>
+              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-right">
+                <div className="text-2xl font-heading font-bold text-text-primary">{planPct}%</div>
+                <div className="text-[11px] text-text-muted">plan complete</div>
+              </div>
             </div>
-            <div className="space-y-2">
-              {newModules.map((m) => (
-                <div key={m.id} className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-text-primary truncate">New Training - {m.title}</div>
-                    <div className="text-xs text-text-muted">{new Date(m.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
-                  </div>
-                  <Link href={`/portal/training/${m.id}`} className="px-3 py-1.5 text-xs font-medium text-accent-bright bg-accent/10 rounded-lg no-underline hover:bg-accent/20 transition-colors flex-shrink-0 ml-3">
-                    Watch
-                  </Link>
-                </div>
-              ))}
+            <div className="mt-7 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-full rounded-full bg-accent-bright transition-[width] duration-500" style={{ width: `${planPct}%` }} />
+            </div>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-text-muted">{completedPlanItems} of {totalPlanItems} actions complete</span>
+              <Link href="/portal/plan" className="v2-button-primary">
+                Open Business Plan
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Link>
             </div>
           </div>
-        )}
+        </section>
+        <NextEventCard />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <BriefingBanner
+        isCheckinToday={isCheckinToday}
+        nextCheckinDate={nextCheckinDate}
+        uncompletedModules={totalModules}
+        latestReply={checkins.find((c) => c.admin_reply)}
+        planPct={planPct}
+      />
+
+      {newModules.length > 0 && (
+        <section className="v2-surface mb-5 overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] px-5 py-4">
+            <div className="v2-eyebrow text-emerald-400">What&apos;s new</div>
+            <span className="text-xs text-text-muted">{newModules.length} recent module{newModules.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="divide-y divide-white/[0.055]">
+            {newModules.map((module) => (
+              <div key={module.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-text-primary">{module.title}</div>
+                  <div className="mt-1 text-xs text-text-muted">
+                    Added {new Date(module.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </div>
+                </div>
+                <Link href={`/portal/training/${module.id}`} className="v2-button-secondary shrink-0">View training</Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="v2-stat-strip mb-6 sm:mb-8">
         {[
           { label: "Plan Progress", value: `${planPct}%`, sub: `${completedPlanItems}/${totalPlanItems} actions done` },
           {
@@ -298,34 +322,21 @@ export default function PortalDashboard() {
           { label: "Trainings", value: `${totalModules}`, sub: totalModules > 0 ? `${totalModules} module${totalModules !== 1 ? "s" : ""} available` : "Coming soon" },
           { label: "Status", value: profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-" },
         ].map((stat, i) => (
-          <div key={i} className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-            <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <div className="relative">
-              <div className="text-text-muted text-xs uppercase tracking-wider mb-2">{stat.label}</div>
-              <div className="text-2xl font-heading font-bold text-text-primary">{stat.value}</div>
-              {stat.sub && <div className="text-text-secondary text-sm mt-1">{stat.sub}</div>}
-            </div>
+          <div key={i}>
+            <div className="text-[11px] font-semibold text-text-muted">{stat.label}</div>
+            <div className="mt-1 truncate font-heading text-lg font-bold text-text-primary sm:text-xl">{stat.value}</div>
+            {stat.sub && <div className="mt-0.5 truncate text-[11px] text-text-secondary">{stat.sub}</div>}
           </div>
         ))}
       </div>
 
-      <MonthlyMetricsSection
-        initialHistory={monthlyMetrics}
-        initialCurrentMonthStart={currentMetricsMonthStart}
-      />
-
-      {/* Journey Progress */}
-      <JourneyTracker phases={planPhases} />
-
       {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
         {/* Business Plan Summary */}
-        <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+        <div className="v2-surface relative p-5 sm:p-6 overflow-hidden">
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <h2 className="text-lg font-heading font-bold text-text-primary">Business Plan</h2>
-            <Link href="/portal/plan" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
+            <h2 className="v2-section-title">Business Plan</h2>
+            <Link href="/portal/plan" className="v2-button-secondary min-h-0 px-3 py-2 text-xs">
               Go To Plan
             </Link>
           </div>
@@ -362,12 +373,11 @@ export default function PortalDashboard() {
         </div>
 
         {/* Check-ins */}
-        <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_4px_20px_rgba(255,255,255,0.02)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+        <div className="v2-surface relative p-5 sm:p-6 overflow-hidden">
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <h2 className="text-lg font-heading font-bold text-text-primary">Check-Ins</h2>
+            <h2 className="v2-section-title">Check-Ins</h2>
             {isCheckinToday ? (
-              <Link href="/portal/checkin" className="px-4 py-2 gradient-accent text-white rounded-xl text-xs font-semibold no-underline hover:opacity-90 transition-opacity">
+              <Link href="/portal/checkin" className="v2-button-primary min-h-0 px-3 py-2 text-xs">
                 Submit Check-In
               </Link>
             ) : (
@@ -449,6 +459,13 @@ export default function PortalDashboard() {
           )}
         </div>
       </div>
+
+      <JourneyTracker phases={planPhases} />
+
+      <MonthlyMetricsSection
+        initialHistory={monthlyMetrics}
+        initialCurrentMonthStart={currentMetricsMonthStart}
+      />
       </>
       )}
     </>
@@ -542,14 +559,14 @@ function BriefingBanner({
   if (items.length === 0) return null;
 
   return (
-    <div className="bg-bg-card border border-accent/10 rounded-2xl p-5 mb-8">
+    <div className="v2-surface mb-5 px-5 py-4">
       <div className="flex items-center gap-2 mb-3">
         <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span className="text-xs font-semibold text-accent-bright uppercase tracking-wider">This Week</span>
+        <span className="v2-eyebrow">This Week</span>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-center gap-3">
             <svg className={`w-4 h-4 flex-shrink-0 ${item.accent ? "text-accent-bright" : "text-text-muted"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -576,8 +593,7 @@ function JourneyTracker({
 }) {
   if (phases.length === 0) {
     return (
-      <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)]">
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+      <div className="v2-surface p-5 sm:p-6 mb-6 overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-heading font-bold text-text-primary">Your Journey</h2>
@@ -612,8 +628,7 @@ function JourneyTracker({
   const currentPhaseLabel = currentPhase ? cleanPhaseName(currentPhase.name) : cleanPhaseName(phases[phases.length - 1].name);
 
   return (
-    <div className="group relative bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-8 overflow-hidden transition-all duration-300 hover:border-[rgba(255,255,255,0.08)]">
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
+    <div className="v2-surface p-5 sm:p-6 mb-6 overflow-hidden">
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-heading font-bold text-text-primary">Your Journey</h2>
@@ -691,7 +706,7 @@ function NextEventCard() {
   if (loading) return null;
   if (!event || !nextDate) {
     return (
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
+      <div className="v2-surface flex min-h-[230px] items-center p-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[rgba(255,255,255,0.04)] flex items-center justify-center">
             <svg className="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -712,10 +727,9 @@ function NextEventCard() {
   const recurrenceText: Record<string, string> = { weekly: `Every ${dayName}`, biweekly: `Every other ${dayName}`, monthly: "Monthly", none: nextDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) };
 
   return (
-    <div className="group relative bg-bg-card border border-accent/10 rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-[0_2px_12px_rgba(34,114,222,0.06)]">
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(34,114,222,0.03)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-      <div className="relative flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="v2-surface flex min-h-[230px] p-5 sm:p-6">
+      <div className="relative flex w-full flex-col justify-between gap-5">
+        <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center group-hover:bg-accent/15 transition-colors duration-300">
             <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -724,14 +738,14 @@ function NextEventCard() {
           <div>
             <div className="text-xs text-text-muted uppercase tracking-wider mb-0.5">Next Event</div>
             <div className="text-base font-heading font-bold text-text-primary">{event.title}</div>
-            <div className="flex items-center gap-3 mt-0.5">
+            <div className="mt-1.5 flex flex-col gap-0.5">
               <span className="text-sm text-text-secondary">{dayName}, {timeStr}</span>
               <span className="text-xs text-text-muted">{recurrenceText[event.recurrence]}</span>
             </div>
           </div>
         </div>
         {event.link && (
-          <a href={event.link} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium no-underline inline-flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
+          <a href={event.link} target="_blank" rel="noopener noreferrer" className="v2-button-secondary w-full">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
