@@ -39,16 +39,16 @@ export default function AdminMobileNav() {
   }, [moreOpen]);
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-primary/95 backdrop-blur-lg border-t border-[rgba(255,255,255,0.06)] px-2 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-14">
+    <nav className="portal-mobile-nav portal-v2-mobile-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.375rem)]">
+      <div className="flex items-center justify-around h-[58px]">
         {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 rounded-lg transition-colors no-underline ${
-                isActive ? "text-accent-bright" : "text-text-muted"
+              className={`portal-v2-mobile-item ${isActive ? "is-active" : ""} flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 transition-colors no-underline ${
+                isActive ? "text-accent-bright" : "text-text-muted hover:text-text-secondary"
               }`}
             >
               <span className="relative flex h-5 w-5 items-center justify-center">
@@ -61,13 +61,13 @@ export default function AdminMobileNav() {
                   </span>
                 )}
               </span>
-              <span className="text-[9px] font-medium">{item.label}</span>
+              <span className="portal-v2-mobile-label text-[10px] font-semibold">{item.label}</span>
             </Link>
           );
         })}
         <div ref={moreRef} className="relative flex min-w-0 flex-1 justify-center">
           {moreOpen && (
-            <div className="absolute bottom-full right-0 mb-2 w-44 overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-bg-card shadow-2xl">
+            <div className="v2-surface absolute bottom-full right-0 mb-3 w-48 overflow-hidden shadow-2xl">
               {moreItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
@@ -91,7 +91,7 @@ export default function AdminMobileNav() {
           <button
             type="button"
             onClick={() => setMoreOpen((open) => !open)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 rounded-lg transition-colors cursor-pointer ${
+            className={`portal-v2-mobile-item ${moreActive || moreOpen ? "is-active" : ""} flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 transition-colors cursor-pointer ${
               moreActive || moreOpen ? "text-accent-bright" : "text-text-muted"
             }`}
             aria-label="More admin sections"
@@ -102,7 +102,7 @@ export default function AdminMobileNav() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={moreActive || moreOpen ? 2 : 1.5} d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </span>
-            <span className="text-[9px] font-medium">More</span>
+            <span className="portal-v2-mobile-label text-[10px] font-semibold">More</span>
           </button>
         </div>
       </div>

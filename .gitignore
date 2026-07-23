@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/output/
 
 # next.js
 /.next/
@@ -41,3 +42,4 @@ yarn-error.log*
 next-env.d.ts
 .omc/
 .playwright-mcp/
+.playwright-cli/

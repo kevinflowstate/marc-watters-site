@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import InboxThread from "@/components/inbox/InboxThread";
+import { PageSkeleton } from "@/components/ui/PortalState";
 import { useToast } from "@/components/ui/Toast";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
@@ -171,18 +172,17 @@ export default function ClientInboxClient() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-heading font-extrabold text-text-primary">Inbox</h1>
-        <p className="text-sm text-text-secondary mt-1">
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-6 sm:mb-8">
+        <div className="v2-eyebrow mb-3">Direct support</div>
+        <h1 className="v2-page-title">Inbox</h1>
+        <p className="mt-2 text-sm text-text-secondary">
           Message Marc directly from the portal.
         </p>
       </div>
 
       {loading ? (
-        <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] px-6 py-12 text-sm text-text-muted">
-          Loading inbox...
-        </div>
+        <PageSkeleton rows={5} />
       ) : (
         <div>
           <InboxThread

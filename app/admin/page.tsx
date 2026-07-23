@@ -198,39 +198,36 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-text-primary">
+      <div className="mb-7 sm:mb-9">
+        <div className="v2-eyebrow mb-3">Admin dashboard</div>
+        <h1 className="v2-page-title">
           Welcome Back{adminName ? `, ${adminName}` : ""}
         </h1>
-        <p className="text-text-secondary mt-1">{formatDate(new Date())}</p>
+        <p className="text-text-secondary mt-2 text-sm">{formatDate(new Date())}</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="group relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Total Clients</div>
-          <div className="text-3xl font-heading font-bold text-text-primary">{clients.length}</div>
+      <div className="v2-stat-strip mb-6 sm:mb-8">
+        <div>
+          <div className="text-text-muted text-[11px] font-semibold mb-1">Total Clients</div>
+          <div className="text-2xl font-heading font-bold text-text-primary">{clients.length}</div>
         </div>
-        <div className="group relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(16,185,129,0.15)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_2px_12px_rgba(16,185,129,0.06)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">On Track</div>
-          <div className="text-3xl font-heading font-bold text-emerald-400">{greenCount}</div>
+        <div>
+          <div className="text-text-muted text-[11px] font-semibold mb-1">On Track</div>
+          <div className="text-2xl font-heading font-bold text-emerald-400">{greenCount}</div>
         </div>
-        <div className="group relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(245,158,11,0.15)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_2px_12px_rgba(245,158,11,0.06)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.03)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Needs Attention</div>
-          <div className={`text-3xl font-heading font-bold ${amberCount + redCount > 0 ? "text-amber-400" : "text-text-primary"}`}>
+        <div>
+          <div className="text-text-muted text-[11px] font-semibold mb-1">Needs Attention</div>
+          <div className={`text-2xl font-heading font-bold ${amberCount + redCount > 0 ? "text-amber-400" : "text-text-primary"}`}>
             {amberCount + redCount}
           </div>
           {redCount > 0 && (
             <div className="text-red-400 text-xs mt-1">{redCount} behind schedule</div>
           )}
         </div>
-        <div className="group relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.08)] hover:shadow-[0_2px_12px_rgba(255,255,255,0.03)]">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-          <div className="text-text-muted text-xs uppercase tracking-wider mb-2">Unreplied Check-Ins</div>
-          <div className={`text-3xl font-heading font-bold ${unreplied > 0 ? "text-red-400" : "text-text-primary"}`}>
+        <div>
+          <div className="text-text-muted text-[11px] font-semibold mb-1">Unreplied Check-Ins</div>
+          <div className={`text-2xl font-heading font-bold ${unreplied > 0 ? "text-red-400" : "text-text-primary"}`}>
             {unreplied}
           </div>
         </div>
@@ -608,6 +605,7 @@ interface BriefingInsight {
 
 function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]; recentCheckins: EnrichedCheckin[] }) {
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissedBriefingIds);
+  const [showAll, setShowAll] = useState(false);
   const [nudgeTarget, setNudgeTarget] = useState<{ name: string; userId: string } | null>(null);
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [nudgeSending, setNudgeSending] = useState(false);
@@ -681,6 +679,8 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
     visibleInsights.push({ id: "on-track", icon: "check", text: "All clients are on track - no immediate actions needed" });
   }
 
+  const shownInsights = showAll ? visibleInsights : visibleInsights.slice(0, 3);
+
   const iconMap: Record<string, React.ReactNode> = {
     alert: <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>,
     clock: <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
@@ -727,21 +727,26 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
 
   return (
     <>
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-8">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+      <div className="v2-surface-strong p-5 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl border border-accent/20 bg-accent/10 flex items-center justify-center">
             <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
           </div>
           <div>
-            <h2 className="text-sm font-heading font-bold text-text-primary">Blueprint AI</h2>
-            <p className="text-[10px] text-text-muted">Your daily briefing</p>
+            <h2 className="text-base font-heading font-bold text-text-primary">Blueprint AI</h2>
+            <p className="text-xs text-text-muted">Your daily briefing</p>
           </div>
+          </div>
+          <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
+            {visibleInsights.length} item{visibleInsights.length === 1 ? "" : "s"}
+          </span>
         </div>
-        <div className="space-y-2">
-          {visibleInsights.map((insight) => (
-            <div key={insight.id} className="flex items-start gap-3 group/insight">
+        <div className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.06] bg-black/10">
+          {shownInsights.map((insight) => (
+            <div key={insight.id} className="flex items-start gap-3 px-4 py-3.5 group/insight">
               <div className="pt-0.5">{iconMap[insight.icon]}</div>
               <div className="flex-1 min-w-0">
                 <span className="text-sm text-text-secondary">{insight.text}</span>
@@ -786,6 +791,15 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
             </div>
           ))}
         </div>
+        {visibleInsights.length > 3 && (
+          <button
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+            className="mt-4 text-xs font-semibold text-accent-bright transition-colors hover:text-accent-light"
+          >
+            {showAll ? "Show priority items only" : `Show all ${visibleInsights.length} briefing items`}
+          </button>
+        )}
       </div>
 
       {/* Nudge Modal */}

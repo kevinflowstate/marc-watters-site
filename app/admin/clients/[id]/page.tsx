@@ -8,6 +8,7 @@ import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion, QuestionnaireFormConfig } from "@/lib/types";
 import { formatMetricsMonthLabel, getCurrentMetricsMonthStart } from "@/lib/monthly-metrics";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
+import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 
 const glowClass: Record<TrafficLight, string> = {
@@ -171,20 +172,17 @@ export default function ClientDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-text-muted text-sm">Loading client...</div>
-      </div>
-    );
+    return <PageSkeleton rows={6} />;
   }
 
   if (!client) {
     return (
-      <div className="text-text-muted">
-        <Link href="/admin/clients" className="text-accent-bright hover:text-accent-light transition-colors no-underline text-sm">
-          Back to Clients
-        </Link>
-        <p className="mt-4">Client not found.</p>
+      <div className="v2-surface">
+        <EmptyState
+          title="Client not found"
+          description="This client may have been removed or you may not have access to the record."
+          action={<Link href="/admin/clients" className="v2-button-secondary">Back to Clients</Link>}
+        />
       </div>
     );
   }
@@ -373,40 +371,41 @@ export default function ClientDetailPage() {
   return (
     <>
       <Link
-        href="/admin"
-        className="text-text-muted text-sm hover:text-text-secondary transition-colors no-underline inline-flex items-center gap-1 mb-6"
+        href="/admin/clients"
+        className="mb-5 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-text-muted no-underline transition-colors hover:text-text-secondary"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Back to Dashboard
+        Back to Clients
       </Link>
 
-      {/* Header with glow */}
-      <div className={`bg-bg-card border rounded-2xl p-6 mb-6 transition-all duration-300 overflow-visible ${isArchived ? "border-white/10" : glowClass[client.status]}`}>
+      <div className={`v2-surface relative mb-6 overflow-visible p-5 sm:p-6 ${isArchived ? "border-white/10" : glowClass[client.status]}`}>
+        <div className={`absolute inset-y-0 left-0 w-0.5 rounded-full ${isArchived ? "bg-text-muted/50" : sc.dotClass}`} />
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
+          <div className="flex min-w-0 items-center gap-4">
+            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
               client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
             }`}>
               {client.name.split(" ").map((n) => n[0]).join("")}
             </div>
-            <div>
-              <h1 className="text-2xl font-heading font-bold text-text-primary">{client.name}</h1>
-              <p className="text-text-secondary text-sm">{client.email}{client.phone ? ` - ${client.phone}` : ""}</p>
+            <div className="min-w-0">
+              <div className="v2-eyebrow mb-2">Client record</div>
+              <h1 className="truncate font-heading text-2xl font-bold tracking-[-0.025em] text-text-primary">{client.name}</h1>
+              <p className="mt-1 break-words text-sm text-text-secondary">{client.email}{client.phone ? ` · ${client.phone}` : ""}</p>
               {(client.business_name || client.business_type) && (
-                <p className="text-text-muted text-xs mt-0.5">{[client.business_name, client.business_type].filter(Boolean).join(" - ")}</p>
+                <p className="mt-1 text-xs text-text-muted">{[client.business_name, client.business_type].filter(Boolean).join(" · ")}</p>
               )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
+            <span className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
               <span className={`w-2 h-2 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
               {isArchived ? "Archived" : sc.label}
             </span>
             <a
               href={`/api/admin/clients/${client.id}/export`}
-              className="inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-text-secondary no-underline hover:bg-white/10"
+              className="v2-button-secondary min-h-9 px-3 py-1.5 text-xs"
             >
               Export record
             </a>
@@ -428,7 +427,7 @@ export default function ClientDetailPage() {
                     setRestoreSaving(false);
                   }
                 }}
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="inline-flex min-h-9 items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
               >
                 {restoreSaving ? "Restoring…" : "Restore access"}
               </button>
@@ -437,7 +436,8 @@ export default function ClientDetailPage() {
             <div className="relative">
               <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
-                className="p-1.5 rounded-lg text-text-muted hover:text-text-secondary hover:bg-white/5 transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.08] text-text-muted transition-colors hover:bg-white/5 hover:text-text-secondary"
+                aria-label="Client settings"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -476,31 +476,30 @@ export default function ClientDetailPage() {
       </div>
 
       {isArchived && (
-        <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <InlineNotice tone="warning" className="mb-6">
           <strong className="font-semibold">Read-only archive.</strong> Portal access is blocked and this client is excluded from reminders, broadcasts and active-client reporting. All historical records remain viewable and exportable.
           {client.archived_at && <span className="mt-1 block text-xs text-amber-200/70">Archived {new Date(client.archived_at).toLocaleString()}{client.archive_reason ? ` — ${client.archive_reason}` : ""}</span>}
-        </div>
+        </InlineNotice>
       )}
 
       {lifecycleError && (
-        <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{lifecycleError}</div>
+        <InlineNotice tone="error" className="mb-6">{lifecycleError}</InlineNotice>
       )}
 
       {planSaveNotice && (
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          <span>{planSaveNotice}</span>
-          <button type="button" onClick={() => setPlanSaveNotice(null)} className="text-emerald-200/70 hover:text-emerald-100">
+        <InlineNotice tone="success" className="mb-6" action={<button type="button" onClick={() => setPlanSaveNotice(null)} className="text-emerald-100/80 hover:text-emerald-50">
             Dismiss
-          </button>
-        </div>
+          </button>}>
+          {planSaveNotice}
+        </InlineNotice>
       )}
 
       {/* Archive Client Modal */}
       {archiveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+          <div className="v2-surface mx-4 w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10">
                 <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
@@ -713,31 +712,30 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* Stat cards row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
-          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Current Week</div>
-          <div className="text-3xl font-heading font-bold text-white">{currentWeek}</div>
-          <div className="text-white/60 text-sm font-medium">of {totalWeeks} weeks</div>
+      <div className="v2-stat-strip mb-6">
+        <div>
+          <div className="text-xs font-medium text-text-muted">Current Week</div>
+          <div className="mt-2 font-heading text-2xl font-bold text-text-primary">{currentWeek}</div>
+          <div className="mt-1 text-xs text-text-muted">of {totalWeeks} weeks</div>
         </div>
-        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
-          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Plan Progress</div>
-          <div className="text-3xl font-heading font-bold text-white">{planDone}/{planTotal}</div>
-          <div className="text-white/60 text-sm font-medium">{planPct}% complete</div>
+        <div>
+          <div className="text-xs font-medium text-text-muted">Plan Progress</div>
+          <div className="mt-2 font-heading text-2xl font-bold text-text-primary">{planDone}/{planTotal}</div>
+          <div className="mt-1 text-xs text-text-muted">{planPct}% complete</div>
         </div>
-        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
-          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Check-Ins</div>
-          <div className="text-3xl font-heading font-bold text-white">{client.checkins.length}</div>
-          <div className="text-white/60 text-sm font-medium">Last: {timeAgo(client.last_checkin)}</div>
+        <div>
+          <div className="text-xs font-medium text-text-muted">Check-Ins</div>
+          <div className="mt-2 font-heading text-2xl font-bold text-text-primary">{client.checkins.length}</div>
+          <div className="mt-1 text-xs text-text-muted">Last: {timeAgo(client.last_checkin)}</div>
         </div>
-        <div className="bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5">
-          <div className="text-white/70 text-sm font-semibold uppercase tracking-wider mb-2">Last Login</div>
-          <div className={`text-3xl font-heading font-bold ${
-            new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-white"
+        <div>
+          <div className="text-xs font-medium text-text-muted">Last Login</div>
+          <div className={`mt-2 font-heading text-2xl font-bold ${
+            new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
           }`}>
             {timeAgo(client.last_login)}
           </div>
-          <div className="text-white/60 text-sm font-medium">
+          <div className="mt-1 text-xs text-text-muted">
             {new Date(client.last_login).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
           </div>
         </div>

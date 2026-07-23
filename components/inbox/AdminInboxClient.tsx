@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InboxThread from "@/components/inbox/InboxThread";
+import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import { useToast } from "@/components/ui/Toast";
 import type { Attachment, InboxConversation, InboxMessage } from "@/lib/types";
 
@@ -281,24 +282,28 @@ export default function AdminInboxClient() {
   }
 
   const conversationList = (
-    <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.05)] space-y-4">
+    <div className="v2-surface overflow-hidden">
+      <div className="space-y-4 border-b border-white/[0.06] px-4 py-4 sm:px-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-text-primary">Conversations</h2>
-          <div className="text-xs text-text-muted">{conversations.length}</div>
+          <h2 className="v2-section-title">Conversations</h2>
+          <div className="text-xs tabular-nums text-text-muted">{conversations.length}</div>
         </div>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search conversations..."
-          className="w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.3)]"
+          className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/55 px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/45 focus:ring-2 focus:ring-accent/10"
         />
       </div>
       <div className="max-h-[42rem] overflow-y-auto">
         {loadingList ? (
-          <div className="px-5 py-10 text-sm text-text-muted">Loading conversations...</div>
+          <div className="px-4 py-5"><PageSkeleton rows={4} /></div>
         ) : filteredConversations.length === 0 ? (
-          <div className="px-5 py-10 text-sm text-text-muted">No conversations yet.</div>
+          <EmptyState
+            compact
+            title={query ? "No matching conversations" : "No conversations yet"}
+            description={query ? "Try a client name, business or email address." : "Client messages will appear here when a conversation starts."}
+          />
         ) : (
           filteredConversations.map((conversation) => {
             const selected = conversation.client_id === selectedClientId;
@@ -312,9 +317,9 @@ export default function AdminInboxClient() {
               <button
                 key={conversation.client_id}
                 onClick={() => handleSelectConversation(conversation.client_id)}
-                className={`w-full text-left px-5 py-4 border-b border-[rgba(255,255,255,0.04)] transition-colors cursor-pointer ${
+                className={`relative w-full border-b border-white/[0.05] px-4 py-4 text-left transition-colors cursor-pointer sm:px-5 ${
                   selected
-                    ? "bg-[rgba(34,114,222,0.08)]"
+                    ? "bg-accent/10 before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-bright"
                     : conversation.unread_count > 0
                       ? "bg-[rgba(255,255,255,0.015)] hover:bg-[rgba(255,255,255,0.04)]"
                       : "hover:bg-[rgba(255,255,255,0.03)]"
@@ -323,7 +328,7 @@ export default function AdminInboxClient() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] flex items-center justify-center text-xs font-bold text-text-primary">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.035] text-xs font-bold text-text-primary">
                         {conversation.client_name
                           .split(" ")
                           .map((part) => part[0])
@@ -362,9 +367,7 @@ export default function AdminInboxClient() {
 
   const threadPane = selectedClientId ? (
     loadingThread && !thread ? (
-      <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] px-6 py-12 text-sm text-text-muted">
-        Loading conversation...
-      </div>
+      <PageSkeleton rows={5} />
     ) : (
       <InboxThread
         messages={thread?.messages ?? []}
@@ -373,12 +376,6 @@ export default function AdminInboxClient() {
         onSend={handleSend}
         sending={sending}
         error={error}
-        threadLabel={thread?.clientName || selectedConversation?.client_name || "Conversation"}
-        threadMeta={
-          thread?.businessName
-            ? `${thread.businessName}${thread.clientEmail ? ` • ${thread.clientEmail}` : ""}`
-            : thread?.clientEmail || "Direct conversation"
-        }
         emptyTitle="Start this conversation"
         emptyDescription="Send this client a message directly from Marc’s admin inbox."
         composerPlaceholder={`Message ${thread?.clientName || "client"}...`}
@@ -393,19 +390,20 @@ export default function AdminInboxClient() {
       />
     )
   ) : (
-    <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] px-6 py-12 text-sm text-text-muted">
-      No client selected.
-    </div>
+    <div className="v2-surface"><EmptyState title="Choose a conversation" description="Select a client to read their messages and reply." /></div>
   );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-extrabold text-text-primary">Inbox</h1>
-        <p className="text-sm text-text-secondary mt-1">
+        <div className="v2-eyebrow mb-3">Client communication</div>
+        <h1 className="v2-page-title">Inbox</h1>
+        <p className="mt-2 text-sm text-text-secondary">
           Manage client conversations from one place.
         </p>
       </div>
+
+      {error && !selectedClientId && <InlineNotice tone="error">{error}</InlineNotice>}
 
       <div className="xl:hidden space-y-4">
         {mobileThreadOpen ? (
@@ -413,7 +411,7 @@ export default function AdminInboxClient() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileThreadOpen(false)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-text-primary cursor-pointer"
+                className="v2-button-secondary min-h-11 cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -421,7 +419,7 @@ export default function AdminInboxClient() {
                 Back to conversations
               </button>
             </div>
-            <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] px-5 py-4">
+            <div className="v2-surface px-4 py-4 sm:px-5">
               <div className="text-sm font-semibold text-text-primary">
                 {selectedConversation?.client_name || "Select a conversation"}
               </div>
@@ -439,11 +437,11 @@ export default function AdminInboxClient() {
         )}
       </div>
 
-      <div className="hidden xl:grid xl:grid-cols-[24rem_minmax(0,1fr)] gap-6">
+      <div className="hidden gap-5 xl:grid xl:grid-cols-[23rem_minmax(0,1fr)]">
         {conversationList}
 
         <div className="space-y-4">
-          <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] px-5 py-4">
+          <div className="v2-surface px-5 py-4">
             <div className="text-sm font-semibold text-text-primary">
               {selectedConversation?.client_name || "Select a conversation"}
             </div>

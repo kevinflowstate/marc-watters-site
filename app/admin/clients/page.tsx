@@ -2,14 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight } from "@/lib/types";
-
-const glowClass: Record<TrafficLight, string> = {
-  green: "glow-green",
-  amber: "glow-amber",
-  red: "glow-red",
-};
 
 const statusConfig: Record<TrafficLight, { label: string; dotClass: string; bgClass: string; textClass: string }> = {
   red: { label: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
@@ -32,8 +27,11 @@ function timeAgo(dateStr: string): string {
 export default function ClientsPage() {
   const [allClients, setAllClients] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<TrafficLight | "all">("all");
   const [lifecycle, setLifecycle] = useState<"active" | "archived">("active");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"attention" | "name" | "recent">("attention");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -42,12 +40,17 @@ export default function ClientsPage() {
   const [inviteResult, setInviteResult] = useState<{ success: boolean; alreadyExisted?: boolean; emailSent?: boolean; passwordSet?: boolean; setupUrl?: string; error?: string } | null>(null);
 
   async function loadClients() {
+    setLoadError(null);
     try {
       const res = await fetch("/api/admin/clients?includeArchived=true");
       if (res.ok) {
         const data = await res.json();
         setAllClients(data.clients || []);
+      } else {
+        throw new Error("Could not load clients.");
       }
+    } catch {
+      setLoadError("Could not load clients. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -56,49 +59,43 @@ export default function ClientsPage() {
   useEffect(() => { loadClients(); }, []);
 
   if (loading) {
-    return (
-      <>
-        <div className="mb-8">
-          <div className="skeleton rounded-lg h-8 w-32 mb-2" />
-          <div className="skeleton rounded-lg h-4 w-40" />
-        </div>
-        <div className="flex gap-2 mb-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="skeleton rounded-xl h-10 w-24 border border-[rgba(255,255,255,0.06)]" />
-          ))}
-        </div>
-        <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 flex items-center gap-4">
-              <div className="skeleton rounded-full w-11 h-11" />
-              <div className="flex-1 space-y-2">
-                <div className="skeleton rounded-lg h-4 w-36" />
-                <div className="skeleton rounded-lg h-3 w-48" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </>
-    );
+    return <PageSkeleton rows={6} />;
   }
 
   const activeClients = allClients.filter((client) => !client.archived_at);
   const archivedClients = allClients.filter((client) => Boolean(client.archived_at));
   const lifecycleClients = lifecycle === "active" ? activeClients : archivedClients;
-  const filtered = lifecycle === "archived" || filter === "all"
+  const lifecycleFiltered = lifecycle === "archived" || filter === "all"
     ? lifecycleClients
     : lifecycleClients.filter((client) => client.status === filter);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = lifecycleFiltered
+    .filter((client) => {
+      if (!normalizedQuery) return true;
+      return [client.name, client.email, client.business_name, client.business_type]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    })
+    .sort((first, second) => {
+      if (sort === "name") return first.name.localeCompare(second.name);
+      if (sort === "recent") return new Date(second.last_login).getTime() - new Date(first.last_login).getTime();
+      const attentionRank: Record<TrafficLight, number> = { red: 0, amber: 1, green: 2 };
+      return attentionRank[first.status] - attentionRank[second.status] || first.name.localeCompare(second.name);
+    });
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">Clients</h1>
-          <p className="text-text-secondary mt-1">{activeClients.length} active · {archivedClients.length} archived</p>
+          <div className="v2-eyebrow mb-3">Client workspace</div>
+          <h1 className="v2-page-title">Clients</h1>
+          <p className="mt-2 text-sm text-text-secondary">{activeClients.length} active · {archivedClients.length} archived</p>
         </div>
         <button
           onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
-          className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
+          className="v2-button-primary min-h-11 w-full cursor-pointer sm:w-auto"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -247,13 +244,23 @@ export default function ClientsPage() {
         </div>
       )}
 
-      <div className="mb-4 flex w-full gap-2 rounded-xl border border-[rgba(255,255,255,0.06)] bg-white/[0.02] p-1 sm:w-fit">
+      {loadError && (
+        <InlineNotice
+          tone="error"
+          className="mb-6"
+          action={<button type="button" onClick={() => void loadClients()} className="font-semibold underline underline-offset-4">Retry</button>}
+        >
+          {loadError}
+        </InlineNotice>
+      )}
+
+      <div className="mb-4 grid w-full grid-cols-2 gap-1 rounded-[var(--cbb-radius-sm)] border border-white/[0.08] bg-white/[0.02] p-1 sm:w-fit">
         {(["active", "archived"] as const).map((value) => (
           <button
             key={value}
             type="button"
             onClick={() => setLifecycle(value)}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold capitalize transition-colors sm:flex-none ${
+            className={`min-h-10 rounded-lg px-4 py-2 text-sm font-semibold capitalize transition-colors ${
               lifecycle === value ? "bg-accent/15 text-accent-bright" : "text-text-muted hover:text-text-secondary"
             }`}
           >
@@ -262,13 +269,38 @@ export default function ClientsPage() {
         ))}
       </div>
 
+      <div className="v2-surface mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Search clients</span>
+          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="m21 21-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z" /></svg>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search name, business or email"
+            className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/55 py-2.5 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/45 focus:ring-2 focus:ring-accent/10"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-xs text-text-muted">
+          <span className="shrink-0">Sort by</span>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as typeof sort)}
+            className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary px-3 text-sm text-text-primary focus:outline-none focus:border-accent/45 sm:w-auto"
+          >
+            <option value="attention">Needs attention</option>
+            <option value="recent">Recent login</option>
+            <option value="name">Client name</option>
+          </select>
+        </label>
+      </div>
+
       {/* Filters */}
-      {lifecycle === "active" && <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+      {lifecycle === "active" && <div className="flex gap-2 mb-6 overflow-x-auto pb-1" aria-label="Filter clients by status">
         {(["all", "red", "amber", "green"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+            className={`min-h-10 shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
               filter === f
                 ? "bg-[rgba(34,114,222,0.1)] text-accent-bright border border-[rgba(34,114,222,0.2)]"
                 : "text-text-muted hover:text-text-secondary border border-[rgba(255,255,255,0.06)]"
@@ -284,8 +316,12 @@ export default function ClientsPage() {
       {/* Client cards */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl px-6 py-8 text-text-muted text-sm">
-            No clients found.
+          <div className="v2-surface">
+            <EmptyState
+              compact
+              title={normalizedQuery ? "No matching clients" : lifecycle === "archived" ? "No archived clients" : "No clients in this view"}
+              description={normalizedQuery ? "Try a different name, business or email address." : lifecycle === "archived" ? "Clients you archive will remain available here for viewing and export." : "Change the status filter to see the rest of your clients."}
+            />
           </div>
         ) : (
           filtered.map((client) => {
@@ -301,23 +337,25 @@ export default function ClientsPage() {
               <Link
                 key={client.id}
                 href={`/admin/clients/${client.id}`}
-                className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl p-5 overflow-hidden transition-all duration-300 no-underline hover:-translate-y-0.5 cursor-pointer ${isArchived ? "border-white/10 opacity-80" : glowClass[client.status]}`}
+                className="group relative block overflow-hidden rounded-[var(--cbb-radius-md)] border border-white/[0.08] bg-[var(--cbb-surface-1)] p-4 no-underline transition-colors hover:border-white/[0.16] sm:p-5"
               >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] pointer-events-none" />
-                <div className="flex items-center justify-between relative">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold ${isArchived ? "bg-white/5 text-text-muted border-white/10" : `${sc.bgClass} ${sc.textClass}`} border ${
+                <div className={`absolute inset-y-0 left-0 w-0.5 ${isArchived ? "bg-text-muted/50" : sc.dotClass}`} />
+                <div className="relative flex items-start justify-between gap-4 sm:items-center">
+                  <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${isArchived ? "bg-white/5 text-text-muted border-white/10" : `${sc.bgClass} ${sc.textClass}`} border ${
                       client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
                     }`}>
                       {client.name.split(" ").map((n) => n[0]).join("")}
                     </div>
-                    <div>
-                      <div className="text-sm font-semibold text-text-primary">{client.name}</div>
-                      <div className="text-xs text-text-muted">{client.business_name} - {client.business_type}</div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-text-primary">{client.name}</div>
+                      <div className="mt-1 truncate text-xs text-text-muted">{client.business_name}{client.business_type ? ` · ${client.business_type}` : ""}</div>
+                      {!isArchived && <div className={`mt-1 text-xs font-medium sm:hidden ${sc.textClass}`}>{sc.label}</div>}
+                      {isArchived && client.archived_at && <div className="mt-1 text-xs text-text-muted">Archived {new Date(client.archived_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex shrink-0 items-center gap-4 lg:gap-6">
                     {!isArchived && <div className="text-right hidden sm:block">
                       <div className="text-xs text-text-muted">Week {client.current_week}/12</div>
                       <div className="flex items-center gap-2 mt-1">
@@ -353,7 +391,7 @@ export default function ClientsPage() {
                       </div>
                     </div>}
 
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
+                    <span className={`hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
                       {isArchived ? "Archived" : sc.label}
                     </span>

@@ -39,16 +39,14 @@ export default function MonthlyMetricsSection({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(
-    !initialHistory.some((entry) => entry.month_start === initialCurrentMonthStart),
-  );
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     const nextMonthStart = initialCurrentMonthStart || getCurrentMetricsMonthStart();
     setCurrentMonthStart(nextMonthStart);
     setHistory(sortMonthlyMetrics(initialHistory));
     setFormValues(createInitialValues(nextMonthStart, initialHistory));
-    setShowForm(!initialHistory.some((entry) => entry.month_start === nextMonthStart));
+    setShowForm(false);
   }, [initialCurrentMonthStart, initialHistory]);
 
   const currentMonthEntry = history.find((entry) => entry.month_start === currentMonthStart);
@@ -94,13 +92,11 @@ export default function MonthlyMetricsSection({
 
   return (
     <div className="mb-8 space-y-6">
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-card/80 p-6 sm:p-7">
+      <div className="v2-surface p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent-bright">
-              Monthly Scorecard
-            </div>
-            <h2 className="mt-4 text-2xl font-heading font-bold text-text-primary">Five Key Monthly Metrics</h2>
+            <div className="v2-eyebrow">Monthly Scorecard</div>
+            <h2 className="mt-3 text-xl font-heading font-bold text-text-primary">Five Key Monthly Metrics</h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary">
               On the first of each month, record these five numbers so you and Marc can see what is moving and where momentum is building.
             </p>
@@ -117,19 +113,21 @@ export default function MonthlyMetricsSection({
                 ? `${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics due`
                 : `${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} submitted`}
             </div>
-            {!isDue && (
-              <button
-                type="button"
-                onClick={() => setShowForm((prev) => !prev)}
-                className="text-xs font-medium text-accent-bright hover:text-accent-light transition-colors cursor-pointer"
-              >
-                {showForm ? "Hide edit form" : `Update ${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics`}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowForm((prev) => !prev)}
+              className={showForm ? "v2-button-secondary min-h-0 px-3 py-2 text-xs" : "v2-button-primary min-h-0 px-3 py-2 text-xs"}
+            >
+              {showForm
+                ? "Hide scorecard"
+                : isDue
+                  ? `Add ${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics`
+                  : `Update ${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics`}
+            </button>
           </div>
         </div>
 
-        {(isDue || showForm) && (
+        {showForm && (
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               {monthlyMetricDefinitions.map((metric) => (
@@ -173,7 +171,7 @@ export default function MonthlyMetricsSection({
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center justify-center rounded-xl gradient-accent px-5 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="v2-button-primary disabled:opacity-50"
               >
                 {saving ? "Saving..." : isDue ? "Submit Monthly Metrics" : "Save Changes"}
               </button>
