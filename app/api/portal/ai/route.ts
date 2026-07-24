@@ -5,6 +5,7 @@ import { trackAIUsage } from "@/lib/ai-usage";
 import { rateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { inactiveClientResponse } from "@/lib/client-lifecycle";
+import { getEnv } from "@/lib/env";
 
 const tools = [
   {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Message required" }, { status: 400 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) {
     return NextResponse.json({ error: "AI not configured" }, { status: 500 });
   }
