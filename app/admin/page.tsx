@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import type { AdminClient } from "@/lib/admin-data";
-import type { TrafficLight, CheckInMood, CheckIn } from "@/lib/types";
+import { getQuestionAnswerLabel } from "@/lib/questionnaires";
+import type { TrafficLight, CheckInMood, CheckIn, CheckinFormConfig } from "@/lib/types";
 
 const statusLabel: Record<TrafficLight, { text: string; dotClass: string; bgClass: string; textClass: string }> = {
   red: { text: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
@@ -79,6 +80,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [recentCheckins, setRecentCheckins] = useState<EnrichedCheckin[]>([]);
+  const [checkinConfig, setCheckinConfig] = useState<CheckinFormConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [adminName, setAdminName] = useState("");
@@ -96,9 +98,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [clientsRes, meRes] = await Promise.all([
+        const [clientsRes, meRes, configRes] = await Promise.all([
           fetch("/api/admin/clients"),
           fetch("/api/portal/me"),
+          fetch("/api/admin/form-config?type=checkin"),
         ]);
         if (clientsRes.ok) {
           const data = await clientsRes.json();
@@ -121,6 +124,10 @@ export default function AdminDashboard() {
           if (meData.fullName) {
             setAdminName(meData.fullName.split(" ")[0]);
           }
+        }
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          setCheckinConfig(configData.config || null);
         }
       } finally {
         setLoading(false);
@@ -391,7 +398,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recent check-ins - grouped by week */}
-        <CheckInsPanel checkins={recentCheckins} />
+        <CheckInsPanel checkins={recentCheckins} checkinConfig={checkinConfig} />
       </div>
 
       {broadcastOpen && (
@@ -880,6 +887,7 @@ interface EnrichedCheckin {
   wins?: string;
   challenges?: string;
   questions?: string;
+  responses?: Record<string, string>;
   admin_reply?: string;
   replied_at?: string;
   client_reply?: string;
@@ -907,9 +915,60 @@ function getWeekBucket(dateStr: string): "this_week" | "last_week" | "earlier" {
   return "earlier";
 }
 
-function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
+interface CheckinAnswer {
+  id: string;
+  label: string;
+  answer: string;
+}
+
+function formatResponseId(id: string): string {
+  return id
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getCheckinAnswers(
+  checkin: EnrichedCheckin,
+  checkinConfig: CheckinFormConfig | null,
+): CheckinAnswer[] {
+  const responseEntries = Object.entries(checkin.responses || {})
+    .filter(([id, value]) => !id.endsWith("__other") && Boolean(value?.trim()));
+
+  if (responseEntries.length > 0) {
+    const configuredIds = new Set(checkinConfig?.questions.map((question) => question.id) || []);
+    const configuredAnswers = (checkinConfig?.questions || []).flatMap((question) => {
+      const answer = getQuestionAnswerLabel(question, checkin.responses);
+      return answer ? [{ id: question.id, label: question.label, answer }] : [];
+    });
+    const historicAnswers = responseEntries
+      .filter(([id]) => !configuredIds.has(id))
+      .map(([id, answer]) => ({
+        id,
+        label: formatResponseId(id),
+        answer,
+      }));
+
+    return [...configuredAnswers, ...historicAnswers];
+  }
+
+  return [
+    checkin.wins ? { id: "wins", label: "Wins", answer: checkin.wins } : null,
+    checkin.challenges ? { id: "challenges", label: "Challenges", answer: checkin.challenges } : null,
+    checkin.questions ? { id: "questions", label: "Questions", answer: checkin.questions } : null,
+  ].filter((item): item is CheckinAnswer => item !== null);
+}
+
+function CheckInsPanel({
+  checkins,
+  checkinConfig,
+}: {
+  checkins: EnrichedCheckin[];
+  checkinConfig: CheckinFormConfig | null;
+}) {
   const { toast } = useToast();
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(checkins.map((checkin) => checkin.id)),
+  );
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["earlier"]));
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
@@ -1010,6 +1069,7 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
                     <CheckInRow
                       key={checkin.id}
                       checkin={checkin}
+                      checkinConfig={checkinConfig}
                       isExpanded={expanded.has(checkin.id)}
                       onToggle={() => toggleExpand(checkin.id)}
                       replyText={replies[checkin.id] || ""}
@@ -1032,6 +1092,7 @@ function CheckInsPanel({ checkins }: { checkins: EnrichedCheckin[] }) {
 
 function CheckInRow({
   checkin,
+  checkinConfig,
   isExpanded,
   onToggle,
   replyText,
@@ -1042,6 +1103,7 @@ function CheckInRow({
   error,
 }: {
   checkin: EnrichedCheckin;
+  checkinConfig: CheckinFormConfig | null;
   isExpanded: boolean;
   onToggle: () => void;
   replyText: string;
@@ -1053,12 +1115,13 @@ function CheckInRow({
 }) {
   const mc = moodConfig[checkin.mood] || moodConfig.struggling;
   const hasReply = checkin.admin_reply || sentReply;
+  const answers = getCheckinAnswers(checkin, checkinConfig);
 
   return (
     <div className="border-b border-[rgba(255,255,255,0.02)] last:border-b-0">
       <button
         onClick={onToggle}
-        className="w-full flex items-start gap-3 py-3 px-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer"
+        className="w-full flex items-start gap-3 px-3 py-3 hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer sm:px-5"
       >
         <span className={`text-[10px] font-semibold px-2 py-1 rounded-full mt-0.5 uppercase tracking-wider flex-shrink-0 ${mc.bgClass} ${mc.textClass}`}>
           {checkin.mood}
@@ -1070,7 +1133,7 @@ function CheckInRow({
           </div>
           {!isExpanded && (
             <p className="text-xs text-text-secondary truncate">
-              {checkin.wins || checkin.challenges || checkin.questions || "No details"}
+              {answers[0]?.answer || "No details"}
             </p>
           )}
         </div>
@@ -1090,30 +1153,28 @@ function CheckInRow({
       </button>
 
       {isExpanded && (
-        <div className="px-5 pb-4 pt-1 ml-[38px]">
+        <div className="px-3 pb-4 pt-1 sm:ml-[38px] sm:px-5">
           <div className="bg-[rgba(255,255,255,0.015)] border border-[rgba(255,255,255,0.04)] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between text-xs text-text-muted mb-2">
               <span>{checkin.client_business}</span>
               <span>{new Date(checkin.created_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</span>
             </div>
 
-            {checkin.wins && (
-              <div>
-                <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider mb-1">Wins</div>
-                <p className="text-xs text-text-secondary leading-relaxed">{checkin.wins}</p>
+            {answers.length > 0 ? (
+              <div className="space-y-3">
+                {answers.map((item) => (
+                  <div key={item.id}>
+                    <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-1">
+                      {item.label}
+                    </div>
+                    <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-line">
+                      {item.answer}
+                    </p>
+                  </div>
+                ))}
               </div>
-            )}
-            {checkin.challenges && (
-              <div>
-                <div className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider mb-1">Challenges</div>
-                <p className="text-xs text-text-secondary leading-relaxed">{checkin.challenges}</p>
-              </div>
-            )}
-            {checkin.questions && (
-              <div>
-                <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Questions</div>
-                <p className="text-xs text-text-secondary leading-relaxed">{checkin.questions}</p>
-              </div>
+            ) : (
+              <p className="text-xs text-text-muted">No written responses were submitted.</p>
             )}
             {checkin.client_reply && (
               <div className="mt-2 pl-3 border-l-2 border-emerald-500/30 bg-emerald-500/5 rounded-r-lg py-2 pr-3">
