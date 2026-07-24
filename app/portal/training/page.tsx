@@ -1,134 +1,260 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { TrainingModule, ModuleContent } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
 import ModuleCover from "@/components/training/ModuleCover";
+import { EmptyState, InlineNotice } from "@/components/ui/PortalState";
+import type { ModuleContent, TrainingModule } from "@/lib/types";
 
-const moduleColors = [
-  { bg: "from-blue-600/20 to-blue-900/40", icon: "text-blue-400" },
-  { bg: "from-emerald-600/20 to-emerald-900/40", icon: "text-emerald-400" },
-  { bg: "from-purple-600/20 to-purple-900/40", icon: "text-purple-400" },
-  { bg: "from-amber-600/20 to-amber-900/40", icon: "text-amber-400" },
-  { bg: "from-rose-600/20 to-rose-900/40", icon: "text-rose-400" },
-  { bg: "from-cyan-600/20 to-cyan-900/40", icon: "text-cyan-400" },
-];
+function LibrarySkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading training library" role="status">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="v2-surface overflow-hidden">
+          <div className="skeleton h-36" />
+          <div className="space-y-3 p-5">
+            <div className="skeleton h-3 w-20 rounded" />
+            <div className="skeleton h-5 w-3/4 rounded" />
+            <div className="skeleton h-3 w-full rounded" />
+            <div className="skeleton h-3 w-2/3 rounded" />
+          </div>
+        </div>
+      ))}
+      <span className="sr-only">Loading training modules</span>
+    </div>
+  );
+}
 
-const moduleIcons = [
-  "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
-  "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
-  "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
-  "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-  "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-];
+function TrainingIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  );
+}
 
 export default function TrainingLibrary() {
   const [modules, setModules] = useState<TrainingModule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function load() {
+      setLoading(true);
+      setError("");
+
       try {
-        const res = await fetch("/api/portal/training");
-        if (res.ok) {
-          const data = await res.json();
-          setModules(data.modules || []);
+        const response = await fetch("/api/portal/training", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Training could not be loaded.");
+        }
+
+        const data = await response.json();
+        setModules(Array.isArray(data.modules) ? data.modules : []);
+      } catch (loadError) {
+        if ((loadError as Error).name !== "AbortError") {
+          setError("We couldn’t load your training library. Please try again.");
         }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
-    load();
-  }, []);
+
+    void load();
+    return () => controller.abort();
+  }, [reloadKey]);
+
+  const moduleViews = useMemo(() => {
+    return modules.map((module, index) => {
+      const lessons = Array.isArray(module.content) ? module.content : [];
+      const totalDuration = lessons.reduce(
+        (sum: number, content: ModuleContent) => sum + (content.duration_minutes || 0),
+        0,
+      );
+
+      return {
+        module,
+        index,
+        lessons,
+        totalDuration,
+        searchText: `${module.title} ${module.description || ""}`.toLowerCase(),
+      };
+    });
+  }, [modules]);
+
+  const totals = useMemo(() => {
+    return moduleViews.reduce(
+      (summary, module) => {
+        summary.lessons += module.lessons.length;
+        summary.minutes += module.totalDuration;
+        return summary;
+      },
+      { lessons: 0, minutes: 0 },
+    );
+  }, [moduleViews]);
+
+  const visibleModules = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return moduleViews;
+
+    return moduleViews.filter((module) => module.searchText.includes(normalizedQuery));
+  }, [moduleViews, query]);
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Training Library</h1>
-        <p className="text-text-secondary mt-1">Work through each module at your own pace.</p>
-      </div>
+      <header className="mb-7 sm:mb-9">
+        <div className="v2-eyebrow mb-3">Learning and resources</div>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="v2-page-title">Training Library</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
+              Practical modules and resources to support the work in your Business Plan.
+            </p>
+          </div>
+
+          {!loading && !error && modules.length > 0 && (
+            <div className="flex items-center gap-5 rounded-[var(--cbb-radius-md)] border border-white/[0.07] bg-white/[0.025] px-4 py-3">
+              <div>
+                <div className="font-heading text-lg font-bold tabular-nums text-text-primary">{modules.length}</div>
+                <div className="text-xs text-text-muted">{modules.length === 1 ? "Module" : "Modules"}</div>
+              </div>
+              <div className="h-8 w-px bg-white/[0.08]" aria-hidden />
+              <div>
+                <div className="font-heading text-lg font-bold tabular-nums text-text-primary">{totals.lessons}</div>
+                <div className="text-xs text-text-muted">Lessons</div>
+              </div>
+              {totals.minutes > 0 && (
+                <>
+                  <div className="h-8 w-px bg-white/[0.08]" aria-hidden />
+                  <div>
+                    <div className="font-heading text-lg font-bold tabular-nums text-text-primary">{totals.minutes}</div>
+                    <div className="text-xs text-text-muted">Minutes</div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {error && (
+        <InlineNotice
+          tone="error"
+          className="mb-5"
+          action={
+            <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="text-xs font-bold text-red-100 underline underline-offset-4">
+              Try again
+            </button>
+          }
+        >
+          {error}
+        </InlineNotice>
+      )}
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-              <div className="h-36 skeleton" />
-              <div className="p-5 space-y-3">
-                <div className="skeleton rounded-lg h-5 w-3/4" />
-                <div className="skeleton rounded-lg h-3 w-full" />
-                <div className="skeleton rounded-lg h-3 w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : modules.length === 0 ? (
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
-          <p className="text-text-secondary">No training modules available yet.</p>
-          <p className="text-text-muted text-sm mt-2">New content is on the way.</p>
+        <LibrarySkeleton />
+      ) : error ? null : modules.length === 0 ? (
+        <div className="v2-surface">
+          <EmptyState
+            icon={<TrainingIcon />}
+            title="Your training library is being prepared"
+            description="Modules assigned through your Business Plan will appear here when they are ready."
+          />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {modules.map((mod, i) => {
-            const lessonCount = mod.content?.length || 0;
-            const totalDuration = mod.content?.reduce((sum: number, c: ModuleContent) => sum + (c.duration_minutes || 0), 0) || 0;
+        <>
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="v2-section-title">Your modules</h2>
+              <p className="mt-1 text-xs text-text-muted">
+                Open a module to view its lessons, documents and resources.
+              </p>
+            </div>
 
-            return (
-              <Link
-                key={mod.id}
-                href={`/portal/training/${mod.id}`}
-                className="group relative block bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 no-underline hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] will-change-transform cursor-pointer"
-              >
-                {/* Bento dot pattern */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
-                {/* Bento gradient border */}
-                <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                {/* Cover - auto-generated from title */}
-                <div className="relative">
-                  <ModuleCover title={mod.title} />
+            {modules.length > 3 && (
+              <label className="relative block w-full sm:w-72">
+                <span className="sr-only">Search training modules</span>
+                <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+                </svg>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search modules"
+                  className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-white/[0.035] py-2.5 pl-10 pr-4 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-accent/45 focus:ring-2 focus:ring-accent/15"
+                />
+              </label>
+            )}
+          </div>
 
-                  {/* Module number */}
-                  <div className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white font-bold text-sm z-10">
-                    {i + 1}
-                  </div>
+          {visibleModules.length === 0 ? (
+            <div className="v2-surface">
+              <EmptyState
+                compact
+                title="No matching modules"
+                description={`Nothing in your library matches “${query.trim()}”.`}
+                action={
+                  <button type="button" onClick={() => setQuery("")} className="v2-button-secondary">
+                    Clear search
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleModules.map(({ module, index, lessons, totalDuration }) => {
+                return (
+                  <Link
+                    key={module.id}
+                    href={`/portal/training/${module.id}`}
+                    className="group flex min-h-full flex-col overflow-hidden rounded-[var(--cbb-radius-lg)] border border-white/[0.075] bg-[var(--cbb-surface-1)] no-underline shadow-[0_1px_0_rgba(255,255,255,0.025)_inset] transition-[border-color,background-color,box-shadow] duration-200 hover:border-accent/30 hover:bg-[var(--cbb-surface-2)] hover:shadow-[0_18px_45px_rgba(0,0,0,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/70 motion-reduce:transition-none"
+                  >
+                    <ModuleCover title={module.title} imageUrl={module.thumbnail_url} />
 
-                  {/* Lesson count badge */}
-                  <div className="absolute top-4 right-4 z-10">
-                    <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-accent/20 text-blue-300 border border-accent/30">
-                      {lessonCount} {lessonCount === 1 ? "lesson" : "lessons"}
-                    </span>
-                  </div>
-                </div>
+                    <div className="flex flex-1 flex-col p-5">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold text-accent-bright">
+                          Module {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-1 text-xs text-text-secondary">
+                          {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
+                        </span>
+                      </div>
 
-                {/* Content */}
-                <div className="p-5">
-                  <h3 className="font-heading font-bold text-text-primary text-[0.95rem] mb-2 group-hover:text-accent-bright transition-colors">
-                    {mod.title}
-                  </h3>
-                  <p className="text-xs text-text-secondary leading-relaxed line-clamp-2 mb-4">
-                    {mod.description}
-                  </p>
+                      <h3 className="font-heading text-[1.05rem] font-bold leading-snug text-text-primary transition-colors group-hover:text-accent-bright">
+                        {module.title}
+                      </h3>
+                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-text-secondary">
+                        {module.description || "Open this module to view the available lessons and resources."}
+                      </p>
 
-                  {/* Stats row */}
-                  <div className="flex items-center gap-4 text-[10px] text-text-muted uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      </svg>
-                      {lessonCount} lessons
+                      <div className="mt-auto flex items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
+                        <span className="text-xs text-text-muted">
+                          {totalDuration > 0 ? `${totalDuration} min total` : "Resources included"}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-text-primary">
+                          Open module
+                          <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m9 5 7 7-7 7" />
+                          </svg>
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {totalDuration} min
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </>
   );

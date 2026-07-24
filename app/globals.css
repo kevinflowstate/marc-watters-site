@@ -509,6 +509,62 @@ body::after {
   background: rgba(34, 114, 222, 0.1);
 }
 
+/* V2 light mode: pair light surfaces with light-mode foreground tokens.
+   The V2 shell's dark workspace tokens are declared after the global light
+   theme, so they need an explicit light counterpart at the same scope. */
+.light .portal-v2-shell {
+  --color-bg-secondary: #eef1f6;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f7f9fc;
+  --color-text-secondary: #4f596b;
+  --color-text-muted: #626d80;
+  --color-border: #e2e7ef;
+  --color-border-light: #d4dbe7;
+  --cbb-surface-1: rgba(255, 255, 255, 0.94);
+  --cbb-surface-2: rgba(250, 251, 253, 0.97);
+  --cbb-surface-3: rgba(241, 245, 250, 0.98);
+  --cbb-line: rgba(15, 23, 42, 0.1);
+  --cbb-line-strong: rgba(15, 23, 42, 0.16);
+  --cbb-blue-line: rgba(34, 114, 222, 0.24);
+  --cbb-shadow: 0 24px 70px rgba(31, 45, 68, 0.12);
+  background:
+    radial-gradient(circle at 72% -10%, rgba(34, 114, 222, 0.08), transparent 32rem),
+    var(--color-bg-primary);
+}
+
+.light .portal-v2-shell .v2-surface {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 12px 34px rgba(31, 45, 68, 0.06);
+}
+
+.light .portal-v2-shell .v2-surface-strong {
+  background:
+    linear-gradient(145deg, rgba(34, 114, 222, 0.09), transparent 48%),
+    var(--cbb-surface-2);
+  box-shadow:
+    var(--cbb-shadow),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+}
+
+.light .portal-v2-shell .v2-button-secondary {
+  background: rgba(15, 23, 42, 0.035);
+}
+
+.light .portal-v2-shell .v2-button-secondary:hover {
+  background: rgba(34, 114, 222, 0.07);
+}
+
+/* Training artwork remains an intentionally dark, self-contained visual in
+   both themes; do not let the broad legacy light-mode utility overrides invert it. */
+.light .portal-v2-shell .v2-dark-media {
+  background-color: #070a10 !important;
+}
+
+.light .portal-v2-shell .v2-dark-media [class*="text-white"] {
+  color: #ffffff !important;
+}
+
 .portal-v2-range {
   --range-progress: 0%;
   --range-active: var(--color-accent);
