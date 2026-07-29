@@ -92,11 +92,11 @@ function LockedPreview() {
               Your Growth Engine isn’t active yet
             </h2>
             <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-text-secondary">
-              Ask Marc if you’d like access to your growth strategy and weekly results.
+              Ask Marc about our done-for-you Marketing &amp; AI Implementation solutions.
             </p>
             <div className="mt-6 flex justify-center">
               <Link href="/portal/inbox" className="v2-button-primary justify-center no-underline">
-                Ask Marc about access
+                Message Marc
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m9 18 6-6-6-6" />
                 </svg>
