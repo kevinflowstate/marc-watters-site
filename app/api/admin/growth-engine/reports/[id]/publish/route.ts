@@ -19,7 +19,14 @@ export async function POST(
     .eq("id", id).maybeSingle();
   if (existingError) return NextResponse.json({ error: "Could not load the report." }, { status: 500 });
   if (!existing) return NextResponse.json({ error: "Report not found." }, { status: 404 });
+  if (existing.status === "withdrawn") {
+    return NextResponse.json(
+      { error: "Withdrawn reports cannot be republished. Create a new draft instead." },
+      { status: 409 },
+    );
+  }
 
+  const newlyPublished = existing.status === "draft";
   let report = existing;
   if (existing.status === "draft") {
     const now = new Date().toISOString();
@@ -76,6 +83,14 @@ export async function POST(
         .eq("id", report.id).is("notification_sent_at", null);
       notificationSent = !notificationUpdateError;
     }
+  }
+
+  if (newlyPublished) {
+    await admin.from("cbb_growth_report_events").insert({
+      report_id: report.id,
+      event_type: "published",
+      actor_user_id: viewer.userId,
+    });
   }
 
   return NextResponse.json({

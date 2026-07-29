@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import GrowthEngineDataSetup from "@/components/growth-engine/GrowthEngineDataSetup";
+import GrowthEngineFiles from "@/components/growth-engine/GrowthEngineFiles";
 import ReportView from "@/components/growth-engine/ReportView";
 import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import { useToast } from "@/components/ui/Toast";
 import type { GrowthAdminClient, GrowthClientsResponse } from "@/lib/growth-engine-admin";
 import type { GrowthMetric, GrowthMilestone, GrowthReport } from "@/lib/growth-engine";
 
-type WorkspaceTab = "overview" | "strategy" | "reports" | "milestones" | "files";
+type WorkspaceTab = "overview" | "strategy" | "reports" | "milestones" | "files" | "data";
 
 interface ReportForm {
   id: string | null;
-  status: "draft" | "published";
+  status: "draft" | "published" | "withdrawn";
   title: string;
   periodStart: string;
   periodEnd: string;
@@ -33,6 +35,7 @@ const tabs: Array<{ id: WorkspaceTab; label: string }> = [
   { id: "reports", label: "Reports" },
   { id: "milestones", label: "Milestones" },
   { id: "files", label: "Files" },
+  { id: "data", label: "Data & automation" },
 ];
 
 function emptyReport(): ReportForm {
@@ -163,7 +166,7 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.report) throw new Error(data?.error || "Report could not be loaded.");
       setReportForm(reportToForm(data.report));
-      setReportMode(data.report.status === "published" ? "preview" : "edit");
+      setReportMode(data.report.status === "draft" ? "edit" : "preview");
       setPublishArmed(false);
     } catch (reportError) {
       toast((reportError as Error).message, "error");
@@ -231,6 +234,44 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
       toast(data.notified ? "Report published and client notified" : "Report published");
     } catch (publishError) {
       toast((publishError as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteDraft() {
+    if (!reportForm?.id || reportForm.status !== "draft" || !window.confirm("Delete this private draft? This cannot be undone.")) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/growth-engine/reports/${reportForm.id}`, { method: "DELETE" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "Draft could not be deleted.");
+      setReportForm(null);
+      await load();
+      toast("Draft deleted");
+    } catch (deleteError) {
+      toast((deleteError as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function withdrawReport() {
+    if (!reportForm?.id || reportForm.status !== "published" || !window.confirm("Unpublish this report? The client will no longer be able to view it.")) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/growth-engine/reports/${reportForm.id}/withdraw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Withdrawn from the Growth Engine workspace" }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "Report could not be unpublished.");
+      await load();
+      await openReport(reportForm.id);
+      toast("Report unpublished");
+    } catch (withdrawError) {
+      toast((withdrawError as Error).message, "error");
     } finally {
       setSaving(false);
     }
@@ -355,6 +396,8 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
               onArmPublish={() => setPublishArmed(true)}
               onCancelPublish={() => setPublishArmed(false)}
               onPublish={publishReport}
+              onDelete={deleteDraft}
+              onWithdraw={withdrawReport}
               onMetric={updateMetric}
             />
           ) : (
@@ -400,14 +443,11 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
         )}
 
         {tab === "files" && (
-          <section className="v2-surface overflow-hidden">
-            <header className="border-b border-white/[0.07] px-5 py-5 sm:px-7"><h2 className="v2-section-title">Files and assets</h2><p className="mt-1 text-xs text-text-muted">Private delivery documents associated with this Growth Engine workspace.</p></header>
-            {client.assets.length ? (
-              <div className="divide-y divide-white/[0.06]">
-                {client.assets.map((asset) => <div key={asset.id} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-7"><div><p className="text-sm font-bold text-text-primary">{asset.title}</p><p className="mt-1 text-xs text-text-muted">{asset.mime_type || "Document"} · Added {shortDate(asset.created_at)}</p></div><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted">{asset.published_at ? "Client visible" : "Private"}</span></div>)}
-              </div>
-            ) : <EmptyState title="No files yet" description="Files attached to Growth Engine delivery and reports will appear here." />}
-          </section>
+          <GrowthEngineFiles clientId={client.id} assets={client.assets} onChanged={load} />
+        )}
+
+        {tab === "data" && (
+          <GrowthEngineDataSetup clientId={client.id} connection={client.connection} onChanged={load} />
         )}
       </main>
     </>
@@ -418,8 +458,13 @@ function WorkspaceMetric({ label, value, detail, tone = "default" }: { label: st
   return <div className="bg-[var(--cbb-surface-1)] p-4 sm:p-5"><p className="text-xs text-text-muted">{label}</p><p className={`mt-2 font-heading text-3xl font-black ${tone === "warning" ? "text-amber-300" : "text-text-primary"}`}>{value}</p><p className="mt-1 text-[11px] text-text-muted">{detail}</p></div>;
 }
 
-function StatusBadge({ status }: { status: "draft" | "published" }) {
-  return <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] ${status === "published" ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-300" : "border-amber-400/25 bg-amber-400/8 text-amber-300"}`}>{status}</span>;
+function StatusBadge({ status }: { status: "draft" | "published" | "withdrawn" }) {
+  const tone = status === "published"
+    ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-300"
+    : status === "withdrawn"
+      ? "border-white/10 bg-white/[0.03] text-text-muted"
+      : "border-amber-400/25 bg-amber-400/8 text-amber-300";
+  return <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] ${tone}`}>{status}</span>;
 }
 
 function ReportEditor({
@@ -434,6 +479,8 @@ function ReportEditor({
   onArmPublish,
   onCancelPublish,
   onPublish,
+  onDelete,
+  onWithdraw,
   onMetric,
 }: {
   form: ReportForm;
@@ -447,13 +494,15 @@ function ReportEditor({
   onArmPublish: () => void;
   onCancelPublish: () => void;
   onPublish: () => void;
+  onDelete: () => void;
+  onWithdraw: () => void;
   onMetric: (index: number, field: keyof GrowthMetric, value: string) => void;
 }) {
   return (
     <section className="v2-surface overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-3 sm:px-7">
         <div className="flex rounded-xl bg-black/10 p-1">
-          <button type="button" onClick={() => onMode("edit")} disabled={form.status === "published"} className={`min-h-9 rounded-lg px-4 text-xs font-bold ${mode === "edit" ? "bg-white/[0.08] text-text-primary" : "text-text-muted"} disabled:opacity-40`}>Edit</button>
+          <button type="button" onClick={() => onMode("edit")} disabled={form.status !== "draft"} className={`min-h-9 rounded-lg px-4 text-xs font-bold ${mode === "edit" ? "bg-white/[0.08] text-text-primary" : "text-text-muted"} disabled:opacity-40`}>Edit</button>
           <button type="button" onClick={() => onMode("preview")} className={`min-h-9 rounded-lg px-4 text-xs font-bold ${mode === "preview" ? "bg-white/[0.08] text-text-primary" : "text-text-muted"}`}>Client preview</button>
         </div>
         <button type="button" onClick={onClose} className="text-xs font-bold text-text-muted hover:text-text-primary">Close report</button>
@@ -485,7 +534,14 @@ function ReportEditor({
         {form.status === "draft" && publishArmed ? (
           <div className="flex flex-col gap-4 rounded-xl border border-accent/25 bg-accent/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-text-primary">Publish this report?</p><p className="mt-1 text-xs text-text-muted">The latest edits will be saved first, then the client will be notified.</p></div><div className="flex gap-2"><button type="button" onClick={onCancelPublish} className="v2-button-secondary">Cancel</button><button type="button" onClick={onPublish} disabled={saving} className="v2-button-primary">{saving ? "Publishing…" : "Confirm publish"}</button></div></div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-text-muted">{form.status === "published" ? "Published reports are read-only." : "Drafts stay private until published."}</p>{form.status === "draft" && <div className="flex gap-2"><button type="button" onClick={onSave} disabled={saving} className="v2-button-secondary">{saving ? "Saving…" : "Save draft"}</button><button type="button" onClick={onArmPublish} disabled={!form.id || !form.title.trim()} className="v2-button-primary">Review &amp; publish</button></div>}</div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-text-muted">{form.status === "published" ? "Published and visible to the client." : form.status === "withdrawn" ? "Unpublished and no longer visible to the client." : "Drafts stay private until published."}</p>
+            <div className="flex flex-wrap gap-2">
+              {form.status === "draft" && form.id && <button type="button" onClick={onDelete} disabled={saving} className="min-h-10 rounded-xl px-3 text-xs font-bold text-red-300 hover:bg-red-500/10">Delete draft</button>}
+              {form.status === "draft" && <><button type="button" onClick={onSave} disabled={saving} className="v2-button-secondary">{saving ? "Saving…" : "Save draft"}</button><button type="button" onClick={onArmPublish} disabled={!form.id || !form.title.trim()} className="v2-button-primary">Review &amp; publish</button></>}
+              {form.status === "published" && <button type="button" onClick={onWithdraw} disabled={saving} className="min-h-10 rounded-xl border border-red-400/20 px-4 text-xs font-bold text-red-300 hover:bg-red-500/10">{saving ? "Unpublishing…" : "Unpublish report"}</button>}
+            </div>
+          </div>
         )}
       </footer>
     </section>

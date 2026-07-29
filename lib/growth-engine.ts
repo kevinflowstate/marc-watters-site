@@ -5,7 +5,7 @@ export { cleanReportInput, normalizeGrowthMetrics } from "@/lib/growth-engine-in
 export const CBB_GROWTH_ENGINE_KEY = "cbb_growth_engine";
 
 export type GrowthManagerRole = "admin" | "growth_operator";
-export type GrowthReportStatus = "draft" | "published";
+export type GrowthReportStatus = "draft" | "published" | "withdrawn";
 
 export interface GrowthMetric {
   label: string;
@@ -28,6 +28,10 @@ export interface GrowthReport {
   status: GrowthReportStatus;
   published_at: string | null;
   notification_sent_at?: string | null;
+  generation_key?: string | null;
+  generation_source?: string;
+  withdrawn_at?: string | null;
+  withdrawal_reason?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +55,50 @@ export interface GrowthMilestone {
   status: GrowthMilestoneStatus;
   targetDate?: string;
   note?: string;
+}
+
+export interface GrowthAsset {
+  id: string;
+  workspace_id: string;
+  report_id: string | null;
+  title: string;
+  original_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface GrowthConnection {
+  client_id: string;
+  ghl_location_id: string | null;
+  ghl_calendar_ids: string[];
+  timezone: string;
+  automation_enabled: boolean;
+  report_day: number;
+  last_event_at: string | null;
+  last_draft_at: string | null;
+}
+
+export type GrowthSalesOutcomeStatus = "won" | "lost" | "follow_up" | "no_show";
+
+export interface GrowthAppointment {
+  id: string;
+  client_id: string;
+  ghl_event_id: string;
+  ghl_contact_id: string | null;
+  contact_name: string | null;
+  appointment_status: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  source: string | null;
+  outcome: {
+    id: string;
+    outcome: GrowthSalesOutcomeStatus;
+    sale_value: number;
+    notes: string | null;
+    updated_at: string;
+  } | null;
 }
 
 export type GrowthManagerResult =

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ConsultationOutcomes from "@/components/growth-engine/ConsultationOutcomes";
 import ReportView from "@/components/growth-engine/ReportView";
 import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
-import type { GrowthReport, GrowthWorkspace } from "@/lib/growth-engine";
+import type { GrowthAsset, GrowthReport, GrowthWorkspace } from "@/lib/growth-engine";
 
 type GrowthResponse =
   | { entitled: false }
-  | { entitled: true; workspace: GrowthWorkspace | null; reports: GrowthReport[] };
+  | { entitled: true; workspace: GrowthWorkspace | null; reports: GrowthReport[]; assets: GrowthAsset[] };
 
 function LockedPreview() {
   return (
@@ -162,12 +163,15 @@ export default function ClientGrowthEngine() {
       </header>
 
       {!latest ? (
-        <div className="v2-surface">
-          <EmptyState
-            icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6l6 6v10a2 2 0 0 1-2 2Z" /></svg>}
-            title="Your workspace is ready"
-            description="Your first weekly Growth Engine report will appear here as soon as it is published."
-          />
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="v2-surface">
+            <EmptyState
+              icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6l6 6v10a2 2 0 0 1-2 2Z" /></svg>}
+              title="Your workspace is ready"
+              description="Your first weekly Growth Engine report will appear here as soon as it is published."
+            />
+          </div>
+          <WorkspaceBriefing workspace={data.workspace} />
         </div>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -223,6 +227,56 @@ export default function ClientGrowthEngine() {
           </aside>
         </div>
       )}
+
+      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <ConsultationOutcomes />
+        <section className="v2-surface overflow-hidden">
+          <div className="border-b border-white/[0.07] px-5 py-4">
+            <div className="v2-eyebrow">Shared with you</div>
+            <h2 className="mt-2 v2-section-title">Files and assets</h2>
+          </div>
+          {data.assets.length ? (
+            <div className="divide-y divide-white/[0.06]">
+              {data.assets.map((asset) => (
+                <a key={asset.id} href={`/api/portal/growth-engine/assets/${asset.id}/download`} className="group block px-5 py-4 no-underline hover:bg-white/[0.025]">
+                  <p className="truncate text-sm font-bold text-text-primary group-hover:text-accent-bright">{asset.title}</p>
+                  <p className="mt-1 text-xs text-text-muted">{asset.original_name || asset.mime_type || "Document"} · Download</p>
+                </a>
+              ))}
+            </div>
+          ) : <EmptyState compact title="No shared files yet" description="Documents and assets shared by Flow State will appear here." />}
+        </section>
+      </div>
     </>
+  );
+}
+
+function WorkspaceBriefing({ workspace }: { workspace: GrowthWorkspace | null }) {
+  if (!workspace?.strategy_summary && !workspace?.implementation_milestones?.length) {
+    return <section className="v2-surface p-5"><div className="v2-eyebrow">Onboarding</div><h2 className="mt-2 v2-section-title">Strategy in preparation</h2><p className="mt-2 text-sm leading-6 text-text-muted">Your strategy and implementation milestones will appear here after your onboarding session.</p></section>;
+  }
+  return (
+    <aside className="space-y-5">
+      {workspace.strategy_summary && (
+        <section className="v2-surface p-5">
+          <div className="v2-eyebrow">Current strategy</div>
+          {workspace.strategy_title && <h2 className="mt-2 text-base font-black text-text-primary">{workspace.strategy_title}</h2>}
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-text-secondary">{workspace.strategy_summary}</p>
+        </section>
+      )}
+      {workspace.implementation_milestones?.length ? (
+        <section className="v2-surface overflow-hidden">
+          <div className="border-b border-white/[0.07] px-5 py-4"><h2 className="v2-section-title">Implementation milestones</h2></div>
+          <div className="divide-y divide-white/[0.06]">
+            {workspace.implementation_milestones.slice(0, 5).map((milestone) => (
+              <div key={milestone.id} className="flex gap-3 px-5 py-4">
+                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${milestone.status === "complete" ? "bg-emerald-400" : milestone.status === "in_progress" ? "bg-accent-bright" : "bg-white/20"}`} />
+                <div><p className="text-sm font-semibold text-text-primary">{milestone.title}</p><p className="mt-1 text-xs text-text-muted">{milestone.owner}</p></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </aside>
   );
 }

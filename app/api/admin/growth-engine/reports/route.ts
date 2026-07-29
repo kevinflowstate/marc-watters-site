@@ -53,5 +53,10 @@ export async function POST(request: NextRequest) {
   if (error || !report) {
     return NextResponse.json({ error: "Could not create the weekly report." }, { status: 500 });
   }
+  await admin.from("cbb_growth_report_events").insert({
+    report_id: report.id,
+    event_type: "created",
+    actor_user_id: viewer.userId,
+  });
   return NextResponse.json({ report }, { status: 201 });
 }

@@ -27,19 +27,25 @@ export async function GET() {
     return NextResponse.json({ error: "Could not load the Growth Engine workspace." }, { status: 500 });
   }
   if (!workspace) {
-    return NextResponse.json({ entitled: true, workspace: null, reports: [] });
+    return NextResponse.json({ entitled: true, workspace: null, reports: [], assets: [] });
   }
 
-  const { data: reports, error: reportsError } = await admin
-    .from("cbb_growth_reports")
-    .select("id, workspace_id, title, period_start, period_end, executive_summary, strategic_takeaway, progress_update, next_priorities, metrics, status, published_at, created_at, updated_at")
-    .eq("workspace_id", workspace.id)
-    .eq("status", "published")
-    .order("published_at", { ascending: false });
+  const [reportsResult, assetsResult] = await Promise.all([
+    admin.from("cbb_growth_reports")
+      .select("id, workspace_id, title, period_start, period_end, executive_summary, strategic_takeaway, progress_update, next_priorities, metrics, status, published_at, created_at, updated_at")
+      .eq("workspace_id", workspace.id)
+      .eq("status", "published")
+      .order("published_at", { ascending: false }),
+    admin.from("cbb_growth_assets")
+      .select("id, workspace_id, report_id, title, original_name, mime_type, size_bytes, published_at, created_at, updated_at")
+      .eq("workspace_id", workspace.id)
+      .not("published_at", "is", null)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  if (reportsError) {
+  if (reportsResult.error || assetsResult.error) {
     return NextResponse.json({ error: "Could not load Growth Engine reports." }, { status: 500 });
   }
 
-  return NextResponse.json({ entitled: true, workspace, reports: reports || [] });
+  return NextResponse.json({ entitled: true, workspace, reports: reportsResult.data || [], assets: assetsResult.data || [] });
 }

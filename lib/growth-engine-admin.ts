@@ -1,4 +1,4 @@
-import type { GrowthMilestone } from "@/lib/growth-engine";
+import type { GrowthConnection, GrowthMilestone } from "@/lib/growth-engine";
 
 export interface GrowthReportSummary {
   id: string;
@@ -6,7 +6,7 @@ export interface GrowthReportSummary {
   title: string;
   period_start: string | null;
   period_end: string | null;
-  status: "draft" | "published";
+  status: "draft" | "published" | "withdrawn";
   published_at: string | null;
   updated_at: string;
 }
@@ -16,10 +16,12 @@ export interface GrowthAssetSummary {
   workspace_id: string;
   report_id: string | null;
   title: string;
+  original_name: string | null;
   mime_type: string | null;
   size_bytes: number | null;
   published_at: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface GrowthAdminWorkspace {
@@ -40,6 +42,7 @@ export interface GrowthAdminClient {
   workspace: GrowthAdminWorkspace | null;
   reports: GrowthReportSummary[];
   assets: GrowthAssetSummary[];
+  connection: GrowthConnection | null;
 }
 
 export interface GrowthClientsResponse {

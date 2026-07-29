@@ -54,5 +54,31 @@ export async function PATCH(
       { status: 409 },
     );
   }
+  await admin.from("cbb_growth_report_events").insert({
+    report_id: report.id,
+    event_type: "updated",
+    actor_user_id: viewer.userId,
+  });
   return NextResponse.json({ report });
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const viewer = await requireGrowthManager();
+  if (!viewer.authorized) {
+    return NextResponse.json({ error: viewer.error }, { status: viewer.status });
+  }
+  const { id } = await params;
+  const admin = createAdminClient();
+  const { data: report } = await admin.from("cbb_growth_reports")
+    .select("id, status").eq("id", id).maybeSingle();
+  if (!report) return NextResponse.json({ error: "Report not found." }, { status: 404 });
+  if (report.status !== "draft") {
+    return NextResponse.json({ error: "Published reports must be withdrawn rather than deleted." }, { status: 409 });
+  }
+  const { error } = await admin.from("cbb_growth_reports").delete().eq("id", id).eq("status", "draft");
+  if (error) return NextResponse.json({ error: "Draft could not be deleted." }, { status: 500 });
+  return NextResponse.json({ success: true });
 }

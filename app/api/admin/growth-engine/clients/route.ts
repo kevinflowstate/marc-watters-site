@@ -32,7 +32,7 @@ export async function GET() {
 
   const clientIds = (clients || []).map((client) => client.id);
   const userIds = (clients || []).map((client) => client.user_id);
-  const [usersResult, entitlementsResult, workspacesResult] = await Promise.all([
+  const [usersResult, entitlementsResult, workspacesResult, connectionsResult] = await Promise.all([
     userIds.length
       ? admin.from("users").select("id, full_name").in("id", userIds)
       : Promise.resolve({ data: [] }),
@@ -43,6 +43,11 @@ export async function GET() {
     clientIds.length
       ? admin.from("cbb_growth_workspaces")
           .select("id, client_id, strategy_title, strategy_summary, implementation_milestones, updated_at")
+          .in("client_id", clientIds)
+      : Promise.resolve({ data: [] }),
+    clientIds.length
+      ? admin.from("cbb_growth_connections")
+          .select("client_id, ghl_location_id, ghl_calendar_ids, timezone, automation_enabled, report_day, last_event_at, last_draft_at")
           .in("client_id", clientIds)
       : Promise.resolve({ data: [] }),
   ]);
@@ -58,7 +63,7 @@ export async function GET() {
       : Promise.resolve({ data: [] }),
     workspaceIds.length
       ? admin.from("cbb_growth_assets")
-          .select("id, workspace_id, report_id, title, mime_type, size_bytes, published_at, created_at")
+          .select("id, workspace_id, report_id, title, original_name, mime_type, size_bytes, published_at, created_at, updated_at")
           .in("workspace_id", workspaceIds)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -71,6 +76,7 @@ export async function GET() {
     (entitlementsResult.data || []).map((entitlement) => [entitlement.client_id, entitlement.status]),
   );
   const workspaceByClient = new Map(workspaces.map((workspace) => [workspace.client_id, workspace]));
+  const connectionByClient = new Map((connectionsResult.data || []).map((connection) => [connection.client_id, connection]));
   const reportsByWorkspace = new Map<string, ReportRow[]>();
   for (const report of reports) {
     const existing = reportsByWorkspace.get(report.workspace_id) || [];
@@ -98,6 +104,7 @@ export async function GET() {
         workspace,
         reports: workspaceId ? reportsByWorkspace.get(workspaceId) || [] : [],
         assets: workspaceId ? assetsByWorkspace.get(workspaceId) || [] : [],
+        connection: connectionByClient.get(client.id) || null,
       };
     }),
   });
