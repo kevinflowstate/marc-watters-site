@@ -17,7 +17,7 @@ function LockedPreview() {
         <div className="v2-eyebrow mb-3">AI delivery and growth</div>
         <h1 className="v2-page-title">CBB Growth Engine</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
-          Weekly visibility on your leads, appointments and sales.
+          Done-for-you lead generation &amp; AI implementation.
         </p>
       </header>
 
