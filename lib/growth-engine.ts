@@ -10,6 +10,7 @@ export type GrowthReportStatus = "draft" | "published";
 export interface GrowthMetric {
   label: string;
   value: string;
+  change?: string;
   context?: string;
 }
 
@@ -20,6 +21,7 @@ export interface GrowthReport {
   period_start: string | null;
   period_end: string | null;
   executive_summary: string;
+  strategic_takeaway: string;
   progress_update: string;
   next_priorities: string;
   metrics: GrowthMetric[];

@@ -8,11 +8,13 @@ describe("Growth Engine report input", () => {
       periodStart: "2026-07-20",
       periodEnd: "2026-07-26",
       executiveSummary: "  A clear update.  ",
+      strategicTakeaway: "  Keep quality ahead of volume.  ",
     })).toMatchObject({
       title: "Weekly report",
       periodStart: "2026-07-20",
       periodEnd: "2026-07-26",
       executiveSummary: "A clear update.",
+      strategicTakeaway: "Keep quality ahead of volume.",
     });
   });
 
@@ -22,7 +24,7 @@ describe("Growth Engine report input", () => {
       periodStart: "20 July",
       periodEnd: "2026-7-26",
       metrics: [
-        { label: "Qualified leads", value: "8", context: "This week" },
+        { label: "Qualified leads", value: "8", change: "+14%", context: "This week" },
         { label: "", value: "100" },
         { label: "Calls answered", value: "" },
       ],
@@ -31,7 +33,7 @@ describe("Growth Engine report input", () => {
     expect(result.periodStart).toBeNull();
     expect(result.periodEnd).toBeNull();
     expect(result.metrics).toEqual([
-      { label: "Qualified leads", value: "8", context: "This week" },
+      { label: "Qualified leads", value: "8", change: "+14%", context: "This week" },
     ]);
   });
 

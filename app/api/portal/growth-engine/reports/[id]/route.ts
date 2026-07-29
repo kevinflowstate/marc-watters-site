@@ -20,7 +20,7 @@ export async function GET(
   const admin = createAdminClient();
   const { data: report, error } = await admin
     .from("cbb_growth_reports")
-    .select("id, workspace_id, title, period_start, period_end, executive_summary, progress_update, next_priorities, metrics, status, published_at, created_at, updated_at, cbb_growth_workspaces!inner(client_id)")
+    .select("id, workspace_id, title, period_start, period_end, executive_summary, strategic_takeaway, progress_update, next_priorities, metrics, status, published_at, created_at, updated_at, cbb_growth_workspaces!inner(client_id)")
     .eq("id", id)
     .eq("status", "published")
     .eq("cbb_growth_workspaces.client_id", access.clientId)

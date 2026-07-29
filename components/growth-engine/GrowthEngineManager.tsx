@@ -33,6 +33,7 @@ interface ReportForm {
   periodStart: string;
   periodEnd: string;
   executiveSummary: string;
+  strategicTakeaway: string;
   progressUpdate: string;
   nextPriorities: string;
   metrics: GrowthMetric[];
@@ -49,6 +50,7 @@ const emptyForm = (): ReportForm => ({
   periodStart: "",
   periodEnd: "",
   executiveSummary: "",
+  strategicTakeaway: "",
   progressUpdate: "",
   nextPriorities: "",
   metrics: [],
@@ -66,6 +68,7 @@ function reportToForm(report: GrowthReport): ReportForm {
     periodStart: report.period_start || "",
     periodEnd: report.period_end || "",
     executiveSummary: report.executive_summary,
+    strategicTakeaway: report.strategic_takeaway,
     progressUpdate: report.progress_update,
     nextPriorities: report.next_priorities,
     metrics: Array.isArray(report.metrics) ? report.metrics : [],
@@ -84,6 +87,7 @@ function formToReport(form: ReportForm): GrowthReport {
     period_start: form.periodStart || null,
     period_end: form.periodEnd || null,
     executive_summary: form.executiveSummary,
+    strategic_takeaway: form.strategicTakeaway,
     progress_update: form.progressUpdate,
     next_priorities: form.nextPriorities,
     metrics: form.metrics.filter((metric) => metric.label && metric.value),
@@ -105,6 +109,7 @@ export default function GrowthEngineManager() {
   const [filter, setFilter] = useState<"all" | "enabled" | "locked">("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [publishArmed, setPublishArmed] = useState(false);
   const [error, setError] = useState("");
 
   async function loadClients(preferredClientId?: string) {
@@ -163,6 +168,7 @@ export default function GrowthEngineManager() {
   function startReport() {
     setForm(emptyForm());
     setMode("edit");
+    setPublishArmed(false);
   }
 
   async function openReport(reportId: string) {
@@ -173,6 +179,7 @@ export default function GrowthEngineManager() {
       const data = await response.json();
       setForm(reportToForm(data.report));
       setMode(data.report.status === "published" ? "preview" : "edit");
+      setPublishArmed(false);
     } catch (openError) {
       toast((openError as Error).message, "error");
     } finally {
@@ -200,6 +207,7 @@ export default function GrowthEngineManager() {
           periodStart: form.periodStart,
           periodEnd: form.periodEnd,
           executiveSummary: form.executiveSummary,
+          strategicTakeaway: form.strategicTakeaway,
           progressUpdate: form.progressUpdate,
           nextPriorities: form.nextPriorities,
           metrics: form.metrics,
@@ -224,11 +232,29 @@ export default function GrowthEngineManager() {
     }
     setSaving(true);
     try {
+      const saveResponse = await fetch(`/api/admin/growth-engine/reports/${form.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title,
+          periodStart: form.periodStart,
+          periodEnd: form.periodEnd,
+          executiveSummary: form.executiveSummary,
+          strategicTakeaway: form.strategicTakeaway,
+          progressUpdate: form.progressUpdate,
+          nextPriorities: form.nextPriorities,
+          metrics: form.metrics,
+        }),
+      });
+      const savedData = await saveResponse.json().catch(() => null);
+      if (!saveResponse.ok) throw new Error(savedData?.error || "The final draft could not be saved.");
+
       const response = await fetch(`/api/admin/growth-engine/reports/${form.id}/publish`, { method: "POST" });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || "Report could not be published.");
       await loadClients(selectedClientId);
       await openReport(form.id);
+      setPublishArmed(false);
       toast(data.notified ? "Report published and client notified" : "Report published — client remains locked, so no notification was sent");
     } catch (publishError) {
       toast((publishError as Error).message, "error");
@@ -302,7 +328,7 @@ export default function GrowthEngineManager() {
               <button
                 key={client.id}
                 type="button"
-                onClick={() => { setSelectedClientId(client.id); setForm(null); }}
+                onClick={() => { setSelectedClientId(client.id); setForm(null); setPublishArmed(false); }}
                 className={`w-full px-4 py-4 text-left transition-colors ${
                   selectedClientId === client.id ? "bg-accent/10" : "hover:bg-white/[0.025]"
                 }`}
@@ -386,7 +412,7 @@ export default function GrowthEngineManager() {
                       <button type="button" onClick={() => setMode("edit")} disabled={form.status === "published"} className={`min-h-9 rounded-lg px-4 text-xs font-bold ${mode === "edit" ? "bg-white/[0.08] text-text-primary" : "text-text-muted"} disabled:opacity-40`}>Edit</button>
                       <button type="button" onClick={() => setMode("preview")} className={`min-h-9 rounded-lg px-4 text-xs font-bold ${mode === "preview" ? "bg-white/[0.08] text-text-primary" : "text-text-muted"}`}>Preview</button>
                     </div>
-                    <button type="button" onClick={() => setForm(null)} className="text-xs font-bold text-text-muted hover:text-text-primary">Close report</button>
+                    <button type="button" onClick={() => { setForm(null); setPublishArmed(false); }} className="text-xs font-bold text-text-muted hover:text-text-primary">Close report</button>
                   </div>
 
                   {mode === "preview" ? (
@@ -403,12 +429,13 @@ export default function GrowthEngineManager() {
                       </div>
                       {([
                         ["executiveSummary", "Executive summary", "Give the client the clearest short version of the week."],
-                        ["progressUpdate", "Progress this week", "What was implemented, improved or learned?"],
-                        ["nextPriorities", "Next priorities", "What will happen next, and what input is needed?"],
+                        ["strategicTakeaway", "Growth Engine read", "What is the one strategic takeaway from this week?"],
+                        ["progressUpdate", "What moved forward", "Add one delivery win or useful learning per line."],
+                        ["nextPriorities", "What changes next", "Add one action per line. Prefix with Flow State:, Client: or Shared:."],
                       ] as const).map(([field, label, placeholder]) => (
                         <div key={field}>
                           <label className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-text-muted">{label}</label>
-                          <textarea value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} placeholder={placeholder} rows={field === "progressUpdate" ? 6 : 4} className="w-full resize-y rounded-xl border border-white/[0.09] bg-white/[0.03] px-4 py-3 text-sm leading-6 text-text-primary outline-none placeholder:text-text-muted focus:border-accent/45" />
+                          <textarea value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} placeholder={placeholder} rows={field === "progressUpdate" || field === "nextPriorities" ? 6 : 4} className="w-full resize-y rounded-xl border border-white/[0.09] bg-white/[0.03] px-4 py-3 text-sm leading-6 text-text-primary outline-none placeholder:text-text-muted focus:border-accent/45" />
                         </div>
                       ))}
                       <section>
@@ -417,13 +444,14 @@ export default function GrowthEngineManager() {
                             <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-text-muted">Relevant results</h3>
                             <p className="mt-1 text-xs text-text-muted">Only add measures that are meaningful for this client.</p>
                           </div>
-                          <button type="button" onClick={() => setForm({ ...form, metrics: [...form.metrics, { label: "", value: "", context: "" }] })} disabled={form.metrics.length >= 12} className="v2-button-secondary">Add result</button>
+                          <button type="button" onClick={() => setForm({ ...form, metrics: [...form.metrics, { label: "", value: "", change: "", context: "" }] })} disabled={form.metrics.length >= 12} className="v2-button-secondary">Add result</button>
                         </div>
                         <div className="space-y-3">
                           {form.metrics.map((metric, index) => (
-                            <div key={index} className="grid gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:grid-cols-[1fr_0.65fr_1.2fr_auto]">
+                            <div key={index} className="grid gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:grid-cols-2 xl:grid-cols-[1fr_0.6fr_0.55fr_1.1fr_auto]">
                               <input value={metric.label} onChange={(event) => updateMetric(index, "label", event.target.value)} placeholder="Measure" className="min-h-10 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-text-primary outline-none" />
                               <input value={metric.value} onChange={(event) => updateMetric(index, "value", event.target.value)} placeholder="Value" className="min-h-10 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-text-primary outline-none" />
+                              <input value={metric.change || ""} onChange={(event) => updateMetric(index, "change", event.target.value)} placeholder="Change" aria-label="Week-on-week change" className="min-h-10 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-text-primary outline-none" />
                               <input value={metric.context || ""} onChange={(event) => updateMetric(index, "context", event.target.value)} placeholder="Context (optional)" className="min-h-10 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-text-primary outline-none" />
                               <button type="button" onClick={() => setForm({ ...form, metrics: form.metrics.filter((_, metricIndex) => metricIndex !== index) })} className="min-h-10 px-3 text-xs font-bold text-text-muted hover:text-red-300">Remove</button>
                             </div>
@@ -433,18 +461,33 @@ export default function GrowthEngineManager() {
                     </div>
                   )}
 
-                  <div className="sticky bottom-[72px] flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] bg-[var(--cbb-surface-1)]/95 px-5 py-4 backdrop-blur-xl lg:bottom-0 lg:px-7">
-                    <div className="text-xs text-text-muted">
-                      {form.status === "published" ? "Published reports are read-only." : "Drafts are private until published."}
-                    </div>
-                    <div className="flex gap-2">
-                      {form.status === "draft" && (
-                        <>
-                          <button type="button" onClick={saveDraft} disabled={saving} className="v2-button-secondary">{saving ? "Saving…" : "Save draft"}</button>
-                          <button type="button" onClick={publishReport} disabled={saving || !form.id} className="v2-button-primary">Publish report</button>
-                        </>
-                      )}
-                    </div>
+                  <div className="sticky bottom-[72px] border-t border-white/[0.07] bg-[var(--cbb-surface-1)]/95 px-5 py-4 backdrop-blur-xl lg:bottom-0 lg:px-7">
+                    {form.status === "draft" && publishArmed ? (
+                      <div className="flex flex-col gap-4 rounded-xl border border-accent/25 bg-accent/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-text-primary">Publish this report?</div>
+                          <p className="mt-1 text-xs leading-5 text-text-muted">
+                            The latest edits will be saved first. The report becomes visible and the client is notified only if access is enabled.
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button type="button" onClick={() => setPublishArmed(false)} disabled={saving} className="v2-button-secondary">Cancel</button>
+                          <button type="button" onClick={publishReport} disabled={saving} className="v2-button-primary">{saving ? "Publishing…" : "Confirm publish"}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs text-text-muted">
+                          {form.status === "published" ? "Published reports are read-only." : "Drafts are private until published."}
+                        </div>
+                        {form.status === "draft" && (
+                          <div className="flex gap-2">
+                            <button type="button" onClick={saveDraft} disabled={saving} className="v2-button-secondary">{saving ? "Saving…" : "Save draft"}</button>
+                            <button type="button" onClick={() => setPublishArmed(true)} disabled={saving || !form.id || !form.title.trim()} className="v2-button-primary">Review &amp; publish</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

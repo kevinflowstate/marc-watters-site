@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data: reports, error: reportsError } = await admin
     .from("cbb_growth_reports")
-    .select("id, workspace_id, title, period_start, period_end, executive_summary, progress_update, next_priorities, metrics, status, published_at, created_at, updated_at")
+    .select("id, workspace_id, title, period_start, period_end, executive_summary, strategic_takeaway, progress_update, next_priorities, metrics, status, published_at, created_at, updated_at")
     .eq("workspace_id", workspace.id)
     .eq("status", "published")
     .order("published_at", { ascending: false });

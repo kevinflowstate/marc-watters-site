@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     period_start: input.periodStart,
     period_end: input.periodEnd,
     executive_summary: input.executiveSummary,
+    strategic_takeaway: input.strategicTakeaway,
     progress_update: input.progressUpdate,
     next_priorities: input.nextPriorities,
     metrics: input.metrics,

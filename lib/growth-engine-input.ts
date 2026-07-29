@@ -1,6 +1,7 @@
 export interface GrowthMetricInput {
   label: string;
   value: string;
+  change?: string;
   context?: string;
 }
 
@@ -11,6 +12,7 @@ export function normalizeGrowthMetrics(value: unknown): GrowthMetricInput[] {
     .map((item) => ({
       label: typeof item.label === "string" ? item.label.trim() : "",
       value: typeof item.value === "string" ? item.value.trim() : "",
+      change: typeof item.change === "string" ? item.change.trim().slice(0, 80) : undefined,
       context: typeof item.context === "string" ? item.context.trim() : undefined,
     }))
     .filter((item) => item.label && item.value)
@@ -29,6 +31,7 @@ export function cleanReportInput(value: unknown) {
     periodStart: cleanDate(input.periodStart),
     periodEnd: cleanDate(input.periodEnd),
     executiveSummary: cleanText(input.executiveSummary, 6000),
+    strategicTakeaway: cleanText(input.strategicTakeaway, 3000),
     progressUpdate: cleanText(input.progressUpdate, 12000),
     nextPriorities: cleanText(input.nextPriorities, 8000),
     metrics: normalizeGrowthMetrics(input.metrics),
