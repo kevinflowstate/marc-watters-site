@@ -26,12 +26,8 @@ function LockedPreview() {
         <div className="pointer-events-none absolute inset-0 select-none p-4 opacity-[0.16] blur-[0.35px] sm:p-7" aria-hidden="true">
           <div className="flex items-start justify-between border-b border-white/20 pb-5">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent-bright">Illustrative sample report</div>
-              <div className="mt-2 font-heading text-xl font-black text-text-primary sm:text-2xl">Weekly growth performance</div>
-              <div className="mt-1 text-xs text-text-secondary">Sample period · 7 days</div>
-            </div>
-            <div className="rounded-full border border-emerald-400/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-300">
-              Sample only
+              <div className="font-heading text-xl font-black text-text-primary sm:text-2xl">Weekly growth performance</div>
+              <div className="mt-1 text-xs text-text-secondary">Last 7 days</div>
             </div>
           </div>
 
@@ -106,7 +102,6 @@ function LockedPreview() {
                 </svg>
               </Link>
             </div>
-            <p className="mt-4 text-[11px] leading-5 text-text-muted">The report shown behind this message is an illustrative sample.</p>
           </div>
         </div>
       </section>
