@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
 
     role = profile?.role;
 
-    if (role !== 'admin') {
+    if (role === 'client' || !role) {
       const { data: clientProfile } = await adminSupabase
         .from('client_profiles')
         .select('archived_at')
@@ -104,7 +104,15 @@ export async function middleware(request: NextRequest) {
 
   if (isPortalRoot) {
     const url = request.nextUrl.clone();
-    url.pathname = !user ? '/login' : role === 'admin' ? '/admin' : archivedAt ? '/access-archived' : '/portal';
+    url.pathname = !user
+      ? '/login'
+      : role === 'admin'
+        ? '/admin'
+        : role === 'growth_operator'
+          ? '/admin/growth-engine'
+          : archivedAt
+            ? '/access-archived'
+            : '/portal';
     url.search = '';
     return NextResponse.redirect(url);
   }
@@ -119,7 +127,14 @@ export async function middleware(request: NextRequest) {
         : null;
 
     const url = request.nextUrl.clone();
-    url.pathname = role === 'admin' ? '/admin' : archivedAt ? '/access-archived' : safeRedirect || '/portal';
+    url.pathname =
+      role === 'admin'
+        ? '/admin'
+        : role === 'growth_operator'
+          ? '/admin/growth-engine'
+          : archivedAt
+            ? '/access-archived'
+            : safeRedirect || '/portal';
     url.search = '';
     return NextResponse.redirect(url);
   }
@@ -134,14 +149,14 @@ export async function middleware(request: NextRequest) {
 
   // Role-based routing: admin sees admin, client sees portal, never cross
   if ((path.startsWith('/admin') || path.startsWith('/portal')) && user) {
-    if (path.startsWith('/portal') && role !== 'admin' && archivedAt) {
+    if (path.startsWith('/portal') && role === 'client' && archivedAt) {
       const url = request.nextUrl.clone();
       url.pathname = '/access-archived';
       url.search = '';
       return NextResponse.redirect(url);
     }
     // First-login enforcement for clients created without a password
-    if (path.startsWith('/portal') && role !== 'admin' && requiresPasswordSetup) {
+    if (path.startsWith('/portal') && role === 'client' && requiresPasswordSetup) {
       const isSettingsPage = path.startsWith('/portal/settings');
       const setupMode = request.nextUrl.searchParams.get('setup') === 'true';
       if (!isSettingsPage || !setupMode) {
@@ -152,15 +167,23 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Admin trying to access portal -> redirect to admin
-    if (path.startsWith('/portal') && role === 'admin') {
+    if (path.startsWith('/portal') && (role === 'admin' || role === 'growth_operator')) {
       const url = request.nextUrl.clone();
-      url.pathname = '/admin';
+      url.pathname = role === 'admin' ? '/admin' : '/admin/growth-engine';
       return NextResponse.redirect(url);
     }
 
-    // Client (or unknown role) trying to access admin -> redirect to portal
-    if (path.startsWith('/admin') && role !== 'admin') {
+    if (
+      path.startsWith('/admin') &&
+      role === 'growth_operator' &&
+      !path.startsWith('/admin/growth-engine')
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin/growth-engine';
+      return NextResponse.redirect(url);
+    }
+
+    if (path.startsWith('/admin') && role !== 'admin' && role !== 'growth_operator') {
       const url = request.nextUrl.clone();
       url.pathname = '/portal';
       return NextResponse.redirect(url);

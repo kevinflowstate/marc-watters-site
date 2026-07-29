@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useInboxUnreadCount } from "@/components/inbox/useInboxUnreadCount";
+import { useManagementRole } from "@/components/admin/useManagementRole";
+import { createClient } from "@/lib/supabase/client";
 
 const items = [
   { href: "/admin", label: "Home", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
@@ -14,16 +16,23 @@ const items = [
 ];
 
 const moreItems = [
+  { href: "/admin/growth-engine", label: "CBB Growth Engine", icon: "M4 19V9m5 10V5m5 14v-7m5 7V3M3 19h18" },
   { href: "/admin/training", label: "Training", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
   { href: "/admin/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
 export default function AdminMobileNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const inboxUnreadCount = useInboxUnreadCount();
+  const role = useManagementRole();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
-  const moreActive = moreItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const visibleItems = role === "admin" ? items : [];
+  const visibleMoreItems = role === "admin"
+    ? moreItems
+    : moreItems.filter((item) => item.href === "/admin/growth-engine");
+  const moreActive = visibleMoreItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,10 +47,44 @@ export default function AdminMobileNav() {
     }
   }, [moreOpen]);
 
+  if (role === "growth_operator") {
+    const isActive = pathname.startsWith("/admin/growth-engine");
+    return (
+      <nav className="portal-mobile-nav portal-v2-mobile-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl px-3 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.375rem)]">
+        <div className="mx-auto flex h-[58px] max-w-sm items-center justify-center gap-3">
+          <Link
+            href="/admin/growth-engine"
+            className={`portal-v2-mobile-item flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 no-underline ${
+              isActive ? "is-active text-accent-bright" : "text-text-muted"
+            }`}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2 : 1.5} d="M4 19V9m5 10V5m5 14v-7m5 7V3M3 19h18" />
+            </svg>
+            <span className="portal-v2-mobile-label text-[10px] font-semibold">Growth Engine</span>
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await createClient().auth.signOut();
+              router.push("/login");
+            }}
+            className="portal-v2-mobile-item flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-text-muted"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-3m-4-4h11m0 0-3-3m3 3-3 3" />
+            </svg>
+            <span className="portal-v2-mobile-label text-[10px] font-semibold">Sign out</span>
+          </button>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="portal-mobile-nav portal-v2-mobile-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.375rem)]">
       <div className="flex items-center justify-around h-[58px]">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           return (
             <Link
@@ -68,7 +111,7 @@ export default function AdminMobileNav() {
         <div ref={moreRef} className="relative flex min-w-0 flex-1 justify-center">
           {moreOpen && (
             <div className="v2-surface absolute bottom-full right-0 mb-3 w-48 overflow-hidden shadow-2xl">
-              {moreItems.map((item) => {
+              {visibleMoreItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <Link

@@ -1,4 +1,4 @@
-export type UserRole = 'client' | 'admin';
+export type UserRole = 'client' | 'admin' | 'growth_operator';
 export type TrafficLight = 'green' | 'amber' | 'red';
 export type ModuleStatus = 'locked' | 'in_progress' | 'completed';
 export type ContentType = 'video' | 'pdf' | 'text' | 'checklist';
