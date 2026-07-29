@@ -113,7 +113,7 @@ export default function GrowthEngineManager() {
       </section>
 
       <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="v2-section-title">Active client portfolio</h2>
             <p className="mt-1 text-xs text-text-muted">Open a workspace to review its strategy, delivery milestones, reports and files.</p>

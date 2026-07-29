@@ -287,7 +287,7 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
         </div>
         <nav className="flex gap-1 overflow-x-auto border-t border-white/[0.07] px-3 py-2 sm:px-5" aria-label="Growth Engine client workspace">
           {tabs.map((item) => (
-            <button key={item.id} type="button" onClick={() => { setTab(item.id); setReportForm(null); }} className={`min-h-10 whitespace-nowrap rounded-xl px-3.5 text-xs font-bold transition-colors ${tab === item.id ? "bg-accent/12 text-accent-bright" : "text-text-muted hover:bg-white/[0.04] hover:text-text-primary"}`}>
+            <button key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => { setTab(item.id); setReportForm(null); }} className={`min-h-10 whitespace-nowrap rounded-xl px-3.5 text-xs font-bold transition-colors ${tab === item.id ? "bg-[rgba(34,114,222,0.14)] text-accent-bright" : "text-text-muted hover:bg-white/[0.04] hover:text-text-primary"}`}>
               {item.label}
               {item.id === "reports" && client.reports.length > 0 && <span className="ml-2 text-[10px]">{client.reports.length}</span>}
             </button>
