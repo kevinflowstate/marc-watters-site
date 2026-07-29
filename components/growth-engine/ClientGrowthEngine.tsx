@@ -10,29 +10,6 @@ type GrowthResponse =
   | { entitled: false }
   | { entitled: true; workspace: GrowthWorkspace | null; reports: GrowthReport[] };
 
-const included = [
-  {
-    title: "Weekly growth reports",
-    description: "A clear account of what was delivered, what changed and what happens next.",
-    icon: "M9 17v-6m4 6V7m4 10v-3M5 21h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2Z",
-  },
-  {
-    title: "Growth strategy",
-    description: "The commercial priorities and AI implementation plan for your business.",
-    icon: "M4 19V9m5 10V5m5 14v-7m5 7V3M3 19h18",
-  },
-  {
-    title: "Implementation milestones",
-    description: "Visibility on every system moving from planning through to live delivery.",
-    icon: "m5 13 4 4L19 7",
-  },
-  {
-    title: "Results and assets",
-    description: "Relevant performance measures, reports and delivery documents in one place.",
-    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6l6 6v10a2 2 0 0 1-2 2Z",
-  },
-];
-
 function LockedPreview() {
   return (
     <>
@@ -40,54 +17,95 @@ function LockedPreview() {
         <div className="v2-eyebrow mb-3">AI delivery and growth</div>
         <h1 className="v2-page-title">CBB Growth Engine</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
-          A focused workspace for the AI systems being planned, built and improved around your business.
+          Weekly visibility on your leads, appointments and sales.
         </p>
       </header>
 
-      <section className="overflow-hidden rounded-[var(--cbb-radius-lg)] border border-accent/20 bg-[var(--cbb-surface-1)] shadow-[0_28px_70px_rgba(0,0,0,0.18)]">
-        <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
-          <div className="relative border-b border-white/[0.07] p-6 sm:p-8 lg:border-b-0 lg:border-r lg:p-10">
-            <div className="absolute left-0 top-8 h-16 w-1 rounded-r-full bg-accent-bright" aria-hidden />
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-400/8 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.13em] text-amber-300">
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <section className="relative min-h-[520px] overflow-hidden rounded-[var(--cbb-radius-lg)] border border-accent/20 bg-[var(--cbb-surface-1)] shadow-[0_28px_70px_rgba(0,0,0,0.18)] sm:min-h-[570px]">
+        <div className="pointer-events-none absolute inset-0 select-none p-4 opacity-[0.16] blur-[0.35px] sm:p-7" aria-hidden="true">
+          <div className="flex items-start justify-between border-b border-white/20 pb-5">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent-bright">Illustrative sample report</div>
+              <div className="mt-2 font-heading text-xl font-black text-text-primary sm:text-2xl">Weekly growth performance</div>
+              <div className="mt-1 text-xs text-text-secondary">Sample period · 7 days</div>
+            </div>
+            <div className="rounded-full border border-emerald-400/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-300">
+              Sample only
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              ["Cost per lead", "£18.40", "↓ 12%"],
+              ["Appointments booked", "12", "↑ 3"],
+              ["New sales", "3", "This week"],
+              ["Sales value", "£14,800", "New revenue"],
+            ].map(([label, value, change]) => (
+              <div key={label} className="rounded-xl border border-white/20 bg-white/[0.04] p-4">
+                <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">{label}</div>
+                <div className="mt-2 font-heading text-2xl font-black text-text-primary">{value}</div>
+                <div className="mt-1 text-xs text-emerald-300">{change}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+            <div className="rounded-xl border border-white/20 bg-white/[0.025] p-5">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-text-primary">Qualified lead volume</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted">Last 7 days</div>
+              </div>
+              <div className="mt-6 flex h-28 items-end gap-2">
+                {[38, 54, 45, 72, 60, 88, 78].map((height, index) => (
+                  <div key={index} className="flex h-full flex-1 items-end">
+                    <div className="w-full rounded-t bg-accent-bright" style={{ height: `${height}%` }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/20 bg-white/[0.025] p-5">
+              <div className="text-xs font-bold text-text-primary">Sales pipeline</div>
+              <div className="mt-5 space-y-4">
+                {[
+                  ["New leads", "31"],
+                  ["Qualified", "18"],
+                  ["Appointments", "12"],
+                  ["Closed", "3"],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between border-b border-white/15 pb-2 last:border-0">
+                    <span className="text-xs text-text-secondary">{label}</span>
+                    <span className="text-sm font-black text-text-primary">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute inset-0 bg-[color:var(--cbb-bg)]/35 backdrop-blur-[1.5px]" aria-hidden="true" />
+
+        <div className="relative z-10 flex min-h-[520px] items-center justify-center p-5 sm:min-h-[570px] sm:p-8">
+          <div className="w-full max-w-lg rounded-[var(--cbb-radius-lg)] border border-white/[0.11] bg-[var(--cbb-surface-1)]/95 px-6 py-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:px-10 sm:py-10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/25 bg-accent/10 text-accent-bright">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 0 0-8 0v4m-1 0h10a2 2 0 0 1 2 2v6H5v-6a2 2 0 0 1 2-2Z" />
               </svg>
-              Access by enrolment
             </div>
-            <h2 className="mt-6 max-w-xl font-heading text-3xl font-black leading-tight tracking-[-0.03em] text-text-primary sm:text-4xl">
-              Your AI growth work, made visible.
+            <h2 className="mt-5 font-heading text-2xl font-black tracking-[-0.025em] text-text-primary sm:text-3xl">
+              Your Growth Engine isn’t active yet
             </h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-text-secondary">
-              When your Growth Engine is enabled, this becomes the single place to follow delivery, understand the strategy and see the evidence behind every weekly update.
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-text-secondary">
+              Ask Marc if you’d like access to your growth strategy and weekly results.
             </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-6 flex justify-center">
               <Link href="/portal/inbox" className="v2-button-primary justify-center no-underline">
                 Ask Marc about access
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m9 18 6-6-6-6" />
                 </svg>
               </Link>
-              <span className="text-xs leading-5 text-text-muted">Access is enabled individually for participating businesses.</span>
             </div>
-          </div>
-
-          <div className="bg-white/[0.018] p-5 sm:p-7 lg:p-8">
-            <div className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Inside your workspace</div>
-            <div className="divide-y divide-white/[0.07]">
-              {included.map((item) => (
-                <div key={item.title} className="flex gap-4 py-4 first:pt-2 last:pb-1">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent/8 text-accent-bright">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={item.icon} />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-text-primary">{item.title}</h3>
-                    <p className="mt-1 text-xs leading-5 text-text-muted">{item.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="mt-4 text-[11px] leading-5 text-text-muted">The report shown behind this message is an illustrative sample.</p>
           </div>
         </div>
       </section>
