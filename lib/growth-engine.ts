@@ -35,9 +35,22 @@ export interface GrowthReport {
 export interface GrowthWorkspace {
   id: string;
   client_id: string;
+  strategy_title: string;
   strategy_summary: string;
+  implementation_milestones: GrowthMilestone[];
   created_at: string;
   updated_at: string;
+}
+
+export type GrowthMilestoneStatus = "planned" | "in_progress" | "complete";
+
+export interface GrowthMilestone {
+  id: string;
+  title: string;
+  owner: "Flow State" | "Client" | "Shared";
+  status: GrowthMilestoneStatus;
+  targetDate?: string;
+  note?: string;
 }
 
 export type GrowthManagerResult =

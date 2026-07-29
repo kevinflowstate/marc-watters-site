@@ -19,7 +19,7 @@ export async function GET() {
   const admin = createAdminClient();
   const { data: workspace, error: workspaceError } = await admin
     .from("cbb_growth_workspaces")
-    .select("id, client_id, strategy_summary, created_at, updated_at")
+    .select("id, client_id, strategy_title, strategy_summary, implementation_milestones, created_at, updated_at")
     .eq("client_id", access.clientId)
     .maybeSingle();
 

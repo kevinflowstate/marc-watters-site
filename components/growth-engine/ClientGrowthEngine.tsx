@@ -158,9 +158,33 @@ export default function ClientGrowthEngine() {
             {data.workspace?.strategy_summary && (
               <section className="v2-surface p-5">
                 <div className="v2-eyebrow">Current strategy</div>
+                {data.workspace.strategy_title && <h2 className="mt-2 text-base font-black text-text-primary">{data.workspace.strategy_title}</h2>}
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-text-secondary">{data.workspace.strategy_summary}</p>
               </section>
             )}
+            {data.workspace?.implementation_milestones?.length ? (
+              <section className="v2-surface overflow-hidden">
+                <div className="border-b border-white/[0.07] px-5 py-4">
+                  <h2 className="v2-section-title">Implementation milestones</h2>
+                  <p className="mt-1 text-xs text-text-muted">
+                    {data.workspace.implementation_milestones.filter((milestone) => milestone.status === "complete").length} of {data.workspace.implementation_milestones.length} complete
+                  </p>
+                </div>
+                <div className="divide-y divide-white/[0.06]">
+                  {data.workspace.implementation_milestones.slice(0, 4).map((milestone) => (
+                    <div key={milestone.id} className="flex gap-3 px-5 py-4">
+                      <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                        milestone.status === "complete" ? "bg-emerald-400" : milestone.status === "in_progress" ? "bg-accent-bright" : "bg-white/20"
+                      }`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold leading-5 text-text-primary">{milestone.title}</p>
+                        <p className="mt-1 text-xs text-text-muted">{milestone.owner}{milestone.targetDate ? ` · ${new Date(`${milestone.targetDate}T12:00:00`).toLocaleDateString("en-GB")}` : ""}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <section className="v2-surface overflow-hidden">
               <div className="border-b border-white/[0.07] px-5 py-4">
                 <h2 className="v2-section-title">Report history</h2>

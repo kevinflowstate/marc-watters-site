@@ -41,42 +41,63 @@ export async function GET() {
           .eq("entitlement_key", CBB_GROWTH_ENGINE_KEY).in("client_id", clientIds)
       : Promise.resolve({ data: [] }),
     clientIds.length
-      ? admin.from("cbb_growth_workspaces").select("id, client_id").in("client_id", clientIds)
+      ? admin.from("cbb_growth_workspaces")
+          .select("id, client_id, strategy_title, strategy_summary, implementation_milestones, updated_at")
+          .in("client_id", clientIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   const workspaces = workspacesResult.data || [];
   const workspaceIds = workspaces.map((workspace) => workspace.id);
-  const { data: reports } = workspaceIds.length
-    ? await admin.from("cbb_growth_reports")
-        .select("id, workspace_id, title, period_start, period_end, status, published_at, updated_at")
-        .in("workspace_id", workspaceIds)
-        .order("updated_at", { ascending: false })
-    : { data: [] };
+  const [reportsResult, assetsResult] = await Promise.all([
+    workspaceIds.length
+      ? admin.from("cbb_growth_reports")
+          .select("id, workspace_id, title, period_start, period_end, status, published_at, updated_at")
+          .in("workspace_id", workspaceIds)
+          .order("updated_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    workspaceIds.length
+      ? admin.from("cbb_growth_assets")
+          .select("id, workspace_id, report_id, title, mime_type, size_bytes, published_at, created_at")
+          .in("workspace_id", workspaceIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+  ]);
+  const reports = reportsResult.data || [];
+  const assets = assetsResult.data || [];
 
   const userNameById = new Map((usersResult.data || []).map((user) => [user.id, user.full_name]));
   const entitlementByClient = new Map(
     (entitlementsResult.data || []).map((entitlement) => [entitlement.client_id, entitlement.status]),
   );
-  const workspaceByClient = new Map(workspaces.map((workspace) => [workspace.client_id, workspace.id]));
+  const workspaceByClient = new Map(workspaces.map((workspace) => [workspace.client_id, workspace]));
   const reportsByWorkspace = new Map<string, ReportRow[]>();
-  for (const report of reports || []) {
+  for (const report of reports) {
     const existing = reportsByWorkspace.get(report.workspace_id) || [];
     existing.push(report as ReportRow);
     reportsByWorkspace.set(report.workspace_id, existing);
+  }
+  const assetsByWorkspace = new Map<string, typeof assets>();
+  for (const asset of assets) {
+    const existing = assetsByWorkspace.get(asset.workspace_id) || [];
+    existing.push(asset);
+    assetsByWorkspace.set(asset.workspace_id, existing);
   }
 
   return NextResponse.json({
     viewerRole: viewer.role,
     clients: (clients || []).map((client) => {
-      const workspaceId = workspaceByClient.get(client.id) || null;
+      const workspace = workspaceByClient.get(client.id) || null;
+      const workspaceId = workspace?.id || null;
       return {
         id: client.id,
         fullName: userNameById.get(client.user_id) || "Client",
         businessName: client.business_name || "",
         enabled: entitlementByClient.get(client.id) === "active",
         workspaceId,
+        workspace,
         reports: workspaceId ? reportsByWorkspace.get(workspaceId) || [] : [],
+        assets: workspaceId ? assetsByWorkspace.get(workspaceId) || [] : [],
       };
     }),
   });
