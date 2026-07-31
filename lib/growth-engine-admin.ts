@@ -8,6 +8,7 @@ export interface GrowthReportSummary {
   period_end: string | null;
   status: "draft" | "published" | "withdrawn";
   published_at: string | null;
+  generation_source: string;
   updated_at: string;
 }
 
@@ -20,6 +21,8 @@ export interface GrowthAssetSummary {
   mime_type: string | null;
   size_bytes: number | null;
   published_at: string | null;
+  visibility: "client" | "internal";
+  availability: "visible" | "on_publish" | "internal";
   created_at: string;
   updated_at: string;
 }
@@ -45,7 +48,14 @@ export interface GrowthAdminClient {
   connection: GrowthConnection | null;
 }
 
+export interface GrowthAutomationCapabilities {
+  reportIntakeConfigured: boolean;
+  ghlWebhookConfigured: boolean;
+  scheduledDraftsConfigured: boolean;
+}
+
 export interface GrowthClientsResponse {
   viewerRole: "admin" | "growth_operator";
+  capabilities: GrowthAutomationCapabilities;
   clients: GrowthAdminClient[];
 }

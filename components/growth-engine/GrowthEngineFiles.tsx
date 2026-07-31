@@ -98,11 +98,11 @@ export default function GrowthEngineFiles({
             <div key={asset.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-text-primary">{asset.title}</p>
-                <p className="mt-1 text-xs text-text-muted">{fileSize(asset.size_bytes)} · {asset.published_at ? "Client visible" : "Private"} · Added {new Date(asset.created_at).toLocaleDateString("en-GB")}</p>
+                <p className="mt-1 text-xs text-text-muted">{fileSize(asset.size_bytes)} · {visibilityLabel(asset.availability)} · Added {new Date(asset.created_at).toLocaleDateString("en-GB")}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <a href={`/api/admin/growth-engine/assets/${asset.id}/download`} className="v2-button-secondary no-underline">Download</a>
-                <button type="button" disabled={busy} onClick={() => void update(asset.id, !asset.published_at)} className="v2-button-secondary">{asset.published_at ? "Make private" : "Share with client"}</button>
+                <button type="button" disabled={busy} onClick={() => void update(asset.id, asset.visibility !== "client")} className="v2-button-secondary">{asset.visibility === "client" ? "Make private" : "Share with client"}</button>
                 <button type="button" disabled={busy} onClick={() => void remove(asset.id)} className="min-h-10 rounded-xl px-3 text-xs font-bold text-red-300 hover:bg-red-500/10">Remove</button>
               </div>
             </div>
@@ -117,4 +117,10 @@ function fileSize(value: number | null) {
   if (!value) return "Document";
   if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`;
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function visibilityLabel(value: GrowthAssetSummary["availability"]) {
+  if (value === "visible") return "Client visible";
+  if (value === "on_publish") return "Shares when report is published";
+  return "Private";
 }

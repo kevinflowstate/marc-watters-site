@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import type { GrowthConnection } from "@/lib/growth-engine";
+import type { GrowthAutomationCapabilities } from "@/lib/growth-engine-admin";
 
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function GrowthEngineDataSetup({
   clientId,
   connection,
+  capabilities,
   onChanged,
 }: {
   clientId: string;
   connection: GrowthConnection | null;
+  capabilities: GrowthAutomationCapabilities | null;
   onChanged: () => Promise<void>;
 }) {
   const { toast } = useToast();
@@ -110,6 +113,15 @@ export default function GrowthEngineDataSetup({
 
       <aside className="space-y-5">
         <section className="v2-surface p-5">
+          <div className="v2-eyebrow">End-to-end connections</div>
+          <dl className="mt-4 space-y-3 text-sm">
+            <Capability label="GHL appointment intake" ready={Boolean(capabilities?.ghlWebhookConfigured)} />
+            <Capability label="Automatic report intake" ready={Boolean(capabilities?.reportIntakeConfigured)} />
+            <Capability label="Scheduled draft generation" ready={Boolean(capabilities?.scheduledDraftsConfigured)} />
+          </dl>
+          <p className="mt-4 text-[11px] leading-5 text-text-muted">Incoming reports remain private drafts until you review and publish them.</p>
+        </section>
+        <section className="v2-surface p-5">
           <div className="v2-eyebrow">Automation status</div>
           <dl className="mt-4 space-y-4 text-sm">
             <div className="flex justify-between gap-4"><dt className="text-text-muted">Last GHL event</dt><dd className="font-semibold text-text-primary">{formatDate(connection?.last_event_at)}</dd></div>
@@ -129,4 +141,15 @@ export default function GrowthEngineDataSetup({
 
 function formatDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "Not yet";
+}
+
+function Capability({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-text-muted">{label}</dt>
+      <dd className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] ${ready ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-300" : "border-amber-400/25 bg-amber-400/8 text-amber-300"}`}>
+        {ready ? "Ready" : "Not configured"}
+      </dd>
+    </div>
+  );
 }

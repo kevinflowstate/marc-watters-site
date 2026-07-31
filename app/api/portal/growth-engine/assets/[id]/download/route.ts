@@ -17,13 +17,17 @@ export async function GET(
   const { id } = await params;
   const admin = createAdminClient();
   const { data: asset } = await admin.from("cbb_growth_assets")
-    .select("storage_path, published_at, cbb_growth_workspaces!inner(client_id)")
+    .select("storage_path, original_name, title, published_at, cbb_growth_workspaces!inner(client_id)")
     .eq("id", id)
     .eq("cbb_growth_workspaces.client_id", access.clientId)
     .not("published_at", "is", null)
     .maybeSingle();
   if (!asset) return NextResponse.json({ error: "File not found." }, { status: 404 });
-  const { data, error } = await admin.storage.from("cbb-growth-engine").createSignedUrl(asset.storage_path, 60);
+  const { data, error } = await admin.storage.from("cbb-growth-engine").createSignedUrl(
+    asset.storage_path,
+    60,
+    { download: asset.original_name || asset.title || "growth-engine-file" },
+  );
   if (error || !data?.signedUrl) return NextResponse.json({ error: "Download could not be prepared." }, { status: 500 });
   return NextResponse.redirect(data.signedUrl);
 }

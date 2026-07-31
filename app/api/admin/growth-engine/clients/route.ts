@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CBB_GROWTH_ENGINE_KEY, requireGrowthManager } from "@/lib/growth-engine";
+import { automationAssetsFromMetadata } from "@/lib/growth-engine-automation";
 
 interface ReportRow {
   id: string;
@@ -8,8 +9,10 @@ interface ReportRow {
   title: string;
   period_start: string | null;
   period_end: string | null;
-  status: "draft" | "published";
+  status: "draft" | "published" | "withdrawn";
   published_at: string | null;
+  generation_source: string;
+  generation_metadata: Record<string, unknown>;
   updated_at: string;
 }
 
@@ -57,7 +60,7 @@ export async function GET() {
   const [reportsResult, assetsResult] = await Promise.all([
     workspaceIds.length
       ? admin.from("cbb_growth_reports")
-          .select("id, workspace_id, title, period_start, period_end, status, published_at, updated_at")
+          .select("id, workspace_id, title, period_start, period_end, status, published_at, generation_source, generation_metadata, updated_at")
           .in("workspace_id", workspaceIds)
           .order("updated_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -70,6 +73,12 @@ export async function GET() {
   ]);
   const reports = reportsResult.data || [];
   const assets = assetsResult.data || [];
+  const automationVisibilityByAsset = new Map<string, "client" | "internal">();
+  for (const report of reports) {
+    for (const asset of automationAssetsFromMetadata(report.generation_metadata)) {
+      automationVisibilityByAsset.set(asset.id, asset.visibility);
+    }
+  }
 
   const userNameById = new Map((usersResult.data || []).map((user) => [user.id, user.full_name]));
   const entitlementByClient = new Map(
@@ -92,6 +101,11 @@ export async function GET() {
 
   return NextResponse.json({
     viewerRole: viewer.role,
+    capabilities: {
+      reportIntakeConfigured: Boolean(process.env.GROWTH_ENGINE_INGEST_SECRET?.trim()),
+      ghlWebhookConfigured: Boolean(process.env.GROWTH_ENGINE_GHL_WEBHOOK_SECRET?.trim()),
+      scheduledDraftsConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    },
     clients: (clients || []).map((client) => {
       const workspace = workspaceByClient.get(client.id) || null;
       const workspaceId = workspace?.id || null;
@@ -102,8 +116,35 @@ export async function GET() {
         enabled: entitlementByClient.get(client.id) === "active",
         workspaceId,
         workspace,
-        reports: workspaceId ? reportsByWorkspace.get(workspaceId) || [] : [],
-        assets: workspaceId ? assetsByWorkspace.get(workspaceId) || [] : [],
+        reports: workspaceId
+          ? (reportsByWorkspace.get(workspaceId) || []).map((report) => ({
+              id: report.id,
+              workspace_id: report.workspace_id,
+              title: report.title,
+              period_start: report.period_start,
+              period_end: report.period_end,
+              status: report.status,
+              published_at: report.published_at,
+              generation_source: report.generation_source,
+              updated_at: report.updated_at,
+            }))
+          : [],
+        assets: workspaceId
+          ? (assetsByWorkspace.get(workspaceId) || []).map((asset) => {
+              const visibility = asset.published_at
+                ? "client" as const
+                : automationVisibilityByAsset.get(asset.id) || "internal" as const;
+              return {
+                ...asset,
+                visibility,
+                availability: asset.published_at
+                  ? "visible" as const
+                  : visibility === "client"
+                    ? "on_publish" as const
+                    : "internal" as const,
+              };
+            })
+          : [],
         connection: connectionByClient.get(client.id) || null,
       };
     }),

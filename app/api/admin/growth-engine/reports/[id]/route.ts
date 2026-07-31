@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanReportInput, requireGrowthManager } from "@/lib/growth-engine";
 
+const BUCKET = "cbb-growth-engine";
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -78,7 +80,14 @@ export async function DELETE(
   if (report.status !== "draft") {
     return NextResponse.json({ error: "Published reports must be withdrawn rather than deleted." }, { status: 409 });
   }
+  const { data: linkedAssets } = await admin.from("cbb_growth_assets")
+    .select("id, storage_path")
+    .eq("report_id", id);
   const { error } = await admin.from("cbb_growth_reports").delete().eq("id", id).eq("status", "draft");
   if (error) return NextResponse.json({ error: "Draft could not be deleted." }, { status: 500 });
-  return NextResponse.json({ success: true });
+  if (linkedAssets?.length) {
+    await admin.from("cbb_growth_assets").delete().in("id", linkedAssets.map((asset) => asset.id));
+    await admin.storage.from(BUCKET).remove(linkedAssets.map((asset) => asset.storage_path));
+  }
+  return NextResponse.json({ success: true, removedAssets: linkedAssets?.length || 0 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CBB_GROWTH_ENGINE_KEY, requireGrowthManager } from "@/lib/growth-engine";
 import { notifyPortalUsers } from "@/lib/notifications";
+import { clientVisibleAutomationAssetIds } from "@/lib/growth-engine-automation";
 
 export async function POST(
   _request: NextRequest,
@@ -15,7 +16,7 @@ export async function POST(
   const { id } = await params;
   const admin = createAdminClient();
   const { data: existing, error: existingError } = await admin.from("cbb_growth_reports")
-    .select("id, title, status, published_at, notification_sent_at, workspace_id")
+    .select("id, title, status, published_at, notification_sent_at, workspace_id, generation_metadata")
     .eq("id", id).maybeSingle();
   if (existingError) return NextResponse.json({ error: "Could not load the report." }, { status: 500 });
   if (!existing) return NextResponse.json({ error: "Report not found." }, { status: 404 });
@@ -39,7 +40,7 @@ export async function POST(
         updated_at: now,
       })
       .eq("id", id).eq("status", "draft")
-      .select("id, title, status, published_at, notification_sent_at, workspace_id")
+      .select("id, title, status, published_at, notification_sent_at, workspace_id, generation_metadata")
       .maybeSingle();
     if (publishError) {
       return NextResponse.json({ error: "Could not publish the report." }, { status: 500 });
@@ -51,6 +52,20 @@ export async function POST(
     .select("client_id").eq("id", report.workspace_id).single();
   if (!workspace) {
     return NextResponse.json({ error: "Report workspace not found." }, { status: 500 });
+  }
+
+  const clientVisibleAssetIds = clientVisibleAutomationAssetIds(report.generation_metadata);
+  if (clientVisibleAssetIds.length > 0) {
+    const { error: assetPublishError } = await admin.from("cbb_growth_assets")
+      .update({ published_at: report.published_at || new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("report_id", report.id)
+      .in("id", clientVisibleAssetIds);
+    if (assetPublishError) {
+      return NextResponse.json(
+        { error: "The report was published, but its client files could not be released. Retry publish to complete it." },
+        { status: 500 },
+      );
+    }
   }
 
   const [clientResult, entitlementResult] = await Promise.all([
@@ -96,5 +111,6 @@ export async function POST(
   return NextResponse.json({
     report: { ...report, status: "published" },
     notified: notificationSent,
+    publishedAssets: clientVisibleAssetIds.length,
   });
 }

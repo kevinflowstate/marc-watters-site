@@ -7,7 +7,11 @@ import GrowthEngineFiles from "@/components/growth-engine/GrowthEngineFiles";
 import ReportView from "@/components/growth-engine/ReportView";
 import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import { useToast } from "@/components/ui/Toast";
-import type { GrowthAdminClient, GrowthClientsResponse } from "@/lib/growth-engine-admin";
+import type {
+  GrowthAdminClient,
+  GrowthAutomationCapabilities,
+  GrowthClientsResponse,
+} from "@/lib/growth-engine-admin";
 import type { GrowthMetric, GrowthMilestone, GrowthReport } from "@/lib/growth-engine";
 
 type WorkspaceTab = "overview" | "strategy" | "reports" | "milestones" | "files" | "data";
@@ -27,6 +31,7 @@ interface ReportForm {
   createdAt: string;
   updatedAt: string;
   workspaceId: string;
+  generationSource: string;
 }
 
 const tabs: Array<{ id: WorkspaceTab; label: string }> = [
@@ -54,6 +59,7 @@ function emptyReport(): ReportForm {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     workspaceId: "",
+    generationSource: "manual",
   };
 }
 
@@ -73,6 +79,7 @@ function reportToForm(report: GrowthReport): ReportForm {
     createdAt: report.created_at,
     updatedAt: report.updated_at,
     workspaceId: report.workspace_id,
+    generationSource: report.generation_source || "manual",
   };
 }
 
@@ -92,6 +99,7 @@ function formToReport(form: ReportForm): GrowthReport {
     published_at: form.publishedAt,
     created_at: form.createdAt,
     updated_at: form.updatedAt,
+    generation_source: form.generationSource,
   };
 }
 
@@ -106,6 +114,7 @@ function shortDate(value: string | null | undefined) {
 export default function GrowthEngineClientWorkspace({ clientId }: { clientId: string }) {
   const { toast } = useToast();
   const [client, setClient] = useState<GrowthAdminClient | null>(null);
+  const [capabilities, setCapabilities] = useState<GrowthAutomationCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<WorkspaceTab>("overview");
@@ -124,6 +133,7 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
     const nextClient = data.clients.find((item) => item.id === clientId) || null;
     if (!nextClient) throw new Error("Growth Engine client not found.");
     setClient(nextClient);
+    setCapabilities(data.capabilities || null);
     setStrategyTitle(nextClient.workspace?.strategy_title || "");
     setStrategySummary(nextClient.workspace?.strategy_summary || "");
     setMilestones(Array.isArray(nextClient.workspace?.implementation_milestones) ? nextClient.workspace.implementation_milestones : []);
@@ -410,7 +420,7 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
                 <div className="divide-y divide-white/[0.06]">
                   {client.reports.map((report) => (
                     <button key={report.id} type="button" onClick={() => openReport(report.id)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-white/[0.025] sm:px-7">
-                      <div className="min-w-0"><p className="truncate text-sm font-bold text-text-primary">{report.title}</p><p className="mt-1 text-xs text-text-muted">{report.status === "published" ? `Published ${shortDate(report.published_at)}` : `Updated ${shortDate(report.updated_at)}`}</p></div>
+                      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-bold text-text-primary">{report.title}</p>{report.generation_source !== "manual" && <span className="rounded-full border border-accent/20 bg-accent/[0.07] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-accent-bright">Automated intake</span>}</div><p className="mt-1 text-xs text-text-muted">{report.status === "published" ? `Published ${shortDate(report.published_at)}` : `Updated ${shortDate(report.updated_at)}`}</p></div>
                       <StatusBadge status={report.status} />
                     </button>
                   ))}
@@ -447,7 +457,7 @@ export default function GrowthEngineClientWorkspace({ clientId }: { clientId: st
         )}
 
         {tab === "data" && (
-          <GrowthEngineDataSetup clientId={client.id} connection={client.connection} onChanged={load} />
+          <GrowthEngineDataSetup clientId={client.id} connection={client.connection} capabilities={capabilities} onChanged={load} />
         )}
       </main>
     </>
@@ -510,6 +520,12 @@ function ReportEditor({
 
       {mode === "preview" ? <div className="p-5 sm:p-7"><ReportView report={formToReport(form)} /></div> : (
         <div className="space-y-6 p-5 sm:p-7">
+          {form.generationSource !== "manual" && (
+            <div className="rounded-xl border border-accent/20 bg-accent/[0.07] p-4">
+              <p className="text-xs font-black uppercase tracking-[0.1em] text-accent-bright">Arrived automatically</p>
+              <p className="mt-1 text-xs leading-5 text-text-secondary">This report and any attached files were ingested as a private draft. Review the evidence and client visibility before publishing.</p>
+            </div>
+          )}
           <label className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-text-muted">Report title</span><input value={form.title} onChange={(event) => onForm({ ...form, title: event.target.value })} placeholder="e.g. A stronger week for qualified demand" className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-white/[0.03] px-4 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-accent/45" /></label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-bold uppercase tracking-[0.1em] text-text-muted">Period start<input type="date" value={form.periodStart} onChange={(event) => onForm({ ...form, periodStart: event.target.value })} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.09] bg-white/[0.03] px-4 text-sm text-text-primary outline-none" /></label>
