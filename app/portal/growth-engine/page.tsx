@@ -1,5 +1,5 @@
-import ClientGrowthEngine from "@/components/growth-engine/ClientGrowthEngine";
+import GrowthEngineExperience from "@/components/portal/GrowthEngineExperience";
 
 export default function GrowthEnginePage() {
-  return <ClientGrowthEngine />;
+  return <GrowthEngineExperience previewUnlocked />;
 }
