@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ConsultationOutcomes from "@/components/growth-engine/ConsultationOutcomes";
 import ReportView from "@/components/growth-engine/ReportView";
+import GrowthEngineExperience from "@/components/portal/GrowthEngineExperience";
 import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import type { GrowthAsset, GrowthReport, GrowthWorkspace } from "@/lib/growth-engine";
 
@@ -144,6 +145,9 @@ export default function ClientGrowthEngine() {
     );
   }
   if (!data?.entitled) return <LockedPreview />;
+  if (process.env.NEXT_PUBLIC_GROWTH_ENGINE_OFFERS !== "off") {
+    return <GrowthEngineExperience previewUnlocked />;
+  }
 
   const latest = data.reports[0];
   const history = data.reports.slice(1);
