@@ -94,12 +94,21 @@ export default function GrowthEngineManager() {
               Strategy, implementation and weekly reporting for active Growth Engine clients.
             </p>
           </div>
-          <button type="button" onClick={() => setManageOpen(true)} className="v2-button-secondary">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 5v14M5 12h14" />
-            </svg>
-            Manage access
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/growth-engine-pricing" className="v2-button-primary no-underline">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                <circle cx="12" cy="12" r="2.5" strokeWidth={1.7} />
+              </svg>
+              View pricing
+            </Link>
+            <button type="button" onClick={() => setManageOpen(true)} className="v2-button-secondary">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 5v14M5 12h14" />
+              </svg>
+              Manage access
+            </button>
+          </div>
         </div>
       </header>
 
