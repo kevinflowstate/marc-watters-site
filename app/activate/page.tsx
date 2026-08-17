@@ -12,6 +12,7 @@ function ActivateContent() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [accountType, setAccountType] = useState<"client" | "growth_operator">("client");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,7 @@ function ActivateContent() {
 
         setEmail(data.email || "");
         setFullName(data.fullName || "");
+        setAccountType(data.accountType === "growth_operator" ? "growth_operator" : "client");
       } finally {
         setLoading(false);
       }
@@ -96,10 +98,12 @@ function ActivateContent() {
       <div className="w-full max-w-[440px]">
         <div className="text-center mb-8">
           <h1 className="font-heading text-3xl font-black text-text-primary">
-            Activate Your Portal
+            {accountType === "growth_operator" ? "Activate Flow State Access" : "Activate Your Portal"}
           </h1>
           <p className="text-text-secondary text-sm mt-2">
-            Create your password once and you are straight into Marc&apos;s client portal.
+            {accountType === "growth_operator"
+              ? "Create your password once to access the CBB Growth Engine workspace."
+              : "Create your password once and you are straight into Marc’s client portal."}
           </p>
         </div>
 
@@ -153,7 +157,7 @@ function ActivateContent() {
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Create Password</label>
                 <input
-                  type="text"
+                  type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
@@ -165,7 +169,7 @@ function ActivateContent() {
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Confirm Password</label>
                 <input
-                  type="text"
+                  type="password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   required

@@ -43,3 +43,4 @@ next-env.d.ts
 .omc/
 .playwright-mcp/
 .playwright-cli/
+.env*.local

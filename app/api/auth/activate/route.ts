@@ -31,10 +31,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Activation link has already been used" }, { status: 410 });
     }
 
+    const admin = createAdminClient();
+    const { data: profile } = await admin.from("users").select("role").eq("id", invite.user_id).maybeSingle();
+
     return NextResponse.json({
       valid: true,
       email: invite.email,
       fullName: invite.full_name,
+      accountType: profile?.role === "growth_operator" ? "growth_operator" : "client",
     });
   } catch (error) {
     return NextResponse.json(
@@ -103,10 +107,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: inviteUpdateError.message }, { status: 500 });
     }
 
+    const { data: profile } = await admin.from("users").select("role").eq("id", invite.user_id).maybeSingle();
+
     return NextResponse.json({
       success: true,
       email: invite.email,
-      redirect: "/portal",
+      redirect: profile?.role === "growth_operator" ? "/admin/growth-engine" : "/portal",
     });
   } catch (error) {
     return NextResponse.json(

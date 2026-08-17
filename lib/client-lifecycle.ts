@@ -10,7 +10,7 @@ export async function getClientAccess(userId: string): Promise<{
 }> {
   const admin = createAdminClient();
   const { data: user } = await admin.from("users").select("role").eq("id", userId).maybeSingle();
-  if (user?.role === "admin") return { active: true };
+  if (user?.role === "admin" || user?.role === "growth_operator") return { active: true };
 
   const { data } = await admin
     .from("client_profiles")

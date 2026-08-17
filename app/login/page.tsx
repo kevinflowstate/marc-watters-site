@@ -44,6 +44,8 @@ function LoginForm() {
 
       if (role === "admin") {
         router.push("/admin");
+      } else if (role === "growth_operator") {
+        router.push("/admin/growth-engine");
       } else {
         router.push(redirect);
       }
@@ -88,7 +90,7 @@ function LoginForm() {
           <div className="mb-6">
             <label className="block text-sm font-medium text-text-secondary mb-2">Password</label>
             <input
-              type="text"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
