@@ -139,9 +139,15 @@ function errorMessageForResponse(status: number, serverMessage?: string) {
   return serverMessage || "Blueprint AI couldn’t complete that response. Please try again.";
 }
 
-const AssistantMessage = memo(function AssistantMessage({ content }: { content: string }) {
+const AssistantMessage = memo(function AssistantMessage({
+  content,
+  messageRef,
+}: {
+  content: string;
+  messageRef?: React.Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="flex items-start gap-3">
+    <div ref={messageRef} className="flex items-start gap-3">
       <BlueprintIcon compact />
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="mb-2 text-xs font-bold text-accent-bright">Blueprint AI</div>
@@ -157,14 +163,34 @@ export default function BlueprintAIPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [failedPrompt, setFailedPrompt] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const latestAssistantRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
+  const isPinnedToLatestRef = useRef(true);
+  const pendingScrollRef = useRef<"bottom" | "response-start" | null>(null);
 
   useEffect(() => {
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
+    const scrollArea = scrollAreaRef.current;
+    const pendingScroll = pendingScrollRef.current;
+    if (!scrollArea || !pendingScroll) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (pendingScroll === "response-start" && latestAssistantRef.current) {
+        const scrollBounds = scrollArea.getBoundingClientRect();
+        const responseBounds = latestAssistantRef.current.getBoundingClientRect();
+        scrollArea.scrollTop += responseBounds.top - scrollBounds.top - 24;
+      } else {
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+      }
+
+      pendingScrollRef.current = null;
+      const distanceFromBottom = scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+      isPinnedToLatestRef.current = distanceFromBottom < 80;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [messages, loading, error]);
 
   useEffect(() => {
@@ -188,6 +214,8 @@ export default function BlueprintAIPage() {
     const visibleConversation = isRetry ? conversation : [...conversation, userMessage];
     const requestHistory = isRetry ? conversation.slice(0, -1) : conversation;
 
+    pendingScrollRef.current = "bottom";
+    isPinnedToLatestRef.current = true;
     setMessages(visibleConversation);
     setInput("");
     setError("");
@@ -211,20 +239,24 @@ export default function BlueprintAIPage() {
       if (requestId !== requestIdRef.current) return;
 
       if (!response.ok) {
+        pendingScrollRef.current = isPinnedToLatestRef.current ? "bottom" : null;
         setError(errorMessageForResponse(response.status, data.error));
         setFailedPrompt(trimmed);
         return;
       }
 
       if (typeof data.reply !== "string" || !data.reply.trim()) {
+        pendingScrollRef.current = isPinnedToLatestRef.current ? "bottom" : null;
         setError("Blueprint AI returned an empty response. Please try again.");
         setFailedPrompt(trimmed);
         return;
       }
 
+      pendingScrollRef.current = isPinnedToLatestRef.current ? "response-start" : null;
       setMessages([...visibleConversation, { role: "assistant", content: data.reply }]);
     } catch (requestError) {
       if ((requestError as Error).name === "AbortError" || requestId !== requestIdRef.current) return;
+      pendingScrollRef.current = isPinnedToLatestRef.current ? "bottom" : null;
       setError("Blueprint AI couldn’t connect. Check your connection and try again.");
       setFailedPrompt(trimmed);
     } finally {
@@ -258,6 +290,12 @@ export default function BlueprintAIPage() {
     }
   }
 
+  function handleConversationScroll(event: React.UIEvent<HTMLDivElement>) {
+    const scrollArea = event.currentTarget;
+    const distanceFromBottom = scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+    isPinnedToLatestRef.current = distanceFromBottom < 80;
+  }
+
   function clearConversation() {
     requestIdRef.current += 1;
     requestControllerRef.current?.abort();
@@ -267,28 +305,35 @@ export default function BlueprintAIPage() {
     setFailedPrompt("");
     setInput("");
     setLoading(false);
+    pendingScrollRef.current = null;
+    isPinnedToLatestRef.current = true;
     window.setTimeout(() => inputRef.current?.focus(), 50);
   }
 
   const hasConversation = messages.length > 0;
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-7.5rem)] min-h-[600px] max-w-5xl flex-col lg:h-[calc(100vh-5rem)]">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div className="mx-auto flex h-[calc(100dvh-7.5rem)] min-h-0 max-w-5xl flex-col overflow-hidden lg:h-[calc(100vh-5rem)]">
+      <header
+        className={`flex flex-wrap justify-between gap-4 ${
+          hasConversation ? "mb-3 items-center sm:mb-5 sm:items-end" : "mb-5 items-end"
+        }`}
+      >
         <div>
-          <div className="v2-eyebrow mb-3">Coaching support</div>
+          <div className={`v2-eyebrow mb-3 ${hasConversation ? "hidden sm:block" : ""}`}>Coaching support</div>
           <h1 className="v2-page-title">Blueprint AI</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
+          <p className={`mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary ${hasConversation ? "hidden sm:block" : ""}`}>
             Ask practical questions about your Business Plan, assigned training and next steps.
           </p>
         </div>
 
         {hasConversation && (
-          <button type="button" onClick={clearConversation} className="v2-button-secondary">
+          <button type="button" onClick={clearConversation} className="v2-button-secondary shrink-0" aria-label="New conversation">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 5v14m7-7H5" />
             </svg>
-            New conversation
+            <span className="sm:hidden">New chat</span>
+            <span className="hidden sm:inline">New conversation</span>
           </button>
         )}
       </header>
@@ -307,7 +352,12 @@ export default function BlueprintAIPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" aria-live="polite">
+        <div
+          ref={scrollAreaRef}
+          onScroll={handleConversationScroll}
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain"
+          aria-live="polite"
+        >
           {!hasConversation && !loading ? (
             <div className="flex min-h-full items-center justify-center px-4 py-8 sm:px-8">
               <div className="w-full max-w-2xl">
@@ -352,7 +402,13 @@ export default function BlueprintAIPage() {
                       {message.content}
                     </div>
                   </div>
-                ) : <AssistantMessage key={index} content={message.content} />,
+                ) : (
+                  <AssistantMessage
+                    key={index}
+                    content={message.content}
+                    messageRef={index === messages.length - 1 ? latestAssistantRef : undefined}
+                  />
+                ),
               )}
 
               {loading && (
@@ -388,8 +444,6 @@ export default function BlueprintAIPage() {
                   {error}
                 </InlineNotice>
               )}
-
-              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
