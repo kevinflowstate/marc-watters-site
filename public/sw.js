@@ -1,4 +1,4 @@
-const CACHE_NAME = "cbb-portal-v6";
+const CACHE_NAME = "cbb-portal-v7";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -10,6 +10,12 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
       await self.clients.claim();
+      const windowClients = await self.clients.matchAll({ type: "window" });
+      const portalClients = windowClients.filter((client) => {
+        const pathname = new URL(client.url).pathname;
+        return pathname.startsWith("/portal") || pathname === "/login";
+      });
+      await Promise.all(portalClients.map((client) => client.navigate(client.url)));
     })()
   );
 });
