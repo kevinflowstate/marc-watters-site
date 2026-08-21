@@ -96,7 +96,10 @@ export default function RootLayout({
           />
         </noscript>
       </head>
-      <body className={`${inter.variable} ${montserrat.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${montserrat.variable} antialiased`}
+        data-build-version={process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || "development"}
+      >
         <AppUpdateManager />
         {children}
         <script

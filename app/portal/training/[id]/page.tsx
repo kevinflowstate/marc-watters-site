@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import BusinessHealthChecklistCard from "@/components/portal/BusinessHealthChecklistCard";
 import ModuleCover from "@/components/training/ModuleCover";
 import { EmptyState, InlineNotice } from "@/components/ui/PortalState";
+import { lessonIdFromTrainingHash, trainingLessonAnchorId } from "@/lib/portal-training-links";
 import type { ContentType, ModuleContent, TrainingModule } from "@/lib/types";
 
 function getVideoEmbedUrl(url: string) {
@@ -100,6 +101,7 @@ export default function ModuleView() {
   const { id } = useParams<{ id: string }>();
   const [module, setModule] = useState<TrainingModule | null>(null);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
+  const [linkedLessonToScroll, setLinkedLessonToScroll] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -148,6 +150,37 @@ export default function ModuleView() {
     void load();
     return () => controller.abort();
   }, [id, reloadKey]);
+
+  useEffect(() => {
+    if (!module) return;
+
+    function openLinkedLesson() {
+      const linkedLessonId = lessonIdFromTrainingHash(window.location.hash);
+      const isLessonInModule = module?.content?.some((lesson) => lesson.id === linkedLessonId);
+      if (!linkedLessonId || !isLessonInModule) return;
+
+      setExpandedLesson(linkedLessonId);
+      setLinkedLessonToScroll(linkedLessonId);
+    }
+
+    openLinkedLesson();
+    window.addEventListener("hashchange", openLinkedLesson);
+    return () => window.removeEventListener("hashchange", openLinkedLesson);
+  }, [module]);
+
+  useEffect(() => {
+    if (!linkedLessonToScroll || expandedLesson !== linkedLessonToScroll) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(trainingLessonAnchorId(linkedLessonToScroll))?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
+      setLinkedLessonToScroll(null);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [expandedLesson, linkedLessonToScroll]);
 
   if (loading) return <ModuleSkeleton />;
 
@@ -265,10 +298,14 @@ export default function ModuleView() {
             {lessons.map((lesson, index) => {
               const contentType = contentTypeLabels[lesson.content_type];
               const isExpanded = expandedLesson === lesson.id;
-              const panelId = `lesson-${lesson.id}`;
+              const panelId = `lesson-panel-${lesson.id}`;
 
               return (
-                <article key={lesson.id} className="border-b border-white/[0.06] last:border-0">
+                <article
+                  key={lesson.id}
+                  id={trainingLessonAnchorId(lesson.id)}
+                  className="scroll-mt-6 border-b border-white/[0.06] last:border-0"
+                >
                   <button
                     type="button"
                     onClick={() => setExpandedLesson(isExpanded ? null : lesson.id)}

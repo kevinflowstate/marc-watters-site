@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { trainingLessonHref } from "@/lib/portal-training-links";
 
 interface PlanItem {
   id: string;
@@ -377,7 +378,7 @@ export default function BusinessPlanPage() {
                       {phase.linkedTrainings.map((training) => (
                         <Link
                           key={training.id}
-                          href={`/portal/training/${training.module_id}`}
+                          href={trainingLessonHref(training.module_id, training.id)}
                           className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors no-underline group"
                         >
                           <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">

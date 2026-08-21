@@ -163,6 +163,7 @@ export default function BlueprintAIPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [failedPrompt, setFailedPrompt] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const latestAssistantRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -170,6 +171,54 @@ export default function BlueprintAIPage() {
   const requestIdRef = useRef(0);
   const isPinnedToLatestRef = useRef(true);
   const pendingScrollRef = useRef<"bottom" | "response-start" | null>(null);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+
+    const bodyOverflow = document.body.style.overflowY;
+    const htmlOverflow = document.documentElement.style.overflowY;
+    let orientationTimeout = 0;
+
+    function updateLayoutOffsets() {
+      const currentPage = pageRef.current;
+      if (!currentPage) return;
+
+      const pageTop = Math.max(currentPage.getBoundingClientRect().top, 0);
+      const mobileNav = window.innerWidth < 1024
+        ? document.querySelector<HTMLElement>(".portal-mobile-nav")
+        : null;
+      const bottomClearance = mobileNav ? mobileNav.getBoundingClientRect().height + 8 : 16;
+
+      currentPage.style.setProperty("--blueprint-ai-top", `${Math.floor(pageTop)}px`);
+      currentPage.style.setProperty("--blueprint-ai-bottom", `${Math.ceil(bottomClearance)}px`);
+    }
+
+    window.scrollTo({ top: 0, left: 0 });
+    document.body.style.overflowY = "hidden";
+    document.documentElement.style.overflowY = "hidden";
+
+    updateLayoutOffsets();
+    const settleTimeouts = [
+      window.setTimeout(updateLayoutOffsets, 250),
+      window.setTimeout(updateLayoutOffsets, 1000),
+    ];
+
+    function handleOrientationChange() {
+      window.clearTimeout(orientationTimeout);
+      orientationTimeout = window.setTimeout(updateLayoutOffsets, 250);
+    }
+
+    window.addEventListener("orientationchange", handleOrientationChange);
+
+    return () => {
+      settleTimeouts.forEach((timeout) => window.clearTimeout(timeout));
+      window.clearTimeout(orientationTimeout);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+      document.body.style.overflowY = bodyOverflow;
+      document.documentElement.style.overflowY = htmlOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
@@ -199,6 +248,13 @@ export default function BlueprintAIPage() {
       requestControllerRef.current?.abort();
     };
   }, []);
+
+  function focusComposerForKeyboardUser(delay: number) {
+    window.setTimeout(() => {
+      if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+      inputRef.current?.focus({ preventScroll: true });
+    }, delay);
+  }
 
   async function submitPrompt(prompt: string, conversation: Message[], isRetry = false) {
     const trimmed = prompt.trim();
@@ -263,7 +319,7 @@ export default function BlueprintAIPage() {
       if (requestId === requestIdRef.current) {
         requestControllerRef.current = null;
         setLoading(false);
-        window.setTimeout(() => inputRef.current?.focus(), 100);
+        focusComposerForKeyboardUser(100);
       }
     }
   }
@@ -307,13 +363,18 @@ export default function BlueprintAIPage() {
     setLoading(false);
     pendingScrollRef.current = null;
     isPinnedToLatestRef.current = true;
-    window.setTimeout(() => inputRef.current?.focus(), 50);
+    focusComposerForKeyboardUser(50);
   }
 
   const hasConversation = messages.length > 0;
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-7.5rem)] min-h-0 max-w-5xl flex-col overflow-hidden lg:h-[calc(100vh-5rem)]">
+    <div
+      ref={pageRef}
+      className="mx-auto flex h-[calc(100dvh-7.5rem)] min-h-0 max-w-5xl flex-col overflow-hidden"
+      style={{ height: "max(240px, calc(100dvh - var(--blueprint-ai-top, 7.5rem) - var(--blueprint-ai-bottom, 0px)))" }}
+      data-blueprint-ai-shell
+    >
       <header
         className={`flex flex-wrap justify-between gap-4 ${
           hasConversation ? "mb-3 items-center sm:mb-5 sm:items-end" : "mb-5 items-end"
@@ -355,7 +416,9 @@ export default function BlueprintAIPage() {
         <div
           ref={scrollAreaRef}
           onScroll={handleConversationScroll}
-          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain"
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-auto"
+          style={{ WebkitOverflowScrolling: "touch" }}
+          data-blueprint-ai-scroll
           aria-live="polite"
         >
           {!hasConversation && !loading ? (
