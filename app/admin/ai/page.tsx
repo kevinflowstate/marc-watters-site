@@ -61,16 +61,99 @@ export default function AdminBlueprintAIPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const latestAssistantRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isPinnedToLatestRef = useRef(true);
+  const pendingScrollRef = useRef<"bottom" | "response-start" | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const page = pageRef.current;
+    if (!page) return;
 
-  useEffect(() => {
-    inputRef.current?.focus();
+    const bodyOverflow = document.body.style.overflowY;
+    const htmlOverflow = document.documentElement.style.overflowY;
+    let orientationTimeout = 0;
+
+    function updateLayoutOffsets() {
+      const currentPage = pageRef.current;
+      if (!currentPage) return;
+
+      const pageTop = Math.max(currentPage.getBoundingClientRect().top, 0);
+      const mobileNav = window.innerWidth < 1024
+        ? document.querySelector<HTMLElement>(".portal-mobile-nav")
+        : null;
+      const bottomClearance = mobileNav ? mobileNav.getBoundingClientRect().height + 8 : 16;
+
+      currentPage.style.setProperty("--admin-ai-top", `${Math.floor(pageTop)}px`);
+      currentPage.style.setProperty("--admin-ai-bottom", `${Math.ceil(bottomClearance)}px`);
+    }
+
+    window.scrollTo({ top: 0, left: 0 });
+    document.body.style.overflowY = "hidden";
+    document.documentElement.style.overflowY = "hidden";
+
+    updateLayoutOffsets();
+    const settleTimeouts = [
+      window.setTimeout(updateLayoutOffsets, 250),
+      window.setTimeout(updateLayoutOffsets, 1000),
+    ];
+
+    function handleOrientationChange() {
+      window.clearTimeout(orientationTimeout);
+      orientationTimeout = window.setTimeout(updateLayoutOffsets, 250);
+    }
+
+    window.addEventListener("orientationchange", handleOrientationChange);
+
+    return () => {
+      settleTimeouts.forEach((timeout) => window.clearTimeout(timeout));
+      window.clearTimeout(orientationTimeout);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+      document.body.style.overflowY = bodyOverflow;
+      document.documentElement.style.overflowY = htmlOverflow;
+    };
   }, []);
+
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    const pendingScroll = pendingScrollRef.current;
+    if (!scrollArea || !pendingScroll) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (pendingScroll === "response-start" && latestAssistantRef.current) {
+        const scrollBounds = scrollArea.getBoundingClientRect();
+        const responseBounds = latestAssistantRef.current.getBoundingClientRect();
+        scrollArea.scrollTop += responseBounds.top - scrollBounds.top - 16;
+      } else {
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+      }
+
+      pendingScrollRef.current = null;
+      const distanceFromBottom = scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+      isPinnedToLatestRef.current = distanceFromBottom < 80;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages, loading]);
+
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  function focusComposerForKeyboardUser(delay: number) {
+    window.setTimeout(() => {
+      if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+      inputRef.current?.focus({ preventScroll: true });
+    }, delay);
+  }
+
+  function appendAssistantMessage(conversation: Message[], content: string) {
+    pendingScrollRef.current = isPinnedToLatestRef.current ? "response-start" : null;
+    setMessages([...conversation, { role: "assistant", content }]);
+  }
 
   async function handleSend() {
     const trimmed = input.trim();
@@ -78,6 +161,8 @@ export default function AdminBlueprintAIPage() {
 
     const userMsg: Message = { role: "user", content: trimmed };
     const updated = [...messages, userMsg];
+    pendingScrollRef.current = "bottom";
+    isPinnedToLatestRef.current = true;
     setMessages(updated);
     setInput("");
     setLoading(true);
@@ -93,17 +178,17 @@ export default function AdminBlueprintAIPage() {
       });
 
       if (!res.ok) {
-        setMessages([...updated, { role: "assistant", content: "Sorry, something went wrong. Please try again." }]);
+        appendAssistantMessage(updated, "Sorry, something went wrong. Please try again.");
         return;
       }
 
       const data = await res.json();
-      setMessages([...updated, { role: "assistant", content: data.reply }]);
+      appendAssistantMessage(updated, data.reply);
     } catch {
-      setMessages([...updated, { role: "assistant", content: "Sorry, something went wrong. Please try again." }]);
+      appendAssistantMessage(updated, "Sorry, something went wrong. Please try again.");
     } finally {
       setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      focusComposerForKeyboardUser(100);
     }
   }
 
@@ -114,86 +199,108 @@ export default function AdminBlueprintAIPage() {
     }
   }
 
+  function handleConversationScroll(event: React.UIEvent<HTMLDivElement>) {
+    const scrollArea = event.currentTarget;
+    const distanceFromBottom = scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+    isPinnedToLatestRef.current = distanceFromBottom < 80;
+  }
+
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-3xl mx-auto">
-      <div className="mb-6">
+    <div
+      ref={pageRef}
+      className="mx-auto flex h-[calc(100dvh-2rem)] min-h-0 max-w-3xl flex-col overflow-hidden"
+      style={{ height: "max(240px, calc(100dvh - var(--admin-ai-top, 2rem) - var(--admin-ai-bottom, 0px)))" }}
+      data-admin-ai-shell
+    >
+      <div className="mb-6 shrink-0">
         <h1 className="text-2xl font-heading font-extrabold text-text-primary">Blueprint AI</h1>
         <p className="text-sm text-text-secondary mt-1">
           Your coaching business assistant - ask about clients, training, check-ins, or business plans.
         </p>
       </div>
 
-      <div className={`flex-1 overflow-y-auto p-4 space-y-4 mb-4 flex flex-col ${messages.length > 0 ? "justify-end" : ""}`}>
-        {messages.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
-              <svg className="w-7 h-7 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
+      <div
+        ref={scrollAreaRef}
+        onScroll={handleConversationScroll}
+        className="mb-4 min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-auto"
+        style={{ WebkitOverflowScrolling: "touch" }}
+        data-admin-ai-scroll
+        aria-live="polite"
+      >
+        <div className="flex min-h-full flex-col gap-4 p-4">
+          {messages.length === 0 && !loading && (
+            <div className="flex min-h-full flex-col items-center justify-center text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-[rgba(34,114,222,0.1)] border border-[rgba(34,114,222,0.2)] flex items-center justify-center mb-4">
+                <svg className="w-7 h-7 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-text-primary mb-2">How can I help?</h2>
+              <p className="text-sm text-text-muted max-w-md mb-6">
+                I know all your clients, their plans, check-ins, and training modules. Ask me anything.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+                {[
+                  "Which clients need attention this week?",
+                  "Summarise recent check-ins",
+                  "Who hasn't checked in recently?",
+                  "Draft a reply to the latest check-in",
+                  "Which clients are on track?",
+                  "What training should I assign next?",
+                ].map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => {
+                      setInput(q);
+                      setTimeout(() => inputRef.current?.focus(), 50);
+                    }}
+                    className="text-left text-xs text-text-secondary px-3 py-2.5 rounded-xl border border-[rgba(255,255,255,0.06)] hover:border-[rgba(34,114,222,0.2)] hover:bg-[rgba(34,114,222,0.05)] transition-all duration-200 cursor-pointer"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
-            <h2 className="text-lg font-semibold text-text-primary mb-2">How can I help?</h2>
-            <p className="text-sm text-text-muted max-w-md mb-6">
-              I know all your clients, their plans, check-ins, and training modules. Ask me anything.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
-              {[
-                "Which clients need attention this week?",
-                "Summarise recent check-ins",
-                "Who hasn't checked in recently?",
-                "Draft a reply to the latest check-in",
-                "Which clients are on track?",
-                "What training should I assign next?",
-              ].map((q) => (
-                <button
-                  key={q}
-                  onClick={() => {
-                    setInput(q);
-                    setTimeout(() => inputRef.current?.focus(), 50);
-                  }}
-                  className="text-left text-xs text-text-secondary px-3 py-2.5 rounded-xl border border-[rgba(255,255,255,0.06)] hover:border-[rgba(34,114,222,0.2)] hover:bg-[rgba(34,114,222,0.05)] transition-all duration-200 cursor-pointer"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+          {messages.length > 0 && <div className="mt-auto" aria-hidden="true" />}
+
+          {messages.map((msg, i) => (
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-accent/20 text-text-primary rounded-br-md"
-                  : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.04)] rounded-bl-md"
-              }`}
+              key={i}
+              ref={msg.role === "assistant" && i === messages.length - 1 ? latestAssistantRef : undefined}
+              className={`flex shrink-0 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              <div className="space-y-1.5">
-                {msg.role === "assistant" ? renderContent(msg.content) : msg.content}
+              <div
+                className={`max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-accent/20 text-text-primary rounded-br-md"
+                    : "bg-[rgba(255,255,255,0.03)] text-text-secondary border border-[rgba(255,255,255,0.04)] rounded-bl-md"
+                }`}
+              >
+                <div className="space-y-1.5">
+                  {msg.role === "assistant" ? renderContent(msg.content) : msg.content}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.04)] rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+          {loading && (
+            <div className="flex shrink-0 justify-start" role="status">
+              <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.04)] rounded-2xl rounded-bl-md px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
+          )}
+        </div>
       </div>
 
-      <div className="relative">
+      <div className="relative shrink-0">
         <textarea
           ref={inputRef}
           value={input}
@@ -205,8 +312,10 @@ export default function AdminBlueprintAIPage() {
           style={{ minHeight: "48px", maxHeight: "120px" }}
         />
         <button
+          type="button"
           onClick={handleSend}
           disabled={!input.trim() || loading}
+          aria-label="Send message"
           className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-accent-bright/20 hover:bg-accent-bright/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
         >
           <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
