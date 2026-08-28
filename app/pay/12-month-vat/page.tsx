@@ -53,9 +53,9 @@ export default function Pay12MonthVatPage() {
             {/* Price */}
             <div className="text-center mb-8">
               <div className="text-[3.5rem] font-heading font-black tracking-[-2px] text-text-primary leading-none">
-                £9,600
+                £12,000
               </div>
-              <p className="text-text-muted text-sm mt-2">£8,000 + £1,600 VAT</p>
+              <p className="text-text-muted text-sm mt-2">£10,000 + £2,000 VAT</p>
             </div>
 
             {/* Divider */}
@@ -75,7 +75,7 @@ export default function Pay12MonthVatPage() {
 
             {/* CTA */}
             <a
-              href="https://link.constructionbusinessblueprint.co.uk/payment-link/69b2d8d292346e17038ac389"
+              href="https://link.constructionbusinessblueprint.co.uk/payment-link/6a9140c0d6768df0544486ff"
               className="btn-primary block w-full text-center gradient-accent text-white font-semibold py-4 px-8 rounded-xl text-[1.05rem] tracking-[-0.2px] transition-all hover:shadow-[0_0_30px_rgba(34,114,222,0.3)] hover:scale-[1.02]"
             >
               Secure Your Place
