@@ -53,7 +53,7 @@ export default function Pay12MonthPage() {
             {/* Price */}
             <div className="text-center mb-8">
               <div className="text-[3.5rem] font-heading font-black tracking-[-2px] text-text-primary leading-none">
-                £8,000
+                £10,000
               </div>
               <p className="text-text-muted text-sm mt-2">One-time payment</p>
             </div>
@@ -75,7 +75,7 @@ export default function Pay12MonthPage() {
 
             {/* CTA */}
             <a
-              href="https://link.constructionbusinessblueprint.co.uk/payment-link/69b2a2957b7a1f7aeeb2819e"
+              href="https://link.constructionbusinessblueprint.co.uk/payment-link/6a914090d6768df0544486fd"
               className="btn-primary block w-full text-center gradient-accent text-white font-semibold py-4 px-8 rounded-xl text-[1.05rem] tracking-[-0.2px] transition-all hover:shadow-[0_0_30px_rgba(34,114,222,0.3)] hover:scale-[1.02]"
             >
               Secure Your Place
