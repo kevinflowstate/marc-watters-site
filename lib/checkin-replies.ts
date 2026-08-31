@@ -166,9 +166,9 @@ export async function sendCheckinReply({
 
   const { data: clientProfile } = await admin
     .from("client_profiles")
-    .select("user_id")
+    .select("user_id, checkin_reply_email_enabled")
     .eq("id", checkin.client_id)
-    .single<{ user_id: string }>();
+    .single<{ user_id: string; checkin_reply_email_enabled: boolean }>();
 
   if (!clientProfile) {
     const error = new Error("client_profile_not_found");
@@ -230,11 +230,13 @@ export async function sendCheckinReply({
   }
 
   let emailSent = false;
-  try {
-    await sendCheckinReplyEmail(clientUser.email, clientUser.full_name, cleanReply);
-    emailSent = true;
-  } catch (emailErr) {
-    console.error("Failed to send reply email:", emailErr);
+  if (clientProfile.checkin_reply_email_enabled) {
+    try {
+      await sendCheckinReplyEmail(clientUser.email, clientUser.full_name, cleanReply);
+      emailSent = true;
+    } catch (emailErr) {
+      console.error("Failed to send reply email:", emailErr);
+    }
   }
 
   return {

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.client_profiles (
   start_date DATE DEFAULT CURRENT_DATE,
   status TEXT NOT NULL DEFAULT 'green' CHECK (status IN ('green', 'amber', 'red')),
   notes TEXT,
+  checkin_reply_email_enabled BOOLEAN NOT NULL DEFAULT true,
   last_login TIMESTAMPTZ,
   last_checkin TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
