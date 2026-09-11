@@ -59,6 +59,7 @@ export default function AdminInboxClient() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [sending, setSending] = useState(false);
+  const [markingUnread, setMarkingUnread] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mobileThreadOpen, setMobileThreadOpen] = useState(Boolean(initialClientId));
@@ -93,7 +94,6 @@ export default function AdminInboxClient() {
       if (!res.ok) throw new Error("Could not load inbox conversations.");
       const data = (await res.json()) as ConversationResponse;
       setConversations(data.conversations || []);
-      setSelectedClientId((current) => current || data.conversations?.[0]?.client_id || null);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load inbox conversations.");
@@ -127,7 +127,7 @@ export default function AdminInboxClient() {
     return uploaded;
   }
 
-  const loadThread = useCallback(async (clientId: string) => {
+  const loadThread = useCallback(async (clientId: string, markRead = false) => {
     setLoadingThread(true);
     try {
       const res = await fetch(`/api/inbox/thread?client_id=${encodeURIComponent(clientId)}`);
@@ -135,11 +135,35 @@ export default function AdminInboxClient() {
       const data = (await res.json()) as ThreadResponse;
       setThread(data);
       setError(null);
-      await fetch("/api/inbox/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: clientId }),
-      });
+
+      if (markRead) {
+        const unreadMessageIds = data.messages
+          .filter((message) => message.sender_role === "client" && !message.read_by_admin)
+          .map((message) => message.id);
+
+        if (unreadMessageIds.length > 0) {
+          const readRes = await fetch("/api/inbox/read", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ client_id: clientId, read: true, message_ids: unreadMessageIds }),
+          });
+
+          if (!readRes.ok) throw new Error("Could not mark the conversation as read.");
+
+          setThread((current) => current && current.clientId === clientId
+            ? {
+                ...current,
+                messages: current.messages.map((message) =>
+                  unreadMessageIds.includes(message.id) ? { ...message, read_by_admin: true } : message
+                ),
+              }
+            : current
+          );
+          setConversations((current) => current.map((conversation) =>
+            conversation.client_id === clientId ? { ...conversation, unread_count: 0 } : conversation
+          ));
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load conversation.");
     } finally {
@@ -157,7 +181,7 @@ export default function AdminInboxClient() {
 
   useEffect(() => {
     if (!selectedClientId) return;
-    void loadThread(selectedClientId);
+    void loadThread(selectedClientId, true);
     const interval = setInterval(() => {
       void loadThread(selectedClientId);
     }, 10000);
@@ -173,7 +197,10 @@ export default function AdminInboxClient() {
     }
 
     const next = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.replace(next, { scroll: false });
+    const current = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+    if (next !== current) {
+      router.replace(next, { scroll: false });
+    }
   }, [pathname, router, searchParams, selectedClientId]);
 
   async function handleSend({ message, attachments }: SendPayload) {
@@ -273,6 +300,61 @@ export default function AdminInboxClient() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update reaction.");
       throw err;
+    }
+  }
+
+  async function handleMarkUnread() {
+    if (!selectedClientId || !thread || markingUnread) return;
+
+    const latestClientMessage = [...thread.messages]
+      .reverse()
+      .find((message) => message.sender_role === "client");
+
+    if (!latestClientMessage) {
+      toast("There are no client messages to mark unread", "error");
+      return;
+    }
+
+    setMarkingUnread(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/inbox/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: selectedClientId,
+          read: false,
+          message_ids: [latestClientMessage.id],
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Could not mark this conversation as unread.");
+      }
+
+      setThread((current) => current
+        ? {
+            ...current,
+            messages: current.messages.map((message) =>
+              message.id === latestClientMessage.id ? { ...message, read_by_admin: false } : message
+            ),
+          }
+        : current
+      );
+      setConversations((current) => current.map((conversation) =>
+        conversation.client_id === selectedClientId
+          ? { ...conversation, unread_count: Math.max(1, conversation.unread_count) }
+          : conversation
+      ));
+      toast("Conversation marked unread");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not mark this conversation as unread.";
+      setError(message);
+      toast(message, "error");
+    } finally {
+      setMarkingUnread(false);
     }
   }
 
@@ -393,6 +475,35 @@ export default function AdminInboxClient() {
     <div className="v2-surface"><EmptyState title="Choose a conversation" description="Select a client to read their messages and reply." /></div>
   );
 
+  const conversationHeader = (
+    <div className="v2-surface flex items-center justify-between gap-4 px-4 py-4 sm:px-5">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-text-primary">
+          {selectedConversation?.client_name || "Select a conversation"}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
+          <span className="truncate">{selectedConversation?.client_email || "Choose a client to view the thread."}</span>
+          {selectedConversation?.latest_message_at && (
+            <span>Last activity {formatRelativeTime(selectedConversation.latest_message_at)}</span>
+          )}
+        </div>
+      </div>
+      {selectedClientId && (
+        <button
+          type="button"
+          onClick={() => void handleMarkUnread()}
+          disabled={markingUnread || !thread?.messages.some((message) => message.sender_role === "client")}
+          className="v2-button-secondary min-h-10 shrink-0 cursor-pointer px-3 text-xs disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-1 10H4a1 1 0 01-1-1V7a1 1 0 011-1h16a1 1 0 011 1v10a1 1 0 01-1 1z" />
+          </svg>
+          {markingUnread ? "Marking..." : "Mark as unread"}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -419,17 +530,7 @@ export default function AdminInboxClient() {
                 Back to conversations
               </button>
             </div>
-            <div className="v2-surface px-4 py-4 sm:px-5">
-              <div className="text-sm font-semibold text-text-primary">
-                {selectedConversation?.client_name || "Select a conversation"}
-              </div>
-              <div className="text-xs text-text-muted mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span>{selectedConversation?.client_email || "Choose a client to view the thread."}</span>
-                {selectedConversation?.latest_message_at && (
-                  <span>Last activity {formatRelativeTime(selectedConversation.latest_message_at)}</span>
-                )}
-              </div>
-            </div>
+            {conversationHeader}
             {threadPane}
           </>
         ) : (
@@ -441,17 +542,7 @@ export default function AdminInboxClient() {
         {conversationList}
 
         <div className="space-y-4">
-          <div className="v2-surface px-5 py-4">
-            <div className="text-sm font-semibold text-text-primary">
-              {selectedConversation?.client_name || "Select a conversation"}
-            </div>
-            <div className="text-xs text-text-muted mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span>{selectedConversation?.client_email || "Choose a client from the left to view the thread."}</span>
-              {selectedConversation?.latest_message_at && (
-                <span>Last activity {formatRelativeTime(selectedConversation.latest_message_at)}</span>
-              )}
-            </div>
-          </div>
+          {conversationHeader}
           {threadPane}
         </div>
       </div>
