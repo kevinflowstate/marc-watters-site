@@ -155,16 +155,19 @@ body::after {
 .light body { background: #f5f5f7 !important; color: #111118 !important; }
 .light body::after { display: none; }
 .light .portal-sidebar,
+.light .portal-v2-sidebar,
 .light aside[class*="bg-[rgba(5,5,7"] { background: rgba(245,245,247,0.97) !important; border-color: rgba(0,0,0,0.06) !important; }
 .light .portal-sidebar > div:first-child,
+.light .portal-v2-sidebar > div:first-child,
 .light aside[class*="bg-[rgba(5,5,7"] > div:first-child {
-  background: linear-gradient(135deg, #0a0a12 0%, #151520 100%) !important;
+  background: rgba(255,255,255,0.82) !important;
   border-radius: 0 !important;
   margin: -1px -1px 0 -1px;
   padding: 1.5rem !important;
 }
 .light .portal-sidebar > div:first-child span,
-.light aside[class*="bg-[rgba(5,5,7"] > div:first-child span { color: #f0f0f5 !important; }
+.light .portal-v2-sidebar > div:first-child span,
+.light aside[class*="bg-[rgba(5,5,7"] > div:first-child span { color: var(--color-text-primary) !important; }
 .light .portal-hamburger { background: var(--color-bg-card) !important; border-color: rgba(0,0,0,0.08) !important; }
 .light ::-webkit-scrollbar-track { background: #f5f5f7; }
 .light ::-webkit-scrollbar-thumb { background: #d0d0d8; }
