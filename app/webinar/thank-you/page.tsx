@@ -1,153 +1,81 @@
 import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { cookies } from "next/headers";
+import { WEBINAR, WEBINAR_BOOKING_PATH } from "@/lib/webinar";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "You're In - Time Profit Control",
-  description: "You're registered for Time Profit Control. Watch this short video from Marc.",
+  title: "From Chaos To Control | What To Do Next",
+  description: "Watch this short message from Marc before the live workshop.",
+  robots: { index: false, follow: false },
 };
 
-export default function WebinarThankYou() {
+export default async function WebinarThankYou() {
+  const cookieStore = await cookies();
+  const isConfirmed = cookieStore.get("webinar_registration")?.value === WEBINAR.id;
+
   return (
-    <main className="min-h-screen flex items-center justify-center py-16 px-6 relative overflow-hidden">
-      {/* Background glow */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 20%, rgba(34,114,222,0.08) 0%, transparent 60%)",
-        }}
-      />
-
-      <div className="max-w-[640px] mx-auto w-full relative z-10">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/cbb-logo.png"
-            alt="CBB"
-            width={36}
-            height={36}
-            className="h-9 w-auto"
-          />
-          <span className="font-heading font-extrabold text-[0.95rem] tracking-[-0.3px]">
-            <span className="text-text-primary">CONSTRUCTION</span>{" "}
-            <span className="text-accent-bright">BUSINESS BLUEPRINT</span>
-          </span>
+    <main className="relative min-h-screen overflow-hidden px-5 py-12 sm:px-8 sm:py-16">
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 8%, rgba(34,114,222,0.13) 0%, transparent 48%)" }} />
+      <div className="relative z-10 mx-auto max-w-[820px]">
+        <div className="flex items-center justify-center gap-3">
+          <Image src="/images/cbb-logo.png" alt="Construction Business Blueprint" width={42} height={42} className="h-10 w-auto" priority />
+          <span className="font-heading text-sm font-extrabold"><span className="text-text-primary">CONSTRUCTION</span>{" "}<span className="text-accent-bright">BUSINESS BLUEPRINT</span></span>
         </div>
 
-        {/* Confirmed badge */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 bg-[rgba(34,222,100,0.08)] border border-[rgba(34,222,100,0.2)] rounded-full px-[18px] py-[7px] text-[0.72rem] font-semibold text-[#34de64] tracking-[0.5px] uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#34de64] shadow-[0_0_10px_rgba(34,222,100,0.5)]" />
-            You&apos;re Registered
-          </div>
-        </div>
-
-        {/* Headline */}
-        <h1 className="text-center font-heading text-[2.2rem] md:text-[2.8rem] font-black leading-[1.08] tracking-[-1.5px] mb-3">
-          You&apos;re in.{" "}
-          <span className="text-accent-bright">Watch this.</span>
-        </h1>
-
-        <p className="text-center text-text-secondary text-[1rem] leading-[1.7] max-w-[480px] mx-auto mb-8">
-          Before you go - Marc has a quick message for you. Two minutes.
-          Worth every second.
-        </p>
-
-        {/* VSL Video embed */}
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden mb-8">
-          <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-            <iframe
-              src="https://drive.google.com/file/d/11IKrOna44VlMnk644ej3S2lg5uyHRow9/preview"
-              className="absolute inset-0 w-full h-full"
-              allow="autoplay; encrypted-media"
-              allowFullScreen
-            />
-          </div>
-        </div>
-
-        {/* Event details */}
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 mb-6">
-          <div className="grid grid-cols-3 text-center divide-x divide-border-light">
-            <div>
-              <div className="text-text-muted text-[0.7rem] uppercase tracking-[1px] mb-1">
-                Date
-              </div>
-              <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                Wed 1st April
-              </div>
+        <div className="mt-9 text-center">
+          {isConfirmed ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Registration received
             </div>
-            <div>
-              <div className="text-text-muted text-[0.7rem] uppercase tracking-[1px] mb-1">
-                Time
-              </div>
-              <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                7:00 PM
-              </div>
-            </div>
-            <div>
-              <div className="text-text-muted text-[0.7rem] uppercase tracking-[1px] mb-1">
-                Location
-              </div>
-              <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                Live on Zoom
-              </div>
-            </div>
-          </div>
+          ) : (
+            <div className="inline-flex items-center rounded-full border border-accent/25 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-accent-bright">Before the workshop</div>
+          )}
+          <h1 className="mt-5 font-heading text-[2.4rem] font-black leading-[1.05] tracking-[-1.8px] sm:text-[3.5rem]">
+            {isConfirmed ? "You're registered." : "A quick message from Marc."}
+            <br /><span className="gradient-text">Here&apos;s what to do next.</span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-[600px] text-base leading-7 text-text-secondary">Watch this short video, then add the live workshop to your calendar.</p>
         </div>
 
-        {/* Add to Calendar CTA */}
-        <a
-          href="https://events.flowsite.pro/event.html?id=time-profit-control-mmxgp1ui"
-          className="btn-primary block w-full text-center gradient-accent text-white font-heading font-bold py-4 px-8 rounded-xl text-[1.05rem] tracking-[-0.2px] transition-all hover:shadow-[0_0_40px_rgba(34,114,222,0.3)] hover:scale-[1.02]"
-        >
-          Add to Calendar
+        {!isConfirmed && (
+          <div className="mx-auto mt-7 max-w-[620px] rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-center text-sm leading-6 text-amber-100/80">
+            If you have not registered yet, <Link href="/webinar#register" className="font-semibold text-white underline underline-offset-2">save your place first</Link> so we can send your joining details.
+          </div>
+        )}
+
+        <div className="mt-9 overflow-hidden rounded-[20px] border border-white/[0.08] bg-bg-card shadow-[0_25px_70px_rgba(0,0,0,0.45)]">
+          <video controls playsInline preload="metadata" poster="/images/webinar/marc-webinar-thank-you-vsl-poster.jpg" className="aspect-video w-full bg-black" aria-label="A message from Marc Watters about the From Chaos To Control workshop">
+            <source src="/media/webinar/marc-webinar-thank-you-vsl.mp4" type="video/mp4" />
+            <track kind="captions" src="/media/webinar/marc-webinar-thank-you-vsl.en-GB.vtt" srcLang="en-GB" label="English" default />
+            Your browser does not support embedded video.
+          </video>
+        </div>
+
+        <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[["Date", WEBINAR.shortDateLabel], ["Time", WEBINAR.timeLabel], ["Where", "Live on Zoom"]].map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-5 py-4 text-center">
+              <div className="text-[0.67rem] font-bold uppercase tracking-[1.5px] text-text-muted">{label}</div>
+              <div className="mt-1 font-heading text-sm font-bold text-text-primary">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <a href="/api/webinar/calendar" className="btn-primary gradient-accent mt-5 flex w-full items-center justify-center rounded-xl px-7 py-4 font-heading font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_14px_45px_rgba(34,114,222,0.3)]">
+          Add to my calendar
         </a>
+        <p className="mt-3 text-center text-xs leading-5 text-text-muted">Your joining details will be sent by email. If you opted in to WhatsApp, we&apos;ll send them there too.</p>
 
-        <p className="text-center text-text-muted text-[0.8rem] mt-4">
-          Check your email and WhatsApp - we&apos;ve sent your confirmation and
-          Zoom link.
-        </p>
+        <div className="my-12 border-t border-white/[0.07]" />
 
-        {/* Separator */}
-        <div className="my-10 border-t border-border-light" />
-
-        {/* What to expect */}
-        <div className="mb-8">
-          <h2 className="font-heading font-bold text-text-primary text-[1.1rem] mb-5">
-            What to expect on the night
-          </h2>
-
-          <div className="space-y-4">
-            {[
-              "Why the profit doesn't match the effort - and the structural fix",
-              "The three areas that hold every construction business back",
-              "Practical steps you can implement in your business the same week",
-              "Live Q&A with Marc at the end",
-            ].map((item, i) => (
-              <div key={i} className="flex gap-3 items-start">
-                <span className="mt-1.5 w-2 h-2 rounded-full bg-accent-bright shrink-0" />
-                <p className="text-text-secondary text-[0.92rem] leading-[1.6]">
-                  {item}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Book a call section */}
-        <div className="bg-bg-card border border-[rgba(34,114,222,0.15)] rounded-2xl p-6">
-          <p className="text-center text-text-secondary text-[0.92rem] leading-[1.7] mb-6">
-            If you&apos;re serious about making changes in your business, and you
-            want to have a conversation about what that looks like with proper
-            support behind you - book a call with Marc directly. No sales pitch.
-            Just a business deep dive. You leave with clarity either way.
-          </p>
-          <iframe
-            src="https://link.constructionbusinessblueprint.co.uk/widget/booking/4SOIodvlfHYmyzKvIAmn"
-            style={{ width: "100%", border: "none", minHeight: "900px" }}
-            id="4SOIodvlfHYmyzKvIAmn_1773929092861"
-          />
-        </div>
+        <section className="rounded-[22px] border border-accent/20 bg-accent/[0.055] p-6 text-center sm:p-9">
+          <p className="text-xs font-bold uppercase tracking-[2.5px] text-accent-bright">Want to work through it sooner?</p>
+          <h2 className="mt-3 font-heading text-2xl font-black tracking-[-0.8px]">Book a business deep dive with Marc</h2>
+          <p className="mx-auto mt-4 max-w-[620px] text-sm leading-7 text-text-secondary">We&apos;ll look at your numbers, team, jobs and where your time is going, then discuss what to address first.</p>
+          <Link href={WEBINAR_BOOKING_PATH} className="mt-6 inline-flex rounded-xl border border-accent/40 bg-accent px-7 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:bg-accent-light">Book a call with Marc</Link>
+        </section>
       </div>
     </main>
   );

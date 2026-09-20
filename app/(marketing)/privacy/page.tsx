@@ -10,7 +10,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen pt-[120px] pb-20 px-8">
       <div className="max-w-[700px] mx-auto">
         <h1 className="font-heading text-[2.25rem] font-black leading-[1.1] tracking-[-1px] mb-8">Privacy Policy</h1>
-        <p className="text-text-muted text-sm mb-8">Last updated: 25 March 2026</p>
+        <p className="text-text-muted text-sm mb-8">Last updated: 20 September 2026</p>
 
         <div className="space-y-8 text-text-secondary text-[0.95rem] leading-[1.85]">
           <section>
@@ -25,6 +25,7 @@ export default function PrivacyPage() {
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>Name, email address, and phone number (when you submit a form or apply for coaching)</li>
               <li>Business information you provide during your application</li>
+              <li>Your email and WhatsApp communication choices when you register for an event</li>
               <li>Usage data such as pages visited and time on site (via cookies and analytics)</li>
               <li>Device and browser information</li>
             </ul>
@@ -34,6 +35,7 @@ export default function PrivacyPage() {
             <h2 className="font-heading text-lg font-bold text-text-primary mb-3">How We Use Your Data</h2>
             <ul className="list-disc pl-6 space-y-1">
               <li>To respond to coaching applications and enquiries</li>
+              <li>To manage workshop registrations and send the confirmations, joining details, reminders and event-specific replay or follow-up you request</li>
               <li>To provide our mentorship services and client portal access</li>
               <li>To send relevant communications about our services</li>
               <li>To improve our website and marketing through analytics</li>
@@ -52,6 +54,7 @@ export default function PrivacyPage() {
             <p>We use the following third-party services that may process your data:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>GoHighLevel (CRM and form submissions)</li>
+              <li>WhatsApp (event messages when you specifically opt in to that channel)</li>
               <li>Meta Platforms (advertising and analytics)</li>
               <li>Vercel (website hosting)</li>
               <li>Supabase (client portal data storage)</li>
