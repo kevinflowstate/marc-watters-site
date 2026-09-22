@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { WEBINAR, WEBINAR_BOOKING_PATH } from "@/lib/webinar";
-
-export const dynamic = "force-dynamic";
+import { WEBINAR, WEBINAR_BOOKING_PATH, WEBINAR_CALENDAR_URL } from "@/lib/webinar";
 
 export const metadata: Metadata = {
   title: "From Chaos To Control | What To Do Next",
@@ -12,10 +9,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function WebinarThankYou() {
-  const cookieStore = await cookies();
-  const isConfirmed = cookieStore.get("webinar_registration")?.value === WEBINAR.id;
-
+export default function WebinarThankYou() {
   return (
     <main className="relative min-h-screen overflow-hidden px-5 py-12 sm:px-8 sm:py-16">
       <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 8%, rgba(34,114,222,0.13) 0%, transparent 48%)" }} />
@@ -26,25 +20,13 @@ export default async function WebinarThankYou() {
         </div>
 
         <div className="mt-9 text-center">
-          {isConfirmed ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Registration received
-            </div>
-          ) : (
-            <div className="inline-flex items-center rounded-full border border-accent/25 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-accent-bright">Before the workshop</div>
-          )}
+          <div className="inline-flex items-center rounded-full border border-accent/25 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-accent-bright">Before the workshop</div>
           <h1 className="mt-5 font-heading text-[2.4rem] font-black leading-[1.05] tracking-[-1.8px] sm:text-[3.5rem]">
-            {isConfirmed ? "You're registered." : "A quick message from Marc."}
+            Your workshop details.
             <br /><span className="gradient-text">Here&apos;s what to do next.</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-[600px] text-base leading-7 text-text-secondary">Watch this short video, then add the live workshop to your calendar.</p>
+          <p className="mx-auto mt-5 max-w-[620px] text-base leading-7 text-text-secondary">Watch this short video from Marc, then add the live workshop to your calendar. Your joining details will arrive by email.</p>
         </div>
-
-        {!isConfirmed && (
-          <div className="mx-auto mt-7 max-w-[620px] rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-center text-sm leading-6 text-amber-100/80">
-            If you have not registered yet, <Link href="/webinar#register" className="font-semibold text-white underline underline-offset-2">save your place first</Link> so we can send your joining details.
-          </div>
-        )}
 
         <div className="mt-9 overflow-hidden rounded-[20px] border border-white/[0.08] bg-bg-card shadow-[0_25px_70px_rgba(0,0,0,0.45)]">
           <video controls playsInline preload="metadata" poster="/images/webinar/marc-webinar-thank-you-vsl-poster.jpg" className="aspect-video w-full bg-black" aria-label="A message from Marc Watters about the From Chaos To Control workshop">
@@ -63,7 +45,7 @@ export default async function WebinarThankYou() {
           ))}
         </div>
 
-        <a href="https://events.flowsite.pro/e/chaos-to-control-15-october-2026" className="btn-primary gradient-accent mt-5 flex w-full items-center justify-center rounded-xl px-7 py-4 font-heading font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_14px_45px_rgba(34,114,222,0.3)]">
+        <a href={WEBINAR_CALENDAR_URL} className="btn-primary gradient-accent mt-5 flex w-full items-center justify-center rounded-xl px-7 py-4 font-heading font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_14px_45px_rgba(34,114,222,0.3)]">
           Add to my calendar
         </a>
         <p className="mt-3 text-center text-xs leading-5 text-text-muted">Your joining details will be sent by email. If you opted in to WhatsApp, we&apos;ll send them there too.</p>

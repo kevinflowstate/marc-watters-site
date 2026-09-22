@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import WebinarRegistrationForm from "@/components/WebinarRegistrationForm";
-import { WEBINAR } from "@/lib/webinar";
+import GhlWebinarForm from "@/components/GhlWebinarForm";
+import { GHL_WEBINAR_FORM, WEBINAR, webinarRegistrationClosed } from "@/lib/webinar";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "From Chaos To Control | Free Live Workshop",
@@ -22,6 +24,8 @@ const outcomes = [
 ];
 
 export default function WebinarOptIn() {
+  const registrationClosed = webinarRegistrationClosed();
+
   return (
     <main className="overflow-hidden">
       <section className="relative px-5 pb-20 pt-8 sm:px-8 lg:min-h-screen lg:pb-24 lg:pt-10">
@@ -77,7 +81,22 @@ export default function WebinarOptIn() {
                     <h2 className="mt-2 font-heading text-2xl font-black tracking-[-0.7px]">Save your place</h2>
                     <p className="mt-2 text-sm leading-6 text-text-secondary">Enter your details to receive the joining instructions and workshop reminders.</p>
                   </div>
-                  <WebinarRegistrationForm />
+                  {registrationClosed ? (
+                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] px-5 py-8 text-center">
+                      <p className="font-heading text-xl font-bold text-text-primary">Registration has closed.</p>
+                      <p className="mt-3 text-sm leading-6 text-text-secondary">This live workshop has now started. You can still book a call with Marc to work through the next steps for your business.</p>
+                      <a href="/book-marc" className="btn-primary gradient-accent mt-6 inline-flex rounded-xl px-6 py-3 font-bold text-white">Book a call with Marc</a>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl bg-white">
+                      <GhlWebinarForm
+                        formId={GHL_WEBINAR_FORM.id}
+                        formName={GHL_WEBINAR_FORM.name}
+                        embedOrigin={GHL_WEBINAR_FORM.embedOrigin}
+                        height={GHL_WEBINAR_FORM.height}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

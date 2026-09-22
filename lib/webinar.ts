@@ -18,3 +18,15 @@ export const WEBINAR = {
 export const WEBINAR_BOOKING_PATH = "/book-marc";
 export const WEBINAR_JOIN_PATH = "/webinar/join";
 export const WEBINAR_THANK_YOU_PATH = "/webinar/thank-you";
+export const WEBINAR_CALENDAR_URL = "https://events.flowsite.pro/e/chaos-to-control-15-october-2026";
+
+export const GHL_WEBINAR_FORM = {
+  id: "p92tiX5kaTcA1ewFnzvu",
+  name: "October Webinar Form — From Chaos To Control",
+  embedOrigin: "https://link.constructionbusinessblueprint.co.uk",
+  height: 695,
+} as const;
+
+export function webinarRegistrationClosed(nowMs = Date.now()) {
+  return nowMs >= Date.parse(WEBINAR.startUtc);
+}
