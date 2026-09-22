@@ -63,7 +63,7 @@ export default async function WebinarThankYou() {
           ))}
         </div>
 
-        <a href="/api/webinar/calendar" className="btn-primary gradient-accent mt-5 flex w-full items-center justify-center rounded-xl px-7 py-4 font-heading font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_14px_45px_rgba(34,114,222,0.3)]">
+        <a href="https://events.flowsite.pro/e/chaos-to-control-15-october-2026" className="btn-primary gradient-accent mt-5 flex w-full items-center justify-center rounded-xl px-7 py-4 font-heading font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_14px_45px_rgba(34,114,222,0.3)]">
           Add to my calendar
         </a>
         <p className="mt-3 text-center text-xs leading-5 text-text-muted">Your joining details will be sent by email. If you opted in to WhatsApp, we&apos;ll send them there too.</p>
