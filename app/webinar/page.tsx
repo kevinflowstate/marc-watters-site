@@ -23,6 +23,12 @@ const outcomes = [
   "What to look at first when jobs are busy but profit and time are under pressure.",
 ];
 
+const videoTestimonials = [
+  { id: "obge0_bDhqg", title: "Construction Business Blueprint client testimonial" },
+  { id: "1FILP9frS9E", title: "Trade business owner testimonial" },
+  { id: "7eRY9Wgr67c", title: "Construction business owner testimonial" },
+];
+
 export default function WebinarOptIn() {
   const registrationClosed = webinarRegistrationClosed();
 
@@ -131,6 +137,33 @@ export default function WebinarOptIn() {
             <h2 className="mt-3 font-heading text-[2rem] font-black tracking-[-1px] sm:text-[2.5rem]">Marc Watters</h2>
             <p className="mt-5 text-base leading-8 text-text-secondary">Marc works with trade and construction business owners on the structure behind a well-run company: the numbers, the team, the systems and the owner&apos;s role. This session is practical, direct and built around the problems that show up in a real working business.</p>
             <a href="#register" className="btn-primary gradient-accent mt-7 inline-flex rounded-xl px-7 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_12px_35px_rgba(34,114,222,0.3)]">Save my free place</a>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative border-t border-white/[0.05] bg-bg-secondary px-5 py-20 sm:px-8 sm:py-24">
+        <div className="mx-auto max-w-[1060px]">
+          <div className="mx-auto max-w-[680px] text-center">
+            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">Results</p>
+            <h2 className="mt-4 font-heading text-[2rem] font-black leading-tight tracking-[-1.3px] sm:text-[2.8rem]">What clients say</h2>
+            <p className="mt-4 text-base leading-7 text-text-secondary">Real outcomes from trade and construction business owners on the programme.</p>
+          </div>
+          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+            {videoTestimonials.map((video) => (
+              <div key={video.id} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
+                <div className="relative w-full pt-[177.78%]">
+                  <iframe
+                    className="absolute inset-0 h-full w-full"
+                    src={`https://www.youtube.com/embed/${video.id}`}
+                    title={video.title}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

@@ -24,7 +24,7 @@ export const GHL_WEBINAR_FORM = {
   id: "p92tiX5kaTcA1ewFnzvu",
   name: "October Webinar Form — From Chaos To Control",
   embedOrigin: "https://link.constructionbusinessblueprint.co.uk",
-  height: 695,
+  height: 395,
 } as const;
 
 export function webinarRegistrationClosed(nowMs = Date.now()) {

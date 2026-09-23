@@ -11,7 +11,7 @@ export default function GhlWebinarForm({
   formId,
   formName,
   embedOrigin = "https://link.constructionbusinessblueprint.co.uk",
-  height = 695,
+  height = 395,
 }: GhlWebinarFormProps) {
   const iframeId = `inline-${formId}`;
 
