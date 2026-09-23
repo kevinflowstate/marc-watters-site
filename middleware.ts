@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getEnv } from '@/lib/env';
+import { getEnv } from './lib/env';
 
 
 export async function middleware(request: NextRequest) {
@@ -28,6 +28,17 @@ export async function middleware(request: NextRequest) {
     if (path.startsWith('/webinar') || path.startsWith('/pay/') || path.startsWith('/book')) {
       return NextResponse.next();
     }
+  }
+
+  // The webinar funnel and its assets are public and do not use portal sessions.
+  // Keep preview registration independent of the portal's Supabase configuration.
+  if (
+    path === '/webinar' ||
+    path.startsWith('/webinar/') ||
+    path.startsWith('/media/webinar/') ||
+    path === '/api/webinar/calendar'
+  ) {
+    return NextResponse.next({ request });
   }
 
   let supabaseResponse = NextResponse.next({ request });
