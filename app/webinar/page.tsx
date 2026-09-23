@@ -1,341 +1,176 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import WebinarCTA from "@/components/WebinarCTA";
+import GhlWebinarForm from "@/components/GhlWebinarForm";
+import { GHL_WEBINAR_FORM, WEBINAR, webinarRegistrationClosed } from "@/lib/webinar";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Time Profit Control | Free Live Workshop for Trade & Construction Business Owners",
-  description:
-    "Free live workshop: fix the three areas holding your construction business back. Time, profit, and control. Wednesday 1st April at 7pm.",
+  title: "From Chaos To Control | Free Live Workshop",
+  description: "A free live workshop with Marc Watters for trade and construction business owners. Thursday 15 October 2026 at 7pm UK and Ireland time.",
+  alternates: { canonical: "/webinar" },
+  openGraph: {
+    title: "From Chaos To Control — Free Live Workshop",
+    description: `${WEBINAR.dateLabel} at ${WEBINAR.timeLabel}. Live on Zoom with Marc Watters.`,
+    images: ["/images/webinar/lead-form-header-15-october.jpg"],
+  },
 };
 
+const outcomes = [
+  "Why being good at your trade does not automatically teach you how to run a company.",
+  "Where relying on the owner creates problems for the team and the business.",
+  "How to identify the first thing to take off your plate and who should own it.",
+  "What to look at first when jobs are busy but profit and time are under pressure.",
+];
+
+const videoTestimonials = [
+  { id: "obge0_bDhqg", title: "Construction Business Blueprint client testimonial" },
+  { id: "1FILP9frS9E", title: "Trade business owner testimonial" },
+  { id: "7eRY9Wgr67c", title: "Construction business owner testimonial" },
+];
+
 export default function WebinarOptIn() {
+  const registrationClosed = webinarRegistrationClosed();
+
   return (
-    <main>
-      {/* HERO */}
-      <section className="min-h-[85vh] flex items-center pt-12 pb-20 px-8 relative overflow-hidden">
-        {/* Gradient overlay */}
-        <div
-          className="absolute inset-0 z-[1] pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at 70% 40%, rgba(34,114,222,0.07) 0%, transparent 55%), radial-gradient(ellipse at 20% 80%, rgba(34,114,222,0.04) 0%, transparent 40%), radial-gradient(ellipse at 50% 100%, rgba(5,5,7,1) 0%, transparent 50%)",
-          }}
-        />
+    <main className="overflow-hidden">
+      <section className="relative px-5 pb-20 pt-8 sm:px-8 lg:min-h-screen lg:pb-24 lg:pt-10">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 72% 25%, rgba(34,114,222,0.15) 0%, transparent 42%), radial-gradient(ellipse at 15% 75%, rgba(34,114,222,0.07) 0%, transparent 38%)" }} />
+        <div className="relative z-10 mx-auto max-w-[1240px]">
+          <div className="mb-10 flex items-center gap-3">
+            <Image src="/images/cbb-logo.png" alt="Construction Business Blueprint" width={42} height={42} className="h-10 w-auto" priority />
+            <div className="font-heading text-[0.78rem] font-extrabold leading-tight tracking-[-0.2px] sm:text-sm">
+              <span className="text-text-primary">CONSTRUCTION</span><br className="sm:hidden" />{" "}
+              <span className="text-accent-bright">BUSINESS BLUEPRINT</span>
+            </div>
+          </div>
 
-        {/* Mobile hero image */}
-        <div className="absolute inset-0 lg:hidden z-0 pointer-events-none">
-          <Image
-            src="/images/marc-hero.png"
-            alt="Marc Watters"
-            width={800}
-            height={900}
-            className="w-full h-full object-cover object-[center_top] brightness-[0.3] contrast-[1.1]"
-            priority
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to top, #050507 5%, rgba(5,5,7,0.7) 50%, transparent 100%)",
-            }}
-          />
-        </div>
-
-        <div className="max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 items-center relative z-[3]">
-          <div className="max-w-[580px] lg:pl-8">
-            {/* Logo */}
-            <div className="flex items-center gap-3 mb-8">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/cbb-logo.png"
-                alt="CBB"
-                width={34}
-                height={34}
-                className="h-[34px] w-auto"
-              />
-              <span className="font-heading font-extrabold text-[0.95rem] tracking-[-0.3px]">
-                <span className="text-text-primary">CONSTRUCTION</span>{" "}
-                <span className="text-accent-bright">BUSINESS BLUEPRINT</span>
-              </span>
+          <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.12fr)_minmax(400px,0.88fr)] lg:gap-16">
+            <div className="pt-2 lg:pt-10">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-accent-bright">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent-bright shadow-[0_0_12px_rgba(96,165,250,0.8)]" />
+                Free live workshop for trade &amp; construction owners
+              </div>
+              <h1 className="max-w-[720px] font-heading text-[3rem] font-black leading-[0.98] tracking-[-2.5px] sm:text-[4.4rem] lg:text-[5rem]">
+                From Chaos<br /><span className="gradient-text">To Control</span>
+              </h1>
+              <p className="mt-5 font-heading text-xl font-bold text-text-primary sm:text-2xl">The shift from tradesman to business owner.</p>
+              <p className="mt-6 max-w-[650px] text-base leading-8 text-text-secondary sm:text-lg">
+                If every quote, site problem and decision still comes through you, there is a limit to what the business can do. In this live workshop, Marc will show you how to start changing the owner&apos;s role and build more structure into your team, your numbers and your working week.
+              </p>
+              <div className="mt-8 grid max-w-[680px] grid-cols-1 gap-3 sm:grid-cols-3">
+                {[["Date", WEBINAR.shortDateLabel], ["Time", WEBINAR.timeLabel], ["Where", "Live on Zoom"]].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-5 py-4 backdrop-blur-sm">
+                    <div className="text-[0.67rem] font-bold uppercase tracking-[1.5px] text-text-muted">{label}</div>
+                    <div className="mt-1 font-heading text-sm font-bold text-text-primary">{value}</div>
+                  </div>
+                ))}
+              </div>
+              <a href="#register" className="mt-8 inline-flex items-center gap-2 font-semibold text-accent-bright hover:text-white lg:hidden">Register below <span aria-hidden="true">↓</span></a>
             </div>
 
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.2)] rounded-full px-[18px] py-[7px] text-[0.78rem] font-semibold text-accent-bright mb-6 tracking-[0.5px] uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--color-accent),0_0_20px_rgba(34,114,222,0.3)] animate-[pulse-dot_2s_ease-in-out_infinite]" />
-              Free Live Workshop - Limited Spaces
-            </div>
-
-            <h1 className="font-heading text-[2.4rem] md:text-[3.5rem] font-black leading-[1.05] tracking-[-2px] mb-5">
-              Time. Profit.{" "}
-              <span className="text-accent-bright relative">
-                Control.
-                <span className="absolute bottom-0.5 left-0 right-0 h-[3px] gradient-accent rounded-sm opacity-50" />
-              </span>
-            </h1>
-
-            <p className="text-[1.1rem] text-text-secondary leading-[1.8] mb-4 max-w-[500px]">
-              The free workshop for trade and construction business owners who
-              are flat out busy but the profit doesn&apos;t match the effort.
-            </p>
-
-            <p className="text-[0.9rem] text-text-muted leading-[1.7] mb-8 max-w-[500px]">
-              No theory. No motivational quotes. No vision boards. Just a
-              straight-talking session built for how construction actually works.
-            </p>
-
-            {/* Event details inline */}
-            <div className="flex gap-6 items-center flex-wrap mb-8 py-4 px-5 bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.06)] rounded-[14px] backdrop-blur-[10px]">
-              <div>
-                <div className="text-[0.65rem] text-text-muted uppercase tracking-[1px]">
-                  Date
-                </div>
-                <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                  Wed 1st April
-                </div>
-              </div>
-              <div className="w-px h-8 bg-border-light" />
-              <div>
-                <div className="text-[0.65rem] text-text-muted uppercase tracking-[1px]">
-                  Time
-                </div>
-                <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                  7:00 PM
-                </div>
-              </div>
-              <div className="w-px h-8 bg-border-light" />
-              <div>
-                <div className="text-[0.65rem] text-text-muted uppercase tracking-[1px]">
-                  Location
-                </div>
-                <div className="text-text-primary font-heading font-bold text-[0.95rem]">
-                  Live on Zoom
-                </div>
-              </div>
-            </div>
-
-            <WebinarCTA className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-9 py-4 rounded-[10px] font-bold text-base no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)] cursor-pointer">
-              Register Free
-              <svg
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+            <div id="register" className="relative scroll-mt-6">
+              <div className="absolute -inset-8 rounded-[40px] bg-accent/10 blur-3xl" />
+              <div className="relative overflow-hidden rounded-[24px] border border-white/[0.09] bg-[rgba(12,12,18,0.92)] shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                <div className="h-1 gradient-accent" />
+                <Image
+                  src="/images/webinar/lead-form-header-15-october.jpg"
+                  alt="From Chaos To Control with Marc Watters, Thursday 15 October at 7pm UK and Ireland"
+                  width={1200}
+                  height={628}
+                  className="h-auto w-full border-b border-white/[0.07]"
+                  priority
                 />
-              </svg>
-            </WebinarCTA>
-            <p className="text-[0.82rem] text-text-muted mt-3">
-              Limited to 50 businesses. Free. One session.
-            </p>
-          </div>
-
-          {/* Desktop hero image */}
-          <div className="relative hidden lg:flex justify-end items-center -mr-8">
-            <div className="absolute w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(34,114,222,0.1)_0%,transparent_70%)] rounded-full top-[40%] right-[15%] -translate-y-1/2 pointer-events-none z-0" />
-            <Image
-              src="/images/marc-hero.png"
-              alt="Marc Watters"
-              width={800}
-              height={900}
-              className="w-[115%] max-w-none h-[85vh] min-h-[550px] object-cover object-[center_top] relative z-[1] brightness-[0.85] contrast-[1.1]"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 15%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,1) 60%, rgba(0,0,0,0.6) 90%, transparent 100%), linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 70%, transparent 100%)",
-                WebkitMaskComposite: "source-in",
-                maskImage:
-                  "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 15%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,1) 60%, rgba(0,0,0,0.6) 90%, transparent 100%), linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 70%, transparent 100%)",
-                maskComposite: "intersect",
-              }}
-              priority
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* WHAT YOU'LL LEARN */}
-      <section className="py-[100px] px-8 bg-bg-secondary relative">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.3)] to-transparent" />
-        <div className="max-w-[1000px] mx-auto">
-          <div className="text-center mb-12">
-            <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">
-              What We&apos;ll Cover
-            </div>
-            <div className="font-heading text-[1.85rem] md:text-[2.5rem] font-black leading-[1.1] tracking-[-1.5px] mb-4">
-              One Session. Everything You Need.
-            </div>
-            <div className="w-[60px] h-[3px] gradient-accent rounded-sm mx-auto" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[
-              {
-                icon: "\u23F1",
-                title: "Time",
-                desc: "Why most construction businesses hit a ceiling - and it's got nothing to do with how hard you work. We'll dig into where time actually goes and how to get it back.",
-              },
-              {
-                icon: "\u00A3",
-                title: "Profit",
-                desc: "The profit doesn't match the effort. That's not a work ethic problem - it's a structure problem. We'll break down the real fix for margins, pricing, and cash flow.",
-              },
-              {
-                icon: "\u2699",
-                title: "Control",
-                desc: "You can't grow a business while you're knee deep in every job. We'll cover how to build something that actually runs without you doing everything yourself.",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-[18px] px-6 py-8 backdrop-blur-[10px] transition-all duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] relative overflow-hidden group hover:-translate-y-1.5 hover:border-[rgba(34,114,222,0.3)] hover:shadow-[0_15px_40px_rgba(34,114,222,0.1),0_0_0_1px_rgba(34,114,222,0.1)]"
-              >
-                <div className="absolute top-0 left-0 right-0 h-0.5 gradient-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-14 h-14 bg-[rgba(34,114,222,0.08)] border border-[rgba(34,114,222,0.12)] rounded-[14px] flex items-center justify-center mb-5 text-[1.4rem] text-accent-bright relative z-[1] transition-all duration-300 group-hover:bg-[rgba(34,114,222,0.15)] group-hover:shadow-[0_0_20px_rgba(34,114,222,0.2)]">
-                  {item.icon}
+                <div className="p-6 sm:p-8">
+                  <div className="mb-6">
+                    <p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">Register free</p>
+                    <h2 className="mt-2 font-heading text-2xl font-black tracking-[-0.7px]">Save your place</h2>
+                    <p className="mt-2 text-sm leading-6 text-text-secondary">Enter your details to receive the joining instructions and workshop reminders.</p>
+                  </div>
+                  {registrationClosed ? (
+                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] px-5 py-8 text-center">
+                      <p className="font-heading text-xl font-bold text-text-primary">Registration has closed.</p>
+                      <p className="mt-3 text-sm leading-6 text-text-secondary">This live workshop has now started. You can still book a call with Marc to work through the next steps for your business.</p>
+                      <a href="/book-marc" className="btn-primary gradient-accent mt-6 inline-flex rounded-xl px-6 py-3 font-bold text-white">Book a call with Marc</a>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl bg-white">
+                      <GhlWebinarForm
+                        formId={GHL_WEBINAR_FORM.id}
+                        formName={GHL_WEBINAR_FORM.name}
+                        embedOrigin={GHL_WEBINAR_FORM.embedOrigin}
+                        height={GHL_WEBINAR_FORM.height}
+                      />
+                    </div>
+                  )}
                 </div>
-                <h3 className="font-heading text-[1.1rem] font-bold mb-3">
-                  {item.title}
-                </h3>
-                <p className="text-[0.88rem] text-text-secondary leading-[1.7]">
-                  {item.desc}
-                </p>
               </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-10">
-            <p className="text-text-secondary text-[1rem] leading-[1.7] max-w-[550px] mx-auto">
-              Plus practical steps you can put into your business the same week.
-              This is the same framework Marc uses with private clients across
-              the UK and Ireland.
-            </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* WHO THIS IS FOR */}
-      <section className="py-[100px] px-8 relative">
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 30%, rgba(34,114,222,0.04) 0%, transparent 60%)",
-          }}
-        />
-        <div className="max-w-[800px] mx-auto relative">
-          <div className="text-center mb-10">
-            <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">
-              Is This For You?
-            </div>
-            <div className="font-heading text-[1.85rem] md:text-[2.5rem] font-black leading-[1.1] tracking-[-1.5px] mb-4">
-              Built for Trade and Construction
-            </div>
-            <div className="w-[60px] h-[3px] gradient-accent rounded-sm mx-auto" />
+      <section className="relative border-y border-white/[0.05] bg-bg-secondary px-5 py-20 sm:px-8 sm:py-24">
+        <div className="mx-auto max-w-[1060px]">
+          <div className="max-w-[680px]">
+            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">What we&apos;ll cover</p>
+            <h2 className="mt-4 font-heading text-[2rem] font-black leading-tight tracking-[-1.3px] sm:text-[2.8rem]">Start building a business that does not need you in every decision.</h2>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              "You've got a team but the business still depends on you for everything",
-              "You're working harder than ever but the profit doesn't reflect it",
-              "You can't switch off - the business follows you home every night",
-              "You're firefighting from morning to night instead of actually leading",
-              "You've tried courses, books, accountants - nothing's stuck",
-              "You want structure, control, and a business that actually works for you",
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 text-[0.9rem] text-text-secondary p-4 bg-[rgba(12,12,18,0.6)] border border-[rgba(255,255,255,0.04)] rounded-xl backdrop-blur-[10px] transition-all duration-300 hover:border-[rgba(34,114,222,0.2)] hover:bg-[rgba(34,114,222,0.03)]"
-              >
-                <span className="mt-0.5 w-2 h-2 rounded-full bg-accent-bright shrink-0" />
-                <span>{item}</span>
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {outcomes.map((outcome, index) => (
+              <div key={outcome} className="flex gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-5 sm:p-6">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/15 font-heading text-sm font-bold text-accent-bright">{index + 1}</span>
+                <p className="text-[0.95rem] leading-7 text-text-secondary">{outcome}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ABOUT MARC */}
-      <section className="py-[80px] px-8 bg-bg-secondary relative">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(34,114,222,0.2)] to-transparent" />
-        <div className="max-w-[800px] mx-auto">
-          <div className="flex gap-6 items-start">
-            <Image
-              src="/images/marc-about.png"
-              alt="Marc Watters"
-              width={120}
-              height={160}
-              className="w-[120px] h-[160px] rounded-[16px] object-cover shrink-0 border border-[rgba(255,255,255,0.06)] hidden sm:block"
-            />
-            <div>
-              <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-3">
-                Your Host
-              </div>
-              <div className="font-heading text-[1.4rem] font-black mb-3">
-                Marc Watters
-              </div>
-              <p className="text-text-secondary text-[0.95rem] leading-[1.8] mb-3">
-                20 years in construction. Started on building sites at fourteen.
-                Apprentice to director level across major M&amp;E firms. Managed
-                everything from one-man operations to sixty-million-pound
-                companies.
-              </p>
-              <p className="text-text-secondary text-[0.95rem] leading-[1.8]">
-                Now works privately with trade and construction business owners
-                across the UK and Ireland to build companies that run with
-                structure, profit, and control - without burning them out. No
-                fluff. No guru nonsense. Straight talking.
-              </p>
-            </div>
+      <section className="relative px-5 py-20 sm:px-8 sm:py-24">
+        <div className="mx-auto grid max-w-[980px] items-center gap-10 sm:grid-cols-[220px_1fr]">
+          <div className="relative mx-auto h-[260px] w-[200px] overflow-hidden rounded-[24px] border border-white/[0.08] sm:h-[290px] sm:w-[220px]">
+            <Image src="/images/marc-about.png" alt="Marc Watters" fill sizes="220px" className="object-cover object-top" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">Your host</p>
+            <h2 className="mt-3 font-heading text-[2rem] font-black tracking-[-1px] sm:text-[2.5rem]">Marc Watters</h2>
+            <p className="mt-5 text-base leading-8 text-text-secondary">Marc works with trade and construction business owners on the structure behind a well-run company: the numbers, the team, the systems and the owner&apos;s role. This session is practical, direct and built around the problems that show up in a real working business.</p>
+            <a href="#register" className="btn-primary gradient-accent mt-7 inline-flex rounded-xl px-7 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_12px_35px_rgba(34,114,222,0.3)]">Save my free place</a>
           </div>
         </div>
       </section>
 
-      {/* REGISTER CTA */}
-      <section
-        id="register"
-        className="py-[100px] px-8 text-center relative overflow-hidden"
-      >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 50%, rgba(34,114,222,0.08) 0%, transparent 60%)",
-          }}
-        />
-        <div className="relative z-[1] max-w-[600px] mx-auto">
-          <div className="text-[0.75rem] font-bold text-accent uppercase tracking-[3px] mb-4">
-            Register Now
+      <section className="relative border-t border-white/[0.05] bg-bg-secondary px-5 py-20 sm:px-8 sm:py-24">
+        <div className="mx-auto max-w-[1060px]">
+          <div className="mx-auto max-w-[680px] text-center">
+            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">Results</p>
+            <h2 className="mt-4 font-heading text-[2rem] font-black leading-tight tracking-[-1.3px] sm:text-[2.8rem]">What clients say</h2>
+            <p className="mt-4 text-base leading-7 text-text-secondary">Real outcomes from trade and construction business owners on the programme.</p>
           </div>
-          <div className="font-heading text-[1.85rem] md:text-[2.5rem] font-black leading-[1.1] tracking-[-1.5px] mb-4">
-            Secure Your Spot
+          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+            {videoTestimonials.map((video) => (
+              <div key={video.id} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
+                <div className="relative w-full pt-[177.78%]">
+                  <iframe
+                    className="absolute inset-0 h-full w-full"
+                    src={`https://www.youtube.com/embed/${video.id}`}
+                    title={video.title}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="w-[60px] h-[3px] gradient-accent rounded-sm mx-auto mb-6" />
-
-          <p className="text-text-secondary text-[1rem] leading-[1.7] mb-4">
-            Wednesday 1st April at 7pm. Live on Zoom. One session. Free.
-          </p>
-          <p className="text-text-muted text-[0.88rem] leading-[1.7] mb-8">
-            We&apos;ve got capacity for around 50 businesses. This isn&apos;t
-            recorded and replayed. This is live, straight-talking, and built for
-            serious operators.
-          </p>
-
-          <WebinarCTA className="btn-primary inline-flex items-center gap-2 bg-accent text-white px-11 py-[18px] rounded-[10px] font-bold text-[1.1rem] no-underline transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_10px_40px_rgba(34,114,222,0.4),0_0_60px_rgba(34,114,222,0.15)] cursor-pointer">
-            Register Free
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </WebinarCTA>
-
-          <p className="text-text-muted text-[0.78rem] mt-4">
-            No spam. No selling. Just the workshop details and your Zoom link.
-          </p>
         </div>
+      </section>
+
+      <section className="border-t border-white/[0.05] bg-bg-secondary px-5 py-14 text-center sm:px-8">
+        <p className="font-heading text-lg font-bold text-text-primary">{WEBINAR.dateLabel} · {WEBINAR.timeLabel}</p>
+        <p className="mt-2 text-sm text-text-muted">One hour · Live on Zoom · Free to attend</p>
       </section>
     </main>
   );
