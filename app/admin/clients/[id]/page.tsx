@@ -1,4 +1,5 @@
 "use client";
+import { lastPortalActivity } from "@/lib/portal-activity";
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
@@ -361,7 +362,7 @@ export default function ClientDetailPage() {
 
   // Calculate alert context for red/amber clients
   const now = new Date();
-  const lastLoginDays = Math.floor((now.getTime() - new Date(client.last_login).getTime()) / (1000 * 60 * 60 * 24));
+  const lastActivityDays = Math.floor((now.getTime() - new Date(lastPortalActivity(client.last_login, client.last_checkin)).getTime()) / (1000 * 60 * 60 * 24));
   const lastCheckinDays = Math.floor((now.getTime() - new Date(client.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
   const weeksSinceStart = Math.floor((now.getTime() - new Date(client.start_date).getTime()) / (1000 * 60 * 60 * 24 * 7));
   const expectedCheckins = weeksSinceStart;
@@ -661,7 +662,7 @@ export default function ClientDetailPage() {
             <div className="flex-1">
               <div className="text-sm font-semibold text-red-400 mb-0.5">This client needs attention</div>
               <div className="text-xs text-text-secondary leading-relaxed">
-                Last login was <span className="text-red-400 font-medium">{lastLoginDays} days ago</span>
+                Last activity was <span className="text-red-400 font-medium">{lastActivityDays} days ago</span>
                 {missedCheckins > 0 && (
                   <> and they have <span className="text-red-400 font-medium">missed {missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""}</span></>
                 )}
@@ -729,14 +730,14 @@ export default function ClientDetailPage() {
           <div className="mt-1 text-xs text-text-muted">Last: {timeAgo(client.last_checkin)}</div>
         </div>
         <div>
-          <div className="text-xs font-medium text-text-muted">Last Login</div>
+          <div className="text-xs font-medium text-text-muted">Last Active</div>
           <div className={`mt-2 font-heading text-2xl font-bold ${
-            new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
+            new Date().getTime() - new Date(lastPortalActivity(client.last_login, client.last_checkin)).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
           }`}>
-            {timeAgo(client.last_login)}
+            {timeAgo(lastPortalActivity(client.last_login, client.last_checkin))}
           </div>
           <div className="mt-1 text-xs text-text-muted">
-            {new Date(client.last_login).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            {new Date(lastPortalActivity(client.last_login, client.last_checkin)).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
           </div>
         </div>
       </div>

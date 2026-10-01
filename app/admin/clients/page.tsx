@@ -1,4 +1,5 @@
 "use client";
+import { lastPortalActivity } from "@/lib/portal-activity";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -80,7 +81,7 @@ export default function ClientsPage() {
     })
     .sort((first, second) => {
       if (sort === "name") return first.name.localeCompare(second.name);
-      if (sort === "recent") return new Date(second.last_login).getTime() - new Date(first.last_login).getTime();
+      if (sort === "recent") return new Date(lastPortalActivity(second.last_login, second.last_checkin)).getTime() - new Date(lastPortalActivity(first.last_login, first.last_checkin)).getTime();
       const attentionRank: Record<TrafficLight, number> = { red: 0, amber: 1, green: 2 };
       return attentionRank[first.status] - attentionRank[second.status] || first.name.localeCompare(second.name);
     });
@@ -382,12 +383,12 @@ export default function ClientsPage() {
                     </div>}
 
                     {!isArchived && <div className="text-right hidden md:block">
-                      <div className="text-xs text-text-muted">Last Login</div>
+                      <div className="text-xs text-text-muted">Last Active</div>
                       <div className={`text-xs font-medium mt-0.5 ${
-                        new Date().getTime() - new Date(client.last_login).getTime() > 7 * 24 * 60 * 60 * 1000
+                        new Date().getTime() - new Date(lastPortalActivity(client.last_login, client.last_checkin)).getTime() > 7 * 24 * 60 * 60 * 1000
                           ? "text-red-400" : "text-text-secondary"
                       }`}>
-                        {timeAgo(client.last_login)}
+                        {timeAgo(lastPortalActivity(client.last_login, client.last_checkin))}
                       </div>
                     </div>}
 

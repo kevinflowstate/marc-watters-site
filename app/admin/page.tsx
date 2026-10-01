@@ -1,4 +1,5 @@
 "use client";
+import { lastPortalActivity } from "@/lib/portal-activity";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -642,10 +643,10 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
   const insights: BriefingInsight[] = [];
 
   for (const c of redClients) {
-    const daysSinceLogin = Math.floor((Date.now() - new Date(c.last_login).getTime()) / (1000 * 60 * 60 * 24));
+    const daysSinceActivity = Math.floor((Date.now() - new Date(lastPortalActivity(c.last_login, c.last_checkin)).getTime()) / (1000 * 60 * 60 * 24));
     const daysSinceCheckin = Math.floor((Date.now() - new Date(c.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceLogin > 10) {
-      insights.push({ id: `login-${c.id}`, icon: "alert", text: `${c.name} hasn't logged in for ${daysSinceLogin} days - consider reaching out`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
+    if (daysSinceActivity > 10) {
+      insights.push({ id: `login-${c.id}`, icon: "alert", text: `${c.name} hasn't been active for ${daysSinceActivity} days - consider reaching out`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
     } else if (daysSinceCheckin > 14) {
       insights.push({ id: `checkin-${c.id}`, icon: "alert", text: `${c.name} hasn't checked in for ${daysSinceCheckin} days`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
     }
