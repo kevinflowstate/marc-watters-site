@@ -1,3 +1,4 @@
+import { lastPortalActivity } from "@/lib/portal-activity";
 import { sendCheckinReply } from "@/lib/checkin-replies";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -95,6 +96,7 @@ export async function buildPortalSummary() {
       name: userFromClient(client)?.full_name || "Unknown",
       business: client.business_name || "",
       status,
+      daysSinceActivity: daysSince(lastPortalActivity(client.last_login, client.last_checkin, client.created_at), now),
       daysSinceLogin: daysSince(client.last_login || client.created_at, now),
       daysSinceCheckin: daysSince(client.last_checkin || client.created_at, now),
     };
@@ -212,6 +214,7 @@ export async function buildClientThread(clientId: string) {
       goals: profile.goals || "",
       startDate: profile.start_date,
       status: statusForClient(profile),
+      lastActivity: lastPortalActivity(profile.last_login, profile.last_checkin, profile.created_at),
       lastLogin: profile.last_login,
       lastCheckin: profile.last_checkin,
     },
@@ -349,9 +352,9 @@ function summariseCheckin(checkin: CheckinRow) {
 }
 
 function statusForClient(client: ClientRow, now = Date.now()) {
-  const loginDays = daysSince(client.last_login || client.created_at, now) ?? 0;
+  const activityDays = daysSince(lastPortalActivity(client.last_login, client.last_checkin, client.created_at), now) ?? 0;
   const checkinDays = daysSince(client.last_checkin || client.created_at, now) ?? 0;
-  if (loginDays > 10 || checkinDays > 14) return "red";
+  if (activityDays > 10 || checkinDays > 14) return "red";
   if (checkinDays > 7) return "amber";
   return "green";
 }

@@ -1,3 +1,4 @@
+import { portalClientStatus } from "@/lib/portal-activity";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWeeklySummaryEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
@@ -48,7 +49,6 @@ export async function GET(request: Request) {
   const missed: string[] = [];
   const redClients: string[] = [];
   const now = Date.now();
-  const DAY = 1000 * 60 * 60 * 24;
 
   for (const p of profiles) {
     const user = Array.isArray(p.users) ? p.users[0] : p.users;
@@ -61,11 +61,7 @@ export async function GET(request: Request) {
     }
 
     // Mirror app status logic so weekly summary matches dashboard/client list.
-    const loginRef = p.last_login || p.created_at;
-    const checkinRef = p.last_checkin || p.created_at;
-    const loginDays = loginRef ? (now - new Date(loginRef).getTime()) / DAY : Infinity;
-    const checkinDays = checkinRef ? (now - new Date(checkinRef).getTime()) / DAY : Infinity;
-    if (loginDays > 10 || checkinDays > 14) {
+    if (portalClientStatus(p.last_login, p.last_checkin, p.created_at, now) === "red") {
       redClients.push(name);
     }
   }
