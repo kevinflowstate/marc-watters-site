@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { InlineNotice, PageSkeleton, ProgressSummary } from "@/components/ui/PortalState";
-import { defaultCheckinConfig } from "@/lib/checkins";
+import { defaultCheckinConfig, deriveCheckinMood } from "@/lib/checkins";
+import { acquireDraftLock, checkinErrors, draftKey, questionError, readDraft, validReceipt, writeDraft, type CheckinDraft, type CheckinReceipt } from "@/lib/checkin-submission";
 import type { CheckinFormConfig, FormQuestion } from "@/lib/types";
 
 const moodColorMap: Record<string, string> = {
@@ -152,25 +153,99 @@ export default function CheckInPage() {
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [receipt, setReceipt] = useState<CheckinReceipt | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const [draftConflict, setDraftConflict] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
+  const rawDraftRef = useRef<string | null>(null);
+  const draftRef = useRef<CheckinDraft | null>(null);
+  const inFlightRef = useRef(false);
+  const releaseLockRef = useRef<(() => void) | null>(null);
+
+  function showDraft(draft: CheckinDraft) {
+    draftRef.current = draft;
+    setResponses(draft.responses);
+    setMood(draft.mood);
+    setPending(draft.pending);
+    setReceipt(draft.receipt || null);
+    setSubmitted(Boolean(draft.receipt));
+  }
+
+  function persistDraft(draft: CheckinDraft) {
+    const userId = userIdRef.current;
+    if (!userId) return false;
+    let result: ReturnType<typeof writeDraft>;
+    try { result = writeDraft(window.localStorage, draftKey(userId), rawDraftRef.current, draft); }
+    catch { result = { status: "unavailable" }; }
+    if (result.status === "conflict") {
+      setDraftConflict(true);
+      return false;
+    }
+    if (result.status === "saved") {
+      rawDraftRef.current = result.raw;
+      setStorageWarning(null);
+    } else {
+      setStorageWarning("This browser could not save a draft. Keep this page open until your check-in is confirmed, or copy your answers before leaving.");
+    }
+    showDraft(draft);
+    return true;
+  }
 
   useEffect(() => {
-    async function loadConfig() {
+    let cancelled = false;
+    async function load() {
       try {
-        const res = await fetch("/api/admin/form-config?type=checkin");
-        if (res.ok) {
-          const data = await res.json();
-          setConfig(data.config);
-          return;
+        const [meRes, configRes] = await Promise.all([
+          fetch("/api/portal/me", { cache: "no-store" }),
+          fetch("/api/admin/form-config?type=checkin", { cache: "no-store" }),
+        ]);
+        if (meRes.status === 401 || configRes.status === 401) {
+          if (!cancelled) setSignInRequired(true);
+          throw new Error("Please sign in to load your check-in and saved draft.");
         }
-      } catch {
-        // Fall through to default config
+        if (!meRes.ok || !configRes.ok) throw new Error("Your check-in could not be loaded. Please try again; saved answers have been kept.");
+        const [me, data] = await Promise.all([meRes.json(), configRes.json()]);
+        if (!me.userId) throw new Error("Your account could not be confirmed. Please sign in again.");
+        if (cancelled) return;
+        const currentConfig = data.config || defaultCheckinConfig;
+        if (navigator.locks) {
+          const acquired = await acquireDraftLock(navigator.locks, draftKey(me.userId), (release) => {
+            releaseLockRef.current = release;
+            if (cancelled) release();
+          });
+          if (cancelled) { releaseLockRef.current?.(); return; }
+          if (!acquired) setDraftConflict(true);
+        }
+        userIdRef.current = me.userId;
+        setConfig(currentConfig);
+        let raw: string | null = null;
+        try { raw = window.localStorage.getItem(draftKey(me.userId)); }
+        catch { setStorageWarning("This browser could not restore a draft. Keep this page open until your check-in is confirmed."); }
+        rawDraftRef.current = raw;
+        const saved = readDraft(raw);
+        showDraft(saved || {
+          version: 1, submissionId: crypto.randomUUID(), responses: {}, mood: null,
+          configVersion: JSON.stringify(currentConfig), updatedAt: Date.now(), pending: false,
+        });
+        if (saved?.pending) setError("A previous submission has not been confirmed. Retry to check and safely finish that same submission.");
+        if (saved && saved.configVersion !== JSON.stringify(currentConfig) && !saved.pending) {
+          setError("The questions have been updated. Your saved answers are restored; please review them before submitting.");
+        }
+      } catch (cause) {
+        if (!cancelled) setLoadError(cause instanceof Error ? cause.message : "Your check-in could not be loaded.");
       }
-
-      setConfig(defaultCheckinConfig);
     }
-
-    loadConfig();
+    void load();
+    function storageChanged(event: StorageEvent) {
+      if (userIdRef.current && event.key === draftKey(userIdRef.current) && event.newValue !== rawDraftRef.current) setDraftConflict(true);
+    }
+    window.addEventListener("storage", storageChanged);
+    return () => { cancelled = true; releaseLockRef.current?.(); window.removeEventListener("storage", storageChanged); };
   }, []);
 
   const groupedQuestions = useMemo(() => {
@@ -192,7 +267,7 @@ export default function CheckInPage() {
   const progress = useMemo(() => {
     const questions = groupedQuestions.flatMap((group) => group.questions);
     const total = questions.length + (moodRequired ? 1 : 0);
-    const answered = questions.filter((question) => Boolean(responses[question.id]?.trim())).length + (moodRequired && mood ? 1 : 0);
+    const answered = questions.filter((question) => Boolean(responses[question.id]?.trim()) && !questionError(question, responses)).length + (moodRequired && mood ? 1 : 0);
 
     return {
       answered,
@@ -202,44 +277,88 @@ export default function CheckInPage() {
   }, [groupedQuestions, mood, moodRequired, responses]);
 
   function setResponse(questionId: string, value: string) {
-    setResponses((prev) => ({ ...prev, [questionId]: value }));
+    if (draftRef.current?.pending || draftConflict || !config) return;
+    const nextResponses = { ...responses, [questionId]: value };
+    persistDraft({ ...draftRef.current!, responses: nextResponses, updatedAt: Date.now(), configVersion: JSON.stringify(config) });
+    if (Object.keys(fieldErrors).length) setFieldErrors(checkinErrors(config, nextResponses, mood));
+  }
+
+  function changeMood(value: string) {
+    if (draftRef.current?.pending || draftConflict || !config) return;
+    persistDraft({ ...draftRef.current!, mood: value, updatedAt: Date.now() });
+    if (Object.keys(fieldErrors).length) setFieldErrors(checkinErrors(config, responses, value));
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (moodRequired && !mood) return;
-    setError(false);
+    if (inFlightRef.current || draftConflict || !draftRef.current || !config) return;
+    const wasPending = draftRef.current.pending;
+    if (!wasPending) {
+      const validation = checkinErrors(config, responses, mood);
+      setFieldErrors(validation);
+      const firstField = Object.keys(validation)[0];
+      if (firstField) {
+        setError(validation[firstField]);
+        document.getElementById(`checkin-${firstField}`)?.focus();
+        return;
+      }
+    }
+    inFlightRef.current = true;
     setSubmitting(true);
-
+    setError(null);
+    setSignInRequired(false);
+    const snapshot: CheckinDraft = {
+      ...draftRef.current, pending: true, updatedAt: Date.now(),
+      mood: wasPending ? draftRef.current.mood : (moodRequired ? mood : deriveCheckinMood(responses)),
+    };
+    if (!persistDraft(snapshot)) { inFlightRef.current = false; setSubmitting(false); return; }
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 30000);
     try {
       const res = await fetch("/api/portal/checkin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood: mood || "good", responses }),
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+        body: JSON.stringify({ userId: userIdRef.current, submissionId: snapshot.submissionId, mood: snapshot.mood, responses: snapshot.responses }),
       });
-
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success === true && validReceipt(data.receipt, snapshot.submissionId)) {
+        // Keep a receipt marker. If storage is blocked, the pending snapshot remains safe to retry.
+        persistDraft({ ...snapshot, pending: false, responses: {}, mood: null, receipt: data.receipt, updatedAt: Date.now() });
+        setReceipt(data.receipt);
         setSubmitted(true);
-        toast("Check-in submitted - Marc will review it this week");
+        toast("Check-in saved - Marc will review it this week");
       } else {
-        const data = await res.json().catch(() => ({}));
-        setError(true);
-        toast(data.error || "Something went wrong. Please try again.", "error");
-        setTimeout(() => setError(false), 5000);
+        setSignInRequired(res.status === 401);
+        setError(`${data.error || "We could not confirm the save. Please retry the same submission."}${data.requestId ? ` Reference: ${data.requestId}` : ""}`);
+        // The server retires the old ID under the save lock, so a late request cannot save it after editing resumes.
+        if (data.cancelled === true) {
+          const currentConfig = data.config?.questions ? data.config : config;
+          setConfig(currentConfig);
+          persistDraft({ ...snapshot, submissionId: crypto.randomUUID(), pending: false, configVersion: JSON.stringify(currentConfig) });
+          setFieldErrors(checkinErrors(currentConfig, snapshot.responses, snapshot.mood));
+        }
       }
     } catch {
-      setError(true);
-      toast("Something went wrong. Please try again.", "error");
-      setTimeout(() => setError(false), 5000);
+      setError("The connection was interrupted and we could not confirm the save. Your answers are kept. Retry below to safely check the same submission.");
+    } finally {
+      window.clearTimeout(timeout);
+      inFlightRef.current = false;
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   }
 
   function resetForm() {
-    setSubmitted(false);
-    setMood(null);
-    setResponses({});
+    if (draftConflict || !config) return;
+    persistDraft({ version: 1, submissionId: crypto.randomUUID(), responses: {}, mood: null,
+      configVersion: JSON.stringify(config), updatedAt: Date.now(), pending: false });
+    setError(null);
+    setFieldErrors({});
+  }
+
+  if (loadError) {
+    return <div className="max-w-3xl space-y-4"><InlineNotice tone="error">{loadError}</InlineNotice>
+      {signInRequired ? <a className="v2-button-primary" href="/login?redirect=%2Fportal%2Fcheckin">Sign in</a> :
+        <button className="v2-button-secondary" onClick={() => window.location.reload()}>Try loading again</button>}
+    </div>;
   }
 
   if (submitted) {
@@ -251,10 +370,14 @@ export default function CheckInPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <div className="v2-eyebrow mb-3 text-emerald-300">Sent successfully</div>
+          <div className="v2-eyebrow mb-3 text-emerald-300">Saved successfully</div>
           <h2 className="v2-page-title">Check-In Submitted</h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-text-secondary">Marc will review your check-in and respond shortly. You can return to the portal while he reviews it.</p>
+          {receipt && <p className="mt-4 text-sm text-text-secondary">Saved {new Date(receipt.created_at).toLocaleString("en-GB")} · <a className="text-accent-bright underline" href={`/portal/checkins/${receipt.id}`}>View saved check-in</a></p>}
+          {storageWarning && <InlineNotice tone="error">{storageWarning}</InlineNotice>}
+          {draftConflict && <InlineNotice tone="error">Another tab changed your draft. Finish in that tab before starting another check-in here.</InlineNotice>}
           <button
+            disabled={draftConflict}
             onClick={resetForm}
             className="v2-button-secondary mt-7 cursor-pointer"
           >
@@ -286,8 +409,12 @@ export default function CheckInPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+        {storageWarning ? <InlineNotice tone="error">{storageWarning}</InlineNotice> : <p className="text-xs text-text-muted">Unsent answers are kept on this browser for your account for up to 30 days. Unconfirmed submissions are kept until resolved.</p>}
+        {draftConflict && <InlineNotice tone="error">Another tab changed your draft. Your answers are still visible here. Keep this page open and finish in the other tab to avoid overwriting its answers.</InlineNotice>}
+        {pending && <InlineNotice>These answers are waiting for save confirmation. Retry the same submission below before changing them.</InlineNotice>}
+        <fieldset disabled={pending || draftConflict || submitting} className="min-w-0 space-y-5 sm:space-y-6">
         {moodRequired && (
-          <section className="v2-surface p-4 sm:p-5">
+          <section id="checkin-mood" tabIndex={-1} className="v2-surface p-4 sm:p-5">
             <div className="mb-4">
               <div className="text-xs font-semibold text-accent-light">Start here</div>
               <label className="mt-1 block text-base font-semibold text-text-primary">How are you feeling this week?</label>
@@ -297,7 +424,7 @@ export default function CheckInPage() {
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setMood(option.value)}
+                  onClick={() => changeMood(option.value)}
                   aria-pressed={mood === option.value}
                   className={`min-h-12 px-4 py-3 rounded-[var(--cbb-radius-sm)] border text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                     mood === option.value
@@ -323,7 +450,7 @@ export default function CheckInPage() {
 
             <div className="divide-y divide-white/[0.055] px-4 sm:px-5">
             {group.questions.map((question) => (
-              <div key={question.id} className="space-y-3 py-5">
+              <div id={`checkin-${question.id}`} tabIndex={-1} key={question.id} className="space-y-3 py-5">
                 <label className="block text-sm font-medium text-text-primary">
                   {question.label}
                   {question.required && <span className="text-accent-bright"> *</span>}
@@ -331,6 +458,7 @@ export default function CheckInPage() {
                 {question.help_text && (
                   <p className="text-xs leading-relaxed text-text-muted">{question.help_text}</p>
                 )}
+                {fieldErrors[question.id] && <p role="alert" className="text-sm text-red-400">{fieldErrors[question.id]}</p>}
                 <QuestionField
                   question={question}
                   value={responses[question.id] || ""}
@@ -343,16 +471,16 @@ export default function CheckInPage() {
           </section>
         ))}
 
-        {error && (
-          <InlineNotice tone="error">Something went wrong. Your answers are still here, so you can try submitting again.</InlineNotice>
-        )}
+        </fieldset>
+        {error && <div role="alert"><InlineNotice tone="error">{error}</InlineNotice></div>}
+        {signInRequired && <a className="v2-button-secondary" href="/login?redirect=%2Fportal%2Fcheckin">Sign in again, then return to this draft</a>}
         <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 rounded-[var(--cbb-radius-md)] border border-white/[0.08] bg-bg-primary/90 p-3 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
           <button
             type="submit"
-            disabled={(moodRequired && !mood) || submitting}
+            disabled={submitting || draftConflict}
             className="v2-button-primary min-h-12 w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {submitting ? "Submitting Check-In…" : "Submit Check-In"}
+            {submitting ? "Confirming save…" : pending ? "Retry and confirm this check-in" : "Submit Check-In"}
           </button>
         </div>
       </form>

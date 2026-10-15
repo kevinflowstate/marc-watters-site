@@ -1,0 +1,6 @@
+{
+  "findings": [],
+  "overall_correctness": "patch is correct",
+  "overall_explanation": "No remaining actionable defects were identified in the scoped changes. Atomic persistence, retry reconciliation, draft recovery, authentication checks and RPC permissions are consistent with the stated requirements. The additive migration must precede API deployment. Review used read-only inspection; tests were not run.",
+  "overall_confidence": 0.9
+}
