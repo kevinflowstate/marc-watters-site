@@ -1,0 +1,23 @@
+{
+  "scope": "Isolated PostgreSQL 17, repository base/v2/v3/lifecycle migrations and RLS, stub Supabase auth schema, synthetic clients only; no production changes",
+  "checks": [
+    "normal save returns persisted ID, timestamp and week",
+    "lost-response retry returns original receipt without duplicate",
+    "same submission ID with changed answers cannot silently discard or overwrite",
+    "submission ID cannot be reused for another client",
+    "12 concurrent identical retries create exactly one record",
+    "12 concurrent distinct submissions all save with unique consecutive weeks",
+    "dashboard timestamp failure rolls back check-in instead of partial save",
+    "archived and missing clients cannot submit",
+    "RPC denied to public browser roles",
+    "server role can execute atomic save",
+    "malformed response payload fails without write",
+    "cancelled pending ID blocks late in-flight saves without losing editable answers",
+    "validation reconciliation returns an already-saved receipt instead of unlocking",
+    "12 concurrent cancellation/save attempts settle on one receipt or one retired ID, never both"
+  ],
+  "passed": 14,
+  "owned_postgres_pid": 44429,
+  "process_exit_verified": true,
+  "limits": "Not a deployed migration or hosted Supabase integration test; auth functions are local stubs, service-role persistence and RPC grants tested with repository table schema/RLS."
+}
