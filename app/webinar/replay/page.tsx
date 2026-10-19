@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-const replayUrl = "https://fathom.video/embed/vR5AaCzd_FS9U8N7GNE216LpvbcjXBzM";
-const sourceUrl = "https://fathom.video/share/vR5AaCzd_FS9U8N7GNE216LpvbcjXBzM";
+const replayUrl = "https://drive.google.com/file/d/1QxaEaKKOwpuO_iJjZ1TBR0_FZ_YEA-ad/preview";
+const sourceUrl = "https://drive.google.com/file/d/1QxaEaKKOwpuO_iJjZ1TBR0_FZ_YEA-ad/view";
 
 export const metadata: Metadata = {
   title: "From Chaos To Control — Webinar Replay",
@@ -30,7 +30,7 @@ export default function WebinarReplay() {
           <div className="aspect-video overflow-hidden border border-white/20 bg-black shadow-[0_20px_70px_rgba(0,0,0,0.35)]">
             <iframe src={replayUrl} title="From Chaos To Control — Marc Watters webinar, 15 October 2026" className="h-full w-full border-0" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
           </div>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">Player not loading? <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[#8dbbff] underline underline-offset-4 hover:text-white">Open the original recording</a>.</p>
+          <p className="mt-3 text-sm leading-6 text-text-secondary">Player not loading? <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[#8dbbff] underline underline-offset-4 hover:text-white">Open the recording</a>.</p>
         </section>
         <section aria-labelledby="next-step" className="mt-9 grid gap-6 border-y border-white/15 py-8 sm:mt-12 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-10 sm:py-10">
           <div>
