@@ -37,11 +37,11 @@ export default function WebinarReplay() {
             <h2 id="next-step" className="font-heading text-xl font-extrabold tracking-[-0.03em] sm:text-2xl">What would this look like in your business?</h2>
             <p className="mt-3 max-w-[640px] text-sm leading-7 text-text-secondary sm:text-base">Book a strategy call with Marc to talk through where the business is now, what keeps landing back on you, and the next changes worth making.</p>
           </div>
-          <Link href="/book-marc" className="inline-flex min-h-12 items-center justify-center gap-3 rounded-lg bg-[#2272DE] px-6 py-4 text-center font-heading text-sm font-bold text-white transition hover:bg-[#1a5db8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8dbbff]">Book a call with Marc <span aria-hidden="true">↗</span></Link>
+          <Link href="https://constructionbusinessblueprint.co.uk/book-marc" className="inline-flex min-h-12 items-center justify-center gap-3 rounded-lg bg-[#2272DE] px-6 py-4 text-center font-heading text-sm font-bold text-white transition hover:bg-[#1a5db8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8dbbff]">Book a call with Marc <span aria-hidden="true">↗</span></Link>
         </section>
         <footer className="flex flex-wrap justify-between gap-3 py-7 text-xs leading-6 text-white/50">
           <p>Construction Business Blueprint · Marc Watters</p>
-          <Link href="/privacy" className="underline underline-offset-4 hover:text-white">Privacy policy</Link>
+          <Link href="https://constructionbusinessblueprint.co.uk/privacy" className="underline underline-offset-4 hover:text-white">Privacy policy</Link>
         </footer>
       </div>
     </main>
