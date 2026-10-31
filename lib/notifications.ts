@@ -89,3 +89,13 @@ export async function notifyPortalUsers(
 
   return { created, duplicates, failed };
 }
+
+export async function notifyAdminUsers(input:{title:string;message:string;link:string;dedupeKey:string}) {
+  const admin=createAdminClient();
+  const {data,error}=await admin.from("users").select("id").eq("role","admin");
+  if(error)throw error;
+  for(const user of data??[]){
+    const {error:insertError}=await admin.from("notifications").insert({user_id:user.id,title:input.title,message:input.message.slice(0,200),link:input.link,dedupe_key:`${input.dedupeKey}:${user.id}`});
+    if(!insertError)await sendPushToUser(user.id,{title:input.title,body:input.message.slice(0,140),url:input.link,tag:input.dedupeKey});
+  }
+}
