@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/growth-engine-reports",
       "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/thursday-report",
+      "schedule": "0 6 * * 4"
+    },
+    {
+      "path": "/api/cron/ops-daily",
+      "schedule": "0 7 * * *"
     }
   ]
 }
