@@ -317,8 +317,8 @@ export default function WorkPage() {
           border: 1px solid var(--border-color, #8a8a9838);
           border-radius: 10px;
           padding: 10px 12px;
-          background: var(--bg-secondary);
-          color: var(--text-primary);
+          background: var(--color-bg-secondary);
+          color: var(--color-text-primary);
         }
         .ops-button {
           border-radius: 10px;
@@ -335,8 +335,8 @@ export default function WorkPage() {
           max-width: 100%;
           border: 0;
           border-left: 1px solid #8883;
-          background: var(--bg-primary, #fff);
-          color: var(--text-primary);
+          background: var(--color-bg-primary, #050507);
+          color: var(--color-text-primary);
           overflow: auto;
         }
         .ops-dialog::backdrop {
