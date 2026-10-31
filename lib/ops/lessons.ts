@@ -262,6 +262,16 @@ export async function draftLesson(id: string, moduleId: string) {
   });
   if (r.error) throw new OpsError(r.error.message, 409);
   const l = await getLesson(id);
+  if (l.status === "published") return l;
+  if (l.status !== "lesson_drafted" || l.module_content_id !== r.data)
+    throw new OpsError("Recording changed; reload before drafting", 409);
+  const destination = await db
+    .from("module_content")
+    .select("module_id")
+    .eq("id", r.data)
+    .single();
+  if (destination.error)
+    throw new OpsError("Draft destination unavailable", 409);
   for (const t of await listTasks({ area: "lessons" }))
     if (t.external_ref === `lesson-cuts:${id}` && t.status !== "done")
       await completeTask(t.id, "Lesson draft created");
@@ -272,7 +282,10 @@ export async function draftLesson(id: string, moduleId: string) {
     external_ref: `lesson-publish:${id}`,
     due_at: l.publish_due_at,
     links: [
-      { label: "Review draft module", url: `/admin/training/${moduleId}` },
+      {
+        label: "Review draft module",
+        url: `/admin/training/${destination.data.module_id}`,
+      },
     ],
   });
   if (["done", "cancelled"].includes(publication.status)) {

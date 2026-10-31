@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "../lib/supabase/admin";
 import { recordPayment } from "../lib/ops/payments";
+import { listClientsNeedingAttention } from "../lib/ops/clients";
 import { updateClientSignals } from "../lib/ops/onboarding";
 import { listTasks, createTask } from "../lib/ops/tasks";
 import {
@@ -37,7 +38,7 @@ assert.ok(adminAccount.data);
 const account = adminAccount.data;
 const client = await db
   .from("client_profiles")
-  .select("*,users(email)")
+  .select("*,users!client_profiles_user_id_fkey(email)")
   .eq("id", clientId)
   .single();
 assert.equal(client.error, null);
@@ -109,6 +110,19 @@ try {
     "late success updates payment metadata without regressing status; settled-cycle reminder creates no new task",
   );
 
+  await db
+    .from("client_profiles")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", clientId);
+  assert.equal(
+    (await listClientsNeedingAttention()).some((c) => c.id === clientId),
+    false,
+  );
+  await db
+    .from("client_profiles")
+    .update({ archived_at: original.archived_at })
+    .eq("id", clientId);
+  checks.push("archived client is excluded from the attention tool");
   // Both competing forwards transitions may start from the same read; complete must win.
   await db
     .from("client_profiles")
@@ -292,6 +306,15 @@ try {
     return JSON.stringify({ cuts: [{ ...cuts[0], end_s: 20 }] });
   });
   await started;
+  await assert.rejects(
+    () =>
+      approveCuts(recording.data.id, {
+        cut_list: [{ ...cuts[0], end_s: 120 }],
+      }),
+    /playable/,
+  );
+  assert.equal((await getLesson(recording.data.id)).status, "cuts_proposed");
+  checks.push("all-content cut rejected before a job or approval state change");
   await approveCuts(recording.data.id, { cut_list: cuts });
   release();
   await assert.rejects(pending, /Recording changed/);
@@ -503,6 +526,20 @@ try {
     null,
   );
   assert.equal((await getLesson(moved.data.id)).status, "published");
+  await draftLesson(moved.data.id, draftModule.id);
+  const replayedPublication = await db
+    .from("ops_tasks")
+    .select("status,links")
+    .eq("id", publishTask.id)
+    .single();
+  assert.equal(replayedPublication.data?.status, "done");
+  assert.equal(
+    replayedPublication.data?.links[0].url,
+    `/admin/training/${publishedModule.id}`,
+  );
+  checks.push(
+    "replayed published draft preserves completed publication work and actual destination",
+  );
   const publishedTask = await db
     .from("ops_tasks")
     .select("status,links")
@@ -585,6 +622,7 @@ try {
     .like("external_id", prefix + "%");
   const fields = [
     "payment_status",
+    "archived_at",
     "payment_status_updated_at",
     "payment_chase_count",
     "last_payment_at",

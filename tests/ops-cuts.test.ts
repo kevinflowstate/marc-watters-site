@@ -38,4 +38,12 @@ describe("conservative lesson cuts", () => {
     ).toHaveLength(2);
     expect(validate([], 120, true)).toEqual([]);
   });
+  it("rejects full and near-total removal, including gaps merged by a proposal", () => {
+    expect(() => validate([cut(0, 120)], 120)).toThrow(/playable/);
+    expect(() => validate([cut(0, 119.95)], 120)).toThrow(/playable/);
+    expect(() => validate([cut(0, 60), cut(61, 120)], 120, true)).toThrow(
+      /playable/,
+    );
+    expect(validate([{ ...cut(0, 120), keep: true }], 120)).toHaveLength(1);
+  });
 });

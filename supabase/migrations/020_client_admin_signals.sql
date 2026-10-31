@@ -82,3 +82,13 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.ops_start_onboarding(uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.ops_start_onboarding(uuid) TO service_role;
+
+
+-- Clients retain legacy profile columns, while all new operational fields are
+-- readable/writable only through service-role admin/Ops handlers. RLS still
+-- restricts allowed legacy profile reads/writes to the existing row policies.
+REVOKE SELECT,INSERT,UPDATE ON public.client_profiles FROM PUBLIC,anon,authenticated;
+DO $$ DECLARE cols text; BEGIN
+ SELECT string_agg(quote_ident(attname),',' ORDER BY attnum) INTO cols FROM pg_attribute WHERE attrelid='public.client_profiles'::regclass AND attnum>0 AND NOT attisdropped AND attname<>ALL(ARRAY['payment_status','payment_status_updated_at','payment_chase_count','last_payment_at','onboarding_stage','onboarding_started_at','onboarding_due_at','onboarding_completed_at','last_contact_at','next_action','next_action_due']);
+ EXECUTE format('GRANT SELECT (%s),INSERT (%s),UPDATE (%s) ON public.client_profiles TO authenticated',cols,cols,cols);
+END $$;

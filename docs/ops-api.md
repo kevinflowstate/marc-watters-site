@@ -64,3 +64,12 @@ An early-week snapshot refreshes automatically on Thursday. The report page also
 Onboarding transitions and checklist completion commit atomically and cannot move backwards. Payment reminder counts derive from unique ledger events after the latest successful payment, so out-of-order delivery cannot hide a reminder or reopen a paid cycle. Work-list pagination includes history beyond the first 1,000 rows.
 
 New-client activation creates the invite and attempts its existing welcome flow before the Ops onboarding dependency. A failed Ops start returns a retryable failure; replay for an existing user resumes idempotent onboarding without another invite or welcome send. Live new-client webhooks were not replayed in this build; the regression uses mocked invite and email functions.
+
+
+## Client privacy and statistics
+
+The eleven new Ops signal fields on client_profiles are not available to the authenticated client role for SELECT, INSERT or UPDATE. Legacy column grants are retained; service-role admin/Ops handlers remain the access path for operational data. Client me/dashboard responses use an explicit public profile projection, so future internal columns are not automatically exposed. Archived clients are excluded from the attention tool.
+
+The Social Planner statistics POST includes its required `locationId` query parameter, as documented in the [official reference](https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/social-planner/get-statistics/index.html). The contract test mocks HTTP; no CRM write occurs.
+
+The old non-live database lacks some current-app baseline fields. Only the existing lesson-attachment and archive columns were added for compatibility. Its existing self-referential users RLS policy produces 42P17 on direct authenticated SDK reads; this historical policy is not changed by the build. Column privileges were independently checked through the catalog, and actual client settings/me/dashboard plus Ops API flows were exercised. Do not call the legacy direct SDK check a pass.

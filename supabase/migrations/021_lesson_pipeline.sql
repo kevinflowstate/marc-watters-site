@@ -45,6 +45,7 @@ DECLARE l lesson_recordings; j render_jobs;
 BEGIN
  SELECT * INTO l FROM lesson_recordings WHERE id=p_recording FOR UPDATE;
  IF l.status<>'cuts_proposed' OR l.source_storage_path IS NULL THEN RAISE EXCEPTION 'Cuts/source are not ready for approval'; END IF;
+ IF l.duration_s IS NULL OR l.duration_s-coalesce((SELECT sum((cut->>'end_s')::numeric-(cut->>'start_s')::numeric) FROM jsonb_array_elements(p_cuts) cut WHERE NOT coalesce((cut->>'keep')::boolean,false)),0)<0.1 THEN RAISE EXCEPTION 'Cuts must leave playable video'; END IF;
  INSERT INTO render_jobs(recording_id,cut_list,job_type) VALUES(l.id,p_cuts,'render') RETURNING * INTO j;
  UPDATE lesson_recordings SET approved_cut_list=p_cuts,status='cuts_approved',error=null WHERE id=l.id;
  RETURN j;

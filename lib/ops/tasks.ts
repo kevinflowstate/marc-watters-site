@@ -157,7 +157,7 @@ export async function listTasks(
 ) {
   let q = createAdminClient()
     .from("ops_tasks")
-    .select("*,client_profiles(users(full_name))")
+    .select("*,client_profiles(users!client_profiles_user_id_fkey(full_name))")
     .order("priority")
     .order("due_at", { nullsFirst: false })
     .order("id");

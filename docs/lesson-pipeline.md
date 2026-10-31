@@ -40,3 +40,5 @@ Retry intake can renew an expired source download after cuts have been proposed 
 The existing training editor also synchronizes recording status, publication tasks and destination links when content moves between published/unpublished modules. **Recover interrupted job** is an explicit admin action for the latest running job only, requiring confirmation that the old worker has stopped or restarted and cannot still be processing it. Ordinary retry never resets a running job. Recovery is audited and returns it to the queued state for dispatch.
 
 Deleting linked training content restores the recording to its ready source/rendered state and cancels obsolete publication work. Creating a new draft reopens that work with the new destination link.
+
+Cut validation rejects complete or near-complete removal before approval/job creation, including gaps merged by the proposal. The database approval function enforces a remaining playable duration as well. An idempotent draft request for published content preserves completed publication work; draft links are read from the actual linked content destination.

@@ -85,12 +85,15 @@ async function social() {
         signal: AbortSignal.timeout(15000),
       }),
       profiles.length
-        ? fetch(`${origin}/social-media-posting/statistics`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ profileIds: profiles }),
-            signal: AbortSignal.timeout(15000),
-          })
+        ? fetch(
+            `${origin}/social-media-posting/statistics?locationId=${encodeURIComponent(location)}`,
+            {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ profileIds: profiles }),
+              signal: AbortSignal.timeout(15000),
+            },
+          )
         : Promise.resolve(null),
     ]);
     return {

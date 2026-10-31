@@ -1,3 +1,4 @@
+import { PORTAL_PROFILE_COLUMNS } from "@/lib/portal-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -6,7 +7,9 @@ import { inactiveClientResponse } from "@/lib/client-lifecycle";
 // Used by sidebar and settings to get current user info
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const admin = createAdminClient();
 
   if (!user) {
@@ -25,7 +28,7 @@ export async function GET() {
 
   const { data: profile } = await admin
     .from("client_profiles")
-    .select("*")
+    .select(PORTAL_PROFILE_COLUMNS)
     .eq("user_id", userId)
     .single();
 

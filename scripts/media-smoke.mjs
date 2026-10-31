@@ -53,7 +53,7 @@ async function login(email, password) {
 const adminCookie = await login(account.email, account.password),
   profile = await db
     .from("client_profiles")
-    .select("user_id,users(email)")
+    .select("user_id,users!client_profiles_user_id_fkey(email)")
     .eq("id", process.env.OPS_SMOKE_CLIENT_ID)
     .single();
 assert.equal(profile.error, null);

@@ -55,7 +55,17 @@ export function validateCuts(
   for (let i = 1; i < cuts.length; i++)
     if (cuts[i].start_s < cuts[i - 1].end_s)
       throw new OpsError("Cuts must not overlap");
-  if (!proposal) return cuts;
+  function playable(list: Cut[]) {
+    const removed = list
+      .filter((c) => !c.keep)
+      .reduce((sum, c) => sum + c.end_s - c.start_s, 0);
+    if (duration - removed < 0.1)
+      throw new OpsError(
+        "Cuts must leave at least 0.1 seconds of playable video",
+      );
+    return list;
+  }
+  if (!proposal) return playable(cuts);
   const merged: Cut[] = [];
   for (const c of cuts) {
     const prev = merged.at(-1);
@@ -65,7 +75,7 @@ export function validateCuts(
       prev.confidence = Math.min(prev.confidence, c.confidence);
     } else merged.push({ ...c });
   }
-  return merged;
+  return playable(merged);
 }
 
 export const cutOutputSchema = {
