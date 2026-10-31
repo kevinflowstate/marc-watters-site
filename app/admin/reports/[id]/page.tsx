@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { reportWeekStart } from "@/lib/ops/report-week";
 import ReportSummary from "@/components/ops/ReportSummary";
 import MarkdownPreview from "@/components/ops/MarkdownPreview";
 type Report = {
@@ -160,6 +161,7 @@ export default function ReportDetail() {
                 busy ||
                 report.status === "sent" ||
                 Boolean(report.send_claim_id) ||
+                report.week_start !== reportWeekStart() ||
                 text !== report.narrative_md ||
                 observations !== report.observations_md
               }
@@ -193,8 +195,9 @@ export default function ReportDetail() {
             </button>
           </div>
           <p className="text-sm text-text-muted">
-            Sending is off by default. Review is required before a send can
-            proceed.
+            Source refresh is available for the current week. Historical
+            snapshots are preserved. Sending is off by default. Review is
+            required before a send can proceed.
           </p>
           <details className="v2-surface p-5 mt-5">
             <summary>Source data and periods</summary>

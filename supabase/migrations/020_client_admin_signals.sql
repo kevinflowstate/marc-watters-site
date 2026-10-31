@@ -29,11 +29,11 @@ BEGIN
  SELECT least(count(*),32767) INTO chases FROM client_payment_events WHERE client_id=c.id AND event_type='chase_sent' AND occurred_at>coalesce(last_paid,'-infinity'::timestamptz);
  stale=c.payment_status_updated_at IS NOT NULL AND occurred<c.payment_status_updated_at;
  IF stale THEN
-  UPDATE client_profiles SET payment_chase_count=chases WHERE id=c.id RETURNING * INTO c;
+  UPDATE client_profiles SET payment_chase_count=chases,last_payment_at=greatest(last_payment_at,last_paid) WHERE id=c.id RETURNING * INTO c;
  ELSE
-  UPDATE client_profiles SET payment_status=CASE kind WHEN 'payment_failed' THEN 'failed' WHEN 'payment_succeeded' THEN 'current' WHEN 'chase_sent' THEN 'chasing' WHEN 'subscription_cancelled' THEN 'cancelled' WHEN 'payment_paused' THEN 'paused' END,payment_status_updated_at=occurred,payment_chase_count=chases,last_payment_at=coalesce(last_paid,last_payment_at) WHERE id=c.id RETURNING * INTO c;
+  UPDATE client_profiles SET payment_status=CASE kind WHEN 'payment_failed' THEN 'failed' WHEN 'payment_succeeded' THEN 'current' WHEN 'chase_sent' THEN 'chasing' WHEN 'subscription_cancelled' THEN 'cancelled' WHEN 'payment_paused' THEN 'paused' END,payment_status_updated_at=occurred,payment_chase_count=chases,last_payment_at=greatest(last_paid,last_payment_at) WHERE id=c.id RETURNING * INTO c;
  END IF;
- IF kind='chase_sent' AND c.payment_chase_count>=2 AND c.payment_status<>'current' THEN
+ IF kind='chase_sent' AND occurred>coalesce(last_paid,'-infinity'::timestamptz) AND c.payment_chase_count>=2 AND c.payment_status<>'current' THEN
   PERFORM ops_mutate_task('create',jsonb_build_object('kind','task','area','payments','title','payments: resolve '||coalesce(c.business_name,'client'),'client_id',c.id,'external_ref','payment-chase:'||c.id||':'||(p_event->>'external_id')),'payment-webhook');
  END IF;
  IF kind='payment_succeeded' AND NOT stale THEN

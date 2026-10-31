@@ -38,13 +38,25 @@ export default function ReviewRecording() {
     void load().catch((e) => setError(e.message));
   }, [load]);
   async function act(action: string) {
+    if (
+      action === "recover_worker" &&
+      !window.confirm(
+        "Only recover after the previous worker has stopped or restarted and the old job is no longer running. Confirm that is the case?",
+      )
+    )
+      return;
     setBusy(true);
     setError("");
     try {
       const r = await fetch(`/api/admin/recordings/${id}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action, cut_list: cuts, module_id: moduleId }),
+          body: JSON.stringify({
+            action,
+            cut_list: cuts,
+            module_id: moduleId,
+            worker_stopped: action === "recover_worker",
+          }),
         }),
         d = await r.json();
       if (!r.ok) throw Error(d.error);
@@ -108,6 +120,13 @@ export default function ReviewRecording() {
               onClick={() => void act("retry_worker")}
             >
               Retry queued worker
+            </button>
+            <button
+              disabled={busy}
+              className="v2-button-secondary"
+              onClick={() => void act("recover_worker")}
+            >
+              Recover interrupted job
             </button>
             <button
               disabled={busy}

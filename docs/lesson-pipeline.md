@@ -36,3 +36,7 @@ Integration consistency checks: cut approval/job creation and worker callback/re
 ## Recovery consistency
 
 Retry intake can renew an expired source download after cuts have been proposed without resetting editing progress. Worker retry considers only the latest job of each type; older failed jobs remain superseded. Cut proposals use a recording revision check so an AI response arriving after approval cannot overwrite the approved edit. Returning a closed cut proposal for review creates a fresh decision state on its existing approval task.
+
+The existing training editor also synchronizes recording status, publication tasks and destination links when content moves between published/unpublished modules. **Recover interrupted job** is an explicit admin action for the latest running job only, requiring confirmation that the old worker has stopped or restarted and cannot still be processing it. Ordinary retry never resets a running job. Recovery is audited and returns it to the queued state for dispatch.
+
+Deleting linked training content restores the recording to its ready source/rendered state and cancels obsolete publication work. Creating a new draft reopens that work with the new destination link.

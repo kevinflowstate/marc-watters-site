@@ -104,3 +104,49 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.ops_retry_render_job(uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.ops_retry_render_job(uuid) TO service_role;
+
+-- Moving content changes publication even when neither module's own flag changes.
+CREATE OR REPLACE FUNCTION public.ops_sync_moved_lesson() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE l lesson_recordings; t ops_tasks; published boolean;
+BEGIN
+ SELECT is_published INTO published FROM training_modules WHERE id=NEW.module_id;
+ FOR l IN SELECT * FROM lesson_recordings WHERE module_content_id=NEW.id AND status IN ('lesson_drafted','published') LOOP
+  UPDATE lesson_recordings SET status=CASE WHEN published THEN 'published' ELSE 'lesson_drafted' END WHERE id=l.id;
+  FOR t IN SELECT * FROM ops_tasks WHERE external_ref='lesson-publish:'||l.id LOOP
+   PERFORM ops_mutate_task('update',jsonb_build_object('links',jsonb_build_array(jsonb_build_object('label','Review draft module','url','/admin/training/'||NEW.module_id))), 'training-admin',t.id);
+   IF published AND t.status<>'done' THEN PERFORM ops_mutate_task('complete','{"status":"done","decision_note":"Lesson moved to a published module."}','training-admin',t.id);
+   ELSIF NOT published AND t.status='done' THEN PERFORM ops_mutate_task('update','{"status":"open","decision_note":"Lesson moved to an unpublished module."}','training-admin',t.id); END IF;
+  END LOOP;
+ END LOOP;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER ops_lesson_move AFTER UPDATE OF module_id ON public.module_content FOR EACH ROW WHEN(OLD.module_id IS DISTINCT FROM NEW.module_id) EXECUTE FUNCTION public.ops_sync_moved_lesson();
+
+-- Explicit operator recovery only after confirming the old process is stopped.
+CREATE OR REPLACE FUNCTION public.ops_recover_render_job(p_job uuid,p_confirmed_stopped boolean) RETURNS public.render_jobs LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE j render_jobs;
+BEGIN
+ IF p_confirmed_stopped IS DISTINCT FROM true THEN RAISE EXCEPTION 'Confirm previous worker is stopped'; END IF;
+ SELECT * INTO j FROM render_jobs WHERE id=p_job FOR UPDATE;
+ IF NOT FOUND OR j.status<>'running' THEN RAISE EXCEPTION 'Job is not an interrupted running job'; END IF;
+ IF EXISTS(SELECT 1 FROM render_jobs newer WHERE newer.recording_id=j.recording_id AND newer.job_type=j.job_type AND (newer.created_at,newer.id)>(j.created_at,j.id)) THEN RAISE EXCEPTION 'Job was superseded'; END IF;
+ UPDATE render_jobs SET status='queued',progress=0,error=null,started_at=null,finished_at=null WHERE id=j.id RETURNING * INTO j;
+ IF j.job_type='render' THEN UPDATE lesson_recordings SET status='cuts_approved',error=null WHERE id=j.recording_id; END IF;
+ INSERT INTO ops_events(actor,action,data) VALUES('training-admin','worker_job_recovered',jsonb_build_object('job_id',j.id,'previous_worker_confirmed_stopped',true));
+ RETURN j;
+END $$;
+REVOKE ALL ON FUNCTION public.ops_recover_render_job(uuid,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ops_recover_render_job(uuid,boolean) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.ops_remove_lesson_content() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE l lesson_recordings; t ops_tasks;
+BEGIN
+ FOR l IN SELECT * FROM lesson_recordings WHERE module_content_id=OLD.id FOR UPDATE LOOP
+  UPDATE lesson_recordings SET module_content_id=null,status=CASE WHEN edited_storage_path IS NOT NULL THEN 'rendered' WHEN source_storage_path IS NOT NULL THEN 'transcribed' ELSE 'received' END WHERE id=l.id;
+  FOR t IN SELECT * FROM ops_tasks WHERE external_ref='lesson-publish:'||l.id AND status<>'cancelled' LOOP
+   PERFORM ops_mutate_task('update','{"status":"cancelled","decision_note":"Lesson removed from training; create a new draft before publishing."}','training-admin',t.id);
+  END LOOP;
+ END LOOP;
+ RETURN OLD;
+END $$;
+CREATE TRIGGER ops_lesson_remove BEFORE DELETE ON public.module_content FOR EACH ROW EXECUTE FUNCTION public.ops_remove_lesson_content();

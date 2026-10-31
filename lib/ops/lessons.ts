@@ -265,7 +265,7 @@ export async function draftLesson(id: string, moduleId: string) {
   for (const t of await listTasks({ area: "lessons" }))
     if (t.external_ref === `lesson-cuts:${id}` && t.status !== "done")
       await completeTask(t.id, "Lesson draft created");
-  await createTask({
+  const publication = await createTask({
     kind: "task",
     area: "lessons",
     title: `lessons: publish ${l.title}`,
@@ -275,6 +275,18 @@ export async function draftLesson(id: string, moduleId: string) {
       { label: "Review draft module", url: `/admin/training/${moduleId}` },
     ],
   });
+  if (["done", "cancelled"].includes(publication.status)) {
+    const reopened = await db.rpc("ops_mutate_task", {
+      p_action: "update",
+      p_id: publication.id,
+      p_actor: "lesson-draft",
+      p_data: {
+        status: "open",
+        decision_note: "New lesson draft created; review before publishing.",
+      },
+    });
+    if (reopened.error) throw new OpsError(reopened.error.message, 409);
+  }
   return l;
 }
 export async function sourceUrl(id: string) {
@@ -297,7 +309,14 @@ export async function lessonAction(id: string, input: unknown) {
       return approveCuts(id, b);
     case "draft":
       return draftLesson(id, String(b.module_id || ""));
+    case "recover_worker":
     case "retry_worker": {
+      const recovering = b.action === "recover_worker";
+      if (recovering && b.worker_stopped !== true)
+        throw new OpsError(
+          "Confirm the previous worker is stopped before recovery",
+          409,
+        );
       const jobs = await createAdminClient()
         .from("render_jobs")
         .select("id,job_type,status,created_at")
@@ -310,10 +329,19 @@ export async function lessonAction(id: string, input: unknown) {
       for (const j of jobs.data || []) {
         if (seen.has(j.job_type)) continue;
         seen.add(j.job_type);
-        if (!["queued", "failed"].includes(j.status)) continue;
-        const retry = await createAdminClient().rpc("ops_retry_render_job", {
-          p_job: j.id,
-        });
+        if (
+          recovering
+            ? j.status !== "running"
+            : !["queued", "failed"].includes(j.status)
+        )
+          continue;
+        const retry = await createAdminClient().rpc(
+          recovering ? "ops_recover_render_job" : "ops_retry_render_job",
+          {
+            p_job: j.id,
+            ...(recovering ? { p_confirmed_stopped: true } : {}),
+          },
+        );
         if (retry.error) throw new OpsError(retry.error.message, 409);
         await dispatchRenderJob(j.id);
       }

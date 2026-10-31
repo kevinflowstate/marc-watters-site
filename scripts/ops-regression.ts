@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { createAdminClient } from "../lib/supabase/admin";
 import { recordPayment } from "../lib/ops/payments";
 import { updateClientSignals } from "../lib/ops/onboarding";
@@ -11,6 +10,7 @@ import {
   lessonAction,
   proposeCuts,
   approveCuts,
+  draftLesson,
 } from "../lib/ops/lessons";
 import { createReportDraft, getReport, updateReport } from "../lib/ops/reports";
 import { reportPeriods } from "../lib/ops/report-data";
@@ -25,14 +25,16 @@ const db = createAdminClient(),
   checks: string[] = [],
   lessonIds: string[] = [],
   reportIds: string[] = [],
-  taskIds: string[] = [];
-const clientId = process.env.OPS_SMOKE_CLIENT_ID!,
-  account = JSON.parse(
-    await readFile(
-      "/Volumes/CodexDev/Projects/cbb-ops-build/.test-account.json",
-      "utf8",
-    ),
-  );
+  taskIds: string[] = [],
+  moduleIds: string[] = [];
+const clientId = process.env.OPS_SMOKE_CLIENT_ID!;
+const adminAccount = await db
+  .from("users")
+  .select("id")
+  .eq("email", "cbb-ops-test@example.invalid")
+  .single();
+assert.ok(adminAccount.data);
+const account = adminAccount.data;
 const client = await db
   .from("client_profiles")
   .select("*,users(email)")
@@ -83,6 +85,30 @@ try {
   assert.equal(stale.chase_count, 0);
   assert.equal(stale.payment_status, "current");
   checks.push("out-of-order reminder count and later-payment protection");
+  await event("payment_paused", 8, "-newer-pause");
+  await event("payment_succeeded", 6, "-late-success");
+  const delayed = await db
+    .from("client_profiles")
+    .select("payment_status,last_payment_at")
+    .eq("id", clientId)
+    .single();
+  assert.ok(delayed.data);
+  assert.equal(delayed.data.payment_status, "paused");
+  assert.equal(new Date(delayed.data.last_payment_at).getTime(), epoch + 6000);
+  await event("payment_failed", 9, "-next-cycle");
+  await event("chase_sent", 10, "-next-one");
+  await event("chase_sent", 11, "-next-two");
+  await event("chase_sent", 5, "-settled-cycle");
+  const settled = await db
+    .from("ops_tasks")
+    .select("id")
+    .eq("external_ref", `payment-chase:${clientId}:${prefix}-settled-cycle`);
+  assert.equal(settled.error, null);
+  assert.equal(settled.data?.length, 0);
+  checks.push(
+    "late success updates payment metadata without regressing status; settled-cycle reminder creates no new task",
+  );
+
   // Both competing forwards transitions may start from the same read; complete must win.
   await db
     .from("client_profiles")
@@ -201,6 +227,37 @@ try {
   const retired = await db.rpc("ops_retry_render_job", { p_job: old.data.id });
   assert.equal(retired.error, null);
   assert.equal(retired.data.status, "failed");
+
+  const currentJob = await db
+    .from("render_jobs")
+    .select("id")
+    .eq("recording_id", recovery.data.id)
+    .eq("status", "queued")
+    .single();
+  assert.ok(currentJob.data);
+  await db
+    .from("render_jobs")
+    .update({ status: "running", progress: 45 })
+    .eq("id", currentJob.data.id);
+  await assert.rejects(
+    () => lessonAction(recovery.data.id, { action: "recover_worker" }),
+    /Confirm/,
+  );
+  await lessonAction(recovery.data.id, {
+    action: "recover_worker",
+    worker_stopped: true,
+  });
+  const recovered = await db
+    .from("render_jobs")
+    .select("status,progress")
+    .eq("id", currentJob.data.id)
+    .single();
+  assert.ok(recovered.data);
+  assert.equal(recovered.data.status, "queued");
+  assert.equal(recovered.data.progress, 0);
+  checks.push(
+    "interrupted running job only recovers with explicit stopped-worker confirmation",
+  );
   checks.push("source renewal after cut proposal preserves editing state");
   checks.push(
     "superseded failed copy does not conflict with replacement retry",
@@ -359,6 +416,140 @@ try {
   checks.push(
     "send freezes reviewed revision; concurrent and late edits rejected (fake sender, no email)",
   );
+
+  // A historical refresh must not generate or update a different current report.
+  const historic = await db
+    .from("ops_reports")
+    .insert({
+      week_start: "1999-01-04",
+      status: "draft",
+      data: { fixture: prefix },
+      narrative_md: prefix,
+    })
+    .select()
+    .single();
+  assert.ok(historic.data);
+  reportIds.push(historic.data.id);
+  await assert.rejects(
+    () =>
+      updateReport(
+        historic.data.id,
+        { action: "refresh", expected_updated_at: historic.data.updated_at },
+        account.id,
+      ),
+    /historical snapshots/,
+  );
+  assert.equal(
+    (await getReport(historic.data.id)).updated_at,
+    historic.data.updated_at,
+  );
+  checks.push(
+    "historical refresh rejected without creating or returning another week",
+  );
+  const modules = await db
+    .from("training_modules")
+    .insert([
+      { title: prefix + " draft", is_published: false },
+      { title: prefix + " published", is_published: true },
+    ])
+    .select();
+  assert.equal(modules.error, null);
+  assert.equal(modules.data?.length, 2);
+  const draftModule = modules.data!.find((m) => !m.is_published)!,
+    publishedModule = modules.data!.find((m) => m.is_published)!;
+  moduleIds.push(...modules.data!.map((m) => m.id));
+  const content = await db
+    .from("module_content")
+    .insert({
+      module_id: draftModule.id,
+      title: prefix,
+      content_type: "video",
+      order_index: 0,
+    })
+    .select()
+    .single();
+  assert.ok(content.data);
+  const moved = await db
+    .from("lesson_recordings")
+    .insert({
+      source: "upload",
+      title: prefix,
+      source_storage_path: source.data.source_storage_path,
+      transcript_text: "Synthetic transcript",
+      status: "lesson_drafted",
+      module_content_id: content.data.id,
+    })
+    .select()
+    .single();
+  assert.ok(moved.data);
+  lessonIds.push(moved.data.id);
+  const publishTask = await createTask(
+    {
+      kind: "task",
+      area: "lessons",
+      title: prefix,
+      external_ref: `lesson-publish:${moved.data.id}`,
+    },
+    "regression",
+  );
+  taskIds.push(publishTask.id);
+  assert.equal(
+    (
+      await db
+        .from("module_content")
+        .update({ module_id: publishedModule.id })
+        .eq("id", content.data.id)
+    ).error,
+    null,
+  );
+  assert.equal((await getLesson(moved.data.id)).status, "published");
+  const publishedTask = await db
+    .from("ops_tasks")
+    .select("status,links")
+    .eq("id", publishTask.id)
+    .single();
+  assert.ok(publishedTask.data);
+  assert.equal(publishedTask.data.status, "done");
+  assert.equal(
+    publishedTask.data.links[0].url,
+    `/admin/training/${publishedModule.id}`,
+  );
+  await db
+    .from("module_content")
+    .update({ module_id: draftModule.id })
+    .eq("id", content.data.id);
+  assert.equal((await getLesson(moved.data.id)).status, "lesson_drafted");
+  const reopened = await db
+    .from("ops_tasks")
+    .select("status")
+    .eq("id", publishTask.id)
+    .single();
+  assert.equal(reopened.data?.status, "open");
+  checks.push(
+    "moving a lesson both ways synchronizes publication state, task and destination link",
+  );
+
+  await db.from("module_content").delete().eq("id", content.data.id);
+  const removed = await getLesson(moved.data.id);
+  assert.equal(removed.module_content_id, null);
+  assert.equal(removed.status, "transcribed");
+  const cancelled = await db
+    .from("ops_tasks")
+    .select("status")
+    .eq("id", publishTask.id)
+    .single();
+  assert.equal(cancelled.data?.status, "cancelled");
+  const redrafted = await draftLesson(moved.data.id, draftModule.id);
+  assert.notEqual(redrafted.module_content_id, content.data.id);
+  const requeued = await db
+    .from("ops_tasks")
+    .select("status")
+    .eq("id", publishTask.id)
+    .single();
+  assert.equal(requeued.data?.status, "open");
+  checks.push(
+    "removing a training lesson restores draft eligibility and re-drafting reopens publication work",
+  );
   console.log(JSON.stringify({ pass: true, checks, externalMessages: 0 }));
 } finally {
   if (renderHost === undefined) delete process.env.RENDER_HOST_URL;
@@ -367,6 +558,8 @@ try {
     await db.from("ops_reports").delete().eq("id", id);
   for (const id of lessonIds)
     await db.from("lesson_recordings").delete().eq("id", id);
+  for (const id of moduleIds)
+    await db.from("training_modules").delete().eq("id", id);
   if (taskIds.length)
     assert.equal(
       (
@@ -377,6 +570,11 @@ try {
       ).error,
       null,
     );
+  for (const id of lessonIds)
+    await db
+      .from("ops_tasks")
+      .delete()
+      .eq("external_ref", `lesson-publish:${id}`);
   await db
     .from("ops_tasks")
     .delete()

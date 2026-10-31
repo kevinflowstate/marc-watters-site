@@ -5,7 +5,10 @@ import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
 function generateTemporaryPassword(): string {
-  const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
+  const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(
+    /-/g,
+    "",
+  );
   return `Tmp!${entropy.slice(0, 24)}aA1`;
 }
 
@@ -20,11 +23,25 @@ export async function POST(request: Request) {
   console.log("[WEBHOOK] Raw body:", JSON.stringify(body));
 
   // GHL sends various field names — handle them all
-  const name = (body.name || body.full_name || body.contact_name || body.fullName || body.contactName || [body.first_name || body.firstName, body.last_name || body.lastName].filter(Boolean).join(" "))?.trim();
-  const email = (body.email || body.contact_email || body.contactEmail)?.trim()?.toLowerCase();
+  const name = (
+    body.name ||
+    body.full_name ||
+    body.contact_name ||
+    body.fullName ||
+    body.contactName ||
+    [body.first_name || body.firstName, body.last_name || body.lastName]
+      .filter(Boolean)
+      .join(" ")
+  )?.trim();
+  const email = (body.email || body.contact_email || body.contactEmail)
+    ?.trim()
+    ?.toLowerCase();
 
   if (!name || !email) {
-    return NextResponse.json({ error: "name and email are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "name and email are required" },
+      { status: 400 },
+    );
   }
 
   const admin = createAdminClient();
@@ -37,21 +54,38 @@ export async function POST(request: Request) {
     .limit(1);
 
   if (existing && existing.length > 0) {
-    return NextResponse.json({ success: true, message: "Client already exists", alreadyExisted: true });
+    const { data: profile } = await admin
+      .from("client_profiles")
+      .select("id")
+      .eq("user_id", existing[0].id)
+      .single();
+    if (!profile)
+      return NextResponse.json(
+        { error: "Client profile is not ready; retry intake" },
+        { status: 503 },
+      );
+    await startOnboarding(profile.id);
+    return NextResponse.json({
+      success: true,
+      message: "Client already exists",
+      alreadyExisted: true,
+    });
   }
 
   // Create user in Supabase Auth (triggers handle_new_user + handle_new_client)
-  const { data: newUser, error: authError } = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    password: generateTemporaryPassword(),
-    user_metadata: {
-      full_name: name,
-      role: "client",
-      app_name: "marc-watters-portal",
-      requires_password_setup: true,
+  const { data: newUser, error: authError } = await admin.auth.admin.createUser(
+    {
+      email,
+      email_confirm: true,
+      password: generateTemporaryPassword(),
+      user_metadata: {
+        full_name: name,
+        role: "client",
+        app_name: "marc-watters-portal",
+        requires_password_setup: true,
+      },
     },
-  });
+  );
 
   if (authError) {
     return NextResponse.json({ error: authError.message }, { status: 500 });
@@ -68,10 +102,11 @@ export async function POST(request: Request) {
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Client profile was not created" },
+      { status: 500 },
+    );
   }
-
-  await startOnboarding(profile.id);
 
   // The published "Welcome & Onboarding" module is auto-assigned by the DB trigger on client_profiles.
 
@@ -97,8 +132,15 @@ export async function POST(request: Request) {
       emailSent = true;
     }
   } catch (e) {
-    console.log("[WEBHOOK] Welcome email failed:", e instanceof Error ? e.message : e);
+    console.log(
+      "[WEBHOOK] Welcome email failed:",
+      e instanceof Error ? e.message : e,
+    );
   }
+
+  // Keep activation independent of Ops availability. A webhook retry resumes only
+  // idempotent onboarding above, without generating another invite or welcome email.
+  await startOnboarding(profile.id);
 
   return NextResponse.json({
     success: true,

@@ -151,7 +151,12 @@ export async function updateReport(
     throw new OpsError("Report changed; reload before saving", 409);
   if (current.status === "sent" || current.send_claim_id)
     throw new OpsError("Report is sent or sending; editing is locked", 409);
-  if (b.action === "refresh")
+  if (b.action === "refresh") {
+    if (current.week_start !== reportPeriods().week_start)
+      throw new OpsError(
+        "Only the current week can refresh; historical snapshots are preserved",
+        409,
+      );
     return {
       report: await createReportDraft(new Date(), generateOpsText, {
         refresh: true,
@@ -159,6 +164,7 @@ export async function updateReport(
       }),
       refreshed: true,
     };
+  }
   if (b.action === "send") {
     if (current.status !== "reviewed")
       throw new OpsError("Review the report before sending", 409);
