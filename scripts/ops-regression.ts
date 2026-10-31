@@ -4,7 +4,13 @@ import { createAdminClient } from "../lib/supabase/admin";
 import { recordPayment } from "../lib/ops/payments";
 import { listClientsNeedingAttention } from "../lib/ops/clients";
 import { updateClientSignals } from "../lib/ops/onboarding";
-import { listTasks, createTask } from "../lib/ops/tasks";
+import {
+  listTasks,
+  createTask,
+  decideTask,
+  completeTask,
+  updateTask,
+} from "../lib/ops/tasks";
 import {
   getLesson,
   ingest,
@@ -123,6 +129,129 @@ try {
     .update({ archived_at: original.archived_at })
     .eq("id", clientId);
   checks.push("archived client is excluded from the attention tool");
+
+  // The same timestamped events must settle identically in either arrival order.
+  await event("payment_succeeded", 30, "-tie-pay-first");
+  const tieA = await event("chase_sent", 30, "-tie-chase-last");
+  assert.equal(tieA.payment_status, "current");
+  assert.equal(tieA.chase_count, 0);
+  await event("chase_sent", 40, "-tie-chase-first");
+  const tieB = await event("payment_succeeded", 40, "-tie-pay-last");
+  assert.equal(tieB.payment_status, "current");
+  assert.equal(tieB.chase_count, 0);
+  await event("subscription_cancelled", 50, "-tie-cancel-first");
+  const tiedCancelled = await event(
+    "payment_succeeded",
+    50,
+    "-tie-pay-under-cancel",
+  );
+  assert.equal(tiedCancelled.payment_status, "cancelled");
+  await event("payment_succeeded", 60, "-tie-pay-under-cancel-first");
+  const cancelLast = await event(
+    "subscription_cancelled",
+    60,
+    "-tie-cancel-last",
+  );
+  assert.equal(cancelLast.payment_status, "cancelled");
+  checks.push(
+    "same-timestamp payment/chase and cancellation pairs use deterministic precedence in either arrival order",
+  );
+  const proposal = {
+    kind: "approval",
+    area: "other",
+    title: "Synthetic revision approval",
+    detail: "Original",
+    external_ref: prefix + "-approval-revision",
+    status: "awaiting_approval",
+    links: [{ label: "Draft", url: "/fixture/original" }],
+    payload: { revision: 1 },
+  };
+  const initialApproval = await createTask(proposal, "regression");
+  taskIds.push(initialApproval.id);
+  const decision = await decideTask(
+    initialApproval.id,
+    "approved",
+    "Original approved",
+    account.id,
+    "regression",
+  );
+  const identical = await createTask(proposal, "regression");
+  assert.equal(identical.status, "approved");
+  assert.equal(identical.decided_at, decision.decided_at);
+  assert.equal(identical.updated_at, decision.updated_at);
+  const revised = await createTask(
+    {
+      ...proposal,
+      detail: "Revised",
+      links: [{ label: "Draft", url: "/fixture/revised" }],
+      payload: { revision: 2 },
+    },
+    "regression",
+  );
+  assert.equal(revised.status, "awaiting_approval");
+  assert.equal(revised.decided_by, null);
+  assert.equal(revised.decided_at, null);
+  assert.equal(revised.decision_note, null);
+  await decideTask(
+    revised.id,
+    "rejected",
+    "Revise again",
+    account.id,
+    "regression",
+  );
+  const patched = await updateTask(
+    revised.id,
+    { detail: "Third revision" },
+    "regression",
+  );
+  assert.equal(patched.status, "awaiting_approval");
+  assert.equal(patched.decided_at, null);
+  await assert.rejects(
+    () => createTask({ ...proposal, kind: "task" }, "regression"),
+    /different work kind/,
+  );
+  checks.push(
+    "identical approval retry preserves decision; revised upsert or edit clears it and reopens review",
+  );
+  const completion = await createTask(
+    {
+      kind: "task",
+      area: "other",
+      title: "Synthetic repeated completion",
+      external_ref: prefix + "-completion",
+    },
+    "regression",
+  );
+  taskIds.push(completion.id);
+  await completeTask(completion.id, "First completion", "regression");
+  await db
+    .from("ops_events")
+    .update({ created_at: "2001-01-01T00:00:00Z" })
+    .eq("task_id", completion.id)
+    .contains("data", { status: "done" });
+  await completeTask(completion.id, "Repeated completion", "regression");
+  await updateTask(
+    completion.id,
+    { status: "done", detail: "Updated closed task detail" },
+    "regression",
+  );
+  const doneEvents = await db
+    .from("ops_events")
+    .select("id,created_at")
+    .eq("task_id", completion.id)
+    .contains("data", { status: "done" });
+  assert.equal(doneEvents.error, null);
+  assert.equal(doneEvents.data?.length, 1);
+  assert.equal(doneEvents.data?.[0].created_at, "2001-01-01T00:00:00+00:00");
+  const retries = await db
+    .from("ops_events")
+    .select("id")
+    .eq("task_id", completion.id)
+    .contains("data", { status_unchanged: "done" });
+  assert.equal(retries.data?.length, 2);
+  checks.push(
+    "completion retries retain audit but create no reportable completion in a later period",
+  );
   // Both competing forwards transitions may start from the same read; complete must win.
   await db
     .from("client_profiles")

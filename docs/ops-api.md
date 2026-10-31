@@ -73,3 +73,8 @@ The eleven new Ops signal fields on client_profiles are not available to the aut
 The Social Planner statistics POST includes its required `locationId` query parameter, as documented in the [official reference](https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/social-planner/get-statistics/index.html). The contract test mocks HTTP; no CRM write occurs.
 
 The old non-live database lacks some current-app baseline fields. Only the existing lesson-attachment and archive columns were added for compatibility. Its existing self-referential users RLS policy produces 42P17 on direct authenticated SDK reads; this historical policy is not changed by the build. Column privileges were independently checked through the catalog, and actual client settings/me/dashboard plus Ops API flows were exercised. Do not call the legacy direct SDK check a pass.
+
+
+Proposal revisions and completion accounting: an identical approval upsert preserves the decision and timestamp. Changing its title, detail, proposed links/outputs or payload reopens review and clears the old decision; generic edits do the same. Output receipts appended with attach_output do not replace a proposal. Reopened approvals use a revision-specific notification key. Repeated completion requests remain in the audit trail as status_unchanged; only an actual transition into done is reportable as a completion.
+
+Connected account identifiers come from results.accounts[].id in the [official accounts response](https://marketplace.gohighlevel.com/docs/2021-07-28/ghl/social-planner/get-account/index.html) and are passed as profileIds to statistics. The mocked response uses that documented shape.

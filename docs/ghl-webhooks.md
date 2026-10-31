@@ -15,3 +15,6 @@ Suggested workflow intents (exact native trigger names unverified): failed payme
 The existing new-client webhook starts invited onboarding with a 48-hour due date and two checklist tasks (community admission, welcome pack). It retains the existing welcome/invite behaviour; do not replay it against real clients for acceptance. Operator tooling advances `/api/ops/clients/{id}/onboarding` with `{ "stage": "community_added" }` etc. Stage progression is monotonic and closes the corresponding checklist items. Manual payment/next-action controls live on the admin client page.
 
 Daily cron is read-and-flag only: overdue onboarding, chasing for >7 days, no check-in for 14 days (one open engagement task), late lessons, Monday payment review. Cron and Thursday schedules are added by Stream G. All fixtures use `.invalid` synthetic identities, never Marc’s CRM.
+
+
+Events with identical occurred_at use fixed precedence: subscription_cancelled, payment_paused, payment_succeeded, chase_sent, payment_failed (highest first). This preserves a cancelled/paused account while allowing a successful payment to settle a same-time reminder regardless of delivery order. Last-payment metadata and reminder-cycle counts still come from the ledger. Identical event IDs remain no-ops.

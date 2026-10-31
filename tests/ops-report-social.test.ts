@@ -14,7 +14,20 @@ describe("optional report statistics contract", () => {
     const fetchMock = vi.fn(async (input: string, options?: RequestInit) => {
       const url = new URL(input);
       if (url.pathname.endsWith("/accounts"))
-        return Response.json({ accounts: [{ profileId: "fixture-profile" }] });
+        return Response.json({
+          success: true,
+          statusCode: 200,
+          results: {
+            accounts: [
+              {
+                id: "fixture-profile",
+                name: "Synthetic account",
+                platform: "facebook",
+              },
+            ],
+            groups: [],
+          },
+        });
       if (url.pathname.endsWith("/statistics")) {
         expect(url.searchParams.get("locationId")).toBe("93GJEdsr0cT9el3OINXq");
         expect(options?.method).toBe("POST");

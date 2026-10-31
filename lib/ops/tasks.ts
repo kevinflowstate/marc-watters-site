@@ -138,12 +138,15 @@ async function mutate(
 export async function createTask(input: unknown, actor = "system") {
   const data = validate(input, true);
   const task = await mutate("create", data, actor);
-  if (task.kind === "approval")
+  if (
+    task.kind === "approval" &&
+    ["open", "in_progress", "awaiting_approval"].includes(task.status)
+  )
     await notifyOpsAdmins(
       "Work needs approval",
       task.title,
       `/admin/work?task=${task.id}`,
-      `approval:${task.id}`,
+      `approval:${task.id}:${task.updated_at}`,
     );
   return task;
 }

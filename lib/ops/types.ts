@@ -41,6 +41,8 @@ export type OpsTask = {
   outputs: OpsLink[];
   payload: Record<string, unknown>;
   due_at: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
   decision_note: string | null;
   created_at: string;
   updated_at: string;

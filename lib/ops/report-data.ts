@@ -67,8 +67,8 @@ async function social() {
     );
     if (!accounts.ok) throw Error();
     const a = await accounts.json();
-    const profiles = (a.accounts || a.results?.accounts || [])
-      .map((x: { profileId?: string }) => x.profileId)
+    const profiles = (a.results?.accounts || a.accounts || [])
+      .map((x: { id?: string }) => x.id)
       .filter(Boolean);
     const [posts, stats] = await Promise.all([
       fetch(`${origin}/social-media-posting/${location}/posts/list`, {

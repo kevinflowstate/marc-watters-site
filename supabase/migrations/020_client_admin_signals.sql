@@ -27,7 +27,11 @@ BEGIN
  END IF;
  SELECT max(occurred_at) INTO last_paid FROM client_payment_events WHERE client_id=c.id AND event_type='payment_succeeded';
  SELECT least(count(*),32767) INTO chases FROM client_payment_events WHERE client_id=c.id AND event_type='chase_sent' AND occurred_at>coalesce(last_paid,'-infinity'::timestamptz);
- stale=c.payment_status_updated_at IS NOT NULL AND occurred<c.payment_status_updated_at;
+ -- Deterministic ties: cancellation > pause > successful payment > chase > failure.
+ -- Successful payment therefore settles a same-time reminder in either delivery order.
+ stale=c.payment_status_updated_at IS NOT NULL AND (occurred<c.payment_status_updated_at OR (occurred=c.payment_status_updated_at AND
+  CASE kind WHEN 'subscription_cancelled' THEN 5 WHEN 'payment_paused' THEN 4 WHEN 'payment_succeeded' THEN 3 WHEN 'chase_sent' THEN 2 ELSE 1 END <=
+  CASE c.payment_status WHEN 'cancelled' THEN 5 WHEN 'paused' THEN 4 WHEN 'current' THEN 3 WHEN 'chasing' THEN 2 ELSE 1 END));
  IF stale THEN
   UPDATE client_profiles SET payment_chase_count=chases,last_payment_at=greatest(last_payment_at,last_paid) WHERE id=c.id RETURNING * INTO c;
  ELSE
