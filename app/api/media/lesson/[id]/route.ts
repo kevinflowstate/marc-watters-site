@@ -1,7 +1,60 @@
-import {NextResponse} from "next/server";
-import {createClient} from "@/lib/supabase/server";
-import {createAdminClient} from "@/lib/supabase/admin";
-import {getAccessibleModuleIds} from "@/lib/portal-training-access";
-import {getLesson} from "@/lib/ops/lessons";
-import {OpsError} from "@/lib/ops/tasks";
-export async function GET(_request:Request,c:{params:Promise<{id:string}>}){try{const {data:{user}}=await (await createClient()).auth.getUser();if(!user)throw new OpsError("Not authenticated",401);const db=createAdminClient(),role=await db.from("users").select("role").eq("id",user.id).single(),l=await getLesson((await c.params).id);if(role.data?.role!=="admin"){const p=await db.from("client_profiles").select("*").eq("user_id",user.id).single();if(!p.data||p.data.archived_at||!l.module_content_id)throw new OpsError("Not assigned",403);const content=await db.from("module_content").select("module_id,training_modules(is_published)").eq("id",l.module_content_id).single();const mod=Array.isArray(content.data?.training_modules)?content.data?.training_modules[0]:content.data?.training_modules;if(!content.data||!mod?.is_published||!(await getAccessibleModuleIds(db,p.data.id)).has(content.data.module_id))throw new OpsError("Not assigned",403);}const path=l.edited_storage_path||l.source_storage_path;if(!path)throw new OpsError("Media not ready",404);const signed=await db.storage.from("lesson-media").createSignedUrl(path,3600);if(signed.error)throw new OpsError("Media unavailable",503);return NextResponse.redirect(signed.data.signedUrl,{status:302,headers:{"Cache-Control":"private, no-store"}});}catch(e){return NextResponse.json({error:e instanceof OpsError?e.message:"Media unavailable"},{status:e instanceof OpsError?e.status:500});}}
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getAccessibleModuleIds } from "@/lib/portal-training-access";
+import { getLesson } from "@/lib/ops/lessons";
+import { OpsError } from "@/lib/ops/tasks";
+export async function GET(
+  _request: Request,
+  c: { params: Promise<{ id: string }> },
+) {
+  try {
+    const {
+      data: { user },
+    } = await (await createClient()).auth.getUser();
+    if (!user) throw new OpsError("Not authenticated", 401);
+    const db = createAdminClient(),
+      role = await db.from("users").select("role").eq("id", user.id).single(),
+      l = await getLesson((await c.params).id);
+    if (role.data?.role !== "admin") {
+      const p = await db
+        .from("client_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      if (!p.data || p.data.archived_at || !l.module_content_id)
+        throw new OpsError("Not assigned", 403);
+      const content = await db
+        .from("module_content")
+        .select("module_id,training_modules(is_published)")
+        .eq("id", l.module_content_id)
+        .single();
+      const mod = Array.isArray(content.data?.training_modules)
+        ? content.data?.training_modules[0]
+        : content.data?.training_modules;
+      if (
+        !content.data ||
+        !mod?.is_published ||
+        !(await getAccessibleModuleIds(db, p.data.id)).has(
+          content.data.module_id,
+        )
+      )
+        throw new OpsError("Not assigned", 403);
+    }
+    const path = l.edited_storage_path || l.source_storage_path;
+    if (!path) throw new OpsError("Media not ready", 404);
+    const signed = await db.storage
+      .from("lesson-media")
+      .createSignedUrl(path, 3600);
+    if (signed.error) throw new OpsError("Media unavailable", 503);
+    return NextResponse.redirect(signed.data.signedUrl, {
+      status: 302,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof OpsError ? e.message : "Media unavailable" },
+      { status: e instanceof OpsError ? e.status : 500 },
+    );
+  }
+}

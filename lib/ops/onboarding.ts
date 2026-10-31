@@ -1,13 +1,132 @@
-import {createAdminClient} from "@/lib/supabase/admin";
-import {createTask,completeTask,listTasks,OpsError,record,uuid} from "./tasks";
-import {getClient} from "./clients";
-export const onboardingStages=["none","invited","form_received","paid","welcomed","community_added","pack_sent","complete"] as const;
-export async function startOnboarding(id:string){const c=await getClient(id);if(c.onboarding_stage==="none"){const now=new Date();const r=await createAdminClient().from("client_profiles").update({onboarding_stage:"invited",onboarding_started_at:now.toISOString(),onboarding_due_at:new Date(now.getTime()+48*3600000).toISOString()}).eq("id",id);if(r.error)throw new OpsError(r.error.message,409);}for(const [step,title] of [["community_added","Admit to community"],["pack_sent","Send welcome pack"]])await createTask({kind:"task",area:"onboarding",title:`onboarding: ${title}`,client_id:id,external_ref:`onboarding:${id}:${step}`,due_at:c.onboarding_due_at||new Date(Date.now()+48*3600000).toISOString()});return getClient(id);}
-export async function updateClientSignals(id:string,input:unknown,actor="ops-token"){const b=record(input),c=await getClient(id),updates:Record<string,unknown>={};for(const k of Object.keys(b))if(!["stage","payment_status","next_action","next_action_due"].includes(k))throw new OpsError("Unsupported signal field");
- if(b.stage!==undefined){const stage=String(b.stage),index=onboardingStages.indexOf(stage as typeof onboardingStages[number]);if(index<0)throw new OpsError("Invalid onboarding stage");if(index<onboardingStages.indexOf(c.onboarding_stage))throw new OpsError("Onboarding cannot move backwards");updates.onboarding_stage=stage;if(stage==="complete")updates.onboarding_completed_at=c.onboarding_completed_at||new Date().toISOString();}
- if(b.payment_status!==undefined){if(!["current","failed","chasing","paused","cancelled"].includes(String(b.payment_status)))throw new OpsError("Invalid payment status");updates.payment_status=b.payment_status;updates.payment_status_updated_at=new Date().toISOString();}
- if("next_action" in b){if(b.next_action!==null&&typeof b.next_action!=="string")throw new OpsError("Invalid next action");updates.next_action=b.next_action;}
- if("next_action_due" in b){if(b.next_action_due!==null&&(typeof b.next_action_due!=="string"||!Number.isFinite(Date.parse(b.next_action_due))))throw new OpsError("Invalid next action due date");updates.next_action_due=b.next_action_due;}
- const r=await createAdminClient().from("client_profiles").update(updates).eq("id",uuid(id)).select().single();if(r.error)throw new OpsError(r.error.message,409);
- if(b.stage){for(const t of await listTasks({clientId:id,area:"onboarding"})){const step=t.external_ref?.split(":").at(-1);if(step&&["community_added","pack_sent"].includes(step)&&onboardingStages.indexOf(step as typeof onboardingStages[number])<=onboardingStages.indexOf(b.stage as typeof onboardingStages[number])&&!["done","cancelled"].includes(t.status))await completeTask(t.id,`Onboarding advanced to ${b.stage}`,actor);}}
- const audit=await createAdminClient().from("ops_events").insert({actor,action:"client_signals_updated",data:{client_id:id,updates}});if(audit.error)throw new OpsError("Client saved; audit unavailable",500);return r.data;}
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  createTask,
+  completeTask,
+  listTasks,
+  OpsError,
+  record,
+  uuid,
+} from "./tasks";
+import { getClient } from "./clients";
+export const onboardingStages = [
+  "none",
+  "invited",
+  "form_received",
+  "paid",
+  "welcomed",
+  "community_added",
+  "pack_sent",
+  "complete",
+] as const;
+export async function startOnboarding(id: string) {
+  const c = await getClient(id);
+  if (c.onboarding_stage === "none") {
+    const now = new Date();
+    const r = await createAdminClient()
+      .from("client_profiles")
+      .update({
+        onboarding_stage: "invited",
+        onboarding_started_at: now.toISOString(),
+        onboarding_due_at: new Date(now.getTime() + 48 * 3600000).toISOString(),
+      })
+      .eq("id", id);
+    if (r.error) throw new OpsError(r.error.message, 409);
+  }
+  for (const [step, title] of [
+    ["community_added", "Admit to community"],
+    ["pack_sent", "Send welcome pack"],
+  ])
+    await createTask({
+      kind: "task",
+      area: "onboarding",
+      title: `onboarding: ${title}`,
+      client_id: id,
+      external_ref: `onboarding:${id}:${step}`,
+      due_at:
+        c.onboarding_due_at ||
+        new Date(Date.now() + 48 * 3600000).toISOString(),
+    });
+  return getClient(id);
+}
+export async function updateClientSignals(
+  id: string,
+  input: unknown,
+  actor = "ops-token",
+) {
+  const b = record(input),
+    c = await getClient(id),
+    updates: Record<string, unknown> = {};
+  for (const k of Object.keys(b))
+    if (
+      !["stage", "payment_status", "next_action", "next_action_due"].includes(k)
+    )
+      throw new OpsError("Unsupported signal field");
+  if (b.stage !== undefined) {
+    const stage = String(b.stage),
+      index = onboardingStages.indexOf(
+        stage as (typeof onboardingStages)[number],
+      );
+    if (index < 0) throw new OpsError("Invalid onboarding stage");
+    if (index < onboardingStages.indexOf(c.onboarding_stage))
+      throw new OpsError("Onboarding cannot move backwards");
+    updates.onboarding_stage = stage;
+    if (stage === "complete")
+      updates.onboarding_completed_at =
+        c.onboarding_completed_at || new Date().toISOString();
+  }
+  if (b.payment_status !== undefined) {
+    if (
+      !["current", "failed", "chasing", "paused", "cancelled"].includes(
+        String(b.payment_status),
+      )
+    )
+      throw new OpsError("Invalid payment status");
+    updates.payment_status = b.payment_status;
+    updates.payment_status_updated_at = new Date().toISOString();
+  }
+  if ("next_action" in b) {
+    if (b.next_action !== null && typeof b.next_action !== "string")
+      throw new OpsError("Invalid next action");
+    updates.next_action = b.next_action;
+  }
+  if ("next_action_due" in b) {
+    if (
+      b.next_action_due !== null &&
+      (typeof b.next_action_due !== "string" ||
+        !Number.isFinite(Date.parse(b.next_action_due)))
+    )
+      throw new OpsError("Invalid next action due date");
+    updates.next_action_due = b.next_action_due;
+  }
+  const r = await createAdminClient()
+    .from("client_profiles")
+    .update(updates)
+    .eq("id", uuid(id))
+    .select()
+    .single();
+  if (r.error) throw new OpsError(r.error.message, 409);
+  if (b.stage) {
+    for (const t of await listTasks({ clientId: id, area: "onboarding" })) {
+      const step = t.external_ref?.split(":").at(-1);
+      if (
+        step &&
+        ["community_added", "pack_sent"].includes(step) &&
+        onboardingStages.indexOf(step as (typeof onboardingStages)[number]) <=
+          onboardingStages.indexOf(
+            b.stage as (typeof onboardingStages)[number],
+          ) &&
+        !["done", "cancelled"].includes(t.status)
+      )
+        await completeTask(t.id, `Onboarding advanced to ${b.stage}`, actor);
+    }
+  }
+  const audit = await createAdminClient()
+    .from("ops_events")
+    .insert({
+      actor,
+      action: "client_signals_updated",
+      data: { client_id: id, updates },
+    });
+  if (audit.error) throw new OpsError("Client saved; audit unavailable", 500);
+  return r.data;
+}

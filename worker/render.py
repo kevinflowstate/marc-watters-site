@@ -2,6 +2,7 @@
 import base64
 import json
 import math
+import logging
 import os
 from pathlib import Path
 import subprocess
@@ -150,16 +151,22 @@ def process_job(job):
         if status=='running' and progress==last[0] or status=='running' and now-last[1]<2:return
         r=requests.patch(callback,json={'status':status,'progress':progress,**extra},headers={'Authorization':'Bearer '+os.environ['OPS_API_TOKEN']},timeout=30)
         r.raise_for_status();last[:]=[progress,now]
+    step='start callback'
     try:
         update('running',0)
         with tempfile.TemporaryDirectory(prefix='cbb-render-') as tmp:
             source=Path(tmp)/'source.mp4';output=Path(tmp)/'edited.mp4'
+            step='source download'
             download(source_url(job),source)
+            step='render'
             if job.get('job_type')=='copy_source':output=source
             else:render(source,output,job['cut_list'],lambda n:update('running',n))
+            step='upload'
             upload(output,job['upload'])
+        step='completion callback'
         update('done',100,output_storage_path=job['output_storage_path'])
-    except Exception:
+    except Exception as exc:
+        logging.error('Worker job %s failed at %s (%s)',job['job_id'],step,type(exc).__name__)
         # Request errors may contain signed URLs or secrets: never return raw exception text.
         try:update('failed',0,error='Worker could not complete the job; inspect private worker logs and retry.')
         except Exception:pass

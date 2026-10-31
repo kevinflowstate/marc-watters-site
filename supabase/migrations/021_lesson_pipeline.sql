@@ -38,3 +38,69 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.ops_draft_lesson(uuid,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.ops_draft_lesson(uuid,uuid) TO service_role;
+
+-- Atomic pipeline transitions keep callbacks and lesson state consistent on retries.
+CREATE OR REPLACE FUNCTION public.ops_approve_lesson_cuts(p_recording uuid,p_cuts jsonb) RETURNS public.render_jobs LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE l lesson_recordings; j render_jobs;
+BEGIN
+ SELECT * INTO l FROM lesson_recordings WHERE id=p_recording FOR UPDATE;
+ IF l.status<>'cuts_proposed' OR l.source_storage_path IS NULL THEN RAISE EXCEPTION 'Cuts/source are not ready for approval'; END IF;
+ INSERT INTO render_jobs(recording_id,cut_list,job_type) VALUES(l.id,p_cuts,'render') RETURNING * INTO j;
+ UPDATE lesson_recordings SET approved_cut_list=p_cuts,status='cuts_approved',error=null WHERE id=l.id;
+ RETURN j;
+END $$;
+REVOKE ALL ON FUNCTION public.ops_approve_lesson_cuts(uuid,jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ops_approve_lesson_cuts(uuid,jsonb) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.ops_render_callback(p_job uuid,p_status text,p_progress smallint,p_path text DEFAULT NULL,p_error text DEFAULT NULL) RETURNS public.render_jobs LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE j render_jobs; expected text;
+BEGIN
+ SELECT * INTO j FROM render_jobs WHERE id=p_job FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Job not found'; END IF;
+ IF j.status IN ('done','failed') THEN RETURN j; END IF;
+ IF p_status NOT IN ('running','done','failed') OR p_progress<0 OR p_progress>100 THEN RAISE EXCEPTION 'Invalid callback'; END IF;
+ expected=CASE WHEN j.job_type='copy_source' THEN 'source/'||j.recording_id||'.mp4' ELSE 'edited/'||j.recording_id||'-'||j.id||'.mp4' END;
+ IF p_status='done' AND p_path IS DISTINCT FROM expected THEN RAISE EXCEPTION 'Unexpected output path'; END IF;
+ UPDATE render_jobs SET status=p_status,progress=CASE WHEN p_status='done' THEN 100 ELSE greatest(progress,p_progress) END,error=p_error,started_at=coalesce(started_at,now()),finished_at=CASE WHEN p_status IN ('done','failed') THEN now() ELSE NULL END,output_storage_path=CASE WHEN p_status='done' THEN expected ELSE output_storage_path END WHERE id=p_job RETURNING * INTO j;
+ IF p_status='done' AND j.job_type='copy_source' THEN
+  UPDATE lesson_recordings SET source_storage_path=expected,error=null WHERE id=j.recording_id;
+ ELSIF p_status='done' THEN
+  UPDATE lesson_recordings SET status='rendered',edited_storage_path=expected,error=null WHERE id=j.recording_id;
+ ELSIF p_status='running' AND j.job_type='render' THEN
+  UPDATE lesson_recordings SET status='rendering' WHERE id=j.recording_id;
+ ELSIF p_status='failed' THEN
+  UPDATE lesson_recordings SET error=p_error WHERE id=j.recording_id;
+ END IF;
+ RETURN j;
+END $$;
+REVOKE ALL ON FUNCTION public.ops_render_callback(uuid,text,smallint,text,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ops_render_callback(uuid,text,smallint,text,text) TO service_role;
+
+-- Existing training publication is the authority; keep Ops status and publish work in sync.
+CREATE OR REPLACE FUNCTION public.ops_sync_module_lessons() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE l lesson_recordings; t ops_tasks;
+BEGIN
+ FOR l IN SELECT r.* FROM lesson_recordings r JOIN module_content c ON c.id=r.module_content_id WHERE c.module_id=NEW.id AND r.status IN ('lesson_drafted','published') LOOP
+  UPDATE lesson_recordings SET status=CASE WHEN NEW.is_published THEN 'published' ELSE 'lesson_drafted' END WHERE id=l.id;
+  FOR t IN SELECT * FROM ops_tasks WHERE external_ref='lesson-publish:'||l.id LOOP
+   IF NEW.is_published AND t.status<>'done' THEN PERFORM ops_mutate_task('complete','{"status":"done","decision_note":"Destination module published in training admin."}','training-admin',t.id);
+   ELSIF NOT NEW.is_published AND t.status='done' THEN PERFORM ops_mutate_task('update','{"status":"open","decision_note":"Destination module unpublished; review before republishing."}','training-admin',t.id); END IF;
+  END LOOP;
+ END LOOP;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER ops_module_publication AFTER UPDATE OF is_published ON public.training_modules FOR EACH ROW WHEN(OLD.is_published IS DISTINCT FROM NEW.is_published) EXECUTE FUNCTION public.ops_sync_module_lessons();
+
+CREATE OR REPLACE FUNCTION public.ops_retry_render_job(p_job uuid) RETURNS public.render_jobs LANGUAGE plpgsql SET search_path=public AS $$
+DECLARE j render_jobs;
+BEGIN
+ SELECT * INTO j FROM render_jobs WHERE id=p_job FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Job not found'; END IF;
+ IF j.status='failed' THEN
+  UPDATE render_jobs SET status='queued',progress=0,error=null,started_at=null,finished_at=null WHERE id=j.id RETURNING * INTO j;
+  IF j.job_type='render' THEN UPDATE lesson_recordings SET status='cuts_approved',error=null WHERE id=j.recording_id; END IF;
+ END IF;
+ RETURN j;
+END $$;
+REVOKE ALL ON FUNCTION public.ops_retry_render_job(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ops_retry_render_job(uuid) TO service_role;

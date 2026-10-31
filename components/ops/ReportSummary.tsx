@@ -1,3 +1,67 @@
-function object(value:unknown):Record<string,unknown>{return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}
-const labels:Record<string,string>={outstanding:"Work awaiting action",clients:"Clients",lessons:"Lessons",approvals_waiting:"Approvals waiting",flags:"Open flags",total:"Total clients",past_due:"Past due",by_area:"By area",payment_statuses:"Payments",by_status:"Preparation status"};
-export default function ReportSummary({data}:{data:Record<string,unknown>}){return <div className="grid sm:grid-cols-3 gap-4 mb-6">{Object.entries({outstanding:["approvals_waiting","flags","by_area"],clients:["total","payment_statuses"],lessons:["past_due","by_status"]}).map(([key,fields])=>{const source=object(data[key]);return <section className="v2-surface p-5" key={key}><h2 className="font-heading font-bold mb-3">{labels[key]}</h2>{!source.connected?<p className="text-text-muted">Not connected</p>:fields.map(field=><div className="mb-3" key={field}><span className="text-sm text-text-secondary">{labels[field]}{typeof source[field]==="number"?`: ${source[field]}`:""}</span>{typeof source[field]==="object"&&<div className="flex flex-wrap gap-2 mt-1">{Object.entries(object(source[field])).map(([name,count])=><span className="text-xs px-2 py-1 rounded-lg bg-accent/10 text-accent-bright" key={name}>{name.replaceAll("_"," ")}: {String(count)}</span>)}</div>}</div>)}</section>;})}</div>;}
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+const labels: Record<string, string> = {
+  outstanding: "Work awaiting action",
+  clients: "Clients",
+  lessons: "Lessons",
+  approvals_waiting: "Approvals waiting",
+  flags: "Open flags",
+  total: "Total clients",
+  past_due: "Past due",
+  by_area: "By area",
+  payment_statuses: "Payments",
+  by_status: "Preparation status",
+};
+export default function ReportSummary({
+  data,
+}: {
+  data: Record<string, unknown>;
+}) {
+  return (
+    <div className="grid sm:grid-cols-3 gap-4 mb-6">
+      {Object.entries({
+        outstanding: ["approvals_waiting", "flags", "by_area"],
+        clients: ["total", "payment_statuses"],
+        lessons: ["past_due", "by_status"],
+      }).map(([key, fields]) => {
+        const source = object(data[key]);
+        return (
+          <section className="v2-surface p-5" key={key}>
+            <h2 className="font-heading font-bold mb-3">{labels[key]}</h2>
+            {!source.connected ? (
+              <p className="text-text-muted">Not connected</p>
+            ) : (
+              fields.map((field) => (
+                <div className="mb-3" key={field}>
+                  <span className="text-sm text-text-secondary">
+                    {labels[field]}
+                    {typeof source[field] === "number"
+                      ? `: ${source[field]}`
+                      : ""}
+                  </span>
+                  {typeof source[field] === "object" && (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {Object.entries(object(source[field])).map(
+                        ([name, count]) => (
+                          <span
+                            className="text-xs px-2 py-1 rounded-lg bg-accent/10 text-accent-bright"
+                            key={name}
+                          >
+                            {name.replaceAll("_", " ")}: {String(count)}
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}

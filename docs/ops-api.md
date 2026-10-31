@@ -50,4 +50,6 @@ Non-live database: `abmmlybdqwzujcysagvf`. Production `eeatjpbwwkgytznkfdww` is 
 
 `OPS_TEST_ACCOUNT=/private/test-account.json node --env-file=.env.local scripts/ops-admin-smoke.mjs` exercises admin work API against port 3087.
 
-`node --env-file=.env.local scripts/ops-smoke.mjs` checks all REST routes and every tool through the official MCP SDK client. It needs a disposable demo client/recording/render job via `OPS_SMOKE_CLIENT_ID`, `OPS_SMOKE_LESSON_ID`, `OPS_SMOKE_JOB_ID`; use only non-live fixtures. Full domain smoke runs after Streams D–G. Neither script sends email, notifications or CRM writes.
+`node --env-file=.env.local scripts/ops-smoke.mjs` checks all REST routes and every tool through the official MCP SDK client. It needs a disposable demo client/recording/render job via `OPS_SMOKE_CLIENT_ID`, `OPS_SMOKE_LESSON_ID`, `OPS_SMOKE_JOB_ID`; use only non-live fixtures. Full domain smoke runs after Streams D–G. The complete run exercised all 12 MCP tools via the official SDK, including the live cut proposal and report draft. Neither script sends email, notifications or CRM writes.
+
+Installed Codex CLI verification: `codex mcp add cbb_ops --url https://YOUR-PREVIEW/api/mcp --bearer-token-env-var CBB_OPS_TOKEN`. This is documentation only; no connector was installed or configuration changed.
