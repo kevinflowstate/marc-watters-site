@@ -8,7 +8,7 @@ export function uuid(id:unknown):string{if(typeof id!=="string" || !/^[0-9a-f]{8
 export function safeLink(input:unknown):OpsLink{const v=record(input);if(typeof v.label!=="string" || !v.label.trim() || typeof v.url!=="string" || !(v.url.startsWith("/")&&!v.url.startsWith("//") || /^https?:\/\//.test(v.url)))throw new OpsError("Link needs a label and HTTP or portal URL");if(v.type && !["video","image","doc","json"].includes(String(v.type)))throw new OpsError("Invalid output type");return {label:v.label.slice(0,200),url:v.url,...(v.type?{type:v.type as OpsLink["type"]}:{})};}
 function validate(input:unknown,create=false){const body=record(input),out:Record<string,unknown>={};
  const allowed=["kind","status","title","detail","area","assignee","priority","client_id","links","outputs","payload","due_at",...(create?["source","external_ref"]:[])];
- for(const key of Object.keys(body)){if(!allowed.includes(key))throw new OpsError(`Unsupported field: ${key}`);out[key]=body[key];}
+ for(const key of Object.keys(body)){if(body[key]===undefined)continue;if(!allowed.includes(key))throw new OpsError(`Unsupported field: ${key}`);out[key]=body[key];}
  for(const [key,choices] of Object.entries({kind:["task","approval","flag"],status:statuses,area:areas,assignee:assignees,source:["system","ai","human"]})){if(key in out && !choices.includes(String(out[key]) as never))throw new OpsError(`Invalid ${key}`);}
  if(create && (!out.kind || !out.area || !out.title))throw new OpsError("kind, area and title required");
  if("title" in out){if(typeof out.title!=="string" || !out.title.trim() || out.title.length>300)throw new OpsError("Title must be 1–300 characters");out.title=out.title.trim();}

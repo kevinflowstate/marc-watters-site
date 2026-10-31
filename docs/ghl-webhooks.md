@@ -1,0 +1,17 @@
+# CRM payment and onboarding handoff — DRAFT
+
+**NEEDS KEVIN:** Build the workflows in Marc’s live sub-account and confirm the exact trigger names visible there. This build does not write to Marc’s CRM, register workflows or send messages.
+
+POST `/api/webhooks/ghl-payment` with `x-webhook-secret: OPS_WEBHOOK_SECRET` and JSON:
+
+```json
+{"event_type":"payment_failed","contact_email":"person@example.com","contact_id":"crm-contact-id","external_id":"stable-unique-payment-event-id","amount":100.00,"currency":"GBP","occurred_at":"2026-10-31T12:00:00Z"}
+```
+
+Map a stable unique event ID, not a new random value per delivery. `amount` uses major units and is converted to integer pence. Timestamp is the event time (ISO 8601). Supported types: `payment_failed`, `chase_sent`, `payment_succeeded`, `subscription_cancelled`, `payment_paused`. External IDs are unique; repeat delivery is a no-op in one database transaction. Older events remain in the ledger but cannot regress current payment state. Email matching is case-insensitive and must identify exactly one portal client; unknown/ambiguous matches create a human flag. Contact ID is context, not matching authority.
+
+Suggested workflow intents (exact native trigger names unverified): failed payment → payment_failed; successful reminder action → chase_sent; payment received → payment_succeeded; cancellation → subscription_cancelled; paused subscription → payment_paused. A second reminder creates a resolution task; a success resets the counter and closes open payment tasks. No automated chasing is sent by the portal.
+
+The existing new-client webhook starts invited onboarding with a 48-hour due date and two checklist tasks (community admission, welcome pack). It retains the existing welcome/invite behaviour; do not replay it against real clients for acceptance. Operator tooling advances `/api/ops/clients/{id}/onboarding` with `{ "stage": "community_added" }` etc. Stage progression is monotonic and closes the corresponding checklist items. Manual payment/next-action controls live on the admin client page.
+
+Daily cron is read-and-flag only: overdue onboarding, chasing for >7 days, no check-in for 14 days (one open engagement task), late lessons, Monday payment review. Cron and Thursday schedules are added by Stream G. All fixtures use `.invalid` synthetic identities, never Marc’s CRM.

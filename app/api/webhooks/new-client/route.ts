@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
+import { startOnboarding } from "@/lib/ops/onboarding";
 import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
   if (!profile) {
     return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
   }
+
+  await startOnboarding(profile.id);
 
   // The published "Welcome & Onboarding" module is auto-assigned by the DB trigger on client_profiles.
 

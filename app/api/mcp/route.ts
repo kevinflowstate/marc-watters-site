@@ -7,6 +7,7 @@ import {areas,assignees,statuses} from "@/lib/ops/types";
 import {getClient,listClientsNeedingAttention} from "@/lib/ops/clients";
 import {getLesson,listLessons,proposeCuts} from "@/lib/ops/lessons";
 import {createReportDraft} from "@/lib/ops/reports";
+import {updateClientSignals,onboardingStages} from "@/lib/ops/onboarding";
 export const runtime="nodejs";
 const id=z.string().uuid(),link=z.object({label:z.string(),url:z.string(),type:z.enum(["video","image","doc","json"]).optional()});
 const task={title:z.string().min(1).max(300),area:z.enum(areas),detail:z.string().optional(),assignee:z.enum(assignees).optional(),external_ref:z.string().optional(),client_id:id.optional(),due_at:z.string().optional(),links:z.array(link).optional()};
@@ -17,6 +18,7 @@ const handler=createMcpHandler(server=>{
  server.registerTool("update_task",{description:"Change a work item’s title, owner, due date or progress.",inputSchema:z.object({id,updates:z.object({...Object.fromEntries(Object.entries(task).map(([k,v])=>[k,v.optional()])),status:z.enum(["open","in_progress","awaiting_approval","done","cancelled"]).optional()})})},a=>run(()=>updateTask(a.id,a.updates,"mcp")));
  server.registerTool("request_approval",{description:"Put a proposed output in the human approval queue.",inputSchema:z.object(task)},a=>run(()=>createTask({...a,kind:"approval",source:"ai",status:"awaiting_approval"},"mcp")));
  server.registerTool("attach_output",{description:"Attach a finished file or design link to a work item.",inputSchema:z.object({id,output:link})},a=>run(()=>attachOutput(a.id,a.output,"mcp")));
+ server.registerTool("update_client_onboarding",{description:"Advance a client’s onboarding checklist after a confirmed step.",inputSchema:z.object({id,stage:z.enum(onboardingStages)})},a=>run(()=>updateClientSignals(a.id,{stage:a.stage},"mcp")));
  server.registerTool("get_client",{description:"Read a client’s payment, onboarding and engagement summary.",inputSchema:z.object({id})},a=>run(()=>getClient(a.id)));
  server.registerTool("list_clients_needing_attention",{description:"Find clients who need payment, onboarding or engagement follow-up.",inputSchema:z.object({})},()=>run(()=>listClientsNeedingAttention()));
  server.registerTool("get_lesson",{description:"Read a recording, transcript and proposed editing cuts.",inputSchema:z.object({id})},a=>run(()=>getLesson(a.id)));

@@ -4,6 +4,7 @@ import { lastPortalActivity } from "@/lib/portal-activity";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ClientSignals from "@/components/ops/ClientSignals";
 import MonthlyMetricsOverview from "@/components/shared/MonthlyMetricsOverview";
 import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion, QuestionnaireFormConfig } from "@/lib/types";
@@ -371,6 +372,7 @@ export default function ClientDetailPage() {
 
   return (
     <>
+      <ClientSignals id={client.id} />
       <Link
         href="/admin/clients"
         className="mb-5 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-text-muted no-underline transition-colors hover:text-text-secondary"
