@@ -31,3 +31,8 @@ Review at `/admin/training/recordings`: source signed URL (1 hour), timestamped 
 Bundle `scripts/lesson-smoke.ts` with the installed esbuild into `node_modules/.cache/lesson-smoke.mjs`, then execute with `node --env-file=.env.local ...`. It refuses production, verifies signed intake, injects a mocked Fathom client, streams the fixture into private Storage, validates a mocked proposal, queues rendering and reads a signed source. Stream F proves ffmpeg output and callback→draft persistence. Browser playback/interactive acceptance remains a separate check if browser integration is unavailable.
 
 Integration consistency checks: cut approval/job creation and worker callback/recording updates use service-role-only atomic RPCs. Existing module publication updates recording publication state and closes/reopens the linked publish task. Failed jobs may be explicitly reset and retried from the review page; active jobs are not duplicated. Authenticated media proof covers admin access, draft denial, module-access enforcement and a signed MP4 206 byte-range response; browser playback remains unverified.
+
+
+## Recovery consistency
+
+Retry intake can renew an expired source download after cuts have been proposed without resetting editing progress. Worker retry considers only the latest job of each type; older failed jobs remain superseded. Cut proposals use a recording revision check so an AI response arriving after approval cannot overwrite the approved edit. Returning a closed cut proposal for review creates a fresh decision state on its existing approval task.

@@ -96,7 +96,7 @@ DECLARE j render_jobs;
 BEGIN
  SELECT * INTO j FROM render_jobs WHERE id=p_job FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Job not found'; END IF;
- IF j.status='failed' THEN
+ IF j.status='failed' AND NOT EXISTS(SELECT 1 FROM render_jobs newer WHERE newer.recording_id=j.recording_id AND newer.job_type=j.job_type AND (newer.created_at,newer.id)>(j.created_at,j.id)) THEN
   UPDATE render_jobs SET status='queued',progress=0,error=null,started_at=null,finished_at=null WHERE id=j.id RETURNING * INTO j;
   IF j.job_type='render' THEN UPDATE lesson_recordings SET status='cuts_approved',error=null WHERE id=j.recording_id; END IF;
  END IF;

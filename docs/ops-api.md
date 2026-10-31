@@ -53,3 +53,12 @@ Non-live database: `abmmlybdqwzujcysagvf`. Production `eeatjpbwwkgytznkfdww` is 
 `node --env-file=.env.local scripts/ops-smoke.mjs` checks all REST routes and every tool through the official MCP SDK client. It needs a disposable demo client/recording/render job via `OPS_SMOKE_CLIENT_ID`, `OPS_SMOKE_LESSON_ID`, `OPS_SMOKE_JOB_ID`; use only non-live fixtures. Full domain smoke runs after Streams D–G. The complete run exercised all 12 MCP tools via the official SDK, including the live cut proposal and report draft. Neither script sends email, notifications or CRM writes.
 
 Installed Codex CLI verification: `codex mcp add cbb_ops --url https://YOUR-PREVIEW/api/mcp --bearer-token-env-var CBB_OPS_TOKEN`. This is documentation only; no connector was installed or configuration changed.
+
+
+## Report review and recovery
+
+Report edits and review/send actions require `expected_updated_at` from the last read. Conflicting edits return 409. A send atomically locks the reviewed revision before contacting the provider; a disabled send releases the lock and sends nothing. A provider error leaves the claim locked for manual delivery reconciliation before any retry. Do not clear a claim until delivery has been checked.
+
+An early-week snapshot refreshes automatically on Thursday. The report page also offers **Refresh source figures** for an explicit refresh. Refresh preserves saved human narrative and observations, regenerates the source baseline, resets review to draft and asks the reviewer to reconcile any retained narrative against the new figures. Sent reports cannot be edited or refreshed. Unsaved edits must be saved before refresh.
+
+Onboarding transitions and checklist completion commit atomically and cannot move backwards. Payment reminder counts derive from unique ledger events after the latest successful payment, so out-of-order delivery cannot hide a reminder or reopen a paid cycle. Work-list pagination includes history beyond the first 1,000 rows.

@@ -160,12 +160,20 @@ export async function listTasks(
     .select("*,client_profiles(users(full_name))")
     .order("priority")
     .order("due_at", { nullsFirst: false })
-    .limit(1000);
+    .order("id");
   for (const [k, v] of Object.entries(filters))
     if (v) q = q.eq(k === "clientId" ? "client_id" : k, v);
-  const r = await q;
-  if (r.error) throw new OpsError(r.error.message, 500);
-  return r.data as OpsTask[];
+  const tasks: OpsTask[] = [];
+  for (let offset = 0; offset < 100000; offset += 1000) {
+    const r = await q.range(offset, offset + 999);
+    if (r.error) throw new OpsError(r.error.message, 500);
+    tasks.push(...(r.data as OpsTask[]));
+    if (r.data.length < 1000) return tasks;
+  }
+  throw new OpsError(
+    "Work queue exceeds supported size; narrow the filters",
+    503,
+  );
 }
 export function updateTask(id: string, input: unknown, actor = "system") {
   const data = validate(input);
@@ -205,4 +213,25 @@ export function completeTask(id: string, note?: string, actor = "system") {
 }
 export function attachOutput(id: string, output: unknown, actor = "system") {
   return mutate("attach_output", safeLink(output), actor, id);
+}
+
+export async function reopenApproval(id: string, actor = "system") {
+  const task = await mutate(
+    "reopen",
+    {
+      status: "awaiting_approval",
+      decided_by: null,
+      decided_at: null,
+      decision_note: null,
+    },
+    actor,
+    id,
+  );
+  await notifyOpsAdmins(
+    "Work needs approval",
+    task.title,
+    `/admin/work?task=${task.id}`,
+    `approval:${task.id}:${task.updated_at}`,
+  );
+  return task;
 }

@@ -47,7 +47,14 @@ async function patch(body) {
   const r = await fetch(base + "/api/admin/reports/" + d.report.id, {
       method: "PATCH",
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        expected_updated_at: (
+          await (
+            await fetch(base + "/api/admin/reports/" + d.report.id, { headers })
+          ).json()
+        ).report.updated_at,
+      }),
     }),
     out = await r.json();
   assert.ok(r.ok, JSON.stringify(out));

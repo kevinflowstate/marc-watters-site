@@ -8,6 +8,8 @@ type Report = {
   id: string;
   week_start: string;
   status: string;
+  updated_at: string;
+  send_claim_id: string | null;
   narrative_md: string;
   observations_md: string;
   data: Record<string, unknown>;
@@ -40,9 +42,10 @@ export default function ReportDetail() {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(
-            action === "send"
-              ? { action }
+            action === "send" || action === "refresh"
+              ? { action, expected_updated_at: report?.updated_at }
               : {
+                  expected_updated_at: report?.updated_at,
                   narrative_md: text,
                   observations_md: observations,
                   ...(action ? { action } : {}),
@@ -52,14 +55,20 @@ export default function ReportDetail() {
         d = await r.json();
       if (!r.ok) throw Error(d.error);
       setReport(d.report);
+      if (d.refreshed) {
+        setText(d.report.narrative_md);
+        setObservations(d.report.observations_md);
+      }
       setNotice(
-        d.disabled
-          ? "Sending is disabled. Review flow verified; no email sent."
-          : action === "review"
-            ? "Marked reviewed"
-            : action === "send"
-              ? "Report sent"
-              : "Draft saved",
+        d.refreshed
+          ? "Sources refreshed. Check the saved narrative against the updated figures before review."
+          : d.disabled
+            ? "Sending is disabled. Review flow verified; no email sent."
+            : action === "review"
+              ? "Marked reviewed"
+              : action === "send"
+                ? "Report sent"
+                : "Draft saved",
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
@@ -87,6 +96,18 @@ export default function ReportDetail() {
       )}
       {report && (
         <>
+          {Boolean(report.data.narrative_review_required) && (
+            <p role="status" className="text-amber-600 mb-4">
+              Source figures changed. Check the saved narrative before marking
+              reviewed.
+            </p>
+          )}
+          {report.send_claim_id && (
+            <p role="status" className="text-amber-600 mb-4">
+              A send is in progress or needs reconciliation. This revision is
+              locked.
+            </p>
+          )}
           <p className="text-text-secondary mb-5">Status: {report.status}</p>
           <ReportSummary data={report.data} />
           <div className="grid lg:grid-cols-2 gap-5">
@@ -95,7 +116,9 @@ export default function ReportDetail() {
               <textarea
                 aria-label="Report narrative"
                 rows={22}
-                disabled={report.status === "sent"}
+                disabled={
+                  report.status === "sent" || Boolean(report.send_claim_id)
+                }
                 className="block mt-2 w-full rounded-xl border border-current/15 bg-bg-secondary p-4 text-sm"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -111,7 +134,9 @@ export default function ReportDetail() {
             <textarea
               aria-label="Observations"
               rows={5}
-              disabled={report.status === "sent"}
+              disabled={
+                report.status === "sent" || Boolean(report.send_claim_id)
+              }
               className="block mt-2 w-full rounded-xl border border-current/15 bg-bg-secondary p-4"
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
@@ -120,14 +145,35 @@ export default function ReportDetail() {
           <div className="flex flex-wrap gap-3 my-5">
             <button
               className="v2-button-secondary"
-              disabled={busy || report.status === "sent"}
+              disabled={
+                busy ||
+                report.status === "sent" ||
+                Boolean(report.send_claim_id)
+              }
               onClick={() => void save()}
             >
               Save draft
             </button>
             <button
+              className="v2-button-secondary"
+              disabled={
+                busy ||
+                report.status === "sent" ||
+                Boolean(report.send_claim_id) ||
+                text !== report.narrative_md ||
+                observations !== report.observations_md
+              }
+              onClick={() => void save("refresh")}
+            >
+              Refresh source data
+            </button>
+            <button
               className="v2-button-primary"
-              disabled={busy || report.status === "sent"}
+              disabled={
+                busy ||
+                report.status === "sent" ||
+                Boolean(report.send_claim_id)
+              }
               onClick={() => void save("review")}
             >
               Mark reviewed
@@ -137,6 +183,7 @@ export default function ReportDetail() {
               disabled={
                 busy ||
                 report.status !== "reviewed" ||
+                Boolean(report.send_claim_id) ||
                 text !== report.narrative_md ||
                 observations !== report.observations_md
               }

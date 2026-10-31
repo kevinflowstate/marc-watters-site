@@ -1,12 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  createTask,
-  completeTask,
-  listTasks,
-  OpsError,
-  record,
-  uuid,
-} from "./tasks";
+import { OpsError, record, uuid } from "./tasks";
 import { getClient } from "./clients";
 export const onboardingStages = [
   "none",
@@ -19,33 +12,10 @@ export const onboardingStages = [
   "complete",
 ] as const;
 export async function startOnboarding(id: string) {
-  const c = await getClient(id);
-  if (c.onboarding_stage === "none") {
-    const now = new Date();
-    const r = await createAdminClient()
-      .from("client_profiles")
-      .update({
-        onboarding_stage: "invited",
-        onboarding_started_at: now.toISOString(),
-        onboarding_due_at: new Date(now.getTime() + 48 * 3600000).toISOString(),
-      })
-      .eq("id", id);
-    if (r.error) throw new OpsError(r.error.message, 409);
-  }
-  for (const [step, title] of [
-    ["community_added", "Admit to community"],
-    ["pack_sent", "Send welcome pack"],
-  ])
-    await createTask({
-      kind: "task",
-      area: "onboarding",
-      title: `onboarding: ${title}`,
-      client_id: id,
-      external_ref: `onboarding:${id}:${step}`,
-      due_at:
-        c.onboarding_due_at ||
-        new Date(Date.now() + 48 * 3600000).toISOString(),
-    });
+  const r = await createAdminClient().rpc("ops_start_onboarding", {
+    p_client: uuid(id),
+  });
+  if (r.error) throw new OpsError(r.error.message, 409);
   return getClient(id);
 }
 export async function updateClientSignals(
@@ -98,35 +68,11 @@ export async function updateClientSignals(
       throw new OpsError("Invalid next action due date");
     updates.next_action_due = b.next_action_due;
   }
-  const r = await createAdminClient()
-    .from("client_profiles")
-    .update(updates)
-    .eq("id", uuid(id))
-    .select()
-    .single();
+  const r = await createAdminClient().rpc("ops_update_client_signals", {
+    p_client: uuid(id),
+    p_data: updates,
+    p_actor: actor,
+  });
   if (r.error) throw new OpsError(r.error.message, 409);
-  if (b.stage) {
-    for (const t of await listTasks({ clientId: id, area: "onboarding" })) {
-      const step = t.external_ref?.split(":").at(-1);
-      if (
-        step &&
-        ["community_added", "pack_sent"].includes(step) &&
-        onboardingStages.indexOf(step as (typeof onboardingStages)[number]) <=
-          onboardingStages.indexOf(
-            b.stage as (typeof onboardingStages)[number],
-          ) &&
-        !["done", "cancelled"].includes(t.status)
-      )
-        await completeTask(t.id, `Onboarding advanced to ${b.stage}`, actor);
-    }
-  }
-  const audit = await createAdminClient()
-    .from("ops_events")
-    .insert({
-      actor,
-      action: "client_signals_updated",
-      data: { client_id: id, updates },
-    });
-  if (audit.error) throw new OpsError("Client saved; audit unavailable", 500);
   return r.data;
 }

@@ -6,6 +6,7 @@ import {
   createTask,
   listTasks,
   completeTask,
+  reopenApproval,
 } from "./tasks";
 import { fathomRequest, transcriptText } from "./fathom";
 import { generateOpsText } from "./ai";
@@ -29,14 +30,20 @@ export async function getLesson(id: string) {
   if (!r.data) throw new OpsError("Recording not found", 404);
   return r.data;
 }
-export async function saveLesson(id: string, updates: Record<string, unknown>) {
-  const r = await createAdminClient()
+export async function saveLesson(
+  id: string,
+  updates: Record<string, unknown>,
+  expectedRevision?: string,
+) {
+  let q = createAdminClient()
     .from("lesson_recordings")
     .update(updates)
-    .eq("id", uuid(id))
-    .select()
-    .single();
+    .eq("id", uuid(id));
+  if (expectedRevision) q = q.eq("updated_at", expectedRevision);
+  const r = await q.select().maybeSingle();
   if (r.error) throw new OpsError(r.error.message, 409);
+  if (!r.data)
+    throw new OpsError("Recording changed; reload before continuing", 409);
   return r.data;
 }
 export async function receiveRecording(input: unknown) {
@@ -60,12 +67,16 @@ export async function receiveRecording(input: unknown) {
       Array.isArray(b.transcript) &&
       ["received", "transcribing", "failed"].includes(prior.data.status)
     )
-      return saveLesson(prior.data.id, {
-        transcript: b.transcript,
-        transcript_text: transcriptText(b.transcript),
-        status: "transcribed",
-        error: null,
-      });
+      return saveLesson(
+        prior.data.id,
+        {
+          transcript: b.transcript,
+          transcript_text: transcriptText(b.transcript),
+          status: "transcribed",
+          error: null,
+        },
+        prior.data.updated_at,
+      );
     return prior.data;
   }
   const transcript = b.transcript ? transcriptText(b.transcript) : null;
@@ -113,12 +124,8 @@ export async function receiveRecording(input: unknown) {
 }
 export async function ingest(id: string, deps = { request: fathomRequest }) {
   let lesson = await getLesson(id);
-  if (
-    !["received", "transcribing", "transcribed", "failed"].includes(
-      lesson.status,
-    )
-  )
-    return lesson;
+  // Source recovery is independent of the editing stage. Never reset an advanced cut review.
+  if (!lesson.fathom_recording_id) return lesson;
   try {
     if (!lesson.transcript) {
       const transcript = await deps.request(
@@ -127,14 +134,19 @@ export async function ingest(id: string, deps = { request: fathomRequest }) {
       const rows = Array.isArray(transcript)
         ? transcript
         : transcript.transcript;
-      lesson = await saveLesson(id, {
-        transcript: rows,
-        transcript_text: transcriptText(rows),
-        status: "transcribed",
-        error: null,
-      });
-    } else
-      lesson = await saveLesson(id, { status: "transcribed", error: null });
+      lesson = await saveLesson(
+        id,
+        {
+          transcript: rows,
+          transcript_text: transcriptText(rows),
+          ...(["received", "transcribing", "failed"].includes(lesson.status)
+            ? { status: "transcribed" }
+            : {}),
+          error: null,
+        },
+        lesson.updated_at,
+      );
+    }
     if (!lesson.source_storage_path) {
       const active = await createAdminClient()
         .from("render_jobs")
@@ -202,12 +214,16 @@ export async function proposeCuts(
     }
   }
   const cuts = validateCuts(input, l.duration_s, true);
-  const saved = await saveLesson(id, {
-    cut_list: cuts,
-    status: "cuts_proposed",
-    error: null,
-  });
-  await createTask({
+  const saved = await saveLesson(
+    id,
+    {
+      cut_list: cuts,
+      status: "cuts_proposed",
+      error: null,
+    },
+    l.updated_at,
+  );
+  const approval = await createTask({
     kind: "approval",
     area: "lessons",
     title: `lessons: review cuts for ${l.title}`,
@@ -217,6 +233,8 @@ export async function proposeCuts(
     ],
     due_at: l.publish_due_at,
   });
+  if (["rejected", "approved", "done", "cancelled"].includes(approval.status))
+    await reopenApproval(approval.id, "lesson-proposal");
   return saved;
 }
 export async function approveCuts(id: string, input: unknown) {
@@ -282,12 +300,17 @@ export async function lessonAction(id: string, input: unknown) {
     case "retry_worker": {
       const jobs = await createAdminClient()
         .from("render_jobs")
-        .select("id")
+        .select("id,job_type,status,created_at")
         .eq("recording_id", uuid(id))
-        .in("status", ["queued", "failed"]);
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
       if (jobs.error) throw new OpsError(jobs.error.message, 409);
       const { dispatchRenderJob } = await import("./render");
+      const seen = new Set<string>();
       for (const j of jobs.data || []) {
+        if (seen.has(j.job_type)) continue;
+        seen.add(j.job_type);
+        if (!["queued", "failed"].includes(j.status)) continue;
         const retry = await createAdminClient().rpc("ops_retry_render_job", {
           p_job: j.id,
         });
