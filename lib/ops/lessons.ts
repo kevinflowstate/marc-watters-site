@@ -1,0 +1,5 @@
+import {createAdminClient} from "@/lib/supabase/admin";
+import {OpsError,uuid,createTask} from "./tasks";
+export async function listLessons(){const r=await createAdminClient().from("lesson_recordings").select("*").order("created_at",{ascending:false}).limit(500);if(r.error)throw new OpsError(r.error.message,503);return r.data;}
+export async function getLesson(id:string){const r=await createAdminClient().from("lesson_recordings").select("*").eq("id",uuid(id)).maybeSingle();if(r.error)throw new OpsError(r.error.message,503);if(!r.data)throw new OpsError("Recording not found",404);return r.data;}
+export async function proposeCuts(id:string,cutList?:unknown[]){if(!cutList)throw new OpsError("Transcript proposal service awaits Stream E",503);const db=createAdminClient();const r=await db.from("lesson_recordings").update({cut_list:cutList,status:"cuts_proposed"}).eq("id",uuid(id)).select().single();if(r.error)throw new OpsError(r.error.message,409);await createTask({kind:"approval",area:"lessons",title:`lessons: review cuts for ${r.data.title}`,external_ref:`lesson-cuts:${id}`,links:[{label:"Review recording",url:`/admin/training/recordings/${id}`}]});return r.data;}
