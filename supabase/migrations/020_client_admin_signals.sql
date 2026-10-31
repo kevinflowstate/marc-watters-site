@@ -40,7 +40,8 @@ BEGIN
  IF kind='chase_sent' AND occurred>coalesce(last_paid,'-infinity'::timestamptz) AND c.payment_chase_count>=2 AND c.payment_status<>'current' THEN
   PERFORM ops_mutate_task('create',jsonb_build_object('kind','task','area','payments','title','payments: resolve '||coalesce(c.business_name,'client'),'client_id',c.id,'external_ref','payment-chase:'||c.id||':'||(p_event->>'external_id')),'payment-webhook');
  END IF;
- IF kind='payment_succeeded' AND NOT stale THEN
+ -- A tied terminal status does not undo cash settlement; only later events protect a newer cycle.
+ IF kind='payment_succeeded' AND occurred>=coalesce(c.payment_status_updated_at,occurred) THEN
   FOR t IN SELECT * FROM ops_tasks WHERE client_id=c.id AND area='payments' AND status IN ('open','in_progress','awaiting_approval') LOOP
    PERFORM ops_mutate_task('complete','{"status":"done","decision_note":"Payment received; follow-up closed automatically."}', 'payment-webhook',t.id);
   END LOOP;

@@ -18,3 +18,5 @@ Daily cron is read-and-flag only: overdue onboarding, chasing for >7 days, no ch
 
 
 Events with identical occurred_at use fixed precedence: subscription_cancelled, payment_paused, payment_succeeded, chase_sent, payment_failed (highest first). This preserves a cancelled/paused account while allowing a successful payment to settle a same-time reminder regardless of delivery order. Last-payment metadata and reminder-cycle counts still come from the ledger. Identical event IDs remain no-ops.
+
+A successful payment tied with cancellation/pause still settles existing payment follow-up work. Settlement uses chronological freshness independently of status precedence; an older payment cannot close a later unpaid cycle’s work.

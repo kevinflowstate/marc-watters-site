@@ -37,6 +37,7 @@ export type OpsTask = {
   client_id: string | null;
   source: string;
   external_ref: string | null;
+  proposal_revision: number;
   links: OpsLink[];
   outputs: OpsLink[];
   payload: Record<string, unknown>;

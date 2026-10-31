@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.ops_tasks (
  priority smallint NOT NULL DEFAULT 2 CHECK(priority BETWEEN 1 AND 3),
  client_id uuid REFERENCES public.client_profiles(id) ON DELETE SET NULL,
  source text NOT NULL DEFAULT 'system' CHECK(source IN ('system','ai','human')),
- external_ref text UNIQUE, links jsonb NOT NULL DEFAULT '[]', outputs jsonb NOT NULL DEFAULT '[]', payload jsonb NOT NULL DEFAULT '{}',
+ external_ref text UNIQUE, proposal_revision integer NOT NULL DEFAULT 1, links jsonb NOT NULL DEFAULT '[]', outputs jsonb NOT NULL DEFAULT '[]', payload jsonb NOT NULL DEFAULT '{}',
  due_at timestamptz, decided_by uuid REFERENCES public.users(id), decided_at timestamptz, decision_note text, created_by text,
  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -63,11 +63,12 @@ BEGIN
  END IF;
  -- A revised proposal needs a new decision. Delivery receipts appended by
  -- attach_output do not replace the proposed content; create/update do.
- IF NOT fresh AND t.kind='approval' AND p_action IN ('create','update') AND (
+ IF NOT fresh AND t.kind='approval' AND p_action IN ('create','update','reopen') AND (
+  prior.kind IS DISTINCT FROM t.kind OR
   (t.title,t.detail,t.links,t.outputs,t.payload) IS DISTINCT FROM (prior.title,prior.detail,prior.links,prior.outputs,prior.payload)
   OR (t.status IN ('open','in_progress','awaiting_approval') AND prior.status IN ('approved','rejected','done','cancelled'))
  ) THEN
-  UPDATE ops_tasks SET status='awaiting_approval',decided_by=null,decided_at=null,decision_note=null WHERE id=t.id RETURNING * INTO t;
+  UPDATE ops_tasks SET status='awaiting_approval',decided_by=null,decided_at=null,decision_note=null,proposal_revision=proposal_revision+1 WHERE id=t.id RETURNING * INTO t;
  END IF;
  event_data=p_data;
  IF fresh OR prior.status IS DISTINCT FROM t.status THEN event_data=(p_data-'status')||jsonb_build_object('status',t.status);

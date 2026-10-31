@@ -10,6 +10,7 @@ import {
   decideTask,
   completeTask,
   updateTask,
+  attachOutput,
 } from "../lib/ops/tasks";
 import {
   getLesson,
@@ -139,6 +140,17 @@ try {
   const tieB = await event("payment_succeeded", 40, "-tie-pay-last");
   assert.equal(tieB.payment_status, "current");
   assert.equal(tieB.chase_count, 0);
+  const settlementA = await createTask(
+    {
+      kind: "task",
+      area: "payments",
+      title: "Synthetic tied settlement A",
+      client_id: clientId,
+      external_ref: prefix + "-settlement-a",
+    },
+    "regression",
+  );
+  taskIds.push(settlementA.id);
   await event("subscription_cancelled", 50, "-tie-cancel-first");
   const tiedCancelled = await event(
     "payment_succeeded",
@@ -146,6 +158,27 @@ try {
     "-tie-pay-under-cancel",
   );
   assert.equal(tiedCancelled.payment_status, "cancelled");
+  assert.equal(
+    (
+      await db
+        .from("ops_tasks")
+        .select("status")
+        .eq("id", settlementA.id)
+        .single()
+    ).data?.status,
+    "done",
+  );
+  const settlementB = await createTask(
+    {
+      kind: "task",
+      area: "payments",
+      title: "Synthetic tied settlement B",
+      client_id: clientId,
+      external_ref: prefix + "-settlement-b",
+    },
+    "regression",
+  );
+  taskIds.push(settlementB.id);
   await event("payment_succeeded", 60, "-tie-pay-under-cancel-first");
   const cancelLast = await event(
     "subscription_cancelled",
@@ -153,6 +186,16 @@ try {
     "-tie-cancel-last",
   );
   assert.equal(cancelLast.payment_status, "cancelled");
+  assert.equal(
+    (
+      await db
+        .from("ops_tasks")
+        .select("status")
+        .eq("id", settlementB.id)
+        .single()
+    ).data?.status,
+    "done",
+  );
   checks.push(
     "same-timestamp payment/chase and cancellation pairs use deterministic precedence in either arrival order",
   );
@@ -168,6 +211,21 @@ try {
   };
   const initialApproval = await createTask(proposal, "regression");
   taskIds.push(initialApproval.id);
+  const firstRevision = initialApproval.proposal_revision;
+  const reassigned = await updateTask(
+    initialApproval.id,
+    { assignee: "marc" },
+    "regression",
+  );
+  assert.equal(reassigned.proposal_revision, firstRevision);
+  const receipted = await attachOutput(
+    initialApproval.id,
+    { label: "Delivery receipt", url: "/fixture/receipt" },
+    "regression",
+  );
+  assert.equal(receipted.proposal_revision, firstRevision);
+  const metadataRetry = await createTask(proposal, "regression");
+  assert.equal(metadataRetry.proposal_revision, firstRevision);
   const decision = await decideTask(
     initialApproval.id,
     "approved",
@@ -189,6 +247,7 @@ try {
     "regression",
   );
   assert.equal(revised.status, "awaiting_approval");
+  assert.equal(revised.proposal_revision, firstRevision + 1);
   assert.equal(revised.decided_by, null);
   assert.equal(revised.decided_at, null);
   assert.equal(revised.decision_note, null);
@@ -205,6 +264,7 @@ try {
     "regression",
   );
   assert.equal(patched.status, "awaiting_approval");
+  assert.equal(patched.proposal_revision, revised.proposal_revision + 1);
   assert.equal(patched.decided_at, null);
   await assert.rejects(
     () => createTask({ ...proposal, kind: "task" }, "regression"),

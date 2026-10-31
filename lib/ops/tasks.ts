@@ -135,9 +135,7 @@ async function mutate(
     throw new OpsError(r.error.message, r.error.code === "P0002" ? 404 : 409);
   return r.data as OpsTask;
 }
-export async function createTask(input: unknown, actor = "system") {
-  const data = validate(input, true);
-  const task = await mutate("create", data, actor);
+async function notifyApproval(task: OpsTask) {
   if (
     task.kind === "approval" &&
     ["open", "in_progress", "awaiting_approval"].includes(task.status)
@@ -146,8 +144,12 @@ export async function createTask(input: unknown, actor = "system") {
       "Work needs approval",
       task.title,
       `/admin/work?task=${task.id}`,
-      `approval:${task.id}:${task.updated_at}`,
+      `approval:${task.id}:${task.proposal_revision}`,
     );
+}
+export async function createTask(input: unknown, actor = "system") {
+  const task = await mutate("create", validate(input, true), actor);
+  await notifyApproval(task);
   return task;
 }
 export async function listTasks(
@@ -178,11 +180,13 @@ export async function listTasks(
     503,
   );
 }
-export function updateTask(id: string, input: unknown, actor = "system") {
+export async function updateTask(id: string, input: unknown, actor = "system") {
   const data = validate(input);
   if (data.status === "approved" || data.status === "rejected")
     throw new OpsError("Use the approval decision action");
-  return mutate("update", data, actor, id);
+  const task = await mutate("update", data, actor, id);
+  await notifyApproval(task);
+  return task;
 }
 export function decideTask(
   id: string,
@@ -230,11 +234,6 @@ export async function reopenApproval(id: string, actor = "system") {
     actor,
     id,
   );
-  await notifyOpsAdmins(
-    "Work needs approval",
-    task.title,
-    `/admin/work?task=${task.id}`,
-    `approval:${task.id}:${task.updated_at}`,
-  );
+  await notifyApproval(task);
   return task;
 }
