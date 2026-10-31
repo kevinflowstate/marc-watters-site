@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // Anthropic pricing per 1M tokens (USD)
 const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
+  "claude-sonnet-5-5": { inputPer1M: 2, outputPer1M: 10 },
   "claude-haiku-4-5-20251001": { inputPer1M: 0.25, outputPer1M: 1.25 },
   "claude-haiku": { inputPer1M: 0.25, outputPer1M: 1.25 },
   "claude-sonnet-4-5-20251022": { inputPer1M: 3.0, outputPer1M: 15.0 },

@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+import {createReadStream} from "node:fs";
+import {createHmac} from "node:crypto";
+import {createAdminClient} from "../lib/supabase/admin";
+import {ingest,getLesson,proposeCuts,approveCuts,sourceUrl} from "../lib/ops/lessons";
+assert.match(process.env.NEXT_PUBLIC_SUPABASE_URL||"",/abmmlybdqwzujcysagvf/);
+const db=createAdminClient(),base=process.env.OPS_BASE_URL||"http://127.0.0.1:3087",payload=JSON.parse(await readFile("fixtures/fathom/webhook.json","utf8"));payload.recording_id+=Math.floor(Date.now()/1000);const raw=JSON.stringify(payload),ts=String(Math.floor(Date.now()/1000)),messageId="fixture-"+ts,secret=process.env.FATHOM_WEBHOOK_SECRET!;const sig=createHmac("sha256",Buffer.from(secret.slice(6),"base64")).update(`${messageId}.${ts}.${raw}`).digest("base64");
+assert.equal((await fetch(base+"/api/webhooks/fathom",{method:"POST",body:raw})).status,401);
+const response=await fetch(base+"/api/webhooks/fathom",{method:"POST",headers:{"content-type":"application/json","webhook-id":messageId,"webhook-timestamp":ts,"webhook-signature":"v1,"+sig},body:raw}),received=await response.json();assert.equal(response.status,200,JSON.stringify(received));assert.equal(received.status,"received");const id=received.id;
+const transcript=JSON.parse(await readFile("fixtures/fathom/transcript.json","utf8"));const calls:string[]=[];
+await ingest(id,{request:async(path:string)=>{calls.push(path);return path.endsWith("/transcript")?{transcript}:{download_id:"fixture-download",status:"completed",video:{url:"https://example.com/synthetic-source.mp4"}};}});assert.equal((await getLesson(id)).status,"transcribed");
+const source=`source/${id}.mp4`;const signed=await db.storage.from("lesson-media").createSignedUploadUrl(source);assert.equal(signed.error,null);const upload=await fetch(signed.data!.signedUrl,{method:"PUT",headers:{"content-type":"video/mp4"},body:createReadStream("fixtures/media/sample.mp4") as unknown as BodyInit,duplex:"half"} as RequestInit);assert.ok(upload.ok,await upload.text());
+const saved=await db.from("lesson_recordings").update({source_storage_path:source}).eq("id",id);assert.equal(saved.error,null);await db.from("render_jobs").update({status:"done",progress:100,output_storage_path:source}).eq("recording_id",id).eq("job_type","copy_source");
+const proposed=await proposeCuts(id,undefined,async()=>JSON.stringify([{start_s:0,end_s:15,reason:"housekeeping",confidence:.99,snippet:"waiting for everyone",keep:false},{start_s:55,end_s:70,reason:"tech_issue",confidence:.98,snippet:"pausing to fix audio",keep:false}]));assert.equal(proposed.cut_list.length,2);assert.equal(proposed.status,"cuts_proposed");const approval=await approveCuts(id,{cut_list:proposed.cut_list});assert.equal(approval.job.status,"queued");assert.equal((await fetch((await sourceUrl(id))!)).status,200);
+const module=await db.from("training_modules").insert({title:"Ops fixture lesson drafts",description:"Synthetic acceptance module",is_published:false,order_index:999}).select().single();assert.equal(module.error,null);
+console.log(JSON.stringify({pass:true,checks:["signature required","webhook received","mock Fathom transcript and download","streamed fixture upload","signed source readable","conservative mock proposal","approval queued worker"],recordingId:id,renderJobId:approval.job.id,moduleId:module.data.id,mockCalls:calls}));
