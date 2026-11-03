@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentMetricsMonthStart,
+  isValidMetricsMonthStart,
   normalizeMonthlyMetricsHistory,
   monthlyMetricDefinitions,
   monthlyMetricKeySet,
@@ -122,7 +123,13 @@ export async function PUT(request: Request) {
   }
 
   const payload = await request.json().catch(() => ({}));
-  const values = normalizeMetricsPayload(payload.values);
+  const currentMonthStart = getCurrentMetricsMonthStart();
+  // Old open tabs continue to save the current month; new forms send their selected month.
+  const monthStart = payload?.monthStart === undefined ? currentMonthStart : payload.monthStart;
+  if (!isValidMetricsMonthStart(monthStart, currentMonthStart)) {
+    return NextResponse.json({ error: "Choose a valid current or previous month." }, { status: 400 });
+  }
+  const values = normalizeMetricsPayload(payload?.values);
   const validationError = validateMetrics(values);
 
   if (validationError) {
@@ -130,20 +137,19 @@ export async function PUT(request: Request) {
   }
 
   const admin = createAdminClient();
-  const currentMonthStart = getCurrentMetricsMonthStart();
   const timestamp = new Date().toISOString();
 
   const { data: existing } = await admin
     .from("client_monthly_metrics")
     .select("submitted_at")
     .eq("client_id", clientId)
-    .eq("month_start", currentMonthStart)
+    .eq("month_start", monthStart)
     .maybeSingle();
 
   const { error } = await admin.from("client_monthly_metrics").upsert(
     {
       client_id: clientId,
-      month_start: currentMonthStart,
+      month_start: monthStart,
       monthly_revenue: values.monthly_revenue,
       gross_profit_margin: values.gross_profit_margin,
       lead_conversion_rate: values.lead_conversion_rate,
@@ -163,6 +169,7 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({
     success: true,
+    monthStart,
     history,
     currentMonthStart,
     submitted_at: existing?.submitted_at || timestamp,

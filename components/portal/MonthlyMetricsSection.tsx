@@ -6,6 +6,7 @@ import MonthlyMetricsOverview from "@/components/shared/MonthlyMetricsOverview";
 import {
   formatMetricsMonthLabel,
   getCurrentMetricsMonthStart,
+  getMetricsMonthOptions,
   monthlyMetricDefinitions,
   sortMonthlyMetrics,
 } from "@/lib/monthly-metrics";
@@ -34,6 +35,7 @@ export default function MonthlyMetricsSection({
   const { toast } = useToast();
   const [history, setHistory] = useState<ClientMonthlyMetric[]>(sortMonthlyMetrics(initialHistory));
   const [currentMonthStart, setCurrentMonthStart] = useState(initialCurrentMonthStart || getCurrentMetricsMonthStart());
+  const [selectedMonthStart, setSelectedMonthStart] = useState(initialCurrentMonthStart || getCurrentMetricsMonthStart());
   const [formValues, setFormValues] = useState<Record<MonthlyMetricKey, string>>(
     createInitialValues(initialCurrentMonthStart || getCurrentMetricsMonthStart(), initialHistory),
   );
@@ -44,13 +46,22 @@ export default function MonthlyMetricsSection({
   useEffect(() => {
     const nextMonthStart = initialCurrentMonthStart || getCurrentMetricsMonthStart();
     setCurrentMonthStart(nextMonthStart);
+    setSelectedMonthStart(nextMonthStart);
     setHistory(sortMonthlyMetrics(initialHistory));
     setFormValues(createInitialValues(nextMonthStart, initialHistory));
     setShowForm(false);
   }, [initialCurrentMonthStart, initialHistory]);
 
-  const currentMonthEntry = history.find((entry) => entry.month_start === currentMonthStart);
-  const isDue = !currentMonthEntry;
+  const selectedMonthEntry = history.find((entry) => entry.month_start === selectedMonthStart);
+  const isDue = !selectedMonthEntry;
+  const monthOptions = getMetricsMonthOptions(currentMonthStart, history);
+
+  function selectMonth(monthStart: string) {
+    setSelectedMonthStart(monthStart);
+    setFormValues(createInitialValues(monthStart, history));
+    setError(null);
+    setShowForm(true);
+  }
 
   function setFieldValue(key: MonthlyMetricKey, value: string) {
     setFormValues((prev) => ({ ...prev, [key]: value }));
@@ -65,7 +76,7 @@ export default function MonthlyMetricsSection({
       const res = await fetch("/api/portal/monthly-metrics", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ values: formValues }),
+        body: JSON.stringify({ monthStart: selectedMonthStart, values: formValues }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -79,9 +90,9 @@ export default function MonthlyMetricsSection({
       const nextHistory = sortMonthlyMetrics(data.history || []);
       setHistory(nextHistory);
       setCurrentMonthStart(data.currentMonthStart || currentMonthStart);
-      setFormValues(createInitialValues(data.currentMonthStart || currentMonthStart, nextHistory));
+      setFormValues(createInitialValues(selectedMonthStart, nextHistory));
       setShowForm(false);
-      toast("Monthly metrics saved. Marc can now track your trend.");
+      toast(`${formatMetricsMonthLabel(selectedMonthStart)} metrics saved. Marc can now track your trend.`);
     } catch {
       setError("Could not save your monthly metrics.");
       toast("Could not save your monthly metrics.", "error");
@@ -98,7 +109,7 @@ export default function MonthlyMetricsSection({
             <div className="v2-eyebrow">Monthly Scorecard</div>
             <h2 className="mt-3 text-xl font-heading font-bold text-text-primary">Five Key Monthly Metrics</h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary">
-              On the first of each month, record these five numbers so you and Marc can see what is moving and where momentum is building.
+              Choose the month these figures belong to. You can add last month’s numbers or update a previous scorecard at any time.
             </p>
           </div>
           <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -110,21 +121,38 @@ export default function MonthlyMetricsSection({
               }`}
             >
               {isDue
-                ? `${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics due`
-                : `${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} submitted`}
+                ? `${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} metrics due`
+                : `${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} submitted`}
             </div>
             <button
               type="button"
+              disabled={saving}
               onClick={() => setShowForm((prev) => !prev)}
               className={showForm ? "v2-button-secondary min-h-0 px-3 py-2 text-xs" : "v2-button-primary min-h-0 px-3 py-2 text-xs"}
             >
               {showForm
                 ? "Hide scorecard"
                 : isDue
-                  ? `Add ${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics`
-                  : `Update ${formatMetricsMonthLabel(currentMonthStart, { month: "long" })} metrics`}
+                  ? `Add ${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} metrics`
+                  : `Update ${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} metrics`}
             </button>
           </div>
+        </div>
+
+        <div className="mt-5 max-w-sm">
+          <label htmlFor="metrics-month" className="block text-sm font-semibold text-text-primary">Reporting month</label>
+          <select
+            id="metrics-month"
+            value={selectedMonthStart}
+            disabled={saving}
+            onChange={(event) => selectMonth(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-white/10 bg-bg-card px-3 py-3 text-sm text-text-primary disabled:opacity-50"
+          >
+            {monthOptions.map((month) => (
+              <option key={month} value={month}>{formatMetricsMonthLabel(month, { month: "long", year: "numeric" })}</option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-text-muted">Each month is saved separately. Changing the month loads its saved figures.</p>
         </div>
 
         {showForm && (
@@ -145,6 +173,7 @@ export default function MonthlyMetricsSection({
                     )}
                     <input
                       type="number"
+                      disabled={saving}
                       inputMode="decimal"
                       min={metric.min}
                       max={metric.max}
@@ -166,7 +195,7 @@ export default function MonthlyMetricsSection({
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-text-muted">
-                These numbers are stored against {formatMetricsMonthLabel(currentMonthStart, { month: "long", year: "numeric" })}.
+                These numbers are stored against {formatMetricsMonthLabel(selectedMonthStart, { month: "long", year: "numeric" })}.
               </p>
               <button
                 type="submit"
