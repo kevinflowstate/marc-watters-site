@@ -81,6 +81,23 @@ export function getCurrentMetricsMonthStart(date = new Date()): string {
   return `${year}-${month}-01`;
 }
 
+/** Accept only a real month, never a future reporting period. */
+export function isValidMetricsMonthStart(value: unknown, currentMonthStart = getCurrentMetricsMonthStart()): value is string {
+  return typeof value === "string"
+    && /^[1-9]\d{3}-(0[1-9]|1[0-2])-01$/.test(value)
+    && value <= currentMonthStart;
+}
+
+export function getMetricsMonthOptions(currentMonthStart: string, history: ClientMonthlyMetric[]): string[] {
+  const months = new Set(history.map((entry) => entry.month_start).filter((month) => isValidMetricsMonthStart(month, currentMonthStart)));
+  const date = new Date(`${currentMonthStart}T12:00:00Z`);
+  for (let offset = 0; offset < 12; offset++) {
+    months.add(date.toISOString().slice(0, 10));
+    date.setUTCMonth(date.getUTCMonth() - 1);
+  }
+  return [...months].sort().reverse();
+}
+
 export function formatMetricsMonthLabel(
   monthStart: string,
   options: Intl.DateTimeFormatOptions = { month: "short", year: "numeric" },
