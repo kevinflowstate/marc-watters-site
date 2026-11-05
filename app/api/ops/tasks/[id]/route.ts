@@ -1,5 +1,9 @@
 import { respond } from "@/lib/ops/http";
-import { requireOps } from "@/lib/ops/auth";
+import {
+  opsAccess,
+  scopedTaskInput,
+  scopedOutputInput,
+} from "@/lib/ops/action-access";
 import {
   updateTask,
   decideTask,
@@ -9,9 +13,11 @@ import {
 type Context = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, c: Context) {
   return respond(async () => {
-    requireOps(request);
+    const access = opsAccess(request, "tasks:write");
     const { id } = await c.params;
     const b = await request.json();
+    if (access.kind === "scoped")
+      return { task: await updateTask(id, scopedTaskInput(b), access.actor) };
     return {
       task:
         b.status === "done"
@@ -22,9 +28,13 @@ export async function PATCH(request: Request, c: Context) {
 }
 export async function POST(request: Request, c: Context) {
   return respond(async () => {
-    requireOps(request);
+    const access = opsAccess(request, "tasks:write");
     const { id } = await c.params;
     const b = await request.json();
+    if (access.kind === "scoped")
+      return {
+        task: await attachOutput(id, scopedOutputInput(b), access.actor),
+      };
     return {
       task: b.output
         ? await attachOutput(id, b.output, "ops-token")

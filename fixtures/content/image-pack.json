@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "pack_id": "fixture-weekly-content",
+  "version": 1,
+  "timezone": "Europe/London",
+  "location_id": "93GJEdsr0cT9el3OINXq",
+  "source": {
+    "provider": "upload",
+    "id": "synthetic-brief",
+    "revision": "v1"
+  },
+  "posts": [
+    {
+      "post_id": "fixture-image-post",
+      "platform": "instagram",
+      "account_id": "fixture-not-a-real-account",
+      "caption": "Synthetic review example. Replace with approved copy and media before requesting a real scheduling action.",
+      "schedule_at": "2098-01-06T10:00:00Z",
+      "media": [
+        {
+          "asset_id": "fixture-image",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "url": "https://assets.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+          "mime_type": "image/png"
+        }
+      ]
+    }
+  ]
+}

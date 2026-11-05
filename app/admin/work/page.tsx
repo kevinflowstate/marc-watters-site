@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { areas, assignees, type OpsTask } from "@/lib/ops/types";
 import {
@@ -82,6 +83,12 @@ export default function WorkPage() {
         See what needs your attention, review prepared work and track what
         happens next.
       </p>
+      <Link
+        href="/admin/automation"
+        className="mb-6 inline-flex min-h-11 items-center text-sm font-semibold text-accent-bright underline"
+      >
+        Review prepared content, lessons & payment results →
+      </Link>
       <form
         className="v2-surface p-4 flex flex-wrap gap-3 mb-6"
         onSubmit={async (e) => {

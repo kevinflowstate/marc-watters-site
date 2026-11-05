@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAccessibleModuleIds } from "@/lib/portal-training-access";
 import { getLesson } from "@/lib/ops/lessons";
 import { OpsError } from "@/lib/ops/tasks";
+import { assertPublishedLessonMediaCurrent } from "@/lib/ops/lesson-publication";
 export async function GET(
   _request: Request,
   c: { params: Promise<{ id: string }> },
@@ -43,6 +44,7 @@ export async function GET(
     }
     const path = l.edited_storage_path || l.source_storage_path;
     if (!path) throw new OpsError("Media not ready", 404);
+    await assertPublishedLessonMediaCurrent(l.id, path);
     const signed = await db.storage
       .from("lesson-media")
       .createSignedUrl(path, 3600);

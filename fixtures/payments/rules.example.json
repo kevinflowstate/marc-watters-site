@@ -1,0 +1,35 @@
+{
+  "enabled": false,
+  "revision": "kevin-payment-calendar-2026-11-05",
+  "approved_by": "Kevin Harkin",
+  "approved_at": "2026-11-05",
+  "location_id": "93GJEdsr0cT9el3OINXq",
+  "timezone": "Europe/London",
+  "max_reminders": 2,
+  "allowed_local_hours": {
+    "start": 9,
+    "end": 10
+  },
+  "steps": [
+    {
+      "key": "first",
+      "template_id": null,
+      "body_template": "Hi {{first_name}}, it's Eimear from Construction Business Blueprint. A payment on your account hasn't gone through. Please reply here and I'll help you get it sorted.",
+      "template_name": "cbb_payment_issue_v1",
+      "template_status": "pending_meta_approval"
+    },
+    {
+      "key": "second",
+      "template_id": null,
+      "body_template": "Hi {{first_name}}, it's Eimear from Construction Business Blueprint. The payment we contacted you about is still showing as unpaid. Please reply here if you need help getting it sorted.",
+      "template_name": "cbb_payment_followup_v1",
+      "template_status": "pending_meta_approval"
+    }
+  ],
+  "timing": {
+    "first": "next_working_day",
+    "followup_calendar_days": 3,
+    "local_hour": 9
+  },
+  "timing_note": "Kevin approved next working day, then one follow-up three calendar days after verified first send, weekends roll forward. Proposed 09:00 execution hour; jobs remain disabled until activation."
+}
