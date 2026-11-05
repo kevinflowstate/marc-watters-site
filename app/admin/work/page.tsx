@@ -1,10 +1,19 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { areas, assignees, type OpsTask } from "@/lib/ops/types";
-const closed = new Set(["done", "cancelled", "rejected"]);
+import {
+  areaLabels,
+  ownerLabels,
+  statusLabels,
+  isClosed,
+  needsApproval,
+  workViews,
+} from "@/lib/ops/workspace";
 export default function WorkPage() {
   const [tasks, setTasks] = useState<OpsTask[]>([]),
-    [tab, setTab] = useState("Needs approval"),
+    [tab, setTab] = useState<keyof ReturnType<typeof workViews>>("All current"),
+    [loading, setLoading] = useState(true),
+    [assignee, setAssignee] = useState("eimear"),
     [selected, setSelected] = useState<OpsTask | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -20,6 +29,7 @@ export default function WorkPage() {
         d = await r.json();
       if (!r.ok) throw Error(d.error);
       setTasks(d.tasks);
+      setError("");
       if (!openedLink.current) {
         openedLink.current = true;
         const id = new URLSearchParams(window.location.search).get("task");
@@ -29,7 +39,9 @@ export default function WorkPage() {
           t ? (d.tasks.find((x: OpsTask) => x.id === t.id) ?? null) : null,
         );
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : "Unable to load your tasks");
+    } finally {
+      setLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -41,16 +53,7 @@ export default function WorkPage() {
     if (selected && !panel.current?.open) panel.current?.showModal();
     if (!selected) panel.current?.close();
   }, [selected]);
-  const groups: Record<string, OpsTask[]> = {
-    "Needs approval": tasks.filter(
-      (t) =>
-        t.kind === "approval" &&
-        ["open", "in_progress", "awaiting_approval"].includes(t.status),
-    ),
-    Due: tasks.filter((t) => !closed.has(t.status) && t.status !== "approved"),
-    Flags: tasks.filter((t) => t.kind === "flag" && !closed.has(t.status)),
-    Done: tasks.filter((t) => closed.has(t.status) || t.status === "approved"),
-  };
+  const groups = workViews(tasks);
   async function action(path: string, method: string, body: unknown) {
     setBusy(true);
     setError("");
@@ -74,9 +77,10 @@ export default function WorkPage() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="v2-eyebrow">Operations</div>
-      <h1 className="v2-page-title mt-2">Work</h1>
+      <h1 className="v2-page-title mt-2">Your workspace</h1>
       <p className="text-text-secondary mt-2 mb-6">
-        Review approvals, follow up and close the loop.
+        See what needs your attention, review prepared work and track what
+        happens next.
       </p>
       <form
         className="v2-surface p-4 flex flex-wrap gap-3 mb-6"
@@ -88,6 +92,7 @@ export default function WorkPage() {
               kind,
               area,
               source: "human",
+              assignee,
             })
           )
             setTitle("");
@@ -95,7 +100,7 @@ export default function WorkPage() {
       >
         <input
           aria-label="Task title"
-          placeholder="Add work to the queue"
+          placeholder="What needs doing?"
           required
           maxLength={300}
           className="ops-input flex-1 min-w-40"
@@ -109,7 +114,13 @@ export default function WorkPage() {
           onChange={(e) => setKind(e.target.value)}
         >
           {["task", "approval", "flag"].map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {
+                { task: "Task", approval: "Approval", flag: "Needs attention" }[
+                  x
+                ]
+              }
+            </option>
           ))}
         </select>
         <select
@@ -119,7 +130,21 @@ export default function WorkPage() {
           onChange={(e) => setArea(e.target.value)}
         >
           {areas.map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {areaLabels[x]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Task owner"
+          className="ops-input"
+          value={assignee}
+          onChange={(e) => setAssignee(e.target.value)}
+        >
+          {assignees.map((a) => (
+            <option key={a} value={a}>
+              {ownerLabels[a]}
+            </option>
           ))}
         </select>
         <button className="ops-button" disabled={busy}>
@@ -133,58 +158,79 @@ export default function WorkPage() {
       )}
       <div
         className="flex flex-wrap gap-2 mb-4"
-        role="tablist"
+        role="group"
         aria-label="Work filters"
       >
         {Object.entries(groups).map(([name, items]) => (
           <button
-            role="tab"
-            aria-selected={tab === name}
+            aria-pressed={tab === name}
             className={`rounded-xl px-4 py-3 ${tab === name ? "bg-accent text-white" : "v2-surface text-text-secondary"}`}
-            onClick={() => setTab(name)}
+            onClick={() => setTab(name as keyof typeof groups)}
             key={name}
           >
             {name} ({items.length})
           </button>
         ))}
       </div>
-      <div className="v2-surface divide-y divide-current/10">
-        {groups[tab].length === 0 ? (
-          <p className="p-8 text-text-muted">No work in this view.</p>
-        ) : (
-          groups[tab].map((t) => (
-            <button
-              onClick={() => {
+      {loading ? (
+        <p role="status" className="p-6 text-text-secondary">
+          Loading your workspace…
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-5">
+            {(["marc", "eimear"] as const).map((owner) => (
+              <section
+                key={owner}
+                aria-labelledby={`tasks-${owner}`}
+                className="v2-surface min-w-0 overflow-hidden"
+              >
+                <div className="p-5 border-b border-current/10 flex items-center justify-between gap-3">
+                  <h2
+                    id={`tasks-${owner}`}
+                    className="font-heading font-bold text-xl"
+                  >
+                    {ownerLabels[owner]}’s Tasks
+                  </h2>
+                  <span className="text-text-muted text-sm">
+                    {groups[tab].filter((t) => t.assignee === owner).length}
+                  </span>
+                </div>
+                <TaskList
+                  tasks={groups[tab].filter((t) => t.assignee === owner)}
+                  onSelect={(t) => {
+                    setSelected(t);
+                    setNote("");
+                  }}
+                />
+              </section>
+            ))}
+          </div>
+          <section
+            className="v2-surface mt-5 overflow-hidden"
+            aria-labelledby="tasks-support"
+          >
+            <div className="p-5 border-b border-current/10">
+              <h2 id="tasks-support" className="font-heading font-bold">
+                With Flowstate & automation
+              </h2>
+              <p className="text-text-muted text-sm mt-1">
+                Track work assigned to us or the connected automation. Each item
+                shows its actual status.
+              </p>
+            </div>
+            <TaskList
+              tasks={groups[tab].filter((t) =>
+                ["flowstate", "system"].includes(t.assignee),
+              )}
+              onSelect={(t) => {
                 setSelected(t);
                 setNote("");
               }}
-              key={t.id}
-              className="w-full text-left p-4 flex gap-4 items-start hover:bg-accent/5"
-            >
-              <span className="rounded-lg px-2 py-1 text-xs bg-accent/10 text-accent-bright">
-                {t.area}
-              </span>
-              <span className="min-w-0 flex-1">
-                <strong className="block break-words">{t.title}</strong>
-                <span className="text-text-secondary text-sm">
-                  {t.client_profiles?.users?.full_name || "Team"} · {t.assignee}{" "}
-                  · {t.status.replaceAll("_", " ")}
-                </span>
-                {t.links.length > 0 && (
-                  <span className="text-sm text-accent-bright block">
-                    {t.links.map((l) => l.label).join(" · ")}
-                  </span>
-                )}
-              </span>
-              <span className="text-sm text-text-muted shrink-0">
-                {t.due_at
-                  ? new Date(t.due_at).toLocaleDateString("en-GB")
-                  : "No due date"}
-              </span>
-            </button>
-          ))
-        )}
-      </div>
+            />
+          </section>
+        </>
+      )}
       <dialog
         aria-labelledby="work-detail-title"
         ref={panel}
@@ -211,9 +257,25 @@ export default function WorkPage() {
               </button>
             </div>
             <p className="text-text-secondary text-sm my-3">
-              {selected.area} · {selected.status.replaceAll("_", " ")}
+              {areaLabels[selected.area]} ·{" "}
+              {needsApproval(selected)
+                ? "Needs approval"
+                : statusLabels[selected.status]}
             </p>
-            <p className="whitespace-pre-wrap my-4">
+            {selected.kind === "approval" && (
+              <p className="rounded-xl bg-accent/10 p-3 my-4 text-sm">
+                {selected.status === "approved"
+                  ? "Approval recorded. The next action is still pending; this is not yet completed."
+                  : selected.status === "rejected"
+                    ? "Changes requested. The revised version will need a new approval."
+                    : selected.status === "done"
+                      ? "This item has been marked completed."
+                      : selected.status === "cancelled"
+                        ? "This item has been cancelled."
+                        : "Review the linked version before approving. Approval records your decision; it does not by itself publish, send or schedule anything."}
+              </p>
+            )}
+            <p className="whitespace-pre-wrap break-words my-4">
               {selected.detail || "No additional detail."}
             </p>
             {[...selected.links, ...selected.outputs].map((l, i) => (
@@ -240,7 +302,9 @@ export default function WorkPage() {
                 }
               >
                 {assignees.map((a) => (
-                  <option key={a}>{a}</option>
+                  <option key={a} value={a}>
+                    {ownerLabels[a]}
+                  </option>
                 ))}
               </select>
             </label>
@@ -258,38 +322,35 @@ export default function WorkPage() {
               </p>
             )}
             <div className="flex flex-wrap gap-3 mt-5">
-              {selected.kind === "approval" &&
-                ["open", "in_progress", "awaiting_approval"].includes(
-                  selected.status,
-                ) && (
-                  <>
-                    <button
-                      className="ops-button"
-                      disabled={busy}
-                      onClick={() =>
-                        void action(`/api/admin/work/${selected.id}`, "POST", {
-                          decision: "approved",
-                          note,
-                        })
-                      }
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="ops-input"
-                      disabled={busy || !note.trim()}
-                      onClick={() =>
-                        void action(`/api/admin/work/${selected.id}`, "POST", {
-                          decision: "rejected",
-                          note,
-                        })
-                      }
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-              {!closed.has(selected.status) && (
+              {needsApproval(selected) && (
+                <>
+                  <button
+                    className="ops-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void action(`/api/admin/work/${selected.id}`, "POST", {
+                        decision: "approved",
+                        note,
+                      })
+                    }
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="ops-input"
+                    disabled={busy || !note.trim()}
+                    onClick={() =>
+                      void action(`/api/admin/work/${selected.id}`, "POST", {
+                        decision: "rejected",
+                        note,
+                      })
+                    }
+                  >
+                    Request changes
+                  </button>
+                </>
+              )}
+              {!isClosed(selected) && !needsApproval(selected) && (
                 <button
                   className="ops-input"
                   disabled={busy}
@@ -342,10 +403,61 @@ export default function WorkPage() {
         .ops-dialog::backdrop {
           background: #0006;
         }
-        button:disabled {
+        .ops-input:disabled,
+        .ops-button:disabled {
           opacity: 0.5;
         }
       `}</style>
+    </div>
+  );
+}
+
+function TaskList({
+  tasks,
+  onSelect,
+}: {
+  tasks: OpsTask[];
+  onSelect: (task: OpsTask) => void;
+}) {
+  if (!tasks.length)
+    return (
+      <p className="p-6 text-text-muted text-sm">No tasks in this view.</p>
+    );
+  return (
+    <div className="divide-y divide-current/10">
+      {tasks.map((t) => (
+        <button
+          type="button"
+          onClick={() => onSelect(t)}
+          key={t.id}
+          className="w-full text-left p-5 hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          <span className="flex flex-wrap items-center gap-2 text-xs mb-2">
+            <span className="rounded-lg px-2 py-1 bg-accent/10 text-accent-bright">
+              {areaLabels[t.area]}
+            </span>
+            <span className="text-text-secondary">
+              {needsApproval(t)
+                ? "Needs approval"
+                : t.kind === "flag" && t.status === "open"
+                  ? "Needs attention"
+                  : statusLabels[t.status]}
+            </span>
+          </span>
+          <strong className="block break-words">{t.title}</strong>
+          <span className="text-text-muted text-sm block mt-2">
+            {t.client_profiles?.users?.full_name || ownerLabels[t.assignee]}
+            {t.due_at
+              ? ` · Due ${new Date(t.due_at).toLocaleDateString("en-GB")}`
+              : ""}
+          </span>
+          {t.links.length > 0 && (
+            <span className="text-sm text-accent-bright block mt-2 break-words">
+              {t.links.map((l) => l.label).join(" · ")}
+            </span>
+          )}
+        </button>
+      ))}
     </div>
   );
 }

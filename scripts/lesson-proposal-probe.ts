@@ -1,11 +1,13 @@
 import { createAdminClient } from "../lib/supabase/admin";
 import { proposeCuts } from "../lib/ops/lessons";
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("abmmlybdqwzujcysagvf"))
+  throw Error("Non-live database required");
 const db = createAdminClient();
 const { data, error } = await db
   .from("lesson_recordings")
   .insert({
     source: "upload",
-    title: "Synthetic live proposal check",
+    title: "Synthetic Codex proposal check",
     duration_s: 120,
     status: "transcribed",
     transcript_text:
@@ -14,7 +16,16 @@ const { data, error } = await db
   .select()
   .single();
 if (error) throw error;
-const l = await proposeCuts(data.id);
+const l = await proposeCuts(data.id, [
+  {
+    start_s: 0,
+    end_s: 15,
+    reason: "housekeeping",
+    confidence: 0.99,
+    snippet: "Waiting for everyone",
+    keep: false,
+  },
+]);
 console.log(
   JSON.stringify({
     pass: true,

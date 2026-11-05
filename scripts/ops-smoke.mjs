@@ -123,10 +123,11 @@ try {
     list_clients_needing_attention: {},
     get_lesson: { id: lessonId },
     list_lessons: {},
-    propose_lesson_cuts: { id: lessonId },
+    propose_lesson_cuts: { id: lessonId, cuts: [] },
     create_report_draft: {},
     update_client_onboarding: { id: clientId, stage: "invited" },
   };
+  let reportForMcp;
   for (const tool of tools) {
     assert.ok(tool.inputSchema);
     if (
@@ -140,12 +141,34 @@ try {
       ].includes(tool.name)
     )
       continue;
+    if (tool.name === "get_report") args[tool.name] = { id: reportForMcp.id };
+    if (tool.name === "submit_report_draft")
+      args[tool.name] = {
+        id: reportForMcp.id,
+        expected_updated_at: reportForMcp.updated_at,
+        narrative_md: "Synthetic Codex handoff check — not for delivery.",
+      };
     assert.ok(args[tool.name], tool.name);
     const r = await client.callTool({
       name: tool.name,
       arguments: args[tool.name],
     });
-    assert.ok(!r.isError, tool.name + ": " + JSON.stringify(r));
+    const guarded =
+      (tool.name === "propose_lesson_cuts" &&
+        process.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED !== "true") ||
+      (tool.name === "submit_report_draft" &&
+        (reportForMcp.status !== "draft" ||
+          reportForMcp.send_claim_id ||
+          (reportForMcp.narrative_md &&
+            reportForMcp.narrative_md !==
+              reportForMcp.generated_narrative_md)));
+    assert.equal(
+      Boolean(r.isError),
+      Boolean(guarded),
+      tool.name + ": " + JSON.stringify(r),
+    );
+    if (["create_report_draft", "get_report"].includes(tool.name))
+      reportForMcp = JSON.parse(r.content.find((c) => c.type === "text").text);
     checks.push("MCP " + tool.name);
   }
 } finally {

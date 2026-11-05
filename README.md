@@ -1,3 +1,7 @@
+# CBB portal
+
+For the current Codex/Drive/portal division of work, implemented handoffs and remaining build steps, read [the operating model](docs/codex-operating-model.md) first. It supersedes the original AI-provider, Canva and hosted lesson-editor assumptions. PR32 remains a non-live draft.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

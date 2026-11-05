@@ -10,7 +10,10 @@ export async function POST(request: Request) {
     if (!verifyFathom(request.headers, raw))
       throw new OpsError("Unauthorized", 401);
     const lesson = await receiveRecording(JSON.parse(raw));
-    if (getEnv("FATHOM_API_KEY"))
+    if (
+      getEnv("OPS_LEGACY_LESSON_PIPELINE_ENABLED") === "true" &&
+      getEnv("FATHOM_API_KEY")
+    )
       after(async () => {
         try {
           await ingest(lesson.id);

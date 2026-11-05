@@ -12,7 +12,11 @@ import {
 import { areas, assignees, statuses } from "@/lib/ops/types";
 import { getClient, listClientsNeedingAttention } from "@/lib/ops/clients";
 import { getLesson, listLessons, proposeCuts } from "@/lib/ops/lessons";
-import { createReportDraft } from "@/lib/ops/reports";
+import {
+  createReportDraft,
+  getReport,
+  submitReportDraft,
+} from "@/lib/ops/reports";
 import { updateClientSignals, onboardingStages } from "@/lib/ops/onboarding";
 export const runtime = "nodejs";
 const id = z.string().uuid(),
@@ -168,18 +172,68 @@ const handler = createMcpHandler(
     server.registerTool(
       "propose_lesson_cuts",
       {
-        description: "Prepare conservative transcript cuts for human review.",
-        inputSchema: z.object({ id }),
+        description:
+          "Legacy portal cut review only; requires OPS_LEGACY_LESSON_PIPELINE_ENABLED. Save supplied cuts without a model or render. In the standard workflow, review edits in Codex/Drive and attach the preview to a workspace task.",
+        inputSchema: z.object({
+          id,
+          cuts: z
+            .array(
+              z.object({
+                start_s: z.number(),
+                end_s: z.number(),
+                reason: z.enum([
+                  "housekeeping",
+                  "dead_air",
+                  "admin",
+                  "off_topic",
+                  "tech_issue",
+                ]),
+                confidence: z.number().min(0).max(1),
+                snippet: z.string(),
+                keep: z.boolean(),
+              }),
+            )
+            .max(500),
+        }),
       },
-      (a) => run(() => proposeCuts(a.id)),
+      (a) => run(() => proposeCuts(a.id, a.cuts)),
     );
     server.registerTool(
       "create_report_draft",
       {
-        description: "Gather the weekly numbers into a report for review.",
+        description:
+          "Gather weekly source figures without calling AI. Read the report, write the narrative in Codex, then use submit_report_draft.",
         inputSchema: z.object({}),
       },
       () => run(() => createReportDraft()),
+    );
+    server.registerTool(
+      "get_report",
+      {
+        description:
+          "Read a report’s source figures, text and updated_at revision before preparing its narrative.",
+        inputSchema: z.object({ id }),
+      },
+      (a) => run(() => getReport(a.id)),
+    );
+    server.registerTool(
+      "submit_report_draft",
+      {
+        description:
+          "Save report text prepared in Codex against the exact updated_at revision. Leaves it in human review; never sends or approves.",
+        inputSchema: z.object({
+          id,
+          expected_updated_at: z.string(),
+          narrative_md: z.string().min(1).max(50000),
+        }),
+      },
+      (a) =>
+        run(() =>
+          submitReportDraft(a.id, {
+            expected_updated_at: a.expected_updated_at,
+            narrative_md: a.narrative_md,
+          }),
+        ),
     );
   },
   { serverInfo: { name: "cbb-ops", version: "1.0.0" } },

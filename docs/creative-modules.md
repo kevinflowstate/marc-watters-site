@@ -1,3 +1,15 @@
+# Current content workflow — 5 November 2026
+
+Codex prepares the content pack. Drive stores the versioned copy and media. Marc/Eimear review where they already work. The portal shows the pack, its recorded approval and per-post scheduling results. The next implementation is an authenticated “Schedule this week’s content” action for the exact approved pack, using Marc’s GHL location and protected PIT token.
+
+**Canva is removed from the agreed build. Its scaffold below is historical and is not a prerequisite.** The existing Social Planner module is test-only and deliberately rejects Marc’s live location; do not present it as a working scheduler or simply remove its guard. Implement target-account verification, approved-version checks, per-post deduplication and provider receipts before enabling live scheduling. No placeholder button should claim to schedule.
+
+See [current operating model](codex-operating-model.md).
+
+---
+
+## Historical 31 October scaffold (not the current delivery plan)
+
 # Canva and Social Planner foundation scaffolds
 
 **NEEDS KEVIN:** Canva developer app registration, approved redirect URL/scopes and OAuth token storage. **NEEDS MARC:** approved brand-template IDs and confirmed text/image field names. These dependencies are recorded, not attempted. No live account registration, Canva creation or CRM write was performed.

@@ -21,6 +21,11 @@ export async function updateRenderJob(id: string, input: unknown) {
 }
 
 export async function dispatchRenderJob(id: string) {
+  if (getEnv("OPS_LEGACY_LESSON_PIPELINE_ENABLED") !== "true")
+    throw new OpsError(
+      "Hosted lesson processing is not enabled; prepare the lesson in Codex",
+      409,
+    );
   const db = createAdminClient(),
     job = await db.from("render_jobs").select("*").eq("id", uuid(id)).single();
   if (job.error) throw new OpsError("Job not found", 404);

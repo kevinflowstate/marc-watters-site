@@ -1,3 +1,5 @@
+// Opt in for this isolated legacy worker fixture only.
+process.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED = "true";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
@@ -85,26 +87,24 @@ await db
   .update({ status: "done", progress: 100, output_storage_path: source })
   .eq("recording_id", id)
   .eq("job_type", "copy_source");
-const proposed = await proposeCuts(id, undefined, async () =>
-  JSON.stringify([
-    {
-      start_s: 0,
-      end_s: 15,
-      reason: "housekeeping",
-      confidence: 0.99,
-      snippet: "waiting for everyone",
-      keep: false,
-    },
-    {
-      start_s: 55,
-      end_s: 70,
-      reason: "tech_issue",
-      confidence: 0.98,
-      snippet: "pausing to fix audio",
-      keep: false,
-    },
-  ]),
-);
+const proposed = await proposeCuts(id, [
+  {
+    start_s: 0,
+    end_s: 15,
+    reason: "housekeeping",
+    confidence: 0.99,
+    snippet: "waiting for everyone",
+    keep: false,
+  },
+  {
+    start_s: 55,
+    end_s: 70,
+    reason: "tech_issue",
+    confidence: 0.98,
+    snippet: "pausing to fix audio",
+    keep: false,
+  },
+]);
 assert.equal(proposed.cut_list.length, 2);
 assert.equal(proposed.status, "cuts_proposed");
 const approval = await approveCuts(id, { cut_list: proposed.cut_list });

@@ -44,11 +44,12 @@ export default function Reports() {
             }
           }}
         >
-          Prepare current draft
+          Gather this week’s figures
         </button>
       </div>
       <p className="text-text-secondary my-5">
-        Gathered numbers, a draft narrative and space for your observations.
+        The portal gathers the figures. Codex prepares the report, then you
+        review the wording and add your observations here.
       </p>
       {error && (
         <p role="alert" className="text-amber-600 my-4">

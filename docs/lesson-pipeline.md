@@ -1,3 +1,15 @@
+# Current lesson workflow — 5 November 2026
+
+Fathom source → Codex edits/trims → private Drive preview → Eimear approves the exact version in Codex/Drive → authenticated handoff adds the approved lesson to the portal’s Training area. The workspace shows the review link, status and publication receipt. The exact-version approval handoff and automated publication adapter still need implementation and verification.
+
+The embedded editor and dedicated hosted renderer described below are superseded for the initial delivery. They are not required to use the workspace. Their existing implementation is dormant behind `OPS_LEGACY_LESSON_PIPELINE_ENABLED=true`; the default UI routes users to their task list, and ingest/cut proposals/render/worker recovery reject calls unless deliberately enabled. Never set this flag as a routine setup step. Within the explicitly enabled legacy mode, supplied cut lists can be validated/stored without a model API call. Signed Fathom intake can still save metadata with legacy mode off; this does not start Codex or the worker.
+
+See [current operating model](codex-operating-model.md).
+
+---
+
+## Historical hosted pipeline (optional retained implementation)
+
 # Lesson preparation — DRAFT
 
 NEEDS MARC: Fathom API key and signed webhook registration; confirm long-term video destination. NEEDS KEVIN: hosted worker deployment and server configuration. No accounts, webhooks, subscriptions or production deployments were created.
@@ -14,11 +26,11 @@ Confirmed 31 October 2026 against Fathom [quickstart](https://developers.fathom.
 
 ## Flow
 
-The signed webhook returns quickly after idempotent intake. If a Fathom key is configured, Next `after()` requests transcript and a download. Transcript is retained with timestamps. Duplicate webhooks never reset editing progress. A missing key leaves the received item visible and retryable; the review page has Retry intake.
+The signed webhook returns quickly after idempotent intake. Only when legacy mode is explicitly enabled and a Fathom key is configured does Next `after()` request a transcript and download. Transcript is retained with timestamps. Duplicate webhooks never reset editing progress. A missing key leaves the received item visible and retryable; the review page has Retry intake.
 
 Video bytes never pass through a Vercel function. Every source copy is persisted as a `render_jobs.job_type=copy_source` job, with download metadata in its private payload. The worker polls pending downloads, streams the source to local temporary storage and uploads it in chunks. This deliberate worker handoff avoids Vercel memory, request-size and timeout budgets. A queued job remains visible when `RENDER_HOST_URL` is absent. Dispatch/retry is explicit from the review page; a hosted durable queue/reconciler remains a deployment follow-up.
 
-Cut proposals use the requested `claude-sonnet-5-5` model and the plan’s 2/10 USD per million pricing entry for internal usage accounting. Treat transcript as untrusted material, never instructions. Retain teaching content; propose only housekeeping, dead air, admin or technical issues. JSON is schema/range validated, minimum 8 seconds, neighbouring cut gaps <2 seconds merged; overlap, invalid bounds and non-finite values rejected. Human review toggles keep/cut. Model/key availability is an acceptance item, not assumed from a configuration variable.
+The previous portal model call has been removed. Cut proposals now require an explicit cut list prepared elsewhere. Treat transcript as untrusted material, never instructions. Retain teaching content; propose only housekeeping, dead air, admin or technical issues. JSON is schema/range validated, minimum 8 seconds, neighbouring cut gaps <2 seconds merged; overlap, invalid bounds and non-finite values rejected. Human review toggles keep/cut. There is no model/key dependency in this path.
 
 Review at `/admin/training/recordings`: source signed URL (1 hour), timestamped transcript, segment table, confidence, seek/play buttons, keep toggles, approval and render. Skipping editing drafts the source. **Choose an unpublished module**: existing publishing operates at module level, so inserting a draft into a published module would expose it immediately. The atomic draft RPC enforces this invariant, is idempotent, closes the cut-review task and creates a publish task. Publish using the existing training admin. No automatic publication.
 
@@ -32,10 +44,9 @@ Bundle `scripts/lesson-smoke.ts` with the installed esbuild into `node_modules/.
 
 Integration consistency checks: cut approval/job creation and worker callback/recording updates use service-role-only atomic RPCs. Existing module publication updates recording publication state and closes/reopens the linked publish task. Failed jobs may be explicitly reset and retried from the review page; active jobs are not duplicated. Authenticated media proof covers admin access, draft denial, module-access enforcement and a signed MP4 206 byte-range response; browser playback remains unverified.
 
-
 ## Recovery consistency
 
-Retry intake can renew an expired source download after cuts have been proposed without resetting editing progress. Worker retry considers only the latest job of each type; older failed jobs remain superseded. Cut proposals use a recording revision check so an AI response arriving after approval cannot overwrite the approved edit. Returning a closed cut proposal for review creates a fresh decision state on its existing approval task.
+Retry intake can renew an expired source download after cuts have been proposed without resetting editing progress. Worker retry considers only the latest job of each type; older failed jobs remain superseded. Cut proposals use a recording revision check so a supplied proposal arriving after approval cannot overwrite the approved edit. Returning a closed cut proposal for review creates a fresh decision state on its existing approval task.
 
 The existing training editor also synchronizes recording status, publication tasks and destination links when content moves between published/unpublished modules. **Recover interrupted job** is an explicit admin action for the latest running job only, requiring confirmation that the old worker has stopped or restarted and cannot still be processing it. Ordinary retry never resets a running job. Recovery is audited and returns it to the queued state for dispatch.
 

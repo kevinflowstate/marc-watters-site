@@ -11,9 +11,27 @@ const response = await fetch(base + "/api/cron/thursday-report", {
   d = await response.json();
 assert.equal(response.status, 200, JSON.stringify(d));
 assert.ok(d.report.data.clients.connected);
-assert.ok(d.report.narrative_md.includes("What happened"));
-assert.ok(d.report.narrative_md.includes("What needs attention"));
-assert.ok(d.report.narrative_md.includes("Next week"));
+assert.equal(typeof d.report.narrative_md, "string");
+// Gathering figures does not create narrative text. Codex supplies it separately.
+const preparedText =
+  "## What happened\nSynthetic report acceptance check.\n\n## What needs attention\nReview the connected figures.\n\n## Next week\nConfirm the next actions.";
+const prepared = await fetch(base + "/api/ops/reports/" + d.report.id, {
+  method: "PATCH",
+  headers: {
+    "content-type": "application/json",
+    authorization: "Bearer " + process.env.OPS_API_TOKEN,
+  },
+  body: JSON.stringify({
+    narrative_md: preparedText,
+    expected_updated_at: d.report.updated_at,
+  }),
+});
+assert.equal(
+  prepared.status,
+  200,
+  "Use a draft without existing human edits for this acceptance fixture",
+);
+d.report = (await prepared.json()).report;
 assert.equal(d.report.data.social_planner.connected, false);
 const account = JSON.parse(
     await readFile(
@@ -81,7 +99,7 @@ console.log(
     checks: [
       "cron requires auth",
       "populated source data",
-      "live AI narrative with required sections",
+      "Codex-prepared narrative submitted without portal AI generation",
       "social source not connected",
       "review",
       "send disabled, no email",

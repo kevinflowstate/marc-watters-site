@@ -110,6 +110,12 @@ export default function ReportDetail() {
             </p>
           )}
           <p className="text-text-secondary mb-5">Status: {report.status}</p>
+          {!report.narrative_md.trim() && (
+            <p className="v2-surface p-4 mb-5 text-text-secondary">
+              The figures are ready. Ask Codex to prepare this report, or write
+              the report text below.
+            </p>
+          )}
           <ReportSummary data={report.data} />
           <div className="grid lg:grid-cols-2 gap-5">
             <label className="block">
@@ -173,6 +179,7 @@ export default function ReportDetail() {
               className="v2-button-primary"
               disabled={
                 busy ||
+                !text.trim() ||
                 report.status === "sent" ||
                 Boolean(report.send_claim_id)
               }

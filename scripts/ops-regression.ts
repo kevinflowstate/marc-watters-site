@@ -1,3 +1,5 @@
+// Legacy worker regression harness; opt-in only for this non-live test process.
+process.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED = "true";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "../lib/supabase/admin";
@@ -465,7 +467,7 @@ try {
   checks.push(
     "superseded failed copy does not conflict with replacement retry",
   );
-  // A model response returning after approval may not rewind the recording.
+  // A late Codex proposal may not rewind a recording after approval.
   const recording = await db
     .from("lesson_recordings")
     .insert({
@@ -482,19 +484,6 @@ try {
   assert.equal(recording.error, null);
   assert.ok(recording.data);
   lessonIds.push(recording.data.id);
-  let entered!: () => void, release!: () => void;
-  const started = new Promise<void>((r) => {
-      entered = r;
-    }),
-    blocked = new Promise<void>((r) => {
-      release = r;
-    });
-  const pending = proposeCuts(recording.data.id, undefined, async () => {
-    entered();
-    await blocked;
-    return JSON.stringify({ cuts: [{ ...cuts[0], end_s: 20 }] });
-  });
-  await started;
   await assert.rejects(
     () =>
       approveCuts(recording.data.id, {
@@ -505,8 +494,7 @@ try {
   assert.equal((await getLesson(recording.data.id)).status, "cuts_proposed");
   checks.push("all-content cut rejected before a job or approval state change");
   await approveCuts(recording.data.id, { cut_list: cuts });
-  release();
-  await assert.rejects(pending, /Recording changed/);
+  await assert.rejects(() => proposeCuts(recording.data.id, cuts), /not ready/);
   assert.equal((await getLesson(recording.data.id)).status, "cuts_approved");
   checks.push("stale AI proposal rejected after cut approval");
   // An incomplete Monday snapshot refreshes on Thursday without losing human writing.
@@ -523,10 +511,7 @@ try {
     null,
     "Dedicated future fixture week must be unused",
   );
-  const first = await createReportDraft(
-    monday,
-    async () => "Synthetic automatic narrative v1",
-  );
+  const first = await createReportDraft(monday);
   reportIds.push(first.id);
   let report = (
     await updateReport(
@@ -551,10 +536,7 @@ try {
         3 * 86400000 +
         6 * 3600000,
     ),
-    refreshed = await createReportDraft(
-      thursday,
-      async () => "Synthetic automatic narrative v2",
-    );
+    refreshed = await createReportDraft(thursday);
   assert.equal(refreshed.id, first.id);
   assert.equal(refreshed.status, "draft");
   assert.equal(refreshed.narrative_md, "Saved human narrative");
