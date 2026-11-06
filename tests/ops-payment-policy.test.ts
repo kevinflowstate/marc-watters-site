@@ -464,6 +464,8 @@ describe("Stripe payment authority", () => {
           : url.includes("/subscriptions/")
             ? {
                 id: "sub_A",
+                object: "subscription",
+                livemode: false,
                 status: "active",
                 pause_collection: { behavior: "void" },
               }

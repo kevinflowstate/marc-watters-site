@@ -46,13 +46,57 @@ export function paymentReminderDueAt(
 }
 
 export const paymentDeliveryLabels: Record<string, string> = {
-  reserved: "Reserved · not sent",
-  requested: "Requested · delivery not confirmed",
-  sent: "Sent · delivery not confirmed",
+  reserved: "Prepared · not sent",
+  requested: "Send requested · result not confirmed",
+  sent: "Send confirmed · delivery not confirmed",
   delivered: "Delivery confirmed",
   failed: "Send failed · check before retrying",
   unknown: "Outcome unknown · check before retrying",
 };
+
+function hasVerifiedSend(attempt: PaymentAttempt) {
+  return (
+    ["sent", "delivered"].includes(attempt.state) &&
+    attempt.receipt_verified === true &&
+    Number.isFinite(Date.parse(attempt.verified_sent_at || ""))
+  );
+}
+
+/** A native action status alone cannot establish that the provider sent anything. */
+export function paymentAttemptDeliveryLabel(attempt: PaymentAttempt) {
+  if (["sent", "delivered"].includes(attempt.state) && !hasVerifiedSend(attempt))
+    return "Send result not verified · check before following up";
+  return paymentDeliveryLabels[attempt.state] || "Reminder result needs checking";
+}
+
+export function paymentReminderSummary(
+  payment: PaymentCase,
+  attempts: PaymentAttempt[] | null,
+) {
+  if (attempts === null) {
+    if (["sent", "delivered"].includes(payment.latest_delivery || ""))
+      return "Reminder result saved · open history to check";
+    return paymentDeliveryLabels[payment.latest_delivery || ""] ||
+      (payment.latest_delivery ? "Reminder result needs checking" : "No reminder result recorded");
+  }
+  const latest = attempts[attempts.length - 1];
+  if (!latest)
+    return payment.latest_delivery || payment.reminder_count > 0
+      ? "Reminder records need checking"
+      : "No reminder result recorded";
+  if (payment.latest_delivery && payment.latest_delivery !== latest.state)
+    return "Reminder records need checking";
+  return paymentAttemptDeliveryLabel(latest);
+}
+
+/** Link only to this saved merchant/invoice; keep internal IDs out of the main copy. */
+export function paymentInvoiceSourceUrl(payment: PaymentCase) {
+  if (
+    !/^acct_[A-Za-z0-9]+$/.test(payment.stripe_account_id) ||
+    !/^in_[A-Za-z0-9]+$/.test(payment.invoice_id)
+  ) return null;
+  return `https://dashboard.stripe.com/${payment.stripe_account_id}/invoices/${payment.invoice_id}`;
+}
 export type PaymentNextStep = {
   kind: "planned" | "stopped" | "review" | "settled" | "unloaded";
   title: string;
@@ -98,7 +142,9 @@ export function paymentHumanHandoff(
     owner: "eimear" as const,
     required: !closed,
     title: closed ? "No payment chase needed" : "Eimear’s payment review",
-    summary: remindersEnabled
+    summary: closed
+      ? "The saved payment-account check records this invoice as closed. No further reminder is planned."
+      : remindersEnabled
       ? "A saved plan is not proof that a message was sent. Check the invoice and reminder history."
       : "Automatic reminders are off. This case remains available for Eimear to review; no message has been queued by this check.",
     steps,

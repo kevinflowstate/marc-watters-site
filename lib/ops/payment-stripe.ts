@@ -117,6 +117,10 @@ export async function readStripePaymentSnapshot(
   const identity = await stripeRead(account, "/account", request);
   if (identity.id !== account.account_id)
     throw new OpsError("Stripe merchant identity does not match", 409);
+  // The invoice may be followed by a slower subscription read. Keep the
+  // observation's start time so that finishing later cannot make older invoice
+  // data look newer than a concurrent snapshot in the payment-case ledger.
+  const sourceVerifiedAt = new Date().toISOString();
   const invoice = await stripeRead(account, "/invoices/" + invoiceId, request);
   if (
     invoice.id !== invoiceId ||
@@ -157,8 +161,31 @@ export async function readStripePaymentSnapshot(
       "/subscriptions/" + subscriptionId,
       request,
     );
-    if (sub.id !== subscriptionId)
-      throw new OpsError("Stripe subscription identity does not match", 409);
+    if (
+      sub.id !== subscriptionId ||
+      sub.object !== "subscription" ||
+      sub.livemode !== account.livemode
+    )
+      throw new OpsError(
+        "Stripe subscription identity or mode does not match",
+        409,
+      );
+    if (
+      ![
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "incomplete",
+        "incomplete_expired",
+        "canceled",
+        "paused",
+      ].includes(String(sub.status))
+    )
+      throw new OpsError(
+        "Stripe subscription state is unavailable; follow-up is blocked",
+        503,
+      );
     if (sub.status === "canceled" || sub.status === "incomplete_expired")
       state = "cancelled";
     else if (sub.status === "paused" || sub.pause_collection) state = "paused";
@@ -203,6 +230,6 @@ export async function readStripePaymentSnapshot(
       typeof invoice.customer_name === "string"
         ? invoice.customer_name.slice(0, 300)
         : null,
-    source_verified_at: new Date().toISOString(),
+    source_verified_at: sourceVerifiedAt,
   };
 }

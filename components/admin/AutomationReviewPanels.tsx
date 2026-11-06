@@ -14,7 +14,9 @@ import { bundledContentPreview } from "@/lib/ops/content-preview-assets";
 import type { ContentPack } from "@/lib/ops/content-pack";
 import type { PaymentAttempt, PaymentCase } from "@/lib/ops/payment-policy";
 import {
-  paymentDeliveryLabels,
+  paymentAttemptDeliveryLabel,
+  paymentInvoiceSourceUrl,
+  paymentReminderSummary,
   paymentNextStep,
   type paymentHumanHandoff,
 } from "@/lib/ops/payment-display";
@@ -563,6 +565,7 @@ function PaymentReviewCard({
   }, [payment.id, payment.updated_at, expanded, refresh]);
   const current = detail?.payment_case || payment;
   const plan = paymentNextStep(current, detail?.attempts ?? null);
+  const sourceUrl = paymentInvoiceSourceUrl(current);
   const invoiceUrl = safeUrl(current.hosted_invoice_url, false);
   const safeInvoice =
     invoiceUrl && new URL(invoiceUrl).hostname === "invoice.stripe.com"
@@ -588,23 +591,25 @@ function PaymentReviewCard({
       </div>
       <p className="mt-3 text-xl font-semibold">{paymentAmount(current)}</p>
       <p className="mt-2 break-words text-sm text-text-secondary">
-        Invoice: {current.invoice_number || current.invoice_id}
+        {current.invoice_number ? `Invoice: ${current.invoice_number}` : "Invoice number not recorded"}
+      </p>
+      <p className="mt-2 text-sm text-text-secondary">
+        Payment account name needs confirming. Check the invoice source below.
       </p>
       <p className="mt-2 text-xs text-text-muted">
         Payment last checked: {date(current.source_verified_at)}
+        {current.source_verified_at ? " (London time)" : ""}
       </p>
       <p className="mt-3 text-sm text-text-secondary">
-        {current.latest_delivery
-          ? paymentDeliveryLabels[current.latest_delivery] ||
-            "Reminder status needs checking"
-          : "No reminder result recorded"}
+        {paymentReminderSummary(current, detail?.attempts ?? null)}
       </p>
       <p className="mt-1 text-xs text-text-muted">
-        Verified reminders: {current.reminder_count} of 2
+        Reminders recorded: {current.reminder_count} of 2
       </p>
       <div
         className={`mt-4 rounded-xl p-3 text-sm ${["review", "stopped"].includes(plan.kind) ? "bg-amber-500/10" : "bg-accent/5"}`}
       >
+        <p className="mb-2 text-xs font-semibold text-text-muted">Next action for Eimear</p>
         <h4 className="font-semibold">{plan.title}</h4>
         <p className="mt-2 text-text-secondary">{plan.detail}</p>
         {plan.planned_at && (
@@ -624,7 +629,22 @@ function PaymentReviewCard({
             </p>
           </>
         )}
+        {sourceUrl && (
+          <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center text-sm text-accent-bright underline"
+          >
+            Check invoice in Stripe
+          </a>
+        )}
       </div>
+      {current.task_id && (
+        <p className="mt-2 text-xs leading-5 text-text-muted">
+          Completing Eimear’s task records her work. It does not send a reminder or mark the invoice as paid.
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap gap-3">
         <button
           className="min-h-11 text-sm font-semibold text-accent-bright underline"
@@ -709,8 +729,7 @@ function PaymentReviewCard({
                             : "Reminder attempt"}
                       </p>
                       <p className="mt-1 text-text-secondary">
-                        {paymentDeliveryLabels[attempt.state] ||
-                          "Outcome needs checking"}
+                        {paymentAttemptDeliveryLabel(attempt)}
                       </p>
                       <p className="mt-2 text-xs text-text-muted">
                         Attempt recorded: {date(attempt.created_at)}

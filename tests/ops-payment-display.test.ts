@@ -3,6 +3,9 @@ import {
   paymentNextStep,
   paymentReminderDueAt,
   paymentHumanHandoff,
+  paymentAttemptDeliveryLabel,
+  paymentReminderSummary,
+  paymentInvoiceSourceUrl,
 } from "../lib/ops/payment-display";
 import type { PaymentCase, PaymentAttempt } from "../lib/ops/payment-policy";
 const now = Date.parse("2026-11-06T12:00:00Z");
@@ -47,6 +50,8 @@ describe("read-only payment next-step presentation", () => {
     const paid = paymentHumanHandoff({ ...invoice, state: "paid" }, [], false, now);
     expect(paid.required).toBe(false);
     expect(paid.steps).toEqual(["No payment chase is needed for this saved invoice status."]);
+    expect(paid.summary).toContain("No further reminder is planned");
+    expect(paid.summary).not.toContain("Eimear to review");
     const max = paymentHumanHandoff({ ...invoice, reminder_count: 2 }, [], false, now);
     expect(max.steps.join(" ")).toContain("no third automatic reminder");
   });
@@ -140,5 +145,37 @@ describe("read-only payment next-step presentation", () => {
     expect(next.overdue).toBe(true);
     expect(next.detail).toContain("permission still needs verifying");
     expect(next).not.toHaveProperty("eligible");
+  });
+});
+
+describe("payment receipt wording", () => {
+  it.each(["sent", "delivered"])("does not present an unverified %s status as a successful send", (state) => {
+    expect(paymentAttemptDeliveryLabel({ ...first, state, receipt_verified: false })).toContain("not verified");
+    expect(paymentAttemptDeliveryLabel({ ...first, state, verified_sent_at: null })).toContain("not verified");
+    expect(paymentAttemptDeliveryLabel({ ...first, state, verified_sent_at: "invalid" })).toContain("not verified");
+  });
+  it("distinguishes a verified send from confirmed delivery", () => {
+    expect(paymentAttemptDeliveryLabel({ ...first, state: "sent" })).toBe("Send confirmed · delivery not confirmed");
+    expect(paymentAttemptDeliveryLabel(first)).toBe("Delivery confirmed");
+    expect(paymentAttemptDeliveryLabel({ ...first, state: "reserved" })).toBe("Prepared · not sent");
+    expect(paymentAttemptDeliveryLabel({ ...first, state: "unknown" })).toContain("check before retrying");
+  });
+  it("requires history before repeating a collapsed card's successful status", () => {
+    expect(paymentReminderSummary({ ...invoice, latest_delivery: "delivered" }, null)).toBe("Reminder result saved · open history to check");
+    expect(paymentReminderSummary({ ...invoice, latest_delivery: "delivered" }, [first])).toBe("Delivery confirmed");
+    expect(paymentReminderSummary({ ...invoice, latest_delivery: "delivered" }, [{ ...first, receipt_verified: false }])).toContain("not verified");
+  });
+  it("does not hide case/history disagreements behind a successful label", () => {
+    expect(paymentReminderSummary({ ...invoice, latest_delivery: "delivered" }, [])).toBe("Reminder records need checking");
+    expect(paymentReminderSummary({ ...invoice, reminder_count: 1, latest_delivery: null }, [])).toBe("Reminder records need checking");
+    expect(paymentReminderSummary({ ...invoice, latest_delivery: "unknown" }, [first])).toBe("Reminder records need checking");
+    expect(paymentReminderSummary({ ...invoice, latest_delivery: null }, [])).toBe("No reminder result recorded");
+  });
+  it("links to the exact saved Stripe merchant and invoice without accepting arbitrary URLs", () => {
+    const source = { ...invoice, stripe_account_id: "acct_MerchantA", invoice_id: "in_InvoiceA" };
+    expect(paymentInvoiceSourceUrl(source)).toBe("https://dashboard.stripe.com/acct_MerchantA/invoices/in_InvoiceA");
+    expect(paymentInvoiceSourceUrl({ ...source, stripe_account_id: "acct_MerchantB" })).toContain("/acct_MerchantB/");
+    expect(paymentInvoiceSourceUrl({ ...source, stripe_account_id: "https://example.com" })).toBeNull();
+    expect(paymentInvoiceSourceUrl({ ...source, invoice_id: "in_InvoiceA?redirect=example.com" })).toBeNull();
   });
 });
