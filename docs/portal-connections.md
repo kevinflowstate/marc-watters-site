@@ -31,4 +31,12 @@ Signed-in admins can GET `/api/admin/ops/connections`. It returns independent GH
 
 Acceptance: correct GHL location/user, available Facebook/Instagram accounts, allowlisted Drive file readable, a real manifest imported and source receipt verified, all action flags false. Public image hosting and explicit exact-version approval are still required before social scheduling can be enabled.
 
+## Workspace connection checks
+
+The workspace’s **Connections & next steps** section runs this read-only check on demand. Opening or refreshing the normal workspace does not poll the external providers. CRM and Drive results are separate; one failed source does not hide the other. A new check clears the old result, and failed/session/timeout checks cannot leave a previous green result on screen. Account names and clear next steps are shown without internal identifiers or provider diagnostics.
+
+The content section links to Prepared work, where the exact post’s media, date, destination and saved approval must be checked. A configured image host is not presented as tested image delivery. Payment-template/delivery validation, Fathom video access and the actual Codex scheduler remain explicitly outside this connection check.
+
+The workspace now displays all seven raw action switches, including portal sending and the earlier lesson pipeline. This is intentionally separate from the execution adapter’s prerequisite checks: an enabled scheduling switch must remain visible even if missing credentials or image hosting prevent execution. A missing field means unknown, never “Off”. No toggle, activation or provider-write control is added.
+
 Reference: [Google service account authentication](https://developers.google.com/identity/protocols/oauth2/service-account) and [sharing specific files with a service account](https://developers.google.com/workspace/guides/create-credentials).

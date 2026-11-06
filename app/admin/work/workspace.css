@@ -744,6 +744,10 @@ textarea.ws-input { padding: 0.75rem 0.9rem; min-height: 96px; resize: vertical;
 .ws-link:hover { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.3); }
 .ws-link svg { color: var(--color-accent-bright); flex: none; }
 
+.ws-connections summary { list-style: none; }
+.ws-connections summary::-webkit-details-marker { display: none; }
+.ws-connections[open] .ws-connection-chevron { transform: rotate(90deg); }
+.ws-connection-card { border: 1px solid var(--ws-edge); border-radius: 14px; padding: 18px; min-width: 0; }
 .ws-modal { margin: auto; width: min(520px, calc(100% - 2rem)); }
 .ws-modal[open] .ws-modal-card { animation: ws-zoom 340ms var(--ws-spring) both; }
 .ws-modal-card {

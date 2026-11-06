@@ -5,6 +5,7 @@ import { listArtifacts } from "./actions";
 import { listPaymentCases } from "./payment-cases";
 import { listReports } from "./reports";
 import { automationControls } from "./artifact-execution";
+import { portalActionSwitches } from "./portal-controls";
 import { listWorkspaceResults } from "./workspace-results";
 import { messageReplyState, checkinReplyState, routineFollowUpPaused } from "./portal-monitor";
 import { isClosed, needsApproval, statusLabels } from "./workspace";
@@ -433,11 +434,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     tasks: tasks || [],
     results: results || [],
     checks,
-    controls: {
-      ...controls,
-      report_sending: getEnv("OPS_REPORT_SEND_ENABLED") === "true",
-      notifications: getEnv("OPS_NOTIFICATIONS_ENABLED") === "true",
-    },
+    controls: portalActionSwitches(),
     mode: getEnv("NEXT_PUBLIC_SUPABASE_URL")?.includes("abmmlybdqwzujcysagvf")
       ? "preview"
       : "production",

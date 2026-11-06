@@ -5,10 +5,13 @@ import {
   verifyContentDriveAccess,
 } from "@/lib/ops/drive-connection";
 import { ContentPackError } from "@/lib/ops/content-pack";
+import { getEnv } from "@/lib/env";
+import { portalActionSwitches } from "@/lib/ops/portal-controls";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-/** Account/folder reads and Google authentication only; no drafts, posts or messages. */
+/** Account/file reads and Google authentication only; no drafts, posts or messages. */
 export async function GET() {
   return respond(async () => {
     await adminActor();
@@ -45,6 +48,8 @@ export async function GET() {
       read_only: true,
       ghl,
       drive,
+      controls: portalActionSwitches(),
+      content_media_configured: Boolean(getEnv("OPS_CONTENT_MEDIA_HOSTS")?.split(",").some((host) => host.trim())),
       actions_enabled: Object.fromEntries(
         [
           "OPS_CONTENT_SCHEDULING_ENABLED",
@@ -54,7 +59,7 @@ export async function GET() {
           "FLOWSTATE_PORTAL_SEND_ENABLED",
           "OPS_NOTIFICATIONS_ENABLED",
           "OPS_REPORT_SEND_ENABLED",
-        ].map((key) => [key, process.env[key] === "true"]),
+        ].map((key) => [key, getEnv(key) === "true"]),
       ),
     };
   });

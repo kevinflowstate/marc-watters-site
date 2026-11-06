@@ -25,6 +25,8 @@ import {
   sourceLinkLabel,
 } from "@/lib/ops/workspace-presentation";
 import { ReportText } from "@/components/ops/workspace/ReportText";
+import { ConnectionChecks } from "@/components/ops/workspace/ConnectionChecks";
+import { sendingState } from "@/lib/ops/connection-status";
 import {
   resultKinds,
   resultLabels,
@@ -245,7 +247,8 @@ export default function WorkPage() {
   );
   const byLane = (k: LaneKey, list: WorkspaceCard[]) =>
     list.filter((c) => laneOf(c) === k);
-  const outboundOff = data && !Object.values(data.controls).some(Boolean);
+  const outboundState = sendingState(data?.controls);
+  const outboundOff = outboundState === "off";
   const latest = resultKinds.map((kind) =>
     data?.results.find((r) => r.kind === kind),
   );
@@ -379,7 +382,7 @@ export default function WorkPage() {
                     : "var(--ws-attn)",
               }}
             />
-            {!data ? "Checking…" : outboundOff ? "Off" : "Some enabled"}
+            {!data ? "Checking…" : outboundOff ? "Off" : outboundState === "enabled" ? "Some enabled" : "Not confirmed"}
           </span>
           <span className="ws-pulse-sub block">
             {outboundOff || !data
@@ -420,6 +423,8 @@ export default function WorkPage() {
           </span>
         </button>
       </div>
+
+      <ConnectionChecks />
 
       {(error || failed.length > 0) && (
         <div className="mt-4 space-y-3">

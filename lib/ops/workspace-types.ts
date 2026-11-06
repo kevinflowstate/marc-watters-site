@@ -1,4 +1,5 @@
 import type { OpsLink, OpsTask } from "./types";
+import type { PortalActionSwitches } from "./connection-status";
 export const resultKinds = [
   "daily_brief",
   "payments",
@@ -61,13 +62,7 @@ export type WorkspaceData = {
   tasks: OpsTask[];
   results: WorkspaceResult[];
   checks: SourceCheck[];
-  controls: {
-    content_scheduling: boolean;
-    lesson_publication: boolean;
-    payment_reminders: boolean;
-    report_sending: boolean;
-    notifications: boolean;
-  };
+  controls: PortalActionSwitches;
   mode: "preview" | "production";
   scheduler: "paused" | "not_verified";
 };

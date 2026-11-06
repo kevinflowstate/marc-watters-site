@@ -302,6 +302,13 @@ describe("workspace partial-source coverage", () => {
     expect(result.scheduler).toBe("not_verified");
     expect(Object.values(result.controls).every((v) => v === false)).toBe(true);
   });
+  it("does not hide an enabled send switch behind missing execution prerequisites", async () => {
+    state.env.OPS_CONTENT_SCHEDULING_ENABLED = "true";
+    state.env.FLOWSTATE_PORTAL_SEND_ENABLED = "true";
+    state.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED = "true";
+    const result = await getWorkspace();
+    expect(result.controls).toMatchObject({ content_scheduling: true, portal_sending: true, legacy_lesson_pipeline: true });
+  });
   it("distinguishes an unavailable task store from an empty healthy source", async () => {
     state.taskRead.mockRejectedValue(new Error("Task database unavailable"));
     const result = await getWorkspace();
