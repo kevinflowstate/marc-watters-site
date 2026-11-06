@@ -2,15 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MarkdownPreview from "@/components/ops/MarkdownPreview";
 import type {
   ArtifactItem,
   JsonValue,
   OpsArtifact,
 } from "@/lib/ops/action-types";
+import { bundledContentPreview } from "@/lib/ops/content-preview-assets";
 import type { ContentPack } from "@/lib/ops/content-pack";
-import type { PaymentCase } from "@/lib/ops/payment-policy";
+import type { PaymentAttempt, PaymentCase } from "@/lib/ops/payment-policy";
+import {
+  paymentDeliveryLabels,
+  paymentNextStep,
+} from "@/lib/ops/payment-display";
 
 const itemStatuses: Record<ArtifactItem["status"], string> = {
   pending: "Not started",
@@ -150,7 +155,8 @@ export function ContentReview({
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {media.map((value, mediaIndex) => {
                   const image = object(value);
-                  const url = safeMediaUrl(image.url);
+                  const url =
+                    bundledContentPreview(image) || safeMediaUrl(image.url);
                   return url ? (
                     <a
                       key={mediaIndex}
@@ -404,30 +410,13 @@ export function PaymentReviews({
   focusedCaseId?: string | null;
 }) {
   const [showSettled, setShowSettled] = useState(false);
-  const settled = (payment: PaymentCase) =>
-    ["paid", "void", "cancelled"].includes(payment.state);
   const visible = showSettled
     ? cases
     : cases.filter(
-        (payment) => !settled(payment) || payment.id === focusedCaseId,
+        (payment) =>
+          !["paid", "void", "cancelled"].includes(payment.state) ||
+          payment.id === focusedCaseId,
       );
-  const paymentLabels: Record<PaymentCase["state"], string> = {
-    unpaid: "Unpaid",
-    paid: "Paid",
-    void: "Invoice voided",
-    uncollectible: "Needs a decision",
-    paused: "Paused",
-    cancelled: "Cancelled",
-    unknown: "Payment status needs checking",
-  };
-  const deliveryLabels: Record<string, string> = {
-    reserved: "Reminder reserved · not sent",
-    requested: "Send requested · delivery not confirmed",
-    sent: "Sent · delivery not confirmed",
-    delivered: "Delivery confirmed",
-    failed: "Reminder failed",
-    unknown: "Reminder result needs checking",
-  };
   return (
     <section className="mt-8" aria-labelledby="payment-review-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -440,8 +429,9 @@ export function PaymentReviews({
             Payments needing attention
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-            See the invoice status and any recorded reminder result. A delivered
-            message does not mean the invoice has been paid.
+            See which invoice needs checking, what reminders are recorded and
+            when Eimear takes over. A delivered reminder does not mean the
+            invoice has been paid.
           </p>
         </div>
         <button
@@ -454,8 +444,9 @@ export function PaymentReviews({
       </div>
       {!remindersEnabled && (
         <p className="mt-4 rounded-xl bg-accent/5 p-3 text-sm text-text-secondary">
-          Automatic reminders are not enabled here. These records show the
-          latest saved checks; this page does not send messages.
+          Automatic reminders are off. Planned dates below explain the agreed
+          timing; they are not scheduled sends. This page does not send
+          messages.
         </p>
       )}
       {!visible.length ? (
@@ -466,102 +457,266 @@ export function PaymentReviews({
         </p>
       ) : (
         <div className="mt-4 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visible.map((payment) => {
-            const invoiceUrl = safeUrl(payment.hosted_invoice_url, false);
-            const safeInvoice =
-              invoiceUrl &&
-              new URL(invoiceUrl).hostname === "invoice.stripe.com"
-                ? invoiceUrl
-                : null;
-            const stopped =
-              payment.manual_pause ||
-              payment.reply_needs_human ||
-              payment.contact_dnd;
-            return (
-              <article
-                key={payment.id}
-                id={`payment-case-${payment.id}`}
-                tabIndex={-1}
-                className={`v2-surface min-w-0 scroll-mt-6 p-5 focus-visible:outline-2 focus-visible:outline-accent ${payment.id === focusedCaseId ? "ring-2 ring-accent/50" : ""}`}
-              >
-                <div className="flex flex-wrap justify-between gap-2">
-                  <h3 className="min-w-0 break-words font-heading font-bold">
-                    {payment.customer_name ||
-                      payment.contact_email ||
-                      "Client not matched"}
-                  </h3>
-                  <span
-                    className={`rounded-lg px-2 py-1 text-xs ${statusClass(payment.state)}`}
-                  >
-                    {paymentLabels[payment.state]}
-                  </span>
-                </div>
-                <p className="mt-3 text-xl font-semibold">
-                  {paymentAmount(payment)}
-                </p>
-                <p className="mt-2 text-xs text-text-muted">
-                  Payment last checked: {date(payment.source_verified_at)}
-                </p>
-                <p className="mt-3 text-sm text-text-secondary">
-                  {payment.latest_delivery
-                    ? deliveryLabels[payment.latest_delivery] ||
-                      "Reminder status needs checking"
-                    : "No reminder result recorded"}
-                </p>
-                <p className="mt-1 text-xs text-text-muted">
-                  Verified reminders: {payment.reminder_count}
-                </p>
-                {stopped && (
-                  <p className="mt-3 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-600">
-                    {payment.contact_dnd
-                      ? "Messages stopped: do not disturb is set."
-                      : payment.reply_needs_human
-                        ? "The client has replied. Eimear needs to review before another reminder."
-                        : "Automatic follow-up is paused."}
-                  </p>
-                )}
-                {!stopped && !settled(payment) && !payment.whatsapp_opt_in && (
-                  <p className="mt-3 text-xs text-text-secondary">
-                    WhatsApp permission has not been verified for this case.
-                  </p>
-                )}
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {payment.task_id && (
-                    <Link
-                      className="text-sm text-accent-bright underline"
-                      href={`/admin/work?task=${encodeURIComponent(payment.task_id)}`}
-                    >
-                      Open Eimear’s task
-                    </Link>
-                  )}
-                  {safeInvoice && (
-                    <a
-                      href={safeInvoice}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-accent-bright underline"
-                    >
-                      View invoice
-                    </a>
-                  )}
-                </div>
-                <details className="mt-4 text-xs text-text-muted">
-                  <summary className="cursor-pointer">
-                    Invoice reference
-                  </summary>
-                  <p className="mt-2 break-all">{payment.invoice_id}</p>
-                  <p className="mt-1 break-all">
-                    Account: {payment.stripe_account_id}
-                  </p>
-                  <p className="mt-1">
-                    First failure: {date(payment.first_failed_at)}
-                  </p>
-                </details>
-              </article>
-            );
-          })}
+          {visible.map((payment) => (
+            <PaymentReviewCard
+              key={payment.id}
+              payment={payment}
+              focused={payment.id === focusedCaseId}
+              remindersEnabled={remindersEnabled}
+            />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+type PaymentDetail = {
+  payment_case: PaymentCase;
+  attempts: PaymentAttempt[];
+  events: {
+    id: string;
+    source: string;
+    event_type: string;
+    occurred_at: string;
+    created_at: string;
+  }[];
+};
+const paymentLabels: Record<PaymentCase["state"], string> = {
+  unpaid: "Unpaid",
+  paid: "Paid",
+  void: "Invoice voided",
+  uncollectible: "Needs a decision",
+  paused: "Paused",
+  cancelled: "Cancelled",
+  unknown: "Payment status needs checking",
+};
+function PaymentReviewCard({
+  payment,
+  focused,
+  remindersEnabled,
+}: {
+  payment: PaymentCase;
+  focused: boolean;
+  remindersEnabled: boolean;
+}) {
+  const [expanded, setExpanded] = useState(focused);
+  const [detail, setDetail] = useState<PaymentDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    if (focused) setExpanded(true);
+  }, [focused]);
+  useEffect(() => {
+    setDetail(null);
+    setError("");
+    if (!expanded) return;
+    const controller = new AbortController();
+    setLoading(true);
+    async function load() {
+      try {
+        const response = await fetch(
+          `/api/admin/ops/payment-cases/${payment.id}`,
+          { cache: "no-store", signal: controller.signal },
+        );
+        const result = await response.json();
+        if (
+          !response.ok ||
+          result.payment_case?.id !== payment.id ||
+          !Array.isArray(result.attempts) ||
+          !Array.isArray(result.events)
+        )
+          throw new Error(
+            "The saved reminder history could not be checked. No next send should be assumed.",
+          );
+        if (!controller.signal.aborted) setDetail(result);
+      } catch {
+        if (!controller.signal.aborted)
+          setError(
+            "The saved reminder history could not be checked. No next send should be assumed.",
+          );
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [payment.id, payment.updated_at, expanded, refresh]);
+  const current = detail?.payment_case || payment;
+  const plan = paymentNextStep(current, detail?.attempts ?? null);
+  const invoiceUrl = safeUrl(current.hosted_invoice_url, false);
+  const safeInvoice =
+    invoiceUrl && new URL(invoiceUrl).hostname === "invoice.stripe.com"
+      ? invoiceUrl
+      : null;
+  return (
+    <article
+      id={`payment-case-${payment.id}`}
+      tabIndex={-1}
+      className={`v2-surface min-w-0 scroll-mt-6 p-5 focus-visible:outline-2 focus-visible:outline-accent ${focused ? "ring-2 ring-accent/50" : ""}`}
+    >
+      <div className="flex flex-wrap justify-between gap-2">
+        <h3 className="min-w-0 break-words font-heading font-bold">
+          {current.customer_name ||
+            current.contact_email ||
+            "Client not matched"}
+        </h3>
+        <span
+          className={`rounded-lg px-2 py-1 text-xs ${statusClass(current.state)}`}
+        >
+          {paymentLabels[current.state]}
+        </span>
+      </div>
+      <p className="mt-3 text-xl font-semibold">{paymentAmount(current)}</p>
+      <p className="mt-2 break-words text-sm text-text-secondary">
+        Invoice: {current.invoice_number || current.invoice_id}
+      </p>
+      <p className="mt-2 text-xs text-text-muted">
+        Payment last checked: {date(current.source_verified_at)}
+      </p>
+      <p className="mt-3 text-sm text-text-secondary">
+        {current.latest_delivery
+          ? paymentDeliveryLabels[current.latest_delivery] ||
+            "Reminder status needs checking"
+          : "No reminder result recorded"}
+      </p>
+      <p className="mt-1 text-xs text-text-muted">
+        Verified reminders: {current.reminder_count} of 2
+      </p>
+      <div
+        className={`mt-4 rounded-xl p-3 text-sm ${["review", "stopped"].includes(plan.kind) ? "bg-amber-500/10" : "bg-accent/5"}`}
+      >
+        <h4 className="font-semibold">{plan.title}</h4>
+        <p className="mt-2 text-text-secondary">{plan.detail}</p>
+        {plan.planned_at && (
+          <>
+            <p className="mt-3 font-semibold">
+              {date(plan.planned_at)} London time
+            </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              {!remindersEnabled
+                ? "Sending is off — no reminder is queued here."
+                : "Planned timing only — this is not confirmation that a send is scheduled."}
+              {plan.overdue
+                ? " The planned time has passed; check the current case before taking action."
+                : ""}
+            </p>
+          </>
+        )}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          className="min-h-11 text-sm font-semibold text-accent-bright underline"
+          aria-expanded={expanded}
+          aria-controls={`payment-details-${payment.id}`}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Hide reminder details" : "Check reminder details"}
+        </button>
+        {current.task_id && (
+          <Link
+            className="inline-flex min-h-11 items-center text-sm text-accent-bright underline"
+            href={`/admin/work?task=${encodeURIComponent(current.task_id)}`}
+          >
+            Open Eimear’s task
+          </Link>
+        )}
+        {safeInvoice && (
+          <a
+            href={safeInvoice}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center text-sm text-accent-bright underline"
+          >
+            View invoice
+          </a>
+        )}
+      </div>
+      {expanded && (
+        <section
+          id={`payment-details-${payment.id}`}
+          aria-label="Reminder details"
+          className="mt-3 border-t border-current/10 pt-4"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold">Saved reminder history</h4>
+            <button
+              className="min-h-11 text-xs text-accent-bright underline"
+              disabled={loading}
+              onClick={() => setRefresh((value) => value + 1)}
+            >
+              Refresh history
+            </button>
+          </div>
+          {loading && (
+            <p role="status" className="mt-2 text-sm text-text-muted">
+              Checking saved records…
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="mt-2 text-sm text-amber-700">
+              {error}
+            </p>
+          )}
+          {detail && !loading && (
+            <>
+              {!detail.attempts.length ? (
+                <p className="mt-2 text-sm text-text-secondary">
+                  No send attempts are recorded for this invoice.
+                </p>
+              ) : (
+                <ol className="mt-2 space-y-3">
+                  {detail.attempts.map((attempt) => (
+                    <li
+                      key={attempt.id}
+                      className="rounded-lg border border-current/10 p-3 text-sm"
+                    >
+                      <p className="font-semibold">
+                        {attempt.step_key === "first"
+                          ? "First reminder"
+                          : attempt.step_key === "second"
+                            ? "One follow-up"
+                            : "Reminder attempt"}
+                      </p>
+                      <p className="mt-1 text-text-secondary">
+                        {paymentDeliveryLabels[attempt.state] ||
+                          "Outcome needs checking"}
+                      </p>
+                      <p className="mt-2 text-xs text-text-muted">
+                        Attempt recorded: {date(attempt.created_at)}
+                      </p>
+                      <p className="mt-1 text-xs text-text-muted">
+                        Confirmed send:{" "}
+                        {attempt.receipt_verified
+                          ? date(attempt.verified_sent_at)
+                          : "Not confirmed"}
+                      </p>
+                      {attempt.provider_message_id && (
+                        <p className="mt-1 break-all text-xs text-text-muted">
+                          Message reference: {attempt.provider_message_id}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <p className="mt-3 text-xs leading-5 text-text-muted">
+                Agreed plan: first reminder on the next weekday, one follow-up
+                three calendar days after the confirmed first send, then Eimear.
+                Weekends move to Monday at 09:00 London time. Bank holidays are
+                not yet accounted for.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+      <details className="mt-4 text-xs text-text-muted">
+        <summary className="cursor-pointer">Invoice source</summary>
+        <p className="mt-2 break-all">{current.invoice_id}</p>
+        <p className="mt-1 break-all">Account: {current.stripe_account_id}</p>
+        <p className="mt-1">First failure: {date(current.first_failed_at)}</p>
+      </details>
+    </article>
   );
 }

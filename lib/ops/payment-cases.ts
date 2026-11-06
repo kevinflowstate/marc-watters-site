@@ -26,8 +26,9 @@ export async function listPaymentCases() {
     .from("ops_payment_cases")
     .select("*")
     .order("updated_at", { ascending: false })
-    .limit(500);
+    .limit(501);
   dbError(r.error);
+  if (!r.data || r.data.length > 500) throw new OpsError("Payment cases exceed this view’s limit; the source needs checking", 503);
   return r.data as PaymentCase[];
 }
 export async function getPaymentCase(id: string) {

@@ -35,6 +35,7 @@ function load(name: string, mocks: Record<string, unknown> = {}) {
     if (path.startsWith("node:")) return nativeRequire(path);
     if (path === "@/lib/env") return { getEnv: () => undefined };
     if (path === "./payment-policy") return load("payment-policy");
+    if (path === "./payment-display") return load("payment-display");
     if (path === "./payment-stripe") return {};
     if (path === "@/lib/supabase/admin")
       return {

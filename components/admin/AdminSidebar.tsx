@@ -10,7 +10,7 @@ import { useManagementRole } from "@/components/admin/useManagementRole";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
-  { href: "/admin/work", label: "Work", icon: "M9 12l2 2 4-4M5 4h14v16H5z" },
+  { href: "/admin/work", label: "Workspace", icon: "M9 12l2 2 4-4M5 4h14v16H5z" },
   { href: "/admin/automation", label: "Prepared Work", icon: "M9 5h6M9 3h6v4H9zM7 5H5v16h14V5h-2M8 13l2 2 5-5" },
   { href: "/admin/reports", label: "Reports", icon: "M4 19h16M7 15V9m5 6V5m5 10v-4" },
   { href: "/admin/clients", label: "Clients", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },

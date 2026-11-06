@@ -40,8 +40,9 @@ export async function listArtifacts() {
     .from("ops_artifacts")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(500);
+    .limit(501);
   if (result.error) throw new OpsError("Unable to load prepared work", 503);
+  if (result.data.length > 500) throw new OpsError("Prepared work exceeds this view’s limit; the source needs checking", 503);
   return result.data as OpsArtifact[];
 }
 export async function getArtifact(id: string) {

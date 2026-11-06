@@ -12,6 +12,8 @@ export const opsScopes = [
   "tasks:write",
   "payments:read",
   "portal:read",
+  "workspace:read",
+  "workspace:write",
 ] as const;
 export type OpsScope = (typeof opsScopes)[number];
 type Credential = { id: string; sha256: string; scopes: OpsScope[] };

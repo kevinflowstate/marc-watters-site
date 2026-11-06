@@ -1,4 +1,6 @@
 import { OpsError, record } from "./tasks";
+import { paymentReminderDueAt } from "./payment-display";
+export { paymentReminderDueAt } from "./payment-display";
 
 export const MARC_PAYMENT_LOCATION = "93GJEdsr0cT9el3OINXq";
 export type PaymentState =
@@ -245,51 +247,6 @@ export function reminderEligibility(
     rules_revision: rules.revision,
     due_at: due,
   };
-}
-
-// Calendar arithmetic uses London dates, then resolves the due date's own UTC offset.
-// This preserves 09:00 through BST changes instead of adding fixed 24/72-hour durations.
-export function paymentReminderDueAt(
-  failedAt: string | null,
-  stepKey: string,
-  firstVerifiedSentAt: string | null = null,
-): string | null {
-  if (!["first", "second"].includes(stepKey)) return null;
-  const base = Date.parse(
-    (stepKey === "first" ? failedAt : firstVerifiedSentAt) || "",
-  );
-  if (!Number.isFinite(base)) return null;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(base));
-  const part = (name: string) =>
-    Number(parts.find((p) => p.type === name)?.value);
-  const date = new Date(
-    Date.UTC(
-      part("year"),
-      part("month") - 1,
-      part("day") + (stepKey === "first" ? 1 : 3),
-    ),
-  );
-  while ([0, 6].includes(date.getUTCDay()))
-    date.setUTCDate(date.getUTCDate() + 1);
-  const nominal = Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    9,
-  );
-  const londonHour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/London",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(nominal),
-  );
-  return new Date(nominal - (londonHour - 9) * 3600000).toISOString();
 }
 
 export function renderPaymentReminder(
