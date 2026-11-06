@@ -594,7 +594,7 @@ function PaymentReviewCard({
         {current.invoice_number ? `Invoice: ${current.invoice_number}` : "Invoice number not recorded"}
       </p>
       <p className="mt-2 text-sm text-text-secondary">
-        Payment account name needs confirming. Check the invoice source below.
+        Payment account name needs confirming.{sourceUrl ? " Check the invoice source below." : " Eimear needs to confirm the invoice source."}
       </p>
       <p className="mt-2 text-xs text-text-muted">
         Payment last checked: {date(current.source_verified_at)}

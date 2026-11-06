@@ -20,7 +20,14 @@
       "step_key": "first"
     },
     "continue_only_when": "reserved === true; preflight.authorised_send must remain false",
-    "save_response_in_enrollment": ["context_token", "workflow_run_id", "case_id", "template_id", "attempt.id", "attempt.expires_at"]
+    "save_response_in_enrollment": [
+      "context_token",
+      "workflow_run_id",
+      "case_id",
+      "template_id",
+      "attempt.id",
+      "attempt.expires_at"
+    ]
   },
   "dispatch": {
     "method": "POST",
@@ -50,7 +57,10 @@
     "wait_until": "first verified receipt's followup_due_at, Europe/London",
     "method": "POST",
     "path": "/api/ops/payment-cases/<saved first case_id>/preflight",
-    "body": { "step_key": "second", "workflow_run_id": "<first preflight's server-issued workflow_run_id>" },
+    "body": {
+      "step_key": "second",
+      "workflow_run_id": "<first preflight's server-issued workflow_run_id>"
+    },
     "then": "Save the new second-step token; repeat dispatch and verified receipt; stop after two reminders and retain Eimear's task."
   },
   "builder_checks_still_required": [
@@ -59,5 +69,25 @@
     "Prove the native action exposes an actual provider message ID and its retry control.",
     "Recheck both exact templates' approval and rendered Contact First Name mapping.",
     "Prove both external Stripe merchants reach their signed invoice endpoints and the correct verified contact binding."
-  ]
+  ],
+  "native_draft_checkpoint": {
+    "observed_at": "2026-11-06T20:08:00Z",
+    "state": "Draft; zero total and active enrolments; no execution test",
+    "first_action": "Remove from CURRENT workflow: BUILD HOLD — exit this workflow before any reminder",
+    "saved_stages_after_build_hold": [
+      "Weekly recurring window: Mon–Fri 09:00 Europe/London; only a sending window, not invoice next-working-day calculation",
+      "If DND enabled channels includes WhatsApp: END; otherwise Needs invoice preflight — not approved to send",
+      "Native cbb_payment_issue_v1 (en_GB) Utility template, existing default WhatsApp sender, mapped contact.first_name; named DRAFT ONLY — preflight and receipt wiring incomplete",
+      "Native Delivered and Undelivered branches, both ending without a follow-up"
+    ],
+    "not_saved_or_executed": [
+      "Custom Webhook sample request or callback",
+      "Second reminder or naive elapsed three-day wait",
+      "Preflight/dispatch/receipt secret or guessed output mapping",
+      "Publish, Test workflow, enrolment or message"
+    ],
+    "remaining_mapping_gap": "After saving the native WhatsApp node, a downstream Custom Webhook picker exposes Message Body/Subject/Attachments but no outbound message ID or action-specific output category. This is an inspected UI limit, not proof of platform-wide absence.",
+    "webhook_sample_requirement": "Save response from this Webhook requires selecting one Contact and Send a Test Request to obtain a stored reference response. No static/manual sample response input was exposed and no test request was sent.",
+    "activation_blocked": true
+  }
 }
