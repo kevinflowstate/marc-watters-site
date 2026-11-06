@@ -1099,8 +1099,15 @@ function ResultDetail({ result }: { result: WorkspaceResult }) {
               : result.outcome === "partial" ? "Information still missing"
               : "The check couldn’t finish"}
           </h3>
-          {result.outcome === "failed" && <p className="mb-2">An older report may be out of date.</p>}
-          <ReportText text={result.coverage} />
+          <p className="mb-2">
+            {result.outcome === "failed" ? "The check stopped before it could finish. An older report may be out of date."
+              : result.outcome === "partial" ? "This draft is incomplete. Check the missing information before acting on it."
+              : "Read the report date and check details before using these findings."}
+          </p>
+          <details className="ws-supporting mt-3">
+            <summary className="ws-focus">What was checked and what’s missing</summary>
+            <ReportText className="mt-3" text={result.coverage} />
+          </details>
         </div>
       </div>
       <ReportText className="mt-7" text={result.body} />
