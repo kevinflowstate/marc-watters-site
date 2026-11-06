@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import MarkdownPreview from "@/components/ops/MarkdownPreview";
+import PrivateContentImage from "@/components/admin/PrivateContentImage";
 import type {
   ArtifactItem,
   JsonValue,
@@ -15,6 +16,7 @@ import type { PaymentAttempt, PaymentCase } from "@/lib/ops/payment-policy";
 import {
   paymentDeliveryLabels,
   paymentNextStep,
+  type paymentHumanHandoff,
 } from "@/lib/ops/payment-display";
 
 const itemStatuses: Record<ArtifactItem["status"], string> = {
@@ -109,9 +111,11 @@ export function ActionAvailability({
 export function ContentReview({
   payload,
   showMedia,
+  artifact,
 }: {
   payload: Record<string, JsonValue>;
   showMedia: boolean;
+  artifact?: OpsArtifact;
 }) {
   const posts = Array.isArray(payload.posts) ? payload.posts : [];
   const platformNames: Record<string, string> = {
@@ -157,6 +161,11 @@ export function ContentReview({
                   const image = object(value);
                   const url =
                     bundledContentPreview(image) || safeMediaUrl(image.url);
+                  if (artifact && typeof image.asset_id === "string") return (
+                    <PrivateContentImage key={`${artifact.id}:${artifact.manifest_hash}:${image.asset_id}`}
+                      artifact={artifact} assetId={image.asset_id} fallback={url}
+                      label={`Post ${index + 1}, image ${mediaIndex + 1}`} />
+                  );
                   return url ? (
                     <a
                       key={mediaIndex}
@@ -473,6 +482,7 @@ export function PaymentReviews({
 
 type PaymentDetail = {
   payment_case: PaymentCase;
+  human_followup?: ReturnType<typeof paymentHumanHandoff>;
   attempts: PaymentAttempt[];
   events: {
     id: string;
@@ -661,6 +671,15 @@ function PaymentReviewCard({
           )}
           {detail && !loading && (
             <>
+              {detail.human_followup && (
+                <div className="mb-4 rounded-xl bg-accent/5 p-4 text-sm">
+                  <h4 className="font-bold">{detail.human_followup.title}</h4>
+                  <p className="mt-2 text-text-secondary">{detail.human_followup.summary}</p>
+                  <ol className="mt-3 list-decimal space-y-2 pl-5 text-text-secondary">
+                    {detail.human_followup.steps.map((step, index) => <li key={index}>{step}</li>)}
+                  </ol>
+                </div>
+              )}
               {!detail.attempts.length ? (
                 <p className="mt-2 text-sm text-text-secondary">
                   No send attempts are recorded for this invoice.

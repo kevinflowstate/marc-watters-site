@@ -1,6 +1,19 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { OpsError, record, uuid } from "./tasks";
+import { createTask, OpsError, record, uuid } from "./tasks";
 import { getClient } from "./clients";
+import { createHash } from "node:crypto";
+
+/** A new email is an intake request, never proof that access was approved. */
+export async function preparePendingAdmission(name: string, email: string) {
+  const identity = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+  return createTask({
+    kind: "task", area: "onboarding", assignee: "eimear", source: "system",
+    title: `Review access for ${name.slice(0, 200)}`,
+    detail: "Confirm the agreed offer and admission requirements. No account, module access, activation invitation or welcome message has been created for this intake.",
+    external_ref: `onboarding-intake:${identity}`, client_id: null,
+    payload: { intake_name: name, intake_email: email, admission: "needs_human_review" },
+  }, "onboarding");
+}
 export const onboardingStages = [
   "none",
   "invited",
@@ -17,6 +30,28 @@ export async function startOnboarding(id: string) {
   });
   if (r.error) throw new OpsError(r.error.message, 409);
   return getClient(id);
+}
+
+/** Internal preparation only. No admission, activation invite, message or stage advancement. */
+export async function prepareOnboardingChecklist(id: string) {
+  const client = await getClient(uuid(id));
+  if (client.archived_at) throw new OpsError("Archived clients cannot start onboarding", 409);
+  if (client.onboarding_stage === "complete") return client;
+  const steps = [
+    ["admission", "Review the new client’s access", "Confirm the agreed offer and admission requirements before giving access or contacting the client."],
+    ["community_added", "Add the client to the community", "Check that admission is agreed, then confirm community access. This task does not add anyone automatically."],
+    ["pack_sent", "Send the client’s welcome pack", "Review the correct welcome pack and sending permission. This task does not send it."],
+  ] as const;
+  for (const [key, title, detail] of steps) {
+    // Stable references also match the existing onboarding RPC's community/pack tasks.
+    // The task store reuses existing records and preserves their human decisions.
+    await createTask({
+      kind: "task", area: "onboarding", assignee: "eimear", title, detail,
+      client_id: client.id, external_ref: `onboarding:${client.id}:${key}`,
+      due_at: client.onboarding_due_at || null, source: "system",
+    }, "onboarding");
+  }
+  return client;
 }
 export async function updateClientSignals(
   id: string,

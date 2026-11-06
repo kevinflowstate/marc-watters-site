@@ -65,3 +65,19 @@ The adapter does not loop over the pack or retry creation. The shared action lay
 ## Verification and remaining acceptance
 
 Targeted tests use mocked provider/Drive responses and synthetic media. They cover strict validation, dates/DST, unsafe URLs, hash/order sensitivity, zero-call defaults, wrong identity/user/account/media, exact scheduling readback, definite/uncertain results, bounded pinned Drive imports and changed-source rejection. These checks do not establish live token scopes, real platform image acceptance, approved media-host immutability, actual scheduling or future publication. Test a specifically authorised real post only after the integration and human approval are in place.
+
+## Private image staging and proposed delivery version
+
+Prepared images can now be uploaded into a dedicated **private** `ops-content-media` bucket. Root must first install the reviewed private-bucket configuration; this code never creates a bucket or public policy. The runtime refuses missing/public buckets and buckets with a file limit larger than3MiB. No Drive sharing or public exposure changes are made.
+
+Authenticated admin routes:
+
+- `POST /api/admin/ops/artifacts/{id}/media/{assetId}?version=N&manifest_hash=HASH`: raw original PNG/JPEG bytes and matching `Content-Type`; one image per request, maximum3MiB. The existing real carousel’s five originals are each within this limit. Larger originals require a separately implemented direct/resumable upload route; they are never silently compressed.
+- `GET` at that exact URL returns the byte-verified original for private review, with administrator authentication, `private, no-store`, `nosniff` and `no-referrer`. It does not return a bearer/signed public link.
+- `POST /api/admin/ops/artifacts/{id}/delivery-plan`, body `{version,manifest_hash}`, verifies all privately staged images and returns a **proposed** next-version pack using server-only `OPS_CONTENT_DELIVERY_ORIGIN`. It saves no artifact, changes no existing payload or approval, and creates no public copy. Client-supplied hosts/URLs are rejected. Store the proposal through the existing exact-version submission path and obtain a fresh human decision.
+
+Storage paths bind artifact ID, the complete immutable manifest hash and image hash. Uploads never overwrite; identical retries read back existing bytes, including after concurrent conflicts. Original file type, file signature, full SHA-256 and bounded size are verified before upload and after actual stored-byte readback. A changed/superseded artifact is refused before success is reported. A race can leave an unused private object; it cannot bless a changed version. Private preview also rechecks current artifact identity after the read.
+
+A delivery URL change produces a new pack version requiring fresh approval, even when the image bytes are unchanged. That new artifact’s images must be staged against its new identity as well. Slide order, caption, account and intended time remain exact. The generic artifact layer already enforces new decisions and execution claims. Scheduling stays off.
+
+**Remaining public boundary:** root must review/provision an operator-controlled immutable public store and implement/enable the approval-bound copy into that store before social platforms can retrieve real images. `OPS_CONTENT_DELIVERY_ORIGIN` only prepares a proposal; setting it is not proof of public delivery. No unapproved real artwork was made public. Public media hosting, actual provider scheduling and publication are not established by the staging tests.

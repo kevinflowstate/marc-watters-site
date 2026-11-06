@@ -137,6 +137,24 @@ function harness() {
 type Page = { clients: Row[]; items: Row[]; client: Row; conversation: { needs_reply: boolean | null }; coverage: { next_cursor: string | null; collection_complete_in_this_response: boolean; end_of_collection: boolean; has_more: boolean } };
 
 describe("read-only Codex portal monitoring", () => {
+  it("reads a persistent conversation journey across refreshes without treating opening it as a reply", async () => {
+    const h = harness();
+    const current = () => h.api.readPortalCollection(uid(2), "messages", new URLSearchParams()) as Promise<Page>;
+    expect((await current()).conversation.needs_reply).toBe(true);
+    h.tables.inbox_messages.find((m) => m.id === uid(13))!.read_by_admin = true;
+    expect((await current()).conversation.needs_reply).toBe(true);
+    h.tables.inbox_messages.push({ id: uid(90), client_id: uid(2), sender_role: "admin", message: "An answer", created_at: "2026-11-02T10:00:00Z" });
+    expect((await current()).conversation.needs_reply).toBe(false);
+    h.tables.client_profiles.find((c) => c.id === uid(2))!.payment_status = "paused";
+    h.tables.inbox_messages.push({ id: uid(91), client_id: uid(2), sender_role: "client", message: "A follow-up question", created_at: "2026-11-02T11:00:00Z" });
+    const reopened = await current();
+    expect(reopened.conversation.needs_reply).toBe(true);
+    expect(reopened.client.routine_follow_up).toBe("paused_in_portal_records");
+    h.failTables.add("inbox_messages");
+    await expect(current()).rejects.toThrow("coverage is incomplete");
+    h.failTables.clear();
+    expect((await current()).conversation.needs_reply).toBe(true);
+  });
   it("requires portal:read before any source read, with no broad-token fallback", async () => {
     const h = harness();
     for (const [token, status] of [[undefined, 401], ["task", 403], ["legacy", 401]] as const) {

@@ -62,6 +62,52 @@ export type PaymentNextStep = {
   overdue?: boolean;
 };
 
+/** A useful human path while native reminders are inactive or need reconciliation.
+ * These are review instructions, never permission to message or a completed task. */
+export function paymentHumanHandoff(
+  payment: PaymentCase,
+  attempts: PaymentAttempt[] | null,
+  remindersEnabled: boolean,
+  now = Date.now(),
+) {
+  const next = paymentNextStep(payment, attempts, now);
+  const closed = ["paid", "void", "cancelled"].includes(payment.state);
+  const steps: string[] = [];
+  if (closed) {
+    steps.push("No payment chase is needed for this saved invoice status.");
+  } else {
+    steps.push("Open this invoice in the correct payment account and confirm its current status.");
+    if (!payment.source_verified_at || !Number.isFinite(Date.parse(payment.source_verified_at)))
+      steps.push("The last payment-account check is not recorded. Refresh the invoice before deciding what to do.");
+    if (payment.reply_needs_human)
+      steps.push("Read the client’s reply and deal with their question before arranging any further follow-up.");
+    if (payment.contact_dnd)
+      steps.push("Do not message this client: Do not disturb is set.");
+    else if (payment.manual_pause || payment.state === "paused")
+      steps.push("Follow-up is paused. Review the reason before deciding whether to resume it.");
+    if (!payment.contact_id)
+      steps.push("Match the invoice to the correct CRM contact before any reminder is considered.");
+    if (!payment.whatsapp_opt_in)
+      steps.push("WhatsApp permission is not verified. Do not send a WhatsApp reminder.");
+    if (next.kind === "review" || next.kind === "unloaded")
+      steps.push(next.detail);
+    if (payment.reminder_count >= 2)
+      steps.push("The two-reminder limit has been reached. Eimear handles the remaining follow-up personally; no third automatic reminder.");
+  }
+  return {
+    owner: "eimear" as const,
+    required: !closed,
+    title: closed ? "No payment chase needed" : "Eimear’s payment review",
+    summary: remindersEnabled
+      ? "A saved plan is not proof that a message was sent. Check the invoice and reminder history."
+      : "Automatic reminders are off. This case remains available for Eimear to review; no message has been queued by this check.",
+    steps,
+    source_checked_at: payment.source_verified_at,
+    reminder_plan: next,
+    sends_message: false as const,
+  };
+}
+
 /** A display-only plan, never sending eligibility. No request, mutation or claim. */
 export function paymentNextStep(
   payment: PaymentCase,

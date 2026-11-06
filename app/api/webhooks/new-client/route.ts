@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
-import { startOnboarding } from "@/lib/ops/onboarding";
+import { preparePendingAdmission, prepareOnboardingChecklist, startOnboarding } from "@/lib/ops/onboarding";
 import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
@@ -19,11 +19,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  console.log("[WEBHOOK] Raw body:", JSON.stringify(body));
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: "Valid JSON is required" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return NextResponse.json({ error: "A client object is required" }, { status: 400 });
+  const sendingEnabled = process.env.FLOWSTATE_PORTAL_SEND_ENABLED?.trim() === "true";
 
   // GHL sends various field names — handle them all
-  const name = (
+  const rawName = (
     body.name ||
     body.full_name ||
     body.contact_name ||
@@ -32,10 +37,10 @@ export async function POST(request: Request) {
     [body.first_name || body.firstName, body.last_name || body.lastName]
       .filter(Boolean)
       .join(" ")
-  )?.trim();
-  const email = (body.email || body.contact_email || body.contactEmail)
-    ?.trim()
-    ?.toLowerCase();
+  );
+  const rawEmail = body.email || body.contact_email || body.contactEmail;
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
 
   if (!name || !email) {
     return NextResponse.json(
@@ -47,31 +52,44 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   // Check if user already exists - don't error, just return success (idempotent)
-  const { data: existing } = await admin
+  const { data: existing, error: lookupError } = await admin
     .from("users")
     .select("id")
     .eq("email", email)
     .limit(1);
 
+  if (lookupError)
+    return NextResponse.json({ error: "Client lookup is unavailable; retry intake" }, { status: 503 });
+
   if (existing && existing.length > 0) {
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from("client_profiles")
       .select("id")
       .eq("user_id", existing[0].id)
       .single();
-    if (!profile)
+    if (profileError || !profile)
       return NextResponse.json(
         { error: "Client profile is not ready; retry intake" },
         { status: 503 },
       );
-    await startOnboarding(profile.id);
+    if (sendingEnabled) await startOnboarding(profile.id);
+    else await prepareOnboardingChecklist(profile.id);
     return NextResponse.json({
       success: true,
       message: "Client already exists",
       alreadyExisted: true,
+      delivery_status: sendingEnabled ? "existing_account_unchanged" : "paused",
     });
   }
 
+  if (!sendingEnabled) {
+    const review = await preparePendingAdmission(name, email);
+    return NextResponse.json({ success: true, taskId: review.id, emailSent: false,
+      delivery_status: "paused", admission_status: "needs_human_review",
+      message: "Access review saved. No account, invitation or welcome message was created." });
+  }
+
+  // Enabled intake requires the upstream admission contract to be agreed before rollout.
   // Create user in Supabase Auth (triggers handle_new_user + handle_new_client)
   const { data: newUser, error: authError } = await admin.auth.admin.createUser(
     {

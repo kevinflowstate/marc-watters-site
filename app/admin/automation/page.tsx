@@ -757,6 +757,7 @@ export default function AutomationPage() {
                   {current.kind === "content" ? (
                     <ContentReview
                       payload={current.payload}
+                      artifact={current}
                       showMedia={Boolean(detail?.preview) && !detailError}
                     />
                   ) : (

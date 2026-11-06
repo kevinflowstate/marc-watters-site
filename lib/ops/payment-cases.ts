@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, record, uuid } from "./tasks";
+import { paymentHumanHandoff } from "./payment-display";
 import {
   MARC_PAYMENT_LOCATION,
   paymentRules,
@@ -57,6 +58,11 @@ export async function getPaymentCase(id: string) {
     payment_case: r.data as PaymentCase,
     attempts: attempts.data as PaymentAttempt[],
     events: events.data,
+    human_followup: paymentHumanHandoff(
+      r.data as PaymentCase,
+      attempts.data as PaymentAttempt[],
+      getEnv("OPS_PAYMENT_REMINDERS_ENABLED") === "true",
+    ),
   };
 }
 

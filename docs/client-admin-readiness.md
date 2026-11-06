@@ -44,3 +44,19 @@ npx vitest run tests/ops-workspace-feed.test.ts tests/ops-workspace.test.ts test
 At this checkpoint all 55 tests pass. They cover read scopes, client isolation/pagination, archived/paused handling, reply ordering, state/owner mapping, source failures and replayed intake. Invitation/welcome providers are mocked; the repeated-intake result is code-level acceptance, not evidence of actual email delivery or the separate concurrent provider behaviour.
 
 The five CBB scheduled jobs remain paused. Sending, scheduling, publication and production release are outside these fixture checks.
+
+## Internal onboarding handoff — 6 November completion sprint
+
+The authenticated new-client webhook now honours `FLOWSTATE_PORTAL_SEND_ENABLED`. Unless it is exactly `true`, a new client intake saves a deduplicated access-review task for Eimear before account creation, so no Auth/profile trigger, module grant, activation invitation, welcome email or client welcome notification occurs. An already provisioned client receives the internal checklist without new delivery. It does not mark an invitation as sent or advance the onboarding stage. The internal tasks are **Review the new client’s access**, **Add the client to the community**, and **Send the client’s welcome pack**. Their wording explains the required human decision; completing a task does not deliver anything automatically.
+
+Stable client/step references reuse the existing community/welcome task identities. Replayed intake preserves completed tasks and human edits; completed onboarding creates no new work, and archived clients cannot start this preparation. Existing tasks retain their current owner/decisions rather than being silently reassigned. No new response deadline is invented when the profile has no agreed onboarding due date.
+
+An unavailable account lookup now returns a retry-needed503 before any account creation, avoiding a fall-through that could attempt a duplicate account. Invalid JSON and incorrectly typed client input return400. Raw intake bodies are no longer logged.
+
+With sending off, unknown clients remain pending human admission and have no portal account. Existing clients retain their existing access. The explicitly enabled legacy path still provisions accounts and assigns modules through its existing triggers, so the admitting offer/payment rules must be confirmed before enabling that path or connecting a live trigger. No live trigger, client or provider was exercised in this sprint.
+
+Focused validation:40tests across ops-new-client-recovery, ops-onboarding-checklist, ops-portal-monitor and ops-workspace-feed pass. A stateful persistence-boundary fixture proves task reuse, retained human completion and correct Eimear assignment. The read-route fixture follows unanswered→opened→admin reply→new client response→source outage→recovery across independent reads, including a paused membership. Database/provider boundaries remain test doubles; this is not a hosted/database acceptance pass.
+
+Root acceptance before rollout: deploy the reviewed intake/read routes and existing task RPCs to the intended environment with all switches off; run the dedicated synthetic journey; verify tasks and source reads in the current workspace; then verify Eimear’s own access. Live client correspondence, real invitation delivery and production coverage remain unverified.
+
+Outstanding business decisions for this lane are limited to: (1) which confirmed offer/payment authorises account admission; (2) the correct community and welcome pack plus who approves access; (3) who handles which client questions and the expected check-in/reply arrangements. Existing rules are not guessed from a generic14-day review prompt.
