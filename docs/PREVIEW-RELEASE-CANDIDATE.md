@@ -4,9 +4,9 @@ Verified 6 November 2026. This is an isolated-preview handover, not authority to
 
 ## Reviewed deployment
 
-- Application source: `6acab682a0e22a95973bd6b6aef2880acc590c4f`, branch `codex/cbb-ops-foundation`, draft PR32.
+- Application source: `a8c7acef74cac17bb142bab14f5b2e62221d04dd`, branch `codex/cbb-ops-foundation`, draft PR32.
 - Stable preview: https://marc-watters-site-git-code-75af51-kevinflowstate-7682s-projects.vercel.app/admin/work
-- Vercel deployment: `dpl_4jUsXac3gnUdkKMgdFtMenMLGnzZ` (READY).
+- Vercel deployment: `dpl_DDyqCmCuw4GJAbCptWbDNzJPFBXG` (READY).
 - Only database `abmmlybdqwzujcysagvf` was changed/tested. Production database `eeatjpbwwkgytznkfdww` was not changed.
 - Later documentation-only commits do not establish a newer tested runtime.
 
@@ -14,14 +14,14 @@ Verified 6 November 2026. This is an isolated-preview handover, not authority to
 
 | Workflow | Built/tested | Real source or provider check | Human/real action acceptance |
 | --- | --- | --- | --- |
-| Private content review | Exact-version upload, immutable hashes, private readback, changed delivery manifest requires fresh review; scheduling retries/partial results covered by mocks | All five existing carousel images uploaded/read back with exact SHA256; anonymous access denied; existing Drive manifest and three CRM destinations verified | Carousel remains draft with zero approvals. Public approved-media delivery and actual social scheduling not proven |
+| Private content review | Exact-version upload, immutable hashes, private readback, changed delivery manifest requires fresh review; scheduling retries/partial results covered by mocks | All five existing carousel images uploaded/read back with exact SHA256; anonymous access denied; existing Drive manifest and three CRM destinations verified | Carousel remains draft with zero approvals. Actual synthetic approved-image signed download passed; drafts/wrong versions refused. Real social ingestion/scheduling remains untested |
 | Client attention | Stateful read/reply/reopen, archived/paused handling, task replay and ownership | Hosted synthetic client journey persisted, replay returned the same Eimear task, and scoped completion was refused403; owned test rows removed | Production-client coverage, Eimear account and response rules pending |
-| New-client intake | Sending-off code now holds unknown clients for Eimear's access review before Auth/profile/module creation; lookup failures503, malformed input400;40 focused tests | Hosted new-client webhook trial not run: no local preview webhook credential configured | Admission offer/payment, community/welcome destination and real invitation trial pending |
+| New-client intake | Sending-off code now holds unknown clients for Eimear's access review before Auth/profile/module creation; lookup failures503, malformed input400;12 current focused tests plus hosted trial | Hosted concurrent first intake and replay passed: one Eimear task, her completion/note preserved, no Auth/user/profile/module/invite/notification writes; bad secret401 and five malformed inputs400 | Admission offer/payment, community/welcome destination and real invitation trial pending |
 | Payments | Immutable case/run, due dates, one-use dispatch, receipt checks, paid/reply/DND/pause holds, two-reminder cap and Eimear handoff; three SQL acceptance fixtures pass and roll back | Both exact Utility/UK-English templates Active/selectable in GHL. Saved workflow remains trigger-only Draft, zero enrolments | Native context across waits, message ID and retry semantics unproven. No provider delivery test or active Stripe intake |
 | Lesson storage | Private path-specific signed upload/readback grants; resumable TUS uploader; export-size planning and unchanged256MiB publication verifier | Actual synthetic20,913-byte MP4 uploaded via signed TUS endpoint and fully read back with exact SHA | No real Fathom lesson/export or hour-long transfer/playback test; key and global storage cap still need checking |
 | Codex reports/startup | Strict stable-origin/database/revision/seven-switch probe; immutable result replay and readable report rules | Updated cloud environment published; fresh task verifies120 source blobs/eleven skills and actual five paused job records | Fresh two-private-report acceptance recorded in knowledge handover; no scheduled/mobile/laptop-off trial implied |
 
-Portal full suite:434 tests across51 files; build/TypeScript pass; scoped lint and diff checks pass. Knowledge suite:66 tests, followed by8 signed-upload protocol tests after the provider endpoint correction. Current preview UI changes lack a fresh desktop/mobile visual pass: Chrome and in-app preview controls timed out, and the bounded browser routes were stopped. Earlier report-layout visual checks are historical, not proof of the new controls.
+Portal full suite:452 tests across53 files; build/TypeScript pass; scoped lint and diff checks pass. Knowledge suite:66 tests, followed by8 signed-upload protocol tests after the provider endpoint correction. Current hosted browser checks passed at1440×1000 and390×844: report sections, retained supporting notes, private images, review filters, off/initial-unknown controls, scheduling preflight, payment history and synthetic task completion. All five1080×1350 carousel images loaded privately. No console errors or horizontal overflow observed. A failed-settings request and failed-image retry remain covered by focused tests, not a forced browser network failure. Eimear’s own login remains untested.
 
 Local evidence is in the existing `cbb-ops-build/evidence` directory: `finish-sprint-deployed.json`, `finish-content-deployed.json`, `client-handoff-deployed.json`, `lesson-transfer-provider-fixed.json`, `lesson-private-live-readback.json`, `finish-sprint-tests.log`, `finish-sprint-build.log` and `finish-knowledge-tests.log`. No secrets/private report bodies are committed with this document.
 
@@ -40,10 +40,11 @@ Recheck target identity, applied migration history, existing policies and recove
 9. `027_ops_workspace_results.sql`
 10. `028_ops_payment_delivery.sql`
 11. `029_ops_content_media.sql`
+12. `030_ops_onboarding_create_once.sql`
 
-This sprint applied only029 to the already prepared isolated database. It creates private `ops-content-media`, accepts PNG/JPEG up to3MiB and adds no public/client Storage policy. Read back bucket privacy and review all existing Storage policies; do not assume a newly private bucket is safe from a pre-existing catch-all policy. Preview readback found no such exposure. The lesson bucket remains private; its unset per-bucket size cap does not prove the service's global cap is unlimited.
+The earlier sprint applied029; the current sprint applied030 only to the same isolated database.030 adds a service-role-only create-once onboarding RPC, using the same reference lock as task writes, preserving existing human fields and atomic audit. Its SQL acceptance fixture passed and rolled back.029 creates private `ops-content-media`, accepts PNG/JPEG up to3MiB and adds no public/client Storage policy. Read back bucket privacy and review all existing Storage policies; do not assume a newly private bucket is safe from a pre-existing catch-all policy. Preview readback found no such exposure. The lesson bucket remains private; its unset per-bucket size cap does not prove the service's global cap is unlimited.
 
-Use environment-owned secrets only, separate by target. Relevant configured names include `CBB_GHL_PIT_TOKEN`, `CBB_GHL_USER_ID`, `GHL_LOCATION_TOKEN`, `OPS_CONTENT_DRIVE_SERVICE_ACCOUNT_JSON`, `OPS_CONTENT_DRIVE_FILE_IDS`, existing Supabase server credentials and `WEBHOOK_SECRET`. Do not copy preview credentials into production automatically. `OPS_CONTENT_MEDIA_HOSTS` must allow only a deliberately approved immutable delivery host; private preview URLs are not publicly fetchable social assets.
+Use environment-owned secrets only, separate by target. Relevant configured names include `CBB_GHL_PIT_TOKEN`, `CBB_GHL_USER_ID`, `GHL_LOCATION_TOKEN`, `OPS_CONTENT_DRIVE_SERVICE_ACCOUNT_JSON`, `OPS_CONTENT_DRIVE_FILE_IDS`, existing Supabase server credentials and `WEBHOOK_SECRET`. Do not copy preview credentials into production automatically. Approved private images can now use path-specific signed Storage download URLs. The preview policy is explicitly604800seconds maximum lifetime and86400seconds retained after the scheduled time: dates beyond that horizon fail closed. This is an access policy, not proof of when GHL/social platforms fetch the image. The actual synthetic proof used300/60seconds and verified anonymous bytes/hash, then removed its own object/artifact. The real carousel was never approved or signed. `OPS_CONTENT_MEDIA_HOSTS`, if used for external sources, must allow only a deliberately approved immutable host. Protected preview URLs are not social delivery assets.
 
 Marc's cloud has only the existing read/draft/task scopes on the exact stable preview host, with access expiring20 November. It cannot approve, send or publish. Drive access is Viewer on one exact handoff file, not the Business Hub/folder. Keep file-ID/version/hash checking; future content updates require a new review. Live client identity mapping must be verified per Stripe merchant/invoice and GHL contact; preview test profiles are not live client mappings.
 
@@ -68,8 +69,14 @@ For an application regression, stop new intake, retain all outbound switches fal
 ## Remaining decisions
 
 - Confirm admission offer/payment, community/welcome destination and question/check-in ownership.
-- Choose/prove approved immutable public media delivery; leave unapproved art private.
+- Prove HighLevel/social ingestion timing and receipt readback under separately permitted controlled posting. Signed approved-image downloading now works; drafts remain private. No post was created.
 - Prove native GHL run context, message-ID mapping and retry behaviour using an explicitly permitted controlled recipient, or review a server-owned sender alternative. Templates alone do not complete this.
 - Add the protected Fathom API key and exact media access, then test one complete real lesson, storage cap and playback.
 - Confirm ledger/accounting destination and current reporting coverage. Missing data must remain missing.
 - Complete Eimear/mobile/unattended trials, then separately authorise production rollout and each activation.
+
+## Delivery sprint evidence
+
+Verified runtime a8c7ace on6November. Local evidence: `delivery-full-tests.log`, `delivery-build.log`, `intake-deployed.json`, `signed-content-live.json`, `delivery-ui-task.json`, `delivery-readable-report.json` and `delivery-*-mobile.png` in cbb-ops-build/evidence. All owned synthetic intake/image/task records were removed after checks. All seven deployed action switches were independently false; five Marc cloud jobs were untouched (latest direct paused/no-next-run verification18:35). No production database, client send, social post, real-carousel approval or full-week artwork change.
+
+The latest weekly portal result is a new immutable wording correction with its original18:27 source timestamp and partial coverage. Prior result/Drive source and earlier notes are retained. Three improved report guidance files were pushed in knowledge revision5a3036a; they are not yet installed in Marc’s published3668635 cloud overlay. Refresh those instructions explicitly before claiming the new writing rules are used in fresh cloud tasks.
