@@ -30,6 +30,7 @@ import {
   submitReportDraft,
 } from "@/lib/ops/reports";
 import { updateClientSignals, onboardingStages } from "@/lib/ops/onboarding";
+import { listPortalClients, readPortalCollection } from "@/lib/ops/portal-monitor";
 export const runtime = "nodejs";
 const id = z.string().uuid(),
   link = z.object({
@@ -66,6 +67,39 @@ function makeHandler(access: OpsAccess) {
               },
             ],
           }));
+      if (access.kind === "scoped" && hasOpsScope(access, "portal:read")) {
+        const page = {
+          limit: z.number().int().min(1).max(100).default(50),
+          cursor: z.string().max(1024).optional(),
+        };
+        const params = (a: { limit: number; cursor?: string }) =>
+          new URLSearchParams({
+            limit: String(a.limit),
+            ...(a.cursor ? { cursor: a.cursor } : {}),
+          });
+        server.registerTool(
+          "list_portal_clients",
+          {
+            description:
+              "Read one page of active CBB clients and recorded activity. Follow next_cursor until end_of_collection; a page is not the whole roster. Does not change records or mark messages read.",
+            inputSchema: z.object(page),
+          },
+          (a) => run(() => listPortalClients(params(a))),
+        );
+        server.registerTool(
+          "read_portal_client_collection",
+          {
+            description:
+              "Read a page of one active client’s messages, check-ins, assigned training or recorded lesson progress. Current conversation needs_reply is independent of unread flags; null means uncertain. Follow pagination. Recorded completion is not video watch time. No sending or record changes.",
+            inputSchema: z.object({
+              id,
+              collection: z.enum(["messages", "checkins", "training", "lessons"]),
+              ...page,
+            }),
+          },
+          (a) => run(() => readPortalCollection(a.id, a.collection, params(a))),
+        );
+      }
       if (hasOpsScope(access, "tasks:write"))
         server.registerTool(
           "create_task",

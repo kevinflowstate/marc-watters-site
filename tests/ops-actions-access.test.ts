@@ -45,6 +45,7 @@ function harness() {
     task: "task-test-secret-token-123456789012345678901",
     artifact: "artifact-test-secret-token-1234567890123456789",
     legacy: "legacy-test-secret-token-1234567890123456789",
+    portal: "portal-test-secret-token-1234567890123456789",
   };
   const scopeConfig = JSON.stringify([
     {
@@ -61,6 +62,11 @@ function harness() {
       id: "artifact",
       sha256: createHash("sha256").update(tokens.artifact).digest("hex"),
       scopes: ["artifacts:read", "artifacts:write"],
+    },
+    {
+      id: "portal",
+      sha256: createHash("sha256").update(tokens.portal).digest("hex"),
+      scopes: ["portal:read"],
     },
   ]);
   const env = {
@@ -296,6 +302,10 @@ describe("per-request MCP scope visibility", () => {
         updateClientSignals: vi.fn(),
         onboardingStages: ["invited"],
       },
+      "@/lib/ops/portal-monitor": {
+        listPortalClients: vi.fn(async () => ({ clients: [], coverage: { end_of_collection: true } })),
+        readPortalCollection: vi.fn(async () => ({ items: [], coverage: { end_of_collection: true } })),
+      },
       "@/lib/ops/actions": {
         listArtifacts: vi.fn(async () => []),
         getArtifact: vi.fn(async () => ({
@@ -360,6 +370,23 @@ describe("per-request MCP scope visibility", () => {
     )) as Response;
     expect(completion.status).toBe(400);
     expect(h.mutations.updateTask).not.toHaveBeenCalled();
+  });
+  it("offers only the two read tools to a portal reader", async () => {
+    const h = mcpHarness();
+    const response = await h.route.POST(h.request("portal", { method: "tools/list" })) as Response;
+    expect(await response.json()).toEqual({
+      tools: ["list_portal_clients", "read_portal_client_collection"],
+    });
+    const result = await h.route.POST(h.request("portal", {
+      method: "tools/call", name: "read_portal_client_collection",
+      arguments: { id: "11111111-1111-4111-8111-111111111111", collection: "messages", limit: 100 },
+    })) as Response;
+    const payload = await result.json();
+    expect(JSON.parse(payload.content[0].text)).toEqual({ items: [], coverage: { end_of_collection: true } });
+    const denied = await h.route.POST(h.request("portal", {
+      method: "tools/call", name: "create_task", arguments: {},
+    })) as Response;
+    expect(denied.status).toBe(404);
   });
   it("returns saved review feedback through permitted MCP artifact detail", async () => {
     const h = mcpHarness();
