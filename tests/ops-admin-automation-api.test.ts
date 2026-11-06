@@ -91,6 +91,12 @@ function harness(file: string, authorised = true) {
       events: [],
     })),
     bindPaymentContact: vi.fn(async () => ({ id })),
+    connectContentDrive: vi.fn(async () => ({
+      accessToken: "server-only-drive-token",
+      allowedFileIds: ["drive-file"],
+      serviceAccountEmail: "reader@example.invalid",
+    })),
+    verifyContentDriveFile: vi.fn(async () => {}),
     readDriveContentPack: vi.fn(async () => ({
       pack: { location_id: "location", posts: [{ post_id: "post-1" }] },
       source: { file_id: "drive-file", version: "4", sha256: "a".repeat(64) },
@@ -119,6 +125,7 @@ function harness(file: string, authorised = true) {
     "@/lib/ops/artifact-execution": calls,
     "@/lib/ops/lesson-publication": calls,
     "@/lib/ops/content-drive": calls,
+    "@/lib/ops/drive-connection": calls,
     "@/lib/ops/content-pack": { ContentPackError },
     "@/lib/ops/tasks": {
       OpsError,
@@ -245,6 +252,7 @@ describe("admin-only automation routes", () => {
       };
     const r = await h.api.POST(request("POST", body), context);
     expect(r.status).toBe(200);
+    expect(h.calls.verifyContentDriveFile).toHaveBeenCalledTimes(2);
     expect(h.calls.readDriveContentPack).toHaveBeenCalledWith(
       {
         fileId: "drive-file",

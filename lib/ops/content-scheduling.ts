@@ -87,17 +87,10 @@ async function jsonResponse(r: Response) {
   return value;
 }
 
-/** Read-only delivery check. It never claims, creates, approves or schedules a post. */
-export async function verifyContentPostDelivery(
-  input: unknown,
-  postId: string,
+/** Provider GETs only. This does not create a post or change any account. */
+export async function verifyGhlContentConnection(
   options: ContentScheduleOptions = {},
 ) {
-  const pack = validateContentPack(input, { requireFuture: false });
-  const post = pack.posts.find((p) => p.post_id === postId);
-  if (!post)
-    throw new ContentPackError("Post is not in this content pack", 404);
-  validateContentPack({ ...pack, posts: [post] }, { now: options.now });
   const token = (options.token ?? process.env.CBB_GHL_PIT_TOKEN)?.trim();
   const userId = (options.userId ?? process.env.CBB_GHL_USER_ID)?.trim();
   if (!token || !userId)
@@ -110,29 +103,12 @@ export async function verifyContentPostDelivery(
       "The configured social scheduling user needs checking",
       409,
     );
-  const allowed = mediaHosts(options);
-  if (!allowed.size)
-    throw new ContentPackError(
-      "Public image hosting has not been set up for scheduling",
-      409,
-    );
   const request = options.fetch ?? fetch;
   const headers = {
     Authorization: `Bearer ${token}`,
     Version: "v3",
     "Content-Type": "application/json",
   };
-  const path = `/social-media-posting/${CBB_LOCATION_ID}/posts`;
-  for (const media of post.media) {
-    const url = contentMediaUrl(media.url);
-    if (
-      !allowed.has(url.hostname.toLowerCase()) ||
-      !url.pathname.split(/[/.]/).includes(media.sha256)
-    )
-      throw new ContentPackError(
-        "Media must use an approved content-addressed delivery URL",
-      );
-  }
   const locationResponse = await request(
     API + `/locations/${CBB_LOCATION_ID}`,
     {
@@ -179,6 +155,53 @@ export async function verifyContentPostDelivery(
   if (!accountResponse.ok)
     throw new ContentPackError("Social account could not be verified");
   const accounts = (await jsonResponse(accountResponse)).results?.accounts;
+  if (!Array.isArray(accounts))
+    throw new ContentPackError("Social accounts could not be read", 502);
+  return { location, user, accounts };
+}
+
+/** Read-only delivery check. It never claims, creates, approves or schedules a post. */
+export async function verifyContentPostDelivery(
+  input: unknown,
+  postId: string,
+  options: ContentScheduleOptions = {},
+) {
+  const pack = validateContentPack(input, { requireFuture: false });
+  const post = pack.posts.find((p) => p.post_id === postId);
+  if (!post)
+    throw new ContentPackError("Post is not in this content pack", 404);
+  validateContentPack({ ...pack, posts: [post] }, { now: options.now });
+  const token = (options.token ?? process.env.CBB_GHL_PIT_TOKEN)?.trim();
+  const userId = (options.userId ?? process.env.CBB_GHL_USER_ID)?.trim();
+  if (!token || !userId)
+    throw new ContentPackError(
+      "The social scheduling connection is not set up yet",
+      409,
+    );
+  if (!/^[A-Za-z0-9_-]{8,100}$/.test(userId))
+    throw new ContentPackError(
+      "The configured social scheduling user needs checking",
+      409,
+    );
+  const allowed = mediaHosts(options);
+  if (!allowed.size)
+    throw new ContentPackError(
+      "Public image hosting has not been set up for scheduling",
+      409,
+    );
+  const request = options.fetch ?? fetch;
+  const path = `/social-media-posting/${CBB_LOCATION_ID}/posts`;
+  for (const media of post.media) {
+    const url = contentMediaUrl(media.url);
+    if (
+      !allowed.has(url.hostname.toLowerCase()) ||
+      !url.pathname.split(/[/.]/).includes(media.sha256)
+    )
+      throw new ContentPackError(
+        "Media must use an approved content-addressed delivery URL",
+      );
+  }
+  const { accounts } = await verifyGhlContentConnection(options);
   const account = Array.isArray(accounts)
     ? accounts.find((a) => a.id === post.account_id)
     : null;

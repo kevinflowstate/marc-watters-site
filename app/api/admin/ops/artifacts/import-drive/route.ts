@@ -1,6 +1,9 @@
-import { getEnv } from "@/lib/env";
 import { adminActor, respond } from "@/lib/ops/http";
 import { readDriveContentPack } from "@/lib/ops/content-drive";
+import {
+  connectContentDrive,
+  verifyContentDriveFile,
+} from "@/lib/ops/drive-connection";
 import { ContentPackError } from "@/lib/ops/content-pack";
 import { submitArtifact, recordArtifactImport } from "@/lib/ops/actions";
 import { OpsError, record } from "@/lib/ops/tasks";
@@ -33,14 +36,17 @@ export async function POST(request: Request) {
       );
     let imported;
     try {
+      const connection = await connectContentDrive();
+      await verifyContentDriveFile(body.file_id, connection);
       imported = await readDriveContentPack(
         {
           fileId: body.file_id,
           expectedVersion: body.expected_version,
           expectedSha256: body.expected_sha256,
         },
-        { accessToken: getEnv("OPS_CONTENT_DRIVE_ACCESS_TOKEN") },
+        { accessToken: connection.accessToken },
       );
+      await verifyContentDriveFile(body.file_id, connection);
     } catch (error) {
       if (error instanceof ContentPackError)
         throw new OpsError(error.message, error.status);
