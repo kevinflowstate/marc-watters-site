@@ -12,8 +12,11 @@ export async function POST(request: Request) {
     if (!secretMatches(request.headers.get("x-payment-workflow-secret"), getEnv("OPS_PAYMENT_WORKFLOW_SECRET")))
       throw new OpsError("Unauthorized", 401);
     const body = record(await request.json());
-    if (Object.keys(body).some(key => !["location_id", "contact_id", "step_key"].includes(key)) || body.location_id !== MARC_PAYMENT_LOCATION || typeof body.contact_id !== "string")
+    if (Object.keys(body).some(key => !["location_id", "contact_id", "step_key", "workflow_run_id"].includes(key)) || body.location_id !== MARC_PAYMENT_LOCATION || typeof body.contact_id !== "string")
       throw new OpsError("Marc's location and contact are required");
-    return paymentReminderPreflightForContact(body.contact_id, { step_key: body.step_key });
+    return paymentReminderPreflightForContact(body.contact_id, {
+      step_key: body.step_key,
+      ...(body.workflow_run_id === undefined ? {} : { workflow_run_id: body.workflow_run_id }),
+    });
   });
 }

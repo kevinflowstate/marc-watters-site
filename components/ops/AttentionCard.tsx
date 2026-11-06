@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { isClosed } from "@/lib/ops/workspace";
+import { isClosed, needsApproval } from "@/lib/ops/workspace";
 import type { OpsTask } from "@/lib/ops/types";
 export default function AttentionCard() {
   const [tasks, setTasks] = useState<OpsTask[] | null>(null);
@@ -28,7 +28,7 @@ export default function AttentionCard() {
       </Link>
       <p className="text-text-secondary text-sm mt-2">
         {open
-          ? `${open.length} open · ${open.filter((t) => t.kind === "approval").length} approvals · ${open.filter((t) => t.kind === "flag").length} flags`
+          ? `${open.length} open · ${open.filter(needsApproval).length} approvals · ${open.filter((t) => t.kind === "flag").length} flags`
           : "Work queue unavailable"}
       </p>
       <div className="flex gap-4 text-sm mt-3">

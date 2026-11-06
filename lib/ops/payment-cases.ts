@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, record, uuid } from "./tasks";
@@ -60,7 +60,7 @@ export async function getPaymentCase(id: string) {
   };
 }
 
-async function saveSnapshot(
+export async function savePaymentSnapshot(
   snapshot: Awaited<ReturnType<typeof readStripePaymentSnapshot>>,
   externalId: string,
   type: string,
@@ -144,7 +144,7 @@ export async function receiveStripePaymentEvent(
   for (const invoiceId of invoiceIds) {
     const snapshot = await readStripePaymentSnapshot(account, invoiceId);
     results.push(
-      await saveSnapshot(
+      await savePaymentSnapshot(
         snapshot,
         `${account.account_id}:${event.id}:${invoiceId}`,
         type,
@@ -195,7 +195,7 @@ async function verifyGhlPaymentLocation() {
   )
     throw new OpsError("CRM payment location does not match", 409);
 }
-async function readGhlPaymentContact(contactId: string) {
+export async function readGhlPaymentContact(contactId: string) {
   await verifyGhlPaymentLocation();
   const response = await fetch(
     `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contactId)}`,
@@ -257,12 +257,19 @@ export async function paymentReminderPreflight(
 ) {
   const b = record(input);
   if (
-    Object.keys(b).some((k) => k !== "step_key") ||
-    typeof b.step_key !== "string"
+    Object.keys(b).some((k) => !["step_key", "workflow_run_id"].includes(k)) ||
+    typeof b.step_key !== "string" ||
+    (b.workflow_run_id !== undefined && !validPaymentWorkflowRun(b.workflow_run_id))
   )
     throw new OpsError("step_key required");
   if (getEnv("OPS_PAYMENT_REMINDERS_ENABLED") !== "true")
     return { authorised_send: false, reason: "Payment reminders are disabled" };
+  // Native GHL does not need to expose an enrollment ID: the first successful
+  // reservation creates its own per-invoice handoff identity. Later nodes must
+  // retain that response value rather than use a contact custom field.
+  const workflowRun = b.workflow_run_id ?? (b.step_key === "first" ? randomUUID() : null);
+  if (!validPaymentWorkflowRun(workflowRun))
+    return { authorised_send: false, reason: "The original saved workflow context is required for the follow-up" };
   let configured: unknown;
   try {
     configured = JSON.parse(getEnv("OPS_PAYMENT_RULES_JSON") || "{}");
@@ -286,13 +293,18 @@ export async function paymentReminderPreflight(
     account,
     existing.payment_case.invoice_id,
   );
-  await saveSnapshot(
+  await savePaymentSnapshot(
     snapshot,
     `${account.account_id}:preflight:${randomUUID()}`,
     "preflight",
     new Date().toISOString(),
   );
   const current = await getPaymentCase(caseId);
+  if (b.step_key === "second" && !current.attempts.some((attempt) =>
+    attempt.step_key === "first" && attempt.workflow_run_id === workflowRun &&
+    Boolean(attempt.dispatch_claimed_at) && attempt.receipt_verified &&
+    ["sent", "delivered"].includes(attempt.state)))
+    return { authorised_send: false, reason: "The follow-up must belong to the original verified workflow run" };
   if (
     expectedContactId &&
     current.payment_case.contact_id !== expectedContactId
@@ -355,7 +367,8 @@ export async function paymentReminderPreflight(
   const bodyHash = createHash("sha256")
     .update(normalisePaymentMessageBody(body))
     .digest("hex");
-  const r = await createAdminClient().rpc("ops_reserve_payment_reminder", {
+  const contextToken = randomBytes(32).toString("hex");
+  const r = await createAdminClient().rpc("ops_reserve_payment_delivery", {
     p_case: caseId,
     p_expected: current.payment_case.updated_at,
     p_step: result.step.key,
@@ -363,11 +376,19 @@ export async function paymentReminderPreflight(
     p_rules: rules.revision,
     p_location: rules.location_id,
     p_body_hash: bodyHash,
+    p_run: workflowRun,
+    p_context_hash: createHash("sha256").update(contextToken).digest("hex"),
   });
   dbError(r.error);
   if (!r.data.authorised_send) return r.data;
   return {
     ...r.data,
+    // Reservation is never the native action's final permission. Only the
+    // separate one-use dispatch gate may return authorised_send:true.
+    authorised_send: false,
+    reserved: true,
+    context_token: contextToken,
+    workflow_run_id: workflowRun,
     contact_id: current.payment_case.contact_id,
     location_id: rules.location_id,
     template_id: result.step.template_id,
@@ -392,12 +413,15 @@ export async function paymentReminderPreflightForContact(
   const b = record(input);
   if (
     !/^[A-Za-z0-9]{8,100}$/.test(contactId) ||
-    Object.keys(b).some((k) => k !== "step_key") ||
-    typeof b.step_key !== "string"
+    Object.keys(b).some((k) => !["step_key", "workflow_run_id"].includes(k)) ||
+    typeof b.step_key !== "string" ||
+    (b.workflow_run_id !== undefined && !validPaymentWorkflowRun(b.workflow_run_id))
   )
     throw new OpsError("Verified contact ID and step_key required");
   if (getEnv("OPS_PAYMENT_REMINDERS_ENABLED") !== "true")
     return { authorised_send: false, reason: "Payment reminders are disabled" };
+  if (b.step_key !== "first")
+    return { authorised_send: false, reason: "Use the original invoice case for its follow-up" };
   const candidate = await resolveSinglePaymentCaseForContact(contactId);
   if (!candidate.eligible)
     return { authorised_send: false, reason: candidate.reason };
@@ -418,6 +442,9 @@ async function resolveSinglePaymentCaseForContact(contactId: string) {
 export function normalisePaymentMessageBody(body: string) {
   return body.replace(/\r\n/g, "\n").trim();
 }
+export function validPaymentWorkflowRun(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/.test(value);
+}
 export function verifiedPaymentMessage(
   message: Record<string, unknown>,
   attempt: Record<string, unknown>,
@@ -425,6 +452,12 @@ export function verifiedPaymentMessage(
   const timestamp = Date.parse(String(message.dateAdded));
   const created = Date.parse(String(attempt.created_at)),
     expires = Date.parse(String(attempt.expires_at));
+  const contextBound = Boolean(attempt.context_token_hash);
+  const dispatched = Date.parse(String(attempt.dispatch_claimed_at));
+  // An earlier identical message is not this native action's receipt. Context
+  // attempts fail closed on clock skew/rounded provider time before dispatch;
+  // the legacy creation-time allowance applies only to older unbound attempts.
+  const earliest = contextBound ? dispatched : created - 5000;
   if (
     message.id !== attempt.provider_message_id ||
     message.contactId !== attempt.contact_id ||
@@ -436,7 +469,8 @@ export function verifiedPaymentMessage(
     !Number.isFinite(timestamp) ||
     !Number.isFinite(created) ||
     !Number.isFinite(expires) ||
-    timestamp < created - 5000 ||
+    (contextBound && (!Number.isFinite(dispatched) || dispatched < created)) ||
+    timestamp < earliest ||
     timestamp > expires ||
     typeof message.body !== "string" ||
     createHash("sha256")
@@ -452,7 +486,10 @@ export function verifiedPaymentMessage(
   return null;
 }
 
-export async function recordGhlPaymentCaseEvent(input: unknown) {
+export async function recordGhlPaymentCaseEvent(
+  input: unknown,
+  workflowContext?: { run: string; hash: string },
+) {
   const b = record(input);
   const allowed = [
     "schema_version",
@@ -481,6 +518,7 @@ export async function recordGhlPaymentCaseEvent(input: unknown) {
     b.external_id.length > 500 ||
     typeof b.occurred_at !== "string" ||
     !Number.isFinite(Date.parse(b.occurred_at)) ||
+    Date.parse(b.occurred_at) > Date.now() + 300000 ||
     ![
       "reminder_requested",
       "reminder_sent",
@@ -495,6 +533,7 @@ export async function recordGhlPaymentCaseEvent(input: unknown) {
   let verified: string | null = null;
   let error: string | null = null;
   let verifiedSentAt: string | null = null;
+  let verifiedMessageAt: string | null = null;
   if (String(b.event_type).startsWith("reminder_")) {
     uuid(b.attempt_id);
     const attempt = await createAdminClient()
@@ -505,6 +544,11 @@ export async function recordGhlPaymentCaseEvent(input: unknown) {
     dbError(attempt.error);
     if (!attempt.data)
       throw new OpsError("Reserved reminder attempt not found", 409);
+    if (attempt.data.context_token_hash && (
+      !attempt.data.dispatch_claimed_at ||
+      attempt.data.workflow_run_id !== workflowContext?.run ||
+      attempt.data.context_token_hash !== workflowContext?.hash
+    )) throw new OpsError("Use the original workflow context to record this reminder's receipt", 409);
     if (
       typeof b.provider_message_id === "string" &&
       /^[A-Za-z0-9_-]{1,200}$/.test(b.provider_message_id)
@@ -519,6 +563,8 @@ export async function recordGhlPaymentCaseEvent(input: unknown) {
           ...attempt.data,
           provider_message_id: b.provider_message_id,
         });
+        if (verified)
+          verifiedMessageAt = new Date(String(message.dateAdded)).toISOString();
         if (verified && ["sent", "delivered"].includes(verified))
           verifiedSentAt = new Date(String(message.dateAdded)).toISOString();
         if (!verified)
@@ -532,14 +578,31 @@ export async function recordGhlPaymentCaseEvent(input: unknown) {
   }
   const payload = {
     ...b,
+    // Keep an unverified candidate in the event evidence without permanently
+    // binding a wrong message ID and blocking the genuine later receipt.
+    reported_provider_message_id: b.provider_message_id,
+    provider_message_id: verified ? b.provider_message_id : undefined,
     receipt_verified: Boolean(verified),
     delivery_state: verified,
     verified_sent_at: verifiedSentAt,
+    verified_message_at: verifiedMessageAt,
     error,
   };
   const r = await createAdminClient().rpc("ops_record_payment_ghl_event", {
     p_event: payload,
   });
   dbError(r.error);
-  return r.data;
+  const result = record(r.data);
+  const persisted = result.receipt && typeof result.receipt === "object"
+    ? record(result.receipt) : null;
+  return {
+    ...result,
+    receipt: {
+      // Idempotent callbacks can return an earlier stored receipt. Report that
+      // committed state, never a fresh provider read that was not persisted.
+      verified: persisted?.verified === true,
+      state: typeof persisted?.state === "string" ? persisted.state : null,
+      sent_at: typeof persisted?.sent_at === "string" ? persisted.sent_at : null,
+    },
+  };
 }

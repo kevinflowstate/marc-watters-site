@@ -198,6 +198,24 @@ describe("read-only Codex portal monitoring", () => {
     const lessons = await h.api.readPortalCollection(uid(1), "lessons", new URLSearchParams()) as Page;
     expect(lessons.items[0]).toMatchObject({ recorded_completed: true, title: "Lesson one" });
   });
+  it("exposes recorded routine-follow-up holds without hiding the client's unanswered message", async () => {
+    const h = harness();
+    h.tables.client_profiles[1].payment_status = "paused";
+    const roster = await h.api.listPortalClients(new URLSearchParams()) as Page;
+    expect(roster.clients.find((row) => row.id === uid(2)))
+      .toMatchObject({ routine_follow_up: "paused_in_portal_records" });
+    const messages = await h.api.readPortalCollection(uid(2), "messages", new URLSearchParams()) as Page;
+    expect(messages.conversation.needs_reply).toBe(true);
+    expect(messages.client.routine_follow_up).toBe("paused_in_portal_records");
+    expect(messages.client).not.toHaveProperty("payment_status");
+  });
+  it("leaves impossible check-in reply dates uncertain rather than treating them as answered", () => {
+    const h = harness();
+    expect(h.api.checkinReplyState({
+      id: uid(21), created_at: "2026-11-02T10:00:00Z", admin_reply: "Answer",
+      replied_at: "2026-11-02T11:00:00Z", client_reply: "Follow-up", client_replied_at: "2026-11-01T10:00:00Z",
+    })).toMatchObject({ needs_reply: null, reason: "reply_order_uncertain" });
+  });
   it("rejects cross-client/cross-collection cursors and invalid limits", async () => {
     const h = harness();
     const first = await h.api.readPortalCollection(uid(1), "messages", new URLSearchParams("limit=1")) as Page;

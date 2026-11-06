@@ -6,9 +6,9 @@ The build tracks each **Stripe merchant account + invoice** separately. One clie
 
 1. Stripe sends a signed invoice event to `/api/webhooks/stripe-ops/{account-alias}`. The server verifies raw-body signature, freshness, merchant identity and live/test mode, then fetches the current invoice/subscription. The old failure event alone cannot reopen an already-paid invoice.
 2. An atomic case/event ledger deduplicates events. One task per case is created/updated in Eimear's workspace. Current Stripe settlement closes only that case's task. Pause, cancellation, uncollectible/unknown state, DND, replies needing a person and failed/unverified message delivery remain explicit review conditions.
-3. Before each agreed reminder, GHL calls the case's preflight endpoint. The server rechecks Stripe, Marc's CRM location/contact and current DND, verified WhatsApp opt-in, agreed hours/timing, prior receipts and reminder limit.
-4. An atomic reservation grants **one send authorisation per invoice/step**. A repeated preflight returns `authorised_send:false`; it cannot grant another reminder. Missing/uncertain outcomes are retained for investigation, never blindly reset.
-5. GHL sends the approved native template only when preflight's saved response grants it. A callback carries that run's case/account/invoice/contact/attempt values. A contact-level mutable “current invoice” field is not execution authority.
+3. Before each agreed reminder, GHL calls the case's preflight endpoint. The server rechecks Stripe, Marc's CRM location/contact and current DND, verified WhatsApp opt-in, agreed hours/timing, prior receipts and reminder limit. The first reservation creates a random server handoff ID; GHL does not need to expose a native enrollment ID.
+4. An atomic reservation fixes **one reminder per invoice/step**. It returns `reserved:true`, `authorised_send:false`, an opaque `context_token` and `workflow_run_id`. Save those response values inside that enrollment. A lost or repeated first preflight does not receive another token or reminder; it stays held for review.
+5. Immediately before the native action, GHL calls `/api/ops/payment-reminders/dispatch` with those two saved values. The server rechecks the invoice, contact, wording and stop conditions, then atomically returns `authorised_send:true` **once**. Only that response permits the approved native template. Neither a contact field nor the first reservation permits sending. A callback supplies the same saved context and the actual native message ID; the server reconstructs the case/account/invoice/contact/attempt values itself.
 6. Actual sent/delivered receipts require server-side message readback: exact message ID, Marc location, contact, outbound WhatsApp type, reserved body hash and reservation time window. A node completing or “Valid WhatsApp” branch is workflow-reported progress, not delivery proof. No message ID/readback means `unknown`, no verified chase count and no next reminder.
 7. A reply needing review or DND stops all bound cases for that contact. Paid/paused/cancelled status is checked again before any subsequent attempt. Payment-case tasks remain open until Stripe confirms settlement; successful WhatsApp delivery does not complete the payment task.
 
@@ -23,9 +23,30 @@ This code does not send messages itself. Actual reminder workflows are separate 
 | GET `/api/ops/payment-cases`                             | Scoped token `payments:read`                    | Up to 500 recent cases                                         |
 | GET `/api/ops/payment-cases/{id}`                        | Scoped token `payments:read`                    | One case, attempts and latest 50 event headers                 |
 | POST `/api/ops/payment-reminders/preflight` | `x-payment-workflow-secret` | Body `{ "location_id":"93GJEdsr0cT9el3OINXq", "contact_id":"...", "step_key":"first" }`; resolve exactly one bound case and reserve only |
-| POST `/api/ops/payment-cases/{id}/preflight`             | `x-payment-workflow-secret`                     | Body `{ "step_key":"first" }`; check and reserve only          |
+| POST `/api/ops/payment-cases/{id}/preflight`             | `x-payment-workflow-secret`                     | Follow-up body `{ "step_key":"second", "workflow_run_id":"saved first response value" }`; retain the original case |
+| POST `/api/ops/payment-reminders/dispatch` | `x-payment-workflow-secret` | Body `{ "context_token":"saved response token", "workflow_run_id":"saved response value" }`; one final native-action grant, no send |
+| POST `/api/ops/payment-reminders/receipt` | `x-payment-workflow-secret` | Saved context plus status event/message ID; invoice identity reconstructed and actual provider message read back |
 
-The preflight response includes `authorised_send`, reason or reserved attempt, case/account/invoice IDs, fixed contact/location, approved template ID and rendered body. A Stripe hosted invoice URL is supplied only when available and is required only when the approved template actually uses it. When authorised, the attempt has `id` and `expires_at` (two minutes). Never put this protected response or workflow secret in browser code/public artifacts. The GHL workflow must carry it per enrollment and send immediately; expiry never makes a reservation eligible for automatic retry.
+The preflight response includes `reserved:true` only when a new reminder was reserved, its opaque context, case/account/invoice IDs, fixed contact/location, approved template ID and rendered body. `authorised_send` remains false until dispatch. The first response's server-issued `workflow_run_id` follows the same invoice through both steps; the second reminder receives a different context token. The stored token is hashed, and reserved identity/expiry cannot be edited. The attempt expires after two minutes; only the final dispatch grant permits an immediate native action. A Stripe hosted invoice URL is supplied only when available and required by the approved wording. Never put protected responses or workflow secrets in browser code/public artifacts. Expiry does not permit retry or another token.
+
+Dispatch checks the current invoice state, exact contact/DND, multiple unresolved invoices, rule/template/body hash, local hours and the unchanged case before its atomic claim. A timeout after dispatch leaves the reminder claimed. Repeating dispatch returns false, even if GHL did not receive the response. This protects against duplicate sends at the cost of requiring Eimear to reconcile an uncertain result. Native sender retries must still be disabled: the server cannot revoke a provider action already queued by GHL.
+
+Receipt example for the new context-only path:
+
+```json
+{
+  "context_token": "64-character token returned by this step's preflight",
+  "workflow_run_id": "server-issued value from the first preflight",
+  "event_id": "stable-native-status-event-id",
+  "event_type": "reminder_sent",
+  "occurred_at": "2026-11-06T09:01:00Z",
+  "provider_message_id": "actualNativeMessageId"
+}
+```
+
+The receipt response includes **persisted** `receipt.verified`, `receipt.state` and `receipt.sent_at`. It never advertises a fresh provider read that was not committed to the saved attempt. An identical status event may upgrade its earlier unverified outcome after a transient provider read failure; the original unknown evidence is retained. Already-verified retries remain idempotent, and reuse of one event ID for a different attempt, event type/time or message is rejected. Only a saved verified first sent/delivered receipt on a still-unpaid, unstopped case includes `followup_due_at`; use that exact timestamp for the wait. Unknown/failed/no-ID outcomes exit automatic follow-up. Receipts can still be reconciled while the send flag is off. New context-bound attempts reject the old identity-supplied callback path. An unverified candidate ID remains audit evidence and is not permanently bound as the actual message; a later genuine receipt can still be checked. A late first-reminder event cannot overwrite the second reminder's displayed outcome.
+
+For context-bound attempts, the provider's message creation time must be **at or after the actual dispatch claim**, not merely after the earlier reservation. This comparison is strict: clock skew or rounded provider time before dispatch is held for review rather than attributed to this action. SQL enforces the same lower bound. Older unbound attempts retain the historical creation-time allowance for compatibility.
 
 GHL callback example (synthetic IDs):
 
@@ -57,7 +78,7 @@ Allowed event types: `reminder_requested`, `reminder_sent`, `reminder_delivered`
 
 Native GHL payment triggers may only cover payments known to that GHL sub-account. Both external Stripe merchant accounts require their own signed event registration or a separately verified trusted bridge. Do not assume an “External” source filter captures every direct Stripe invoice. Existing successful-payment/onboarding workflows stay unchanged during this build.
 
-The initial failed-payment event does not automatically create a fully bound sending enrollment in this code. Before activating a workflow, prove how its run obtains the correct server case ID and immutable account/invoice context, and how it receives a message ID. Where the builder cannot preserve those values or disable duplicate native action retries, keep it draft/manual. Preflight prevents duplicate grants; it cannot retract a native message already queued after a payment or control the provider's internal retries.
+The initial failed-payment event does not automatically create a fully bound GHL enrollment in this code. The server context now fixes the reminder's invoice/attempt identity. Before activation, prove that GHL's saved webhook response values remain specific to the enrollment through the wait and that the native action exposes an actual message ID and supports disabled automatic retries. Do not substitute a transaction ID, contact ID or workflow ID for a native enrollment ID; no native enrollment ID is required by the server-issued path. Where response preservation or native receipt output cannot be proved, keep the workflow inactive. Signed events from both external Stripe accounts and verified contact bindings remain separate live-connection requirements.
 
 ## Configuration and activation
 
@@ -102,7 +123,7 @@ This approved-template candidate uses only the native contact first-name mapping
 
 For a contact-triggered workflow, `paymentReminderPreflightForContact(contactId,{step_key})` resolves exactly one bound unpaid case and calls the full case preflight. Several unresolved invoices, unknown/paused/uncollectible state or a changed contact binding hold for human review rather than selecting an arbitrary invoice. The helper rechecks the candidate after provider reads, and the existing case revision/reservation checks still apply. The authenticated workflow route `/api/ops/payment-reminders/preflight` exposes it; this route grants a reservation and does not send.
 
-The native template therefore does not need contact-level “current invoice” fields. GHL still needs to branch on an actual preflight grant before its send action. Receipt mapping, native action retry/re-entry behaviour, actual template approval and a controlled end-to-end test remain required; absent a verified receipt, preserve unknown status and do not automatically send a second reminder. Eimear handles the reply through the normal conversation and payment resolution path. Invoice-specific links/components can be added later through a separately verified contract.
+The native template therefore does not need contact-level “current invoice” fields. GHL first branches on `reserved:true`, then separately calls dispatch and branches on its one-use `authorised_send:true`. Receipt mapping, native action retry/re-entry behaviour, actual template approval and a controlled end-to-end test remain required; absent a verified receipt, preserve unknown status and do not automatically send a second reminder. Eimear handles the reply through the normal conversation and payment resolution path. Invoice-specific links/components can be added later through a separately verified contract.
 
 ## Confirmed timing and final human handoff
 
@@ -119,3 +140,28 @@ Follow-up timing requires a server-verified message receipt and its provider `da
 Additive migration **026** keeps already-applied 024 unchanged. It adds the verified send timestamp, a SQL London-calendar due calculator, strict first/second-only reservations, the two-attempt ceiling and explicit Eimear handoff wording/assignment. Client/scoped read tokens cannot bypass these service-only transitions. `fixtures/payments/calendar-acceptance.sql` verifies calendar/DST dates, two verified receipts, the final human task and refusal of a third reminder, then rolls back fixtures.
 
 The confirmed timing does not activate messages: `OPS_PAYMENT_REMINDERS_ENABLED` and the example remain false. `cbb_payment_issue_v1` and `cbb_payment_followup_v1` were both observed Pending in GHL at 22:32 London on 5 November. Both are Utility, English (UK), with native Contact → First Name mapping, no footer and no buttons. Actual approved template IDs, safe native workflow mapping and receipt proof remain activation prerequisites. Neither template has been sent to a client.
+
+## Inactive native builder recipe — 6 November 2026
+
+The complete machine-readable example is [native-workflow-contract.json](../fixtures/payments/native-workflow-contract.json). It contains no credentials, guessed merge-field syntax or active action. Existing workflow `5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed` stays draft. All workflow inspection/configuration must use the normal GHL browser UI, not workflow APIs.
+
+| Order | Inactive action | Exact condition/data |
+| --- | --- | --- |
+| 1 | Existing failed-payment trigger | Preserve re-entry/multiple-opportunity/stop-on-response settings. Prove actual external Stripe coverage separately. |
+| 2 | Wait until the next working weekday at 09:00 London | Failure day is not the reminder day. Bank holidays are not configured. |
+| 3 | Custom webhook: first preflight | POST the route above with trigger contact, fixed Marc location and `step_key:first`. Enable **Save response from this Webhook**. Protected secret header comes from runtime setup. |
+| 4 | If/Else | Continue only on `reserved:true`. Save this response's `context_token`, server-issued `workflow_run_id`, `case_id` and expiry as per-enrollment response outputs; no contact custom fields. No native enrollment variable is required. |
+| 5 | Custom webhook: dispatch | POST only the saved token/run. Continue only on this response's `authorised_send:true`. HTTP error, timeout, false or missing response exits the send path. |
+| 6 | Native WhatsApp action | Exact approved first template, same contact, native Contact First Name mapping. Send immediately within expiry. Verify automatic retries are disabled. |
+| 7 | Custom webhook: receipt | POST the saved token/run, stable status-event ID/time and actual native WhatsApp message ID. Never substitute transaction/conversation ID or a completed-action flag. |
+| 8 | If/Else and wait | Continue only if `receipt.verified:true`, actual state `sent`/`delivered`, and `followup_due_at` is present. Wait until that exact returned date/time. Unknown/failed outcomes exit to Eimear. |
+| 9 | Custom webhook: second preflight | POST to **the original saved case ID** with `step_key:second` and the original server-issued run. Never re-resolve a new invoice from the contact. Save the new token, then repeat dispatch, second approved native template and receipt. |
+| 10 | End | After two verified sent/delivered reminders, the unpaid case remains with Eimear. No third reminder. Paid/reply/DND/pause stops remain active. |
+
+At root's 6 November browser check, the Custom Webhook action supported POST, raw JSON, headers/auth and saved responses. It is a premium per-execution action; inspection did not run it. That proves configuration controls exist, not that node outputs survive a wait or that the native action returns a message ID. These account-specific points must be demonstrated before calling the sender complete. Unsupported output mapping or native retries leave the draft inactive; do not invent undocumented template parameters or a native action ID.
+
+Root's later 6 November native template dropdown showed nine pre-existing marketing templates plus free-form; neither `cbb_payment_issue_v1` nor `cbb_payment_followup_v1` was selectable. This establishes **not selectable in the action at inspection**, not Pending/Rejected/Approved status in template settings. The unsaved WhatsApp configuration was cancelled, and the existing saved workflow remains trigger-only/draft. Template settings were not checked in that observation.
+
+Migration028 stores only token hashes, freezes the reminder's invoice/contact/template/body/expiry, prevents reuse of the same run/step across invoices and atomically grants native dispatch once. A duplicate/lost first response, duplicate dispatch or uncertain provider outcome is deliberately held. The context receipt path reconstructs identities server-side, verifies the provider message and preserves later reminder outcomes when old callbacks arrive. The old schema2 receipt path cannot be used to bypass context checks on new attempts. No migration or code path enables the global send flag.
+
+Verification: `npx vitest run tests/ops-payment*.test.ts`; TypeScript/scoped ESLint; and `fixtures/payments/delivery-acceptance.sql` only on the explicitly authorised isolated database after028. The SQL test exercises immutable identity, wrong context, paid/reply/multiple-invoice holds, one-use dispatch, repeated/out-of-order receipts and service-only ACLs, then rolls back all test rows. It needs a working weekday to test a successful dispatch without weakening the actual weekday guard.

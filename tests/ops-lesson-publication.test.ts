@@ -211,6 +211,19 @@ describe("approved lesson publication", () => {
     ).rejects.toThrow("above 256 MiB");
     expect(d.readMedia).not.toHaveBeenCalled();
   });
+  it("rejects invalid stored sizes before signing or downloading a video", async () => {
+    for (const bytes of [0, -1, Number.NaN, 1.5]) {
+      const d = deps({ object: async () => ({ ...object, bytes }) });
+      await expect(
+        api.verifyStoredLessonMedia(
+          { storage_path: object.storage_path, expected_sha256: digest }, id, d,
+        ),
+      ).rejects.toThrow("valid file size");
+      expect(d.signedUrl).not.toHaveBeenCalled();
+      expect(d.readMedia).not.toHaveBeenCalled();
+      expect(d.saveVerification).not.toHaveBeenCalled();
+    }
+  });
   it("rejects corrupted/truncated media and never registers verification", async () => {
     for (const invalid of [
       Buffer.from("not a video"),
@@ -264,6 +277,28 @@ describe("approved lesson publication", () => {
     expect(result.dry_run).toBe(true);
     expect(result.would_publish_module).toBe(false);
     expect(d.publish).not.toHaveBeenCalled();
+  });
+  it("gives Eimear readable next steps without claiming playback or publication", async () => {
+    const d = deps();
+    const result = (await api.previewLessonPublication(
+      { ...manifest, summary_md: "", workbook_md: "" }, d,
+    )) as {
+      playback_review_required: boolean;
+      review: { title: string; destination: string; remaining: string[]; published: boolean; ready_for_review: boolean };
+    };
+    expect(result.review.title).toBe("Lesson preview — materials still needed");
+    expect(result.review.ready_for_review).toBe(false);
+    expect(result.review.destination).toBe("Private module");
+    expect(result.review.remaining).toContain("Add the lesson summary.");
+    expect(result.review.remaining).toContain("Add the draft workbook.");
+    expect(result.playback_review_required).toBe(true);
+    expect(result.review.published).toBe(false);
+    expect(d.publish).not.toHaveBeenCalled();
+    const complete = (await api.previewLessonPublication(manifest, d)) as {
+      review: { title: string; ready_for_review: boolean };
+    };
+    expect(complete.review.title).toBe("Lesson ready for Eimear’s review");
+    expect(complete.review.ready_for_review).toBe(true);
   });
   it("refuses stale media, published destinations and publication exposing other drafts", async () => {
     await expect(

@@ -25,7 +25,7 @@ const collections = {
 } as const;
 type Collection = keyof typeof collections;
 const clientFields =
-  "id,business_name,start_date,last_login,last_checkin,created_at,user:users!client_profiles_user_id_fkey(full_name)";
+  "id,business_name,start_date,last_login,last_checkin,created_at,payment_status,user:users!client_profiles_user_id_fkey(full_name)";
 
 function text(value: unknown) {
   return typeof value === "string" ? value : null;
@@ -45,6 +45,10 @@ function daysSince(value: unknown, now: number) {
   const time = timestamp(value);
   return time === null ? null : Math.max(0, Math.floor((now - time) / 86400000));
 }
+/** A recorded pause/cancellation suppresses routine gap prompts, never a client's question. */
+export function routineFollowUpPaused(row: Record<string, unknown>) {
+  return row.payment_status === "paused" || row.payment_status === "cancelled";
+}
 function clientSummary(row: Row, now = Date.now()) {
   const times = [timestamp(row.last_login), timestamp(row.last_checkin)].filter(
     (v): v is number => v !== null,
@@ -63,6 +67,9 @@ function clientSummary(row: Row, now = Date.now()) {
     days_since_checkin: daysSince(row.last_checkin, now),
     // Creation is not evidence of engagement. Never replace an absent visit with it.
     days_since_created: daysSince(row.created_at, now),
+    routine_follow_up: routineFollowUpPaused(row)
+      ? "paused_in_portal_records"
+      : "confirm_current_expectations",
     portal_path: `/admin/clients/${row.id}`,
   };
 }
@@ -105,7 +112,7 @@ export function checkinReplyState(row: Row) {
   if (!hasText(row.client_reply))
     return { needs_reply: false, reason: "admin_replied" };
   const clientReplied = timestamp(row.client_replied_at);
-  if (clientReplied === null || clientReplied === replied)
+  if (clientReplied === null || clientReplied < created || clientReplied === replied)
     return { needs_reply: null, reason: "reply_order_uncertain" };
   return {
     needs_reply: clientReplied > replied,

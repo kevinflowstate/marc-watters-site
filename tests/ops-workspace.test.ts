@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { workViews, needsApproval } from "../lib/ops/workspace";
+import { workViews, needsApproval, isClosed } from "../lib/ops/workspace";
 import type { OpsTask } from "../lib/ops/types";
 describe("workspace approval and completion states", () => {
   const task = (
@@ -27,5 +27,13 @@ describe("workspace approval and completion states", () => {
         "Needs attention"
       ],
     ).toEqual([open]);
+  });
+  it("keeps requested changes actionable in the same views as the task cards", () => {
+    const rejected = task("rejected");
+    expect(isClosed(rejected)).toBe(false);
+    expect(needsApproval(rejected)).toBe(false);
+    expect(workViews([rejected])).toMatchObject({
+      "All current": [rejected], "Needs attention": [rejected], "Needs approval": [], History: [],
+    });
   });
 });

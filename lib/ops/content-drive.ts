@@ -53,6 +53,7 @@ export async function readDriveContentPack(
       m.capabilities?.canDownload !== true ||
       !["application/json", "text/plain"].includes(m.mimeType) ||
       !Number.isFinite(Number(m.size)) ||
+      Number(m.size) <= 0 ||
       Number(m.size) > 512_000
     )
       throw new ContentPackError(
@@ -61,7 +62,7 @@ export async function readDriveContentPack(
       );
     return m;
   }
-  await metadata();
+  const initialMetadata = await metadata();
   const r = await request(base + "?alt=media", {
     headers,
     redirect: "error",
@@ -71,13 +72,23 @@ export async function readDriveContentPack(
   if (!r.ok)
     throw new ContentPackError(`Drive content unavailable (${r.status})`, 502);
   const bytes = await contentResponseBytes(r, 512_000);
+  if (bytes.length !== Number(initialMetadata.size))
+    throw new ContentPackError(
+      "Drive download is incomplete or its size changed; select the file again",
+      409,
+    );
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== input.expectedSha256)
     throw new ContentPackError(
       "Drive manifest bytes do not match the selected version",
       409,
     );
-  await metadata();
+  const finalMetadata = await metadata();
+  if (Number(finalMetadata.size) !== bytes.length)
+    throw new ContentPackError(
+      "Drive file changed during import; select the file again",
+      409,
+    );
   let value: unknown;
   try {
     value = JSON.parse(bytes.toString("utf8"));

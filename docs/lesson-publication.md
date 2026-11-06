@@ -54,8 +54,54 @@ The bounded verifier streams at most **256 MiB**, retains at most 8 MiB of MP4 m
 
 Verification has a 90-second source-read timeout. Run it before claiming an approved action, in an environment whose request/runtime budget supports the file. Files above 256 MiB need a smaller approved export or a separately implemented verification path with matching server/database limits; that larger-file path is not supplied here. A long verification that fits the size bound can be moved to a controlled worker/runtime. Increasing a client-provided size/limit does not bypass this check. The finished-file playback/joins/audio review remains Eimear's decision. No representative Fathom download or large lesson was tested here.
 
+## Check a real local edit before handing it over
+
+When Fathom or another authorised source provides a supported direct MP4 download link, save that reference in an ignored, owner-only local JSON file. Use the actual recording reference, returned file size/expiry and expected hash when the provider supplies them:
+
+```json
+{
+  "source_ref": "fathom:actual-recording-id",
+  "url": "https://actual-provider-host/actual-signed-download",
+  "expected_bytes": 123456789,
+  "expires_at": "actual-provider-expiry-in-ISO-format"
+}
+```
+
+`expected_bytes`, `expires_at` and `expected_sha256` may be omitted only when unavailable. Never fabricate them. The URL must be the actual provider download, not a recording webpage or a guessed media URL. Run:
+
+```sh
+python3 scripts/lesson-source-download.py \
+  --reference work/lesson/private-download-reference.json \
+  --source work/lesson/source.mp4 \
+  --receipt work/lesson/source.receipt.json
+```
+
+This local-only downloader streams to a new owner-only file, keeps the signed URL out of the receipt and normal error output, checks expiry/size/hash/disk, and verifies that the complete downloaded file contains video and audio. It refuses insecure/private-address sources, redirects to another host, existing source/receipt filenames, incomplete downloads and unreadable media. A failed attempt removes only its own temporary partial file. The conservative default source limit is 4 GiB and downloads stop after thirty minutes; a larger authorised source requires an explicit local limit and enough disk. This does not raise the portal's separate edited-file limit. It needs no Fathom API key or browser-session credentials and cannot create a download link when the source has not supplied one.
+
+Use the source-grounded cut plan and the receipt from the CBB `render_lesson.py` helper. The following command reads the untouched source, actual finished MP4, original plan, receipt and prepared materials. It hashes the actual files, checks audio/video streams and durations, verifies every receipt binding, then decodes the entire finished video and audio. It never uploads, approves or publishes. Run it from this repository and keep its output in the private lesson project's `edit/` folder:
+
+```sh
+python3 scripts/lesson-review-preflight.py \
+  --source work/lesson/source.mp4 \
+  --edited work/lesson/edit/lesson-v1.mp4 \
+  --plan work/lesson/edit/plan.json \
+  --receipt work/lesson/edit/lesson-v1.receipt.json \
+  --summary work/lesson/edit/summary.md \
+  --workbook work/lesson/edit/workbook.md \
+  --title "The actual lesson title" \
+  --output work/lesson/edit/review-v1.json
+```
+
+The new private review pack includes a clear summary of removed ranges, Eimear's checks, exact source/output hashes and explicit portal blockers. Existing files are never overwritten; the pack is written with owner-only permissions. The script rechecks source/output/plan bytes after decoding so a changing file cannot inherit an earlier check. A matching render receipt proves which cuts were requested, not that every removal was editorially appropriate. Eimear still checks the actual joins and the teaching.
+
+`--metadata-only` is available for a quick preliminary check. Its result always says `playback_check_needed` and the portal file checks remain blocked. An edited file larger than 256 MiB can pass local playback review, but its portal handoff stays blocked. Do not lower quality silently or substitute a short sample for a full real lesson. This local pack is supporting evidence; it is not the server-issued `media.verification_id` and cannot authorise publication.
+
+`previewLessonPublication` and `verifyStoredLessonMedia` now also return a short `review` description and remaining human steps. These fields do not change the existing approval, claim or publication gates.
+
 ## Verification evidence
 
 - `tests/ops-lesson-publication.test.ts`: actual one-second synthetic H.264/AAC MP4 stream/hash/metadata; split stream headers; absent audio; corrupt/truncated files; wrong hash; changed object; pre-read size bound; manifest/path checks; draft preview; destination restrictions; disabled execution and private preview.
+- `python3 -m unittest discover -s tests -p 'test_lesson_review_preflight.py'`: actual synthetic video/audio decoding, source preservation, tampered plan/receipt/video rejection, duration mismatch, private/no-overwrite output and explicit large-file/metadata-only blockers. Synthetic tests do not establish access to Marc's real lesson source.
+- `python3 -m unittest discover -s tests -p 'test_lesson_source_download.py'`: actual MP4 validation, source/receipt file privacy, no-overwrite, expiry/size/disk/truncation/hash/redirect failures, and signed-link redaction on provider failure. HTTP responses use local fixtures; these checks are not a successful Fathom download.
 - `python3 fixtures/lesson-publication/check-sql.py`: creates an isolated local PostgreSQL cluster, applies the actual 019/021/023/025 SQL with minimal baseline tables and runs transaction checks. It covers human approval, claimed item, private draft/workbook, exact-version/payload/destination guards, publication, receipt replay/no duplicate, changed object, unrelated draft protection and client privilege denial. Its owned PostgreSQL process is explicitly stopped and exit-checked.
 - No production/shared database migration, real lesson publication, client message, account grant or provider write is performed by these tests.

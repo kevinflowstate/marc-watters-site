@@ -35,6 +35,33 @@ type Detail = {
   decisions: ArtifactDecision[];
   preview: Record<string, unknown> | null;
 };
+type SchedulingCheck = {
+  post_id: string;
+  platform: string;
+  account_id: string;
+  account_name?: string;
+  schedule_label: string;
+  status: "ready" | "blocked" | "already_scheduled" | "needs_attention";
+  summary: string;
+  blockers: string[];
+  connection_ready: boolean;
+};
+type SchedulingSetup = {
+  dry_run: true;
+  checked_at: string;
+  ready: boolean;
+  summary: string;
+  scheduling_enabled: boolean;
+  approval_saved: boolean;
+  checks: SchedulingCheck[];
+  has_more: boolean;
+  remaining_post_ids: string[];
+};
+class PreparedWorkError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
 const emptyControls: Controls = {
   content_scheduling: false,
   lesson_publication: false,
@@ -53,10 +80,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { cache: "no-store", ...init });
   const result = await response.json();
   if (!response.ok)
-    throw Error(
+    throw new PreparedWorkError(
       typeof result.error === "string"
         ? result.error
         : "The request could not be completed. Please try again.",
+      response.status,
     );
   return result as T;
 }
@@ -72,7 +100,14 @@ export default function AutomationPage() {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [actionBusy, setBusy] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(false);
+  const busy = actionBusy || checkingSetup;
+  const [schedulingSetup, setSchedulingSetup] = useState<SchedulingSetup | null>(null);
+  const [setupError, setSetupError] = useState("");
+  const setupRequest = useRef(0);
+  const setupRunning = useRef(false);
+  const setupAbort = useRef<AbortController | null>(null);
   const [notice, setNotice] = useState("");
   const [note, setNote] = useState("");
   const [reviewed, setReviewed] = useState(false);
@@ -91,6 +126,13 @@ export default function AutomationPage() {
   const loadDetail = useCallback(
     async (artifact: OpsArtifact, scroll = false) => {
       const currentSelection = ++selection.current;
+      setupAbort.current?.abort();
+      setupAbort.current = null;
+      setupRequest.current += 1;
+      setupRunning.current = false;
+      setCheckingSetup(false);
+      setSchedulingSetup(null);
+      setSetupError("");
       setSelected(artifact);
       setDetail(null);
       setDetailError("");
@@ -154,6 +196,8 @@ export default function AutomationPage() {
     return () => {
       mounted.current = false;
       selection.current += 1;
+      setupAbort.current?.abort();
+      setupRequest.current += 1;
     };
   }, [load]);
 
@@ -171,7 +215,7 @@ export default function AutomationPage() {
     kind: "decision" | "execute",
     decision?: "approved" | "rejected",
   ) {
-    if (!detail || busy) return;
+    if (!detail || busy || setupRunning.current) return;
     const displayed = detail.artifact;
     const contentRun = kind === "execute" && displayed.kind === "content";
     const total = displayed.item_keys.length;
@@ -276,6 +320,72 @@ export default function AutomationPage() {
       if (mounted.current) {
         setBusy(false);
         setProgress(null);
+      }
+    }
+  }
+
+  async function checkSchedulingSetup(postIds?: string[]) {
+    if (!detail || detail.artifact.kind !== "content" || busy || setupRunning.current || detailLoading || detailError)
+      return;
+    const displayed = detail.artifact;
+    const currentSelection = selection.current;
+    const run = ++setupRequest.current;
+    const previous = postIds ? schedulingSetup : null;
+    const controller = new AbortController();
+    setupAbort.current = controller;
+    setupRunning.current = true;
+    setCheckingSetup(true);
+    setSetupError("");
+    if (!postIds) setSchedulingSetup(null);
+    try {
+      const checked = await request<SchedulingSetup>(
+        `/api/admin/ops/artifacts/${displayed.id}/preflight`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            version: displayed.version,
+            manifest_hash: displayed.manifest_hash,
+            ...(postIds ? { post_ids: postIds.slice(0, 5) } : {}),
+          }),
+        },
+      );
+      if (!mounted.current || selection.current !== currentSelection || setupRequest.current !== run)
+        return;
+      if (
+        checked.dry_run !== true ||
+        !Array.isArray(checked.checks) || checked.checks.length > 5 ||
+        !checked.checks.every((check) => displayed.item_keys.includes(check.post_id)) ||
+        !Array.isArray(checked.remaining_post_ids) ||
+        !checked.remaining_post_ids.every((id) => displayed.item_keys.includes(id))
+      ) throw Error("The scheduling checks could not be matched to this version. Refresh and try again.");
+      const checks = new Map((previous?.checks || []).map((check) => [check.post_id, check]));
+      checked.checks.forEach((check) => checks.set(check.post_id, check));
+      const remaining = [...new Set(checked.remaining_post_ids)].filter((id) => !checks.has(id));
+      const combined = [...checks.values()];
+      setSchedulingSetup({
+        ...checked,
+        checks: combined,
+        remaining_post_ids: remaining,
+        has_more: remaining.length > 0,
+        ready: remaining.length === 0 && combined.length > 0 && combined.every((check) => check.status === "ready"),
+      });
+    } catch (e) {
+      if (!mounted.current || selection.current !== currentSelection || setupRequest.current !== run)
+        return;
+      setSchedulingSetup(null);
+      if (e instanceof PreparedWorkError && e.status === 409) {
+        setDetailError("This saved work changed while the checks were running. Refresh it before checking or approving again.");
+        setReviewed(false);
+      } else if (!controller.signal.aborted) {
+        setSetupError(e instanceof Error ? e.message : "Couldn’t check the scheduling setup. Please try again.");
+      }
+    } finally {
+      if (setupRequest.current === run) {
+        setupAbort.current = null;
+        setupRunning.current = false;
+        if (mounted.current) setCheckingSetup(false);
       }
     }
   }
@@ -570,6 +680,80 @@ export default function AutomationPage() {
                       {validationError}
                     </p>
                   )}
+                  {current.kind === "content" && (
+                    <section className="my-5 rounded-xl border border-current/10 p-4" aria-labelledby="scheduling-setup-title">
+                      <h3 id="scheduling-setup-title" className="font-heading font-bold">Scheduling setup</h3>
+                      <p className="mt-2 text-sm text-text-secondary">
+                        Check the connected accounts, planned dates and image files. This does not approve or schedule any posts.
+                      </p>
+                      <button
+                        type="button"
+                        className="v2-button-secondary mt-3 disabled:opacity-50"
+                        disabled={busy || !detail || detailLoading || Boolean(detailError || validationError)}
+                        onClick={() => void checkSchedulingSetup()}
+                      >
+                        {checkingSetup ? "Checking scheduling setup…" : schedulingSetup ? "Check setup again" : "Check scheduling setup"}
+                      </button>
+                      {setupError && <p role="alert" className="mt-3 text-sm text-amber-600">{setupError}</p>}
+                      {schedulingSetup && (
+                        <div className="mt-4 space-y-4">
+                          <div role="status" className="rounded-lg bg-accent/5 p-3 text-sm">
+                            <p className="font-semibold">
+                              {schedulingSetup.checks.length
+                                ? `Setup checked for ${schedulingSetup.checks.length} ${schedulingSetup.checks.length === 1 ? "post" : "posts"}.`
+                                : "There are no pending posts to check. See the saved results below."}
+                            </p>
+                            <p className="mt-1 text-text-secondary">Nothing was scheduled by this check.</p>
+                            {!schedulingSetup.scheduling_enabled && <p className="mt-1 text-text-secondary">Scheduling is switched off.</p>}
+                            {!schedulingSetup.approval_saved && <p className="mt-1 text-text-secondary">This version still needs approval.</p>}
+                            <p className="mt-2 text-xs text-text-muted">Checked {date(schedulingSetup.checked_at)}. These checks cover pending posts only.</p>
+                          </div>
+                          <ol className="space-y-3" aria-label="Post setup checks">
+                            {schedulingSetup.checks.map((check, index) => (
+                              <li key={check.post_id} className="rounded-lg border border-current/10 p-3 text-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <h4 className="font-semibold">Post {index + 1} · {check.platform.charAt(0).toUpperCase() + check.platform.slice(1)}</h4>
+                                  <span className="text-xs font-semibold text-text-secondary">
+                                    {check.status === "ready" ? "Setup ready"
+                                      : check.status === "already_scheduled" ? "Already scheduled"
+                                      : check.status === "needs_attention" ? "Needs checking" : "Steps still needed"}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-text-secondary"><strong>Account:</strong> {check.account_name || "Account name not confirmed"}</p>
+                                <p className="mt-1 text-text-secondary"><strong>Planned date:</strong> {check.schedule_label}</p>
+                                {check.connection_ready ? (
+                                  <p className="mt-2 text-text-secondary">Account, planned date and image files checked.</p>
+                                ) : !check.blockers.includes(check.summary) && (
+                                  <p className="mt-2 text-text-secondary">{check.summary}</p>
+                                )}
+                                {check.blockers.length > 0 && (
+                                  <div className="mt-3">
+                                    <p className="font-semibold">Still needed</p>
+                                    <ul className="mt-1 list-disc space-y-1 pl-5 text-text-secondary">
+                                      {check.blockers.map((blocker, i) => <li key={i}>{blocker}</li>)}
+                                    </ul>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ol>
+                          {schedulingSetup.has_more && (
+                            <div className="rounded-lg bg-amber-500/5 p-3 text-sm">
+                              <p className="font-semibold">{schedulingSetup.remaining_post_ids.length} pending {schedulingSetup.remaining_post_ids.length === 1 ? "post still needs" : "posts still need"} checking.</p>
+                              <button
+                                type="button"
+                                className="v2-button-secondary mt-3 disabled:opacity-50"
+                                disabled={busy || detailLoading || Boolean(detailError)}
+                                onClick={() => void checkSchedulingSetup(schedulingSetup.remaining_post_ids)}
+                              >
+                                Check {Math.min(5, schedulingSetup.remaining_post_ids.length)} remaining {Math.min(5, schedulingSetup.remaining_post_ids.length) === 1 ? "post" : "posts"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  )}
                   {current.kind === "content" ? (
                     <ContentReview
                       payload={current.payload}
@@ -583,8 +767,8 @@ export default function AutomationPage() {
                   )}
                   {detail?.preview && (
                     <p className="my-4 rounded-xl bg-accent/5 p-3 text-sm text-text-secondary">
-                      This is a read-only check. The check has not scheduled a
-                      post or published a lesson.
+                      Checking this item has not posted any content or
+                      published a lesson.
                     </p>
                   )}
                   <details className="my-5 text-xs text-text-muted">
@@ -729,8 +913,8 @@ export default function AutomationPage() {
                   {current.status === "needs_attention" && (
                     <p className="mt-5 rounded-xl bg-amber-500/10 p-4 text-sm text-amber-600">
                       One or more results need checking. Successful items will
-                      not be repeated automatically. The uncertain result must
-                      be reconciled before another attempt.
+                      not be repeated automatically. Check whether the uncertain
+                      item went through before trying again.
                     </p>
                   )}
                   {current.status === "running" && (
@@ -740,7 +924,7 @@ export default function AutomationPage() {
                       </h3>
                       <p className="mt-2 text-sm text-text-secondary">
                         {canContinue
-                          ? "The remaining posts are ready for the next batch. Completed posts will not be sent again."
+                          ? "You can continue with the remaining posts. Completed posts will not be sent again."
                           : "Check the saved results below. Refresh this version for the latest progress."}
                       </p>
                       <div className="mt-4 flex flex-wrap gap-3">

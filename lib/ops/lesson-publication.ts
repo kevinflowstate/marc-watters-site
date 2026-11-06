@@ -291,9 +291,11 @@ export async function verifyStoredLessonMedia(
   const before = await deps.object(path);
   if (before.mime_type !== "video/mp4")
     throw new OpsError("Stored object must be video/mp4");
+  if (!Number.isSafeInteger(before.bytes) || before.bytes <= 0)
+    throw new OpsError("The stored video has no valid file size; upload a complete private MP4", 409);
   if (before.bytes > MAX_LESSON_VERIFY_BYTES)
     throw new OpsError(
-      "Use the separate verification runtime for media above 256 MiB",
+      "Files above 256 MiB need a larger-file handoff or an agreed smaller export; the private copy can still be reviewed",
       413,
     );
   const inspected = await inspectLessonMp4(
@@ -315,6 +317,11 @@ export async function verifyStoredLessonMedia(
     verification,
     metadata_verified: true,
     playback_review_required: true,
+    review: {
+      title: "Video file checked — playback review still needed",
+      summary: "The saved video matches this version. Eimear still needs to watch it and check the lesson materials.",
+      published: false,
+    },
   };
 }
 
@@ -343,6 +350,13 @@ export async function previewLessonPublication(
       "Publishing requires an empty dedicated module to avoid exposing other drafts",
       409,
     );
+  const remaining = [
+    "Watch the edited video, especially the opening, ending and each join.",
+    ...(!manifest.summary_md.trim() ? ["Add the lesson summary."] : []),
+    ...(!manifest.workbook_md.trim() ? ["Add the draft workbook."] : []),
+    "Eimear must approve this exact version and Training destination before it is added.",
+  ];
+  const materialsReady = Boolean(manifest.summary_md.trim() && manifest.workbook_md.trim());
   return {
     dry_run: true as const,
     manifest,
@@ -351,6 +365,16 @@ export async function previewLessonPublication(
     would_publish_module: manifest.mode === "publish",
     publication_enabled: deps.enabled(),
     playback_review_required: true,
+    review: {
+      title: materialsReady ? "Lesson ready for Eimear’s review" : "Lesson preview — materials still needed",
+      summary: materialsReady
+        ? `The edited video and materials are prepared for ${destination.title}. This check has not added or published the lesson.`
+        : `The edited video is saved for ${destination.title}. Add the missing lesson materials before Eimear reviews the complete pack. Nothing has been added or published.`,
+      ready_for_review: materialsReady,
+      destination: destination.title,
+      remaining,
+      published: false,
+    },
   };
 }
 

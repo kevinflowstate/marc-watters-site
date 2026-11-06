@@ -6,7 +6,7 @@ import { listPaymentCases } from "./payment-cases";
 import { listReports } from "./reports";
 import { automationControls } from "./artifact-execution";
 import { listWorkspaceResults } from "./workspace-results";
-import { messageReplyState, checkinReplyState } from "./portal-monitor";
+import { messageReplyState, checkinReplyState, routineFollowUpPaused } from "./portal-monitor";
 import { isClosed, needsApproval, statusLabels } from "./workspace";
 import type {
   WorkspaceCard,
@@ -19,6 +19,8 @@ import type { PaymentCase } from "./payment-policy";
 
 type Row = Record<string, unknown> & { id: string };
 const day = 86400000;
+// Review prompt only. Marc/Eimear have not agreed a universal inactivity or reply SLA.
+const activityReviewDays = 14;
 const time = (v: unknown) => (typeof v === "string" ? Date.parse(v) : NaN);
 const asText = (v: unknown) => (typeof v === "string" ? v : "");
 function relation(v: unknown): Record<string, unknown> {
@@ -57,6 +59,8 @@ export function clientSignalCards(
 ): WorkspaceCard[] {
   const cards: WorkspaceCard[] = [];
   for (const c of clients) {
+    if (c.archived_at) continue;
+    const routinePaused = routineFollowUpPaused(c);
     const name =
       asText(relation(c.user).full_name) ||
       asText(c.business_name) ||
@@ -122,20 +126,21 @@ export function clientSignalCards(
       if (Number.isFinite(time(c.last_checkin)))
         observed.push(time(c.last_checkin));
       const last = Math.max(...observed.filter(Number.isFinite));
-      if (Number.isFinite(last) && now - last >= 14 * day)
+      if (!routinePaused && Number.isFinite(last) && now - last >= activityReviewDays * day)
         cards.push({
           ...base,
           id: `missing-checkin:${c.id}`,
           area: "engagement",
           title: `${name} · no recent check-in`,
           state: "Check in with client",
-          detail: `The last recorded check-in was ${Math.floor((now - last) / day)} days ago. This is a recorded gap, not a judgement about their progress.`,
+          detail: `The last recorded check-in was ${Math.floor((now - last) / day)} days ago. This meets the ${activityReviewDays}-day review threshold; confirm the client’s agreed check-in schedule before following up.`,
           next: "Check whether a check-in is expected before contacting the client.",
           observed_at: new Date(last).toISOString(),
         });
     }
     // Missing activity sources prevent a confident inactivity claim.
     if (
+      routinePaused ||
       messages === null ||
       checkins === null ||
       training === null ||
@@ -159,14 +164,14 @@ export function clientSignalCards(
         .map((r) => time(r.completed_at)),
     ].filter(Number.isFinite);
     const last = Math.max(...known);
-    if (Number.isFinite(last) && now - last >= 14 * day)
+    if (Number.isFinite(last) && now - last >= activityReviewDays * day)
       cards.push({
         ...base,
         id: `activity:${c.id}`,
         area: "engagement",
         title: `${name} · portal activity has gone quiet`,
         state: "Check engagement",
-        detail: `No recorded visit, message, check-in or training update in ${Math.floor((now - last) / day)} days. Lesson completion and video watch time are not inferred.`,
+        detail: `No recorded visit, message, check-in or training update in ${Math.floor((now - last) / day)} days. This meets the ${activityReviewDays}-day review threshold; check the client’s current arrangements before contacting them. These records do not show video watch time or prove lesson completion.`,
         next: "Review the client’s recent activity and decide whether support is needed.",
         observed_at: new Date(last).toISOString(),
       });
@@ -196,7 +201,7 @@ export function clientSignalCards(
       ...first,
       id: `client:${first.url.split("/").at(-1)}`,
       areas: [...new Set(group.map((c) => c.area))],
-      signal_ids: group.map((c) => c.id),
+      signal_ids: [...new Set(group.map((c) => c.id))],
       detail: group.map((c) => c.detail).join("\n"),
       next:
         group.length > 1
@@ -229,7 +234,7 @@ export function taskCards(tasks: OpsTask[]): WorkspaceCard[] {
           : "Portal",
     observed_at: t.updated_at,
     history:
-      (isClosed(t) && t.status !== "rejected") ||
+      isClosed(t) ||
       (t.source === "system" && /^engagement:/.test(t.external_ref || "")),
     approval: needsApproval(t),
     attention: t.kind === "flag" || t.status === "rejected",
@@ -357,7 +362,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     check("clients", "Client activity", () =>
       readAll(
         "client_profiles",
-        "id,business_name,last_login,last_checkin,user:users!client_profiles_user_id_fkey(full_name)",
+        "id,business_name,archived_at,payment_status,last_login,last_checkin,user:users!client_profiles_user_id_fkey(full_name)",
       ),
     ),
     check("messages", "Client messages", () =>

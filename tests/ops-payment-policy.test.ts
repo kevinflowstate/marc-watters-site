@@ -531,6 +531,14 @@ describe("verified WhatsApp receipts", () => {
     ])
       expect(cases.verifiedPaymentMessage(altered, attempt)).toBeNull();
   });
+  it("binds context receipts strictly to dispatch time, preserving the legacy clock allowance only for old attempts", () => {
+    const bound = { ...attempt, context_token_hash: "a".repeat(64), dispatch_claimed_at: "2026-11-05T12:01:00Z" };
+    for (const dateAdded of ["2026-11-05T12:00:10Z", "2026-11-05T12:00:59.999Z"])
+      expect(cases.verifiedPaymentMessage({ ...message, dateAdded }, bound)).toBeNull();
+    expect(cases.verifiedPaymentMessage(message, bound)).toBe("delivered");
+    expect(cases.verifiedPaymentMessage(message, { ...bound, dispatch_claimed_at: null })).toBeNull();
+    expect(cases.verifiedPaymentMessage({ ...message, dateAdded: "2026-11-05T11:59:56Z" }, attempt)).toBe("delivered");
+  });
   it("cannot grant a reminder while the send flag is off", async () =>
     expect(
       await cases.paymentReminderPreflight("not-even-read", {

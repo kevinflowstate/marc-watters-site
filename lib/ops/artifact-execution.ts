@@ -21,6 +21,7 @@ import {
 import { OpsError, record } from "./tasks";
 import { ContentPackError, validateContentPack } from "./content-pack";
 import { executeContentPost } from "./content-scheduling";
+import { contentArtifactReadiness } from "./content-preflight";
 import {
   validateLessonPublicationManifest,
   previewLessonPublication,
@@ -202,6 +203,63 @@ export async function getArtifactDetail(
     items,
     preview: await artifactPreview(artifact, d, items),
   };
+}
+
+/** Explicit admin-triggered read checks remain usable while every write gate is off. */
+export async function preflightPreparedContent(
+  id: string,
+  input: unknown,
+  supplied?: ArtifactExecutionDeps,
+  readiness = contentArtifactReadiness,
+) {
+  const d = supplied ?? dependencies();
+  const body = exact(input, ["version", "manifest_hash", "post_ids"]);
+  const artifact = await d.get(id);
+  assertSnapshot(artifact, artifactSnapshot(body));
+  const validated = validateArtifactDomain(artifact);
+  if (validated.kind !== "content")
+    throw new OpsError(
+      "Choose a content pack for these scheduling checks",
+      409,
+    );
+  if (
+    body.post_ids !== undefined &&
+    (!Array.isArray(body.post_ids) ||
+      !body.post_ids.every((value) => typeof value === "string"))
+  )
+    throw new OpsError("Choose the posts to check");
+  try {
+    const items = await d.items(id);
+    const result = await readiness(artifact, items, {
+      enabled: d.controls().content_scheduling,
+      postIds: body.post_ids as string[] | undefined,
+    });
+    const latest = await d.get(id);
+    assertSnapshot(latest, artifactSnapshot(body));
+    const latestItems = await d.items(id);
+    if (
+      latest.status !== artifact.status ||
+      latest.approved_by !== artifact.approved_by ||
+      latest.approved_at !== artifact.approved_at ||
+      canonicalJson(
+        latestItems.map((item) => [
+          item.item_key,
+          item.status,
+          item.updated_at,
+        ]),
+      ) !==
+        canonicalJson(
+          items.map((item) => [item.item_key, item.status, item.updated_at]),
+        )
+    )
+      throw new OpsError(
+        "This work changed while the checks were running. Refresh it and check again.",
+        409,
+      );
+    return result;
+  } catch (error) {
+    return domainError(error);
+  }
 }
 
 export async function decidePreparedArtifact(

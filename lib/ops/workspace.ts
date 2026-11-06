@@ -28,7 +28,7 @@ export const statusLabels = {
   cancelled: "Cancelled",
 };
 export function isClosed(task: Pick<OpsTask, "status">) {
-  return ["done", "cancelled", "rejected"].includes(task.status);
+  return ["done", "cancelled"].includes(task.status);
 }
 export function needsApproval(task: Pick<OpsTask, "kind" | "status">) {
   return (
@@ -40,7 +40,8 @@ export function workViews(tasks: OpsTask[]) {
   return {
     "All current": tasks.filter((t) => !isClosed(t)),
     "Needs approval": tasks.filter(needsApproval),
-    "Needs attention": tasks.filter((t) => t.kind === "flag" && !isClosed(t)),
+    "Needs attention": tasks.filter((t) =>
+      !isClosed(t) && (t.kind === "flag" || t.status === "rejected")),
     History: tasks.filter(isClosed),
   };
 }

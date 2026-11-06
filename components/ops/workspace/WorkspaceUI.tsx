@@ -436,7 +436,7 @@ export const outcomeMeta: Record<
   WorkspaceResult["outcome"],
   { label: string; colour: string }
 > = {
-  complete: { label: "Check complete", colour: "var(--ws-ok)" },
-  partial: { label: "Some sources missing", colour: "var(--ws-attn)" },
-  failed: { label: "Check failed", colour: "var(--ws-bad)" },
+  complete: { label: "Information checked", colour: "var(--ws-ok)" },
+  partial: { label: "Information missing", colour: "var(--ws-attn)" },
+  failed: { label: "Couldn’t finish checking", colour: "var(--ws-bad)" },
 };

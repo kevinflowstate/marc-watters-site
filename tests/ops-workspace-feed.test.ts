@@ -130,6 +130,41 @@ describe("live workspace signals", () => {
       "engagement",
     );
   });
+  it("excludes archived clients even if a caller supplies stale client rows", () => {
+    expect(clientSignalCards(
+      [{ ...client, archived_at: recent, last_login: old, last_checkin: old }],
+      [msg("client")], [{ ...checkin, admin_reply: null }], now,
+    )).toEqual([]);
+  });
+  it("does not chase recorded paused/cancelled clients for routine gaps, but keeps their unanswered questions", () => {
+    for (const payment_status of ["paused", "cancelled"]) {
+      const held = { ...client, payment_status, last_login: old, last_checkin: old };
+      expect(clientSignalCards([held], [], [], now)).toEqual([]);
+      const cards = clientSignalCards([held], [msg("client")], [{ ...checkin, admin_reply: null }], now);
+      expect(cards).toHaveLength(1);
+      expect(cards[0]).toMatchObject({ id: "client:client-1", owner: "eimear", area: "inbox" });
+      expect(cards[0].signal_ids).toEqual(["message:client-1", "checkin:client-1"]);
+    }
+  });
+  it("labels a 14-day gap as a review threshold and does not invent a reminder schedule", () => {
+    const stale = { ...client, last_login: old, last_checkin: old };
+    const [card] = clientSignalCards([stale], [], [], now);
+    expect(card.detail).toContain("14-day review threshold");
+    expect(card.detail).toContain("agreed check-in schedule");
+    expect(card.detail).toContain("do not show video watch time");
+    expect(card.next).toContain("before contacting");
+    expect(card.signal_ids).toEqual(["missing-checkin:client-1", "activity:client-1"]);
+  });
+  it("keeps one stable Eimear card when several client concerns appear or clear", () => {
+    const current = clientSignalCards([client], [msg("client")], [{ ...checkin, admin_reply: null }], now);
+    const replied = clientSignalCards([client], [msg("client", old), msg("admin")], [{ ...checkin, admin_reply: null }], now);
+    expect(current).toHaveLength(1);
+    expect(replied).toHaveLength(1);
+    expect(current[0].id).toBe(replied[0].id);
+    expect(current[0].owner).toBe("eimear");
+    expect(replied[0].owner).toBe("eimear");
+    expect(replied[0].signal_ids).toEqual(["checkin:client-1"]);
+  });
 });
 describe("workspace action projections", () => {
   it("keeps changed artwork visible with Flowstate and excludes superseded versions", () => {
@@ -175,6 +210,18 @@ describe("workspace action projections", () => {
       history: true,
       attention: false,
     });
+  });
+  it("preserves inbox/renewal owners and treats completion separately from approval", () => {
+    const task = {
+      id: "renewal-1", title: "Review the upcoming renewal", kind: "approval", area: "inbox",
+      assignee: "marc", status: "approved", source: "human", updated_at: recent,
+    } as OpsTask;
+    const [approved] = taskCards([task]);
+    expect(approved).toMatchObject({ owner: "marc", history: false, approval: false });
+    expect(taskCards([{ ...task, assignee: "eimear", status: "done" }])[0])
+      .toMatchObject({ owner: "eimear", history: true, approval: false });
+    expect(taskCards([{ ...task, status: "rejected" }])[0])
+      .toMatchObject({ owner: "marc", history: false, attention: true });
   });
 });
 describe("Codex result contract", () => {

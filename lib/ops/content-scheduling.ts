@@ -87,6 +87,176 @@ async function jsonResponse(r: Response) {
   return value;
 }
 
+/** Read-only delivery check. It never claims, creates, approves or schedules a post. */
+export async function verifyContentPostDelivery(
+  input: unknown,
+  postId: string,
+  options: ContentScheduleOptions = {},
+) {
+  const pack = validateContentPack(input, { requireFuture: false });
+  const post = pack.posts.find((p) => p.post_id === postId);
+  if (!post)
+    throw new ContentPackError("Post is not in this content pack", 404);
+  validateContentPack({ ...pack, posts: [post] }, { now: options.now });
+  const token = (options.token ?? process.env.CBB_GHL_PIT_TOKEN)?.trim();
+  const userId = (options.userId ?? process.env.CBB_GHL_USER_ID)?.trim();
+  if (!token || !userId)
+    throw new ContentPackError(
+      "The social scheduling connection is not set up yet",
+      409,
+    );
+  if (!/^[A-Za-z0-9_-]{8,100}$/.test(userId))
+    throw new ContentPackError(
+      "The configured social scheduling user needs checking",
+      409,
+    );
+  const allowed = mediaHosts(options);
+  if (!allowed.size)
+    throw new ContentPackError(
+      "Public image hosting has not been set up for scheduling",
+      409,
+    );
+  const request = options.fetch ?? fetch;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Version: "v3",
+    "Content-Type": "application/json",
+  };
+  const path = `/social-media-posting/${CBB_LOCATION_ID}/posts`;
+  for (const media of post.media) {
+    const url = contentMediaUrl(media.url);
+    if (
+      !allowed.has(url.hostname.toLowerCase()) ||
+      !url.pathname.split(/[/.]/).includes(media.sha256)
+    )
+      throw new ContentPackError(
+        "Media must use an approved content-addressed delivery URL",
+      );
+  }
+  const locationResponse = await request(
+    API + `/locations/${CBB_LOCATION_ID}`,
+    {
+      headers,
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  if (!locationResponse.ok)
+    throw new ContentPackError("CRM location could not be verified");
+  const location = (await jsonResponse(locationResponse)).location;
+  if (location?.id !== CBB_LOCATION_ID || location?.name !== CBB_LOCATION_NAME)
+    throw new ContentPackError("CRM identity does not match Marc's account");
+  const userResponse = await request(
+    API + `/users/${encodeURIComponent(userId)}`,
+    {
+      headers,
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  if (!userResponse.ok)
+    throw new ContentPackError("Scheduling user could not be verified");
+  const user = await jsonResponse(userResponse);
+  if (
+    user.id !== userId ||
+    !Array.isArray(user.roles?.locationIds) ||
+    !user.roles.locationIds.includes(CBB_LOCATION_ID)
+  )
+    throw new ContentPackError(
+      "Scheduling user does not belong to Marc's account",
+    );
+  const accountResponse = await request(
+    API + `/social-media-posting/${CBB_LOCATION_ID}/accounts`,
+    {
+      headers,
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  if (!accountResponse.ok)
+    throw new ContentPackError("Social account could not be verified");
+  const accounts = (await jsonResponse(accountResponse)).results?.accounts;
+  const account = Array.isArray(accounts)
+    ? accounts.find((a) => a.id === post.account_id)
+    : null;
+  if (
+    !account ||
+    account.locationId !== CBB_LOCATION_ID ||
+    account.platform !== post.platform ||
+    account.active !== true ||
+    account.isExpired !== false
+  )
+    throw new ContentPackError(
+      "Selected social account is unavailable, expired or belongs to another destination",
+    );
+  const verifiedMedia = [];
+  for (const media of post.media) {
+    // No provider token, cookies or auth headers go to a media origin. Redirects are refused.
+    let r: Response;
+    try {
+      r = await request(media.url, {
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch {
+      throw new ContentPackError(
+        "An image link could not be opened directly. Check that it is public, permanent and does not require a login",
+      );
+    }
+    if (
+      !r.ok ||
+      r.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
+        media.mime_type
+    )
+      throw new ContentPackError(
+        "Media is not publicly readable with the approved MIME type",
+      );
+    const bytes = await contentResponseBytes(r, CONTENT_MAX_IMAGE_BYTES);
+    const png =
+      bytes.length >= 24 &&
+      bytes
+        .subarray(0, 8)
+        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const jpeg =
+      bytes.length >= 4 &&
+      bytes[0] === 255 &&
+      bytes[1] === 216 &&
+      bytes[2] === 255;
+    if (
+      (media.mime_type === "image/png" ? !png : !jpeg) ||
+      createHash("sha256").update(bytes).digest("hex") !== media.sha256
+    )
+      throw new ContentPackError(
+        "Media bytes no longer match the approved file",
+      );
+    verifiedMedia.push({
+      asset_id: media.asset_id,
+      sha256: media.sha256,
+      byte_size: bytes.length,
+    });
+  }
+  // Long media reads can consume the lead time; check the selected post again immediately before create.
+  validateContentPack(
+    { ...pack, posts: [post] },
+    { now: options.now ?? new Date() },
+  );
+  return {
+    account_name:
+      typeof account.name === "string" ? account.name : post.platform,
+    checked_at: (options.now ?? new Date()).toISOString(),
+    media: verifiedMedia,
+    planned: {
+      method: "POST" as const,
+      path,
+      body: contentPostPayload(post, userId),
+    },
+  };
+}
+
 /** Exactly one create attempt. Root must persist a claim before calling and record this result. */
 export async function executeContentPost(
   input: unknown,
@@ -127,13 +297,6 @@ export async function executeContentPost(
       post_id: postId,
       reason: "Configured scheduling user is invalid",
     };
-  const allowed = mediaHosts(options);
-  if (!allowed.size)
-    return {
-      outcome: "failed",
-      post_id: postId,
-      reason: "No approved immutable media delivery host is configured",
-    };
   const request = options.fetch ?? fetch;
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -141,119 +304,8 @@ export async function executeContentPost(
     "Content-Type": "application/json",
   };
   const path = `/social-media-posting/${CBB_LOCATION_ID}/posts`;
-  // Before the POST, failure is definite: this adapter has not attempted creation.
   try {
-    for (const media of post.media) {
-      const url = contentMediaUrl(media.url);
-      if (
-        !allowed.has(url.hostname.toLowerCase()) ||
-        !url.pathname.split(/[/.]/).includes(media.sha256)
-      )
-        throw new ContentPackError(
-          "Media must use an approved content-addressed delivery URL",
-        );
-    }
-    const locationResponse = await request(
-      API + `/locations/${CBB_LOCATION_ID}`,
-      {
-        headers,
-        redirect: "error",
-        cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
-      },
-    );
-    if (!locationResponse.ok)
-      throw new ContentPackError("CRM location could not be verified");
-    const location = (await jsonResponse(locationResponse)).location;
-    if (
-      location?.id !== CBB_LOCATION_ID ||
-      location?.name !== CBB_LOCATION_NAME
-    )
-      throw new ContentPackError("CRM identity does not match Marc's account");
-    const userResponse = await request(
-      API + `/users/${encodeURIComponent(userId)}`,
-      {
-        headers,
-        redirect: "error",
-        cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
-      },
-    );
-    if (!userResponse.ok)
-      throw new ContentPackError("Scheduling user could not be verified");
-    const user = await jsonResponse(userResponse);
-    if (
-      user.id !== userId ||
-      !Array.isArray(user.roles?.locationIds) ||
-      !user.roles.locationIds.includes(CBB_LOCATION_ID)
-    )
-      throw new ContentPackError(
-        "Scheduling user does not belong to Marc's account",
-      );
-    const accountResponse = await request(
-      API + `/social-media-posting/${CBB_LOCATION_ID}/accounts`,
-      {
-        headers,
-        redirect: "error",
-        cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
-      },
-    );
-    if (!accountResponse.ok)
-      throw new ContentPackError("Social account could not be verified");
-    const accounts = (await jsonResponse(accountResponse)).results?.accounts;
-    const account = Array.isArray(accounts)
-      ? accounts.find((a) => a.id === post.account_id)
-      : null;
-    if (
-      !account ||
-      account.locationId !== CBB_LOCATION_ID ||
-      account.platform !== post.platform ||
-      account.active !== true ||
-      account.isExpired !== false
-    )
-      throw new ContentPackError(
-        "Selected social account is unavailable, expired or belongs to another destination",
-      );
-    for (const media of post.media) {
-      // No provider token, cookies or auth headers go to a media origin. Redirects are refused.
-      const r = await request(media.url, {
-        redirect: "error",
-        cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (
-        !r.ok ||
-        r.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
-          media.mime_type
-      )
-        throw new ContentPackError(
-          "Media is not publicly readable with the approved MIME type",
-        );
-      const bytes = await contentResponseBytes(r, CONTENT_MAX_IMAGE_BYTES);
-      const png =
-        bytes.length >= 24 &&
-        bytes
-          .subarray(0, 8)
-          .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-      const jpeg =
-        bytes.length >= 4 &&
-        bytes[0] === 255 &&
-        bytes[1] === 216 &&
-        bytes[2] === 255;
-      if (
-        (media.mime_type === "image/png" ? !png : !jpeg) ||
-        createHash("sha256").update(bytes).digest("hex") !== media.sha256
-      )
-        throw new ContentPackError(
-          "Media bytes no longer match the approved file",
-        );
-    }
-    // Long media reads can consume the lead time; check the selected post again immediately before create.
-    validateContentPack(
-      { ...pack, posts: [post] },
-      { now: options.now ?? new Date() },
-    );
+    await verifyContentPostDelivery(pack, postId, options);
   } catch (e) {
     return {
       outcome: "failed",
@@ -261,7 +313,7 @@ export async function executeContentPost(
       reason:
         e instanceof ContentPackError
           ? e.message
-          : "Scheduling preflight failed; no post was created",
+          : "Scheduling checks failed; no post was created",
     };
   }
   let providerId: string | undefined;

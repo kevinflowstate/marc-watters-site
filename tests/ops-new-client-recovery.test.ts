@@ -7,6 +7,7 @@ const f = vi.hoisted(() => ({
   invite: vi.fn(),
   welcome: vi.fn(),
   createUser: vi.fn(),
+  profileReady: true,
 }));
 // Follow this repository's source-loading test pattern without adding a global alias config.
 const source = readFileSync(
@@ -24,7 +25,7 @@ const db = () => ({
         limit: async () => ({
           data: f.existing ? [{ id: "fixture-user" }] : [],
         }),
-        single: async () => ({ data: { id: "fixture-profile" } }),
+        single: async () => ({ data: f.profileReady ? { id: "fixture-profile" } : null }),
       }),
     }),
     insert: async () => ({ error: null, table }),
@@ -58,6 +59,7 @@ describe("Ops onboarding does not strand account activation", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     f.existing = false;
+    f.profileReady = true;
     vi.stubEnv("WEBHOOK_SECRET", "fixture-only");
     f.createUser.mockResolvedValue({
       data: { user: { id: "fixture-user" } },
@@ -81,5 +83,33 @@ describe("Ops onboarding does not strand account activation", () => {
     expect(f.invite).toHaveBeenCalledOnce();
     expect(f.welcome).toHaveBeenCalledOnce();
     expect(f.createUser).toHaveBeenCalledOnce();
+  });
+  it("replays successful intake without creating another invitation, welcome or account", async () => {
+    f.onboarding.mockResolvedValue({});
+    expect((await POST(request())).status).toBe(200);
+    f.existing = true;
+    for (let retry = 0; retry < 3; retry++) expect((await POST(request())).status).toBe(200);
+    expect(f.onboarding).toHaveBeenCalledTimes(4);
+    expect(f.invite).toHaveBeenCalledOnce();
+    expect(f.welcome).toHaveBeenCalledOnce();
+    expect(f.createUser).toHaveBeenCalledOnce();
+  });
+  it("asks for a retry when an existing account has no profile instead of duplicating the welcome", async () => {
+    f.existing = true;
+    f.profileReady = false;
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(f.onboarding).not.toHaveBeenCalled();
+    expect(f.invite).not.toHaveBeenCalled();
+    expect(f.welcome).not.toHaveBeenCalled();
+    expect(f.createUser).not.toHaveBeenCalled();
+  });
+  it("rejects unauthenticated intake before any invitation or onboarding action", async () => {
+    const unauthorised = request();
+    unauthorised.headers.delete("x-webhook-secret");
+    expect((await POST(unauthorised)).status).toBe(401);
+    expect(f.invite).not.toHaveBeenCalled();
+    expect(f.welcome).not.toHaveBeenCalled();
+    expect(f.onboarding).not.toHaveBeenCalled();
   });
 });

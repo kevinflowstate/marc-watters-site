@@ -700,6 +700,30 @@ textarea.ws-input { padding: 0.75rem 0.9rem; min-height: 96px; resize: vertical;
 }
 .ws-field-label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--ws-ink-3); margin-bottom: 0.5rem; }
 .ws-prose { font-size: 0.9rem; line-height: 1.75; color: var(--ws-ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ws-detail-heading { margin: 0 0 0.55rem; font-size: 0.94rem; line-height: 1.4; font-weight: 750; color: var(--ws-ink); }
+.ws-reading { min-width: 0; font-size: 0.9rem; line-height: 1.75; color: var(--ws-ink-2); overflow-wrap: anywhere; }
+.ws-reading > * { margin: 0; }
+.ws-reading > * + * { margin-top: 0.9rem; }
+.ws-reading > h3 { font-size: 1rem; line-height: 1.4; font-weight: 750; color: var(--ws-ink); }
+.ws-reading > h3:not(:first-child) { margin-top: 1.75rem; }
+.ws-reading > h3 + * { margin-top: 0.5rem; }
+.ws-reading p { white-space: pre-line; }
+.ws-reading strong { color: var(--ws-ink); font-weight: 700; }
+.ws-reading ul, .ws-reading ol { padding-left: 1.25rem; }
+.ws-reading ul { list-style: disc; }
+.ws-reading ol { list-style: decimal; }
+.ws-reading li + li { margin-top: 0.5rem; }
+.ws-reading a { color: var(--color-accent-bright); text-decoration: underline; text-underline-offset: 3px; }
+.ws-reading a:focus-visible { outline: 2px solid var(--color-accent-bright); outline-offset: 3px; border-radius: 2px; }
+.ws-result-summary { padding: 1.05rem 1.15rem; border-radius: 16px; background: rgba(96, 165, 250, 0.06); border: 1px solid color-mix(in srgb, var(--ws-decide) 20%, transparent); }
+.ws-result-summary .ws-reading { font-size: 0.96rem; color: var(--ws-ink); }
+.ws-supporting { border-top: 1px solid var(--ws-edge); padding-top: 1rem; }
+.ws-supporting > summary { min-height: 44px; padding: 0.6rem 0; font-weight: 650; font-size: 0.875rem; color: var(--ws-ink-2); cursor: pointer; }
+.ws-result-meta { display: grid; gap: 0.75rem; margin-top: 0.75rem; font-size: 0.8rem; line-height: 1.5; }
+.ws-result-meta dt { color: var(--ws-ink-3); }
+.ws-result-meta dd { margin-top: 0.15rem; color: var(--ws-ink-2); overflow-wrap: anywhere; }
+.ws-original-text { max-width: 100%; padding: 0.9rem; border-radius: 10px; border: 1px solid var(--ws-edge); background: rgba(0, 0, 0, 0.12); color: var(--ws-ink-2); font-family: inherit; font-size: 0.8rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.light .ws-original-text { background: rgba(15, 23, 42, 0.025); }
 .ws-block { padding: 1rem 1.1rem; border-radius: 16px; background: rgba(255, 255, 255, 0.035); border: 1px solid var(--ws-edge); }
 .light .ws-block { background: rgba(255, 255, 255, 0.7); }
 .ws-link {

@@ -144,6 +144,10 @@ export function validateContentPack(
   for (const post of pack.posts) {
     if (ids.has(post.post_id)) throw new ContentPackError("Duplicate post_id");
     ids.add(post.post_id);
+    if (post.platform === "linkedin" && post.media.length > 9)
+      throw new ContentPackError(
+        "LinkedIn feed posts support at most nine images; split this post before review",
+      );
     const limit = post.platform === "instagram" ? 2200 : 3000;
     if (
       post.caption !== post.caption.trim() ||

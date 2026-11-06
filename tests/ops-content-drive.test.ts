@@ -38,6 +38,8 @@ function drive(
     googleDoc?: boolean;
     changedBytes?: boolean;
     tooLarge?: boolean;
+    wrongSize?: boolean;
+    zeroSize?: boolean;
   } = {},
 ) {
   let meta = 0;
@@ -60,7 +62,11 @@ function drive(
         ? "application/vnd.google-apps.document"
         : "application/json",
       version: options.changedVersion && meta > 1 ? "8" : "7",
-      size: options.tooLarge ? 600_000 : text.length,
+      size: options.tooLarge
+        ? 600_000
+        : options.zeroSize
+          ? 0
+          : text.length + (options.wrongSize ? 1 : 0),
       trashed: false,
       capabilities: { canDownload: true },
     });
@@ -83,6 +89,8 @@ describe("pinned Drive content manifest import", () => {
     { googleDoc: true },
     { changedBytes: true },
     { tooLarge: true },
+    { wrongSize: true },
+    { zeroSize: true },
   ])("refuses a changed or unsuitable source %j", async (options) => {
     await expect(
       readDriveContentPack(input, {

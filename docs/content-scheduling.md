@@ -6,7 +6,7 @@ This implementation is **non-live, default dry-run**. No post was created in Mar
 
 ## Supported first delivery
 
-JPEG/PNG feed image posts and image carousels for Facebook, Instagram and LinkedIn, with 1–10 ordered images and exactly one account/platform per post. Captions are limited to 2,200 characters on Instagram and 3,000 elsewhere. Stories, reels, videos, polls, tagged users, platform-specific PDF conversion and generated media are outside this adapter. They must not be silently converted to feed posts.
+JPEG/PNG feed image posts and image carousels for Facebook, Instagram and LinkedIn, with exactly one account/platform per post. Facebook/Instagram allow 1–10 ordered images in this adapter; regular LinkedIn feed posts allow 1–9. Captions are limited to 2,200 characters on Instagram and 3,000 elsewhere. Stories, reels, videos, polls, tagged users, platform-specific PDF conversion and generated media are outside this adapter. They must not be silently converted to feed posts.
 
 One account per post avoids the provider's cross-platform caption trimming and lets the portal record each destination independently. The current official API uses `Version: v3`, accepts a scheduled status plus `scheduleDate`, and requires accessible HTTPS media. See [Create post](https://marketplace.gohighlevel.com/docs/ghl/social-planner/create-post/).
 
@@ -50,6 +50,8 @@ After these URL checks, preflight verifies Marc's exact location ID/name, the co
 ## Per-post execution and recovery
 
 `contentSchedulePreview(input, { now? })` makes no network calls.
+
+The separate authenticated [read-only readiness check](content-readiness.md) verifies the real connection and image bytes while scheduling remains off. It returns specific per-post blockers, preserves previous outcomes, and never creates or approves anything. `verifyContentPostDelivery` supplies the shared checks used by readiness and execution.
 
 `executeContentPost(pack, postId, options)` defaults to dry-run and makes exactly one create attempt when explicitly enabled. The action runner must already hold the exact-version approval and a persistent per-post claim; this function is an internal adapter, not an authorisation endpoint. It returns:
 

@@ -67,6 +67,7 @@ const api = load<typeof import("../lib/ops/artifact-execution")>(
     "./action-validation": validation,
     "./content-pack": { ContentPackError, validateContentPack },
     "./content-scheduling": {},
+    "./content-preflight": {},
     "./lesson-publication": {
       validateLessonPublicationManifest: lessonManifest,
     },
@@ -259,6 +260,73 @@ function harness(value = artifact()) {
 }
 
 describe("domain-bound approvals", () => {
+  it("binds read-only content checks to the exact saved version without claiming or approving", async () => {
+    const h = harness();
+    h.d.controls.mockReturnValue({
+      content_scheduling: false,
+      lesson_publication: false,
+      payment_reminders: false,
+    });
+    const check = vi.fn(async () => ({
+      dry_run: true,
+      ready: false,
+      checks: [],
+      summary: "Scheduling is switched off.",
+    }));
+    await api.preflightPreparedContent(
+      id,
+      h.snapshot(),
+      h.deps,
+      check as unknown as Parameters<typeof api.preflightPreparedContent>[3],
+    );
+    expect(check).toHaveBeenCalledWith(
+      expect.objectContaining({ id }),
+      expect.any(Array),
+      { enabled: false, postIds: undefined },
+    );
+    expect(h.d.claim).not.toHaveBeenCalled();
+    expect(h.d.decide).not.toHaveBeenCalled();
+    expect(h.d.contentExecute).not.toHaveBeenCalled();
+    await expect(
+      api.preflightPreparedContent(
+        id,
+        { ...h.snapshot(), version: 2 },
+        h.deps,
+        check as unknown as Parameters<typeof api.preflightPreparedContent>[3],
+      ),
+    ).rejects.toThrow();
+    expect(check).toHaveBeenCalledOnce();
+  });
+  it("rejects content preflight setting injection and lesson actions before network checks", async () => {
+    const h = harness();
+    await expect(
+      api.preflightPreparedContent(
+        id,
+        { ...h.snapshot(), enabled: true },
+        h.deps,
+      ),
+    ).rejects.toThrow("Unsupported action field");
+    const lesson = harness(artifact("lesson"));
+    await expect(
+      api.preflightPreparedContent(id, lesson.snapshot(), lesson.deps),
+    ).rejects.toThrow("Choose a content pack");
+  });
+  it("does not return a ready result after approval or item progress changes during the checks", async () => {
+    const h = harness();
+    const check = vi.fn(async () => {
+      h.current().status = "rejected";
+      return { dry_run: true, ready: true, checks: [], summary: "Ready" };
+    });
+    await expect(
+      api.preflightPreparedContent(
+        id,
+        h.snapshot(),
+        h.deps,
+        check as unknown as Parameters<typeof api.preflightPreparedContent>[3],
+      ),
+    ).rejects.toThrow("changed while the checks");
+    expect(h.d.contentExecute).not.toHaveBeenCalled();
+  });
   it("binds explicit recovery to current artifact/item and the authenticated actor", async () => {
     const h = harness();
     const recovery = {

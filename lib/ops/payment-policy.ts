@@ -45,6 +45,8 @@ export type PaymentAttempt = {
   created_at: string;
   receipt_verified: boolean;
   verified_sent_at: string | null;
+  workflow_run_id?: string | null;
+  dispatch_claimed_at?: string | null;
 };
 export type PaymentRules = {
   enabled: boolean;

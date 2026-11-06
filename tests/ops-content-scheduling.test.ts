@@ -9,6 +9,7 @@ import {
 import {
   contentSchedulePreview,
   executeContentPost,
+  verifyContentPostDelivery,
 } from "../lib/ops/content-scheduling";
 
 const now = new Date("2030-01-06T09:00:00Z");
@@ -236,6 +237,42 @@ describe("content pack validation and exact preparation", () => {
 });
 
 describe("single-post GHL scheduling", () => {
+  it("checks delivery while disabled using only GET requests, retaining the ordered plan", async () => {
+    const fetch = provider();
+    const result = await verifyContentPostDelivery(fixture(), "post-1", {
+      ...live(fetch),
+      enabled: false,
+    });
+    expect(result.media).toEqual([
+      { asset_id: "image-1", sha256, byte_size: png.length },
+    ]);
+    expect(result.planned.body.accountIds).toEqual(["account-1"]);
+    expect(result.planned.body.media).toEqual(
+      fixture().posts[0].media.map((image) => ({
+        url: image.url,
+        type: image.mime_type,
+      })),
+    );
+    expect(
+      fetch.mock.calls.every(
+        (call) => !call[1]?.method || call[1]?.method === "GET",
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("test-only-token");
+  });
+  it("rejects LinkedIn media that would exceed the regular feed limit", () => {
+    const input = fixture();
+    input.posts[0].platform = "linkedin";
+    input.posts[0].media = Array.from({ length: 10 }, (_, index) => ({
+      ...input.posts[0].media[0],
+      asset_id: `image-${index}`,
+    }));
+    expect(() => validateContentPack(input, { now })).toThrow(
+      "at most nine images",
+    );
+    input.posts[0].media.pop();
+    expect(validateContentPack(input, { now }).posts[0].media).toHaveLength(9);
+  });
   it("defaults to dry run with zero network calls even if enabled", async () => {
     const fetch = provider();
     const result = await executeContentPost(fixture(), "post-1", {

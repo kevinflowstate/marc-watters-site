@@ -20,6 +20,12 @@ import {
 import { areas, assignees, type OpsTask } from "@/lib/ops/types";
 import { createRefreshQueue } from "@/lib/ops/refresh-queue";
 import {
+  presentationHref,
+  readableResultTitle,
+  sourceLinkLabel,
+} from "@/lib/ops/workspace-presentation";
+import { ReportText } from "@/components/ops/workspace/ReportText";
+import {
   resultKinds,
   resultLabels,
   type WorkspaceCard,
@@ -388,7 +394,7 @@ export default function WorkPage() {
         >
           <span className="ws-pulse-label">
             <Icon name="shield" size={13} stroke={2.2} />
-            Sources
+            Information checks
           </span>
           <span className="ws-pulse-value is-text flex items-center gap-2">
             <span
@@ -405,10 +411,12 @@ export default function WorkPage() {
               ? "Checking…"
               : failed.length
                 ? `${failed.length} need checking`
-                : `${healthy} healthy`}
+                : `${healthy} checked`}
           </span>
           <span className="ws-pulse-sub block">
-            {data ? `Checked ${when(data.checked_at)}` : "Not checked yet"}
+            {data?.mode === "preview"
+              ? "Checks use the test workspace"
+              : data ? `Updated ${when(data.checked_at)}` : "Not checked yet"}
           </span>
         </button>
       </div>
@@ -451,7 +459,7 @@ export default function WorkPage() {
             Prepared by Codex
           </h2>
           <span className="ws-caption">
-            Each report shows its own coverage and date
+            Saved drafts · check the dates and any missing information
           </span>
         </div>
         <div className="ws-rail">
@@ -485,10 +493,10 @@ export default function WorkPage() {
                       ? "Couldn’t check saved results"
                       : firstLoad
                         ? "Checking saved results…"
-                        : "No result received yet"}
+                        : "No report saved yet"}
                   </p>
                   <p className="ws-caption mt-auto">
-                    No successful check is assumed.
+                    {firstLoad ? "Please wait while we load it." : "There’s nothing to review here yet."}
                   </p>
                 </div>
               );
@@ -520,7 +528,7 @@ export default function WorkPage() {
                     aria-label={meta.label}
                   />
                 </div>
-                <span className="ws-report-title">{r.title}</span>
+                <span className="ws-report-title">{readableResultTitle(r)}</span>
                 <span className="mt-auto flex items-center justify-between gap-2 pt-1 text-xs text-text-muted">
                   <span className="truncate">
                     {meta.label} · {when(r.observed_at)}
@@ -709,7 +717,7 @@ export default function WorkPage() {
               </button>
             </div>
             <h2 id="work-detail-title" className="ws-sheet-title mt-3">
-              {selected?.title || result?.title || selectedCard?.title}
+              {selected?.title || (result && readableResultTitle(result)) || selectedCard?.title}
             </h2>
             {drawerOwner && !result && (
               <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-muted">
@@ -725,7 +733,7 @@ export default function WorkPage() {
             )}
             {result && (
               <p className="mt-2 text-sm text-text-muted">
-                Source check {fullDate(result.observed_at)}
+                Report dated {fullDate(result.observed_at)}
               </p>
             )}
           </div>
@@ -1022,7 +1030,9 @@ export default function WorkPage() {
                 <span
                   className={`text-right text-xs ${c.ok ? "text-text-muted" : "text-[color:var(--ws-attn)]"}`}
                 >
-                  {c.ok ? `${c.count} records` : "Couldn’t check"}
+                  {c.ok
+                    ? c.count === null ? "Checked" : `${c.count} saved items`
+                    : "Couldn’t check"}
                   <span className="block opacity-75">{when(c.checked_at)}</span>
                 </span>
               </li>
@@ -1032,11 +1042,14 @@ export default function WorkPage() {
             )}
           </ul>
           <p className="ws-caption mt-5 leading-relaxed">
-            Client flags are recalculated from recorded messages, replies and
-            activity when this page refreshes. The scheduled Codex jobs remain
-            paused by setup instruction; this page cannot verify their live
-            scheduler state or resume them. Live payment accounts are checked
-            separately.
+            These checks confirm that the workspace can read its saved information.
+            They do not confirm that every live business connection is ready.
+            Client follow-ups update from saved messages, replies and activity
+            when this page refreshes. Payment accounts are checked separately.
+          </p>
+          <p className="ws-caption mt-3 leading-relaxed">
+            Scheduled Codex jobs are meant to stay paused. This page cannot check
+            or change their schedule.
           </p>
         </div>
       </dialog>
@@ -1045,20 +1058,21 @@ export default function WorkPage() {
 }
 
 function LinkList({ links }: { links: { label: string; url: string }[] }) {
-  if (!links.length) return null;
+  const safeLinks = links.filter((link) => presentationHref(link.url));
+  if (!safeLinks.length) return null;
   return (
     <div className="mt-6">
-      <span className="ws-field-label">Linked</span>
+      <h3 className="ws-detail-heading">Useful links</h3>
       <div className="space-y-2">
-        {links.map((l, i) => (
+        {safeLinks.map((l, i) => (
           <a
             key={i}
             className="ws-link ws-focus"
-            href={l.url}
+            href={presentationHref(l.url)!}
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
           >
-            <span className="min-w-0 flex-1">{l.label}</span>
+            <span className="min-w-0 flex-1">{sourceLinkLabel(l.label, l.url)}</span>
             <Icon name="external" size={16} />
           </a>
         ))}
@@ -1071,28 +1085,39 @@ function ResultDetail({ result }: { result: WorkspaceResult }) {
   const meta = outcomeMeta[result.outcome];
   return (
     <>
+      <section className="ws-result-summary">
+        <h3 className="ws-detail-heading">At a glance</h3>
+        <ReportText text={result.summary} />
+      </section>
       <div
-        className={`ws-notice ${result.outcome === "complete" ? "is-info" : "is-attn"}`}
+        className={`ws-notice mt-5 ${result.outcome === "complete" ? "is-info" : "is-attn"}`}
       >
         <span className="ws-dot mt-1.5" style={{ color: meta.colour }} />
-        <span>
-          <strong className="text-text-primary">{meta.label}.</strong>{" "}
-          {result.outcome === "complete"
-            ? "The declared check completed."
-            : result.outcome === "partial"
-              ? "This is a partial check. Missing sources still need attention."
-              : "This check failed. Do not rely on an older result as current."}
-          <span className="mt-1.5 block">
-            <strong className="text-text-primary">Coverage:</strong>{" "}
-            {result.coverage}
-          </span>
-        </span>
+        <div className="min-w-0">
+          <h3 className="ws-detail-heading">
+            {result.outcome === "complete" ? "What was checked"
+              : result.outcome === "partial" ? "Information still missing"
+              : "The check couldn’t finish"}
+          </h3>
+          {result.outcome === "failed" && <p className="mb-2">An older report may be out of date.</p>}
+          <ReportText text={result.coverage} />
+        </div>
       </div>
-      <p className="ws-prose mt-6">{result.body}</p>
+      <ReportText className="mt-7" text={result.body} />
       <LinkList links={result.links} />
+      <details className="ws-supporting mt-7">
+        <summary className="ws-focus">Supporting details</summary>
+        <dl className="ws-result-meta">
+          <div><dt>Original title</dt><dd>{result.title}</dd></div>
+          <div><dt>Report date</dt><dd>{fullDate(result.observed_at)}</dd></div>
+          <div><dt>Saved in the portal</dt><dd>{fullDate(result.received_at)}</dd></div>
+        </dl>
+        <h3 className="ws-detail-heading mt-5">Saved report text</h3>
+        <p className="ws-caption mb-3">Kept exactly as received, including any source references.</p>
+        <pre className="ws-original-text">{result.body}</pre>
+      </details>
       <p className="ws-caption mt-6">
-        Received by the portal {fullDate(result.received_at)}. Reading this
-        result sends nothing.
+        Prepared for review. Opening this draft does not send, schedule or publish anything.
       </p>
     </>
   );
@@ -1103,13 +1128,13 @@ function CardDetail({ card }: { card: WorkspaceCard }) {
     <>
       {card.next && (
         <div className="ws-block">
-          <span className="ws-field-label">Next step</span>
+          <h3 className="ws-detail-heading">Next step</h3>
           <p className="text-[0.95rem] font-medium leading-relaxed">
             {card.next}
           </p>
         </div>
       )}
-      <p className="ws-prose mt-6">{card.detail}</p>
+      <ReportText className="mt-6" text={card.detail} />
     </>
   );
 }
@@ -1134,15 +1159,13 @@ function TaskDetail({
     <>
       {card?.next && (
         <div className="ws-block">
-          <span className="ws-field-label">Next step</span>
+          <h3 className="ws-detail-heading">Next step</h3>
           <p className="text-[0.95rem] font-medium leading-relaxed">
             {card.next}
           </p>
         </div>
       )}
-      <p className="ws-prose mt-6">
-        {task.detail || "No additional instructions."}
-      </p>
+      <ReportText className="mt-6" text={task.detail || "No additional instructions."} />
       {task.kind === "approval" && (
         <div className="ws-notice is-info mt-5">
           <Icon name="lock" size={16} className="mt-0.5 flex-none" />
