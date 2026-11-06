@@ -68,6 +68,7 @@ const api = load<typeof import("../lib/ops/artifact-execution")>(
     "./content-pack": { ContentPackError, validateContentPack },
     "./content-scheduling": {},
     "./content-preflight": {},
+    "./content-signed-delivery": { signedDeliveryConfigured: () => false },
     "./lesson-publication": {
       validateLessonPublicationManifest: lessonManifest,
     },

@@ -35,6 +35,11 @@ function object(value: unknown): Record<string, unknown> {
 export function text(value: unknown) {
   return typeof value === "string" ? value : "";
 }
+export function contentPostLabel(payload: Record<string, JsonValue>, postId: string) {
+  const posts = Array.isArray(payload.posts) ? payload.posts : [];
+  const index = posts.findIndex((post) => object(post).post_id === postId);
+  return index >= 0 ? `Post ${index + 1}` : "Post reference needs checking";
+}
 export function date(value: unknown) {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value)))
     return "Not recorded";
@@ -94,7 +99,7 @@ export function ActionAvailability({
   enabled,
 }: {
   title: string;
-  enabled: boolean;
+  enabled: boolean | null;
 }) {
   return (
     <div className="v2-surface flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-3">
@@ -102,7 +107,7 @@ export function ActionAvailability({
       <span
         className={`rounded-lg px-2 py-1 text-xs font-semibold ${enabled ? "bg-emerald-500/10 text-emerald-600" : "bg-current/5 text-text-muted"}`}
       >
-        {enabled ? "Enabled" : "Not enabled"}
+        {enabled === true ? "On" : enabled === false ? "Off" : "Not checked"}
       </span>
     </div>
   );
@@ -325,10 +330,11 @@ export function ActionResults({
         </p>
       ) : (
         <div className="mt-3 space-y-3">
-          {items.map((item, index) => {
-            const post = posts.find(
+          {items.map((item) => {
+            const postIndex = posts.findIndex(
               (post) => object(post).post_id === item.item_key,
             );
+            const post = posts[postIndex];
             const caption = text(object(post).caption);
             const receipt = object(item.receipt);
             const providerId = text(
@@ -348,7 +354,7 @@ export function ActionResults({
                   <strong className="text-sm">
                     {artifact.kind === "lesson"
                       ? "Lesson"
-                      : `Post ${index + 1}`}
+                      : contentPostLabel(artifact.payload, item.item_key)}
                   </strong>
                   <span
                     className={`rounded-lg px-2 py-1 text-xs ${statusClass(item.status)}`}
@@ -371,11 +377,10 @@ export function ActionResults({
                     Recorded {date(item.finished_at)}
                   </p>
                 )}
-                {providerId && (
-                  <p className="mt-2 break-all text-xs text-text-muted">
-                    Saved reference: {providerId}
-                  </p>
-                )}
+                {providerId && <details className="mt-2 text-xs text-text-muted">
+                  <summary className="cursor-pointer">Saved reference</summary>
+                  <p className="mt-2 break-all">{providerId}</p>
+                </details>}
                 {resultUrl && (
                   <a
                     href={resultUrl}
@@ -415,7 +420,7 @@ export function PaymentReviews({
   focusedCaseId,
 }: {
   cases: PaymentCase[];
-  remindersEnabled: boolean;
+  remindersEnabled: boolean | null;
   focusedCaseId?: string | null;
 }) {
   const [showSettled, setShowSettled] = useState(false);
@@ -451,13 +456,16 @@ export function PaymentReviews({
           {showSettled ? "Show open cases" : "Include settled cases"}
         </button>
       </div>
-      {!remindersEnabled && (
+      {remindersEnabled === false && (
         <p className="mt-4 rounded-xl bg-accent/5 p-3 text-sm text-text-secondary">
           Automatic reminders are off. Planned dates below explain the agreed
           timing; they are not scheduled sends. This page does not send
           messages.
         </p>
       )}
+      {remindersEnabled === null && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-text-secondary">
+        Reminder settings have not been confirmed. Refresh this page before relying on the planned dates. This page does not send messages.
+      </p>}
       {!visible.length ? (
         <p className="v2-surface mt-4 p-6 text-sm text-text-muted">
           No {showSettled ? "payment cases" : "open payment cases"} are recorded
@@ -508,7 +516,7 @@ function PaymentReviewCard({
 }: {
   payment: PaymentCase;
   focused: boolean;
-  remindersEnabled: boolean;
+  remindersEnabled: boolean | null;
 }) {
   const [expanded, setExpanded] = useState(focused);
   const [detail, setDetail] = useState<PaymentDetail | null>(null);
@@ -605,7 +613,9 @@ function PaymentReviewCard({
               {date(plan.planned_at)} London time
             </p>
             <p className="mt-1 text-xs text-text-secondary">
-              {!remindersEnabled
+              {remindersEnabled === null
+                ? "Reminder settings have not been confirmed."
+                : !remindersEnabled
                 ? "Sending is off — no reminder is queued here."
                 : "Planned timing only — this is not confirmation that a send is scheduled."}
               {plan.overdue

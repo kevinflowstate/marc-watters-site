@@ -143,6 +143,16 @@ describe("Ops onboarding does not strand account activation", () => {
     expect(f.prepare).not.toHaveBeenCalled();
     expect(f.invite).not.toHaveBeenCalled();
   });
+  it("reports retryable persistence failure while access and delivery remain paused", async () => {
+    vi.stubEnv("FLOWSTATE_PORTAL_SEND_ENABLED", "false");
+    f.pending.mockRejectedValueOnce(new Error("Synthetic persistence failure"));
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Access review could not be saved; retry intake" });
+    expect(f.createUser).not.toHaveBeenCalled();
+    expect(f.invite).not.toHaveBeenCalled();
+    expect(f.welcome).not.toHaveBeenCalled();
+  });
   it("rejects malformed or wrongly typed intake without attempting a database write", async () => {
     for (const payload of ["{", "[]", "null", '{"name":123,"email":456}']) {
       const req = new Request(request(), { body: payload });

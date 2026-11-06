@@ -72,7 +72,7 @@ describe("connection and action status a person can rely on", () => {
     if (status.ghl.connected) status.ghl.accounts.forEach((a) => { a.available = false; });
     expect(contentNextSteps(status)).toContain("Reconnect a social account in the CRM.");
     const html = renderToStaticMarkup(createElement(ConnectionDetails, { status }));
-    expect(html).toContain("must verify the WhatsApp templates");
+    expect(html).toContain("test the complete path from a failed payment");
     expect(html).toContain("full video download, edit and review needs its own test");
   });
   it("gives a session-specific recovery step and invalidates an old successful check", () => {

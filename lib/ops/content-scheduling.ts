@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createApprovedContentDelivery, signedDeliveryConfigured, type ApprovedDeliveryContext } from "./content-signed-delivery";
 import {
   CBB_LOCATION_ID,
   CBB_LOCATION_NAME,
@@ -21,6 +22,8 @@ export type ContentScheduleResult = {
   receipt?: Record<string, unknown>;
 };
 export type ContentScheduleOptions = {
+  approvedDelivery?: ApprovedDeliveryContext;
+  signedDelivery?: typeof createApprovedContentDelivery;
   /** These are server settings, never values copied from a request body. */
   dryRun?: boolean;
   enabled?: boolean;
@@ -184,14 +187,15 @@ export async function verifyContentPostDelivery(
       409,
     );
   const allowed = mediaHosts(options);
-  if (!allowed.size)
+  const signedMode = Boolean(options.approvedDelivery) || signedDeliveryConfigured();
+  if (!signedMode && !allowed.size)
     throw new ContentPackError(
       "Public image hosting has not been set up for scheduling",
       409,
     );
   const request = options.fetch ?? fetch;
   const path = `/social-media-posting/${CBB_LOCATION_ID}/posts`;
-  for (const media of post.media) {
+  for (const media of signedMode ? [] : post.media) {
     const url = contentMediaUrl(media.url);
     if (
       !allowed.has(url.hostname.toLowerCase()) ||
@@ -216,7 +220,9 @@ export async function verifyContentPostDelivery(
       "Selected social account is unavailable, expired or belongs to another destination",
     );
   const verifiedMedia = [];
-  for (const media of post.media) {
+  const delivery = signedMode ? await (options.signedDelivery ?? createApprovedContentDelivery)(pack, postId, options.approvedDelivery, { now: options.now }) : null;
+  const deliveryMedia = delivery?.media ?? post.media;
+  for (const media of deliveryMedia) {
     // No provider token, cookies or auth headers go to a media origin. Redirects are refused.
     let r: Response;
     try {
@@ -272,10 +278,11 @@ export async function verifyContentPostDelivery(
       typeof account.name === "string" ? account.name : post.platform,
     checked_at: (options.now ?? new Date()).toISOString(),
     media: verifiedMedia,
+    ...(delivery ? { delivery_expires_at: delivery.expires_at, delivery_policy: delivery.policy } : {}),
     planned: {
       method: "POST" as const,
       path,
-      body: contentPostPayload(post, userId),
+      body: contentPostPayload({ ...post, media: deliveryMedia }, userId),
     },
   };
 }
@@ -327,8 +334,9 @@ export async function executeContentPost(
     "Content-Type": "application/json",
   };
   const path = `/social-media-posting/${CBB_LOCATION_ID}/posts`;
+  let checked;
   try {
-    await verifyContentPostDelivery(pack, postId, options);
+    checked = await verifyContentPostDelivery(pack, postId, options);
   } catch (e) {
     return {
       outcome: "failed",
@@ -346,7 +354,7 @@ export async function executeContentPost(
       headers,
       redirect: "error",
       cache: "no-store",
-      body: JSON.stringify(contentPostPayload(post, userId)),
+      body: JSON.stringify(checked.planned.body),
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok)
@@ -399,7 +407,7 @@ export async function executeContentPost(
       saved.media.length !== post.media.length ||
       saved.media.some(
         (m: { url?: unknown; type?: unknown }, i: number) =>
-          m.url !== post.media[i].url || m.type !== post.media[i].mime_type,
+          m.url !== checked.planned.body.media[i].url || m.type !== post.media[i].mime_type,
       )
     )
       throw new ContentPackError(
@@ -417,6 +425,7 @@ export async function executeContentPost(
         requested_at: post.schedule_at,
         verified_at: new Date().toISOString(),
         manifest_hash: contentPackHash(pack),
+        ...(checked.delivery_expires_at ? { delivery_expires_at: checked.delivery_expires_at } : {}),
       },
     };
   } catch {

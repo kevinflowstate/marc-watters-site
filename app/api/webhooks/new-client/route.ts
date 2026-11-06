@@ -73,7 +73,11 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     if (sendingEnabled) await startOnboarding(profile.id);
-    else await prepareOnboardingChecklist(profile.id);
+    else {
+      try { await prepareOnboardingChecklist(profile.id); } catch {
+        return NextResponse.json({ error: "Internal onboarding checklist could not be saved; retry intake" }, { status: 503 });
+      }
+    }
     return NextResponse.json({
       success: true,
       message: "Client already exists",
@@ -83,7 +87,10 @@ export async function POST(request: Request) {
   }
 
   if (!sendingEnabled) {
-    const review = await preparePendingAdmission(name, email);
+    let review;
+    try { review = await preparePendingAdmission(name, email); } catch {
+      return NextResponse.json({ error: "Access review could not be saved; retry intake" }, { status: 503 });
+    }
     return NextResponse.json({ success: true, taskId: review.id, emailSent: false,
       delivery_status: "paused", admission_status: "needs_human_review",
       message: "Access review saved. No account, invitation or welcome message was created." });

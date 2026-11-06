@@ -11,6 +11,7 @@ import {
   date,
   text,
   statusClass,
+  contentPostLabel,
 } from "@/components/admin/AutomationReviewPanels";
 import type {
   ArtifactDecision,
@@ -20,9 +21,9 @@ import type {
 import type { PaymentCase } from "@/lib/ops/payment-policy";
 
 type Controls = {
-  content_scheduling: boolean;
-  lesson_publication: boolean;
-  payment_reminders: boolean;
+  content_scheduling: boolean | null;
+  lesson_publication: boolean | null;
+  payment_reminders: boolean | null;
 };
 type Summary = {
   artifacts: OpsArtifact[];
@@ -63,9 +64,9 @@ class PreparedWorkError extends Error {
   }
 }
 const emptyControls: Controls = {
-  content_scheduling: false,
-  lesson_publication: false,
-  payment_reminders: false,
+  content_scheduling: null,
+  lesson_publication: null,
+  payment_reminders: null,
 };
 const statuses: Record<OpsArtifact["status"], string> = {
   draft: "Needs review",
@@ -167,9 +168,14 @@ export default function AutomationPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setSummary((previous) => ({ ...previous, controls: emptyControls }));
     try {
       const result = await request<Summary>("/api/admin/ops/automation");
-      setSummary(result);
+      setSummary({ ...result, controls: {
+        content_scheduling: typeof result.controls?.content_scheduling === "boolean" ? result.controls.content_scheduling : null,
+        lesson_publication: typeof result.controls?.lesson_publication === "boolean" ? result.controls.lesson_publication : null,
+        payment_reminders: typeof result.controls?.payment_reminders === "boolean" ? result.controls.payment_reminders : null,
+      } });
       if (!openedLink.current) {
         openedLink.current = true;
         const id = new URLSearchParams(window.location.search).get("artifact");
@@ -391,10 +397,11 @@ export default function AutomationPage() {
   }
 
   const current = detail?.artifact ?? selected;
-  const actionEnabled =
+  const actionSetting =
     current?.kind === "content"
       ? summary.controls.content_scheduling
       : summary.controls.lesson_publication;
+  const actionEnabled = actionSetting === true;
   const validationError = text(detail?.preview?.validation_error);
   const canContinue =
     current?.kind === "content" &&
@@ -406,6 +413,7 @@ export default function AutomationPage() {
   const filters = [
     "All prepared work",
     "Needs review",
+    "Changes requested",
     "Approved",
     "Needs checking",
     "Completed",
@@ -414,6 +422,7 @@ export default function AutomationPage() {
     (artifact) =>
       filter === "All prepared work" ||
       (filter === "Needs review" && artifact.status === "draft") ||
+      (filter === "Changes requested" && artifact.status === "rejected") ||
       (filter === "Approved" && artifact.status === "approved") ||
       (filter === "Needs checking" && artifact.status === "needs_attention") ||
       (filter === "Completed" && artifact.status === "completed"),
@@ -468,8 +477,8 @@ export default function AutomationPage() {
         />
       </div>
       {!loading &&
-        !summary.controls.content_scheduling &&
-        !summary.controls.lesson_publication && (
+        summary.controls.content_scheduling === false &&
+        summary.controls.lesson_publication === false && (
           <p className="v2-surface mb-6 p-4 text-sm text-text-secondary">
             Scheduling and lesson publication are not enabled here yet. You can
             review prepared work and save decisions. Nothing is sent or
@@ -709,10 +718,10 @@ export default function AutomationPage() {
                             <p className="mt-2 text-xs text-text-muted">Checked {date(schedulingSetup.checked_at)}. These checks cover pending posts only.</p>
                           </div>
                           <ol className="space-y-3" aria-label="Post setup checks">
-                            {schedulingSetup.checks.map((check, index) => (
+                            {schedulingSetup.checks.map((check) => (
                               <li key={check.post_id} className="rounded-lg border border-current/10 p-3 text-sm">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <h4 className="font-semibold">Post {index + 1} · {check.platform.charAt(0).toUpperCase() + check.platform.slice(1)}</h4>
+                                  <h4 className="font-semibold">{contentPostLabel(current.payload, check.post_id)} · {check.platform.charAt(0).toUpperCase() + check.platform.slice(1)}</h4>
                                   <span className="text-xs font-semibold text-text-secondary">
                                     {check.status === "ready" ? "Setup ready"
                                       : check.status === "already_scheduled" ? "Already scheduled"
@@ -861,18 +870,20 @@ export default function AutomationPage() {
                   {current.status === "approved" && (
                     <div className="mt-5 border-t border-current/10 pt-5">
                       <h3 className="font-heading font-bold">
-                        Ready for the next action
+                        Approval saved
                       </h3>
                       <p className="mt-2 text-sm text-text-secondary">
                         {current.kind === "content"
-                          ? "Schedule the approved posts for the dates shown. Each post gets its own result."
+                          ? "The posts have been approved. Scheduling is a separate step, and each post will have its own saved result."
                           : text(current.payload.mode) === "draft"
                             ? "Add the approved lesson as a draft in Training. It will remain unpublished."
                             : "Add the approved lesson and publish its dedicated Training module."}
                       </p>
                       {!actionEnabled && (
                         <p className="mt-3 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-600">
-                          {current.kind === "content"
+                          {actionSetting === null
+                            ? "The action settings could not be confirmed. Refresh this page before continuing. Your approval remains saved."
+                            : current.kind === "content"
                             ? "Scheduling is not enabled here yet. Your approval is saved; no posts have been scheduled."
                             : "Lesson publication is not enabled here yet. Your approval is saved; the lesson has not been added by this action."}
                         </p>

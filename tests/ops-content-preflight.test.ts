@@ -272,3 +272,15 @@ describe("read-only content readiness", () => {
     },
   );
 });
+
+it("does not return bearer download URLs in visible readiness plans",async()=>{
+ const f=fixture();
+ f.artifact.status="approved";f.artifact.approved_by="admin";f.artifact.approved_at=now.toISOString();
+ const normal=await verifier()();
+ normal.planned.body.media=[{url:"https://private.example.com/image?token=SECRET",type:"image/png"}];
+ const verify=vi.fn(async()=>({...normal,delivery_expires_at:"2030-01-13T09:00:00Z",delivery_policy:"Operator policy"}));
+ const result=await contentArtifactReadiness(f.artifact,f.items,{now,enabled:false,verify});
+ expect(JSON.stringify(result)).not.toContain("SECRET");
+ expect(JSON.stringify(result)).toContain("temporary approved-image download");
+ expect(verify.mock.calls).toHaveLength(1);
+});

@@ -13,10 +13,10 @@ describe("internal onboarding preparation with sending off", () => {
   beforeEach(() => {
     vi.clearAllMocks(); h.tasks.clear();
     h.profile.onboarding_stage = "none"; h.profile.archived_at = null;
-    // Stateful persistence boundary: the real task helper validates and sends the
-    // RPC, while this test sink preserves stable records across separate intakes.
+    // Dedicated create-once contract. The generic task create RPC updates existing
+    // title/detail/payload; it must not be used for onboarding intake retries.
     h.rpc.mockImplementation(async (name: string, args: { p_data: Record<string, unknown> }) => {
-      if (name !== "ops_mutate_task") throw Error("No onboarding stage transition permitted");
+      if (name !== "ops_create_onboarding_task") throw Error("Only dedicated create-once preparation permitted");
       const data = args.p_data, ref = String(data.external_ref);
       if (!h.tasks.has(ref)) h.tasks.set(ref, { ...data, id: `task-${h.tasks.size}`, status: "open" });
       return { data: h.tasks.get(ref), error: null };
@@ -36,7 +36,7 @@ describe("internal onboarding preparation with sending off", () => {
     expect([...h.tasks.values()].map((t) => t.id)).toEqual(originalIds);
     expect(h.tasks.get(ref)).toMatchObject({ status: "done", detail: "Eimear checked the agreed offer" });
     expect(h.profile.onboarding_stage).toBe("none");
-    expect(h.rpc.mock.calls.every(([name]) => name === "ops_mutate_task")).toBe(true);
+    expect(h.rpc.mock.calls.every(([name]) => name === "ops_create_onboarding_task")).toBe(true);
   });
   it("does not create more work for completed or archived clients", async () => {
     h.profile.onboarding_stage = "complete";
@@ -51,6 +51,10 @@ describe("internal onboarding preparation with sending off", () => {
     await preparePendingAdmission("Synthetic Client", " FIXTURE@example.invalid ");
     expect(h.tasks.size).toBe(1);
     expect([...h.tasks.values()][0]).toMatchObject({ client_id: null, assignee: "eimear", payload: { admission: "needs_human_review" } });
-    expect(h.rpc.mock.calls.every(([name]) => name === "ops_mutate_task")).toBe(true);
+    expect(h.rpc.mock.calls.every(([name]) => name === "ops_create_onboarding_task")).toBe(true);
+  });
+  it("fails closed when create-once persistence is unavailable", async () => {
+    h.rpc.mockResolvedValueOnce({ data: null, error: { message: "Missing migration" } });
+    await expect(preparePendingAdmission("Synthetic", "fixture@example.invalid")).rejects.toThrow("retry intake");
   });
 });

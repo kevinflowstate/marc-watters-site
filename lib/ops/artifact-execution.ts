@@ -21,6 +21,7 @@ import {
 import { OpsError, record } from "./tasks";
 import { ContentPackError, validateContentPack } from "./content-pack";
 import { executeContentPost } from "./content-scheduling";
+import { signedDeliveryConfigured } from "./content-signed-delivery";
 import { contentArtifactReadiness } from "./content-preflight";
 import {
   validateLessonPublicationManifest,
@@ -35,7 +36,7 @@ export function automationControls() {
       getEnv("OPS_CONTENT_SCHEDULING_ENABLED") === "true" &&
       Boolean(getEnv("CBB_GHL_PIT_TOKEN")) &&
       Boolean(getEnv("CBB_GHL_USER_ID")) &&
-      Boolean(getEnv("OPS_CONTENT_MEDIA_HOSTS")),
+      (Boolean(getEnv("OPS_CONTENT_MEDIA_HOSTS")) || signedDeliveryConfigured()),
     lesson_publication: getEnv("OPS_LESSON_PUBLICATION_ENABLED") === "true",
     payment_reminders: getEnv("OPS_PAYMENT_REMINDERS_ENABLED") === "true",
   };
@@ -417,6 +418,7 @@ export async function executePreparedArtifact(
     try {
       outcome = await d.contentExecute(validated.manifest, candidate.item_key, {
         dryRun: false,
+        approvedDelivery: { artifact_id: id },
       });
     } catch {
       outcome = {

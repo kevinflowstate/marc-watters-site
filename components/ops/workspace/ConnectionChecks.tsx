@@ -68,7 +68,7 @@ export function ConnectionDetails({ status }: { status: ConnectionStatus }) {
       <section className="ws-connection-card mt-4">
         <h3 className="ws-detail-heading">Checks still handled separately</h3>
         <dl className="space-y-4 text-sm leading-relaxed text-text-secondary">
-          <div><dt className="font-bold text-text-primary">Payment reminders</dt><dd>Flowstate must verify the WhatsApp templates, both payment accounts and the reminder delivery test. A CRM connection alone does not prove those work.</dd></div>
+          <div><dt className="font-bold text-text-primary">Payment reminders</dt><dd>Flowstate still needs to test the complete path from a failed payment to the correct reminder and Eimear’s follow-up. This connection check cannot confirm that a reminder was sent.</dd></div>
           <div><dt className="font-bold text-text-primary">Lesson videos</dt><dd>Marc’s Codex handles the Fathom connection. The full video download, edit and review needs its own test. This page cannot verify his Fathom access.</dd></div>
           <div><dt className="font-bold text-text-primary">Scheduled Codex jobs</dt><dd>Managed in Marc’s Codex and intended to remain paused during setup. This portal cannot verify or change their schedules.</dd></div>
         </dl>

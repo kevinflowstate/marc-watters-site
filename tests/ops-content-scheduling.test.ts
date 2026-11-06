@@ -362,3 +362,45 @@ describe("single-post GHL scheduling", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("signed private transport scheduling adapter", () => {
+  it("uses checked temporary URLs only in create/readback while preserving the approved pack", async () => {
+    const pack = fixture(), unchanged = structuredClone(pack);
+    const signedUrl = "https://project.supabase.co/storage/v1/object/sign/ops-content-media/fixture.png?token=private";
+    let sent: Record<string, unknown> | undefined;
+    const base = provider();
+    const request: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (url === signedUrl) return new Response(png, { headers: {"content-type":"image/png"} });
+      if (init?.method === "POST") {
+        sent = JSON.parse(String(init.body));
+        return Response.json({results:{post:{_id:"created-1"}}});
+      }
+      if (url.endsWith("/posts/created-1")) return Response.json({results:{post:{...sent,_id:"created-1",locationId:CBB_LOCATION_ID}}});
+      return base(input, init);
+    };
+    const signedDelivery = vi.fn(async () => ({media:[{...pack.posts[0].media[0],mime_type:"image/png" as const,url:signedUrl}],expires_at:"2030-01-13T09:00:00Z",policy:"Operator policy"}));
+    const r=await executeContentPost(pack,"post-1",{now,dryRun:false,enabled:true,token:"fixture-token",userId,approvedDelivery:{artifact_id:"11111111-1111-4111-8111-111111111111"},signedDelivery,fetch:request});
+    expect(r.outcome).toBe("scheduled");
+    expect((sent?.media as {url:string}[])[0].url).toBe(signedUrl);
+    expect(r.receipt).not.toHaveProperty("url");
+    expect(JSON.stringify(r.receipt)).not.toContain("token=private");
+    expect(pack).toEqual(unchanged);
+  });
+  it("does not fall back to protected source URLs when approved delivery fails",async()=>{
+    const request=provider();
+    const r=await executeContentPost(fixture(),"post-1",{now,dryRun:false,enabled:true,token:"fixture-token",userId,approvedDelivery:{artifact_id:"11111111-1111-4111-8111-111111111111"},signedDelivery:async()=>{throw new Error("missing approval")},fetch:request});
+    expect(r.outcome).toBe("failed");
+    expect(request.mock.calls.some(([,init])=>init?.method==="POST")).toBe(false);
+    expect(request.mock.calls.some(([url])=>String(url).startsWith("https://assets.example.com"))).toBe(false);
+  });
+});
+
+it("keeps a signed-transport create timeout uncertain and never retries the create", async()=>{
+ const pack=fixture(),signedUrl="https://project.supabase.co/storage/v1/object/sign/ops-content-media/fixture.png?token=private";
+ const base=provider({postThrow:true});
+ const request=vi.fn(async(input: string | URL | Request,init?: RequestInit)=>String(input)===signedUrl?new Response(png,{headers:{"content-type":"image/png"}}):base(input,init));
+ const r=await executeContentPost(pack,"post-1",{now,dryRun:false,enabled:true,token:"fixture-token",userId,approvedDelivery:{artifact_id:"11111111-1111-4111-8111-111111111111"},signedDelivery:async()=>({media:[{...pack.posts[0].media[0],mime_type:"image/png" as const,url:signedUrl}],expires_at:"2030-01-13T09:00:00Z",policy:"Operator policy"}),fetch:request});
+ expect(r.outcome).toBe("uncertain");expect(request.mock.calls.filter(([,init])=>init?.method==="POST")).toHaveLength(1);
+ expect(JSON.stringify(r)).not.toContain("token=private");
+});

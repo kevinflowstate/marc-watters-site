@@ -128,11 +128,17 @@ export async function contentArtifactReadiness(
     try {
       const checked = await verify(pack, post.post_id, {
         ...options,
+        approvedDelivery: { artifact_id: artifact.id },
         fetch: readOnlyFetch,
       });
       checks.push({
         ...base,
         ...checked,
+        // Bearer URLs are transport credentials, not information for a status card.
+        planned: checked.delivery_expires_at ? {
+          ...checked.planned,
+          body: { ...checked.planned.body, media: checked.planned.body.media.map(m => ({ ...m, url: "[temporary approved-image download]" })) },
+        } : checked.planned,
         status: blockers.length ? "blocked" : "ready",
         connection_ready: true,
         summary: blockers.length

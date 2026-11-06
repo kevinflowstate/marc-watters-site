@@ -1178,6 +1178,9 @@ function TaskDetail({
         </div>
       )}
       <ReportText className="mt-6" text={task.detail || "No additional instructions."} />
+      {task.kind !== "approval" && !isClosed(task) && <p className="ws-caption mt-4">
+        Mark done when you have finished this task. The button records completion; it does not send a message, grant client access or carry out the task for you.
+      </p>}
       {task.kind === "approval" && (
         <div className="ws-notice is-info mt-5">
           <Icon name="lock" size={16} className="mt-0.5 flex-none" />
@@ -1235,6 +1238,8 @@ function TaskDetail({
           <textarea
             className="ws-input"
             value={note}
+            disabled={busy}
+            maxLength={5000}
             placeholder={
               deciding
                 ? "Optional to approve. Say what should change if not."

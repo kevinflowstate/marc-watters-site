@@ -81,3 +81,24 @@ Storage paths bind artifact ID, the complete immutable manifest hash and image h
 A delivery URL change produces a new pack version requiring fresh approval, even when the image bytes are unchanged. That new artifact’s images must be staged against its new identity as well. Slide order, caption, account and intended time remain exact. The generic artifact layer already enforces new decisions and execution claims. Scheduling stays off.
 
 **Remaining public boundary:** root must review/provision an operator-controlled immutable public store and implement/enable the approval-bound copy into that store before social platforms can retrieve real images. `OPS_CONTENT_DELIVERY_ORIGIN` only prepares a proposal; setting it is not proof of public delivery. No unapproved real artwork was made public. Public media hosting, actual provider scheduling and publication are not established by the staging tests.
+
+## Approval-bound temporary delivery from private storage
+
+The content runner can now use the existing private `ops-content-media` bucket for approved images without creating public objects. [Supabase’s documented createSignedUrl API](https://supabase.com/docs/reference/javascript/storage-from-createsignedurl) supplies path-specific, time-limited download links. [HighLevel’s create-post API](https://marketplace.gohighlevel.com/docs/ghl/social-planner/create-post/) takes media URLs. Its documentation does not establish exactly when every platform fetches those URLs: the time policy below is an **operator configuration**, not verified provider ingestion timing.
+
+The scheduling runner passes `approvedDelivery: {artifact_id}` as trusted server context. `createApprovedContentDelivery` independently reads the saved artifact, requires its exact content/version/caption/media payload and saved approval, verifies the private originals against that artifact’s hash, and rechecks the approval before and after signing. Draft/rejected/superseded work gets no link. Absent approval, policy, original or eligible date produces a named blocker; no fallback to the older protected preview URLs occurs.
+
+Required server configuration, with no defaults:
+
+- `OPS_CONTENT_SIGNED_DELIVERY_TTL_SECONDS`: integer120..604800, a deliberately bounded operational lifetime.
+- `OPS_CONTENT_SIGNED_DELIVERY_AFTER_SCHEDULE_SECONDS`: integer60..<TTL, the operator’s required remaining access after the planned post time.
+
+A post is eligible only when its schedule plus configured retention fits the URL lifetime with a60second preparation allowance. The returned token’s expiry is checked independently. Out-of-horizon posts must be prepared closer to their dates or the separately reviewed delivery policy changed; the code never assumes the provider has already copied the image. Scheduling still requires its existing enabled flag, approval, one-use item claim and provider-account checks. Configuring delivery does not enable scheduling.
+
+The signed URL must point to the exact current Supabase origin, private bucket and artifact/manifest/image-hash path, with only its token query. No arbitrary signed host, transform, download option or redirect is accepted. The normal anonymous media fetch then independently verifies actual MIME/signature/bytes/SHA256 without CRM credentials. This proves fetchability before a create request.
+
+The immutable approval payload retains the original source identity and exact image hashes. Temporary URLs are transport material only: the provider create body uses them, and provider readback must match those exact submitted URLs. Saved receipts retain the original manifest hash and expiry, never the bearer token. Visible readiness plans redact temporary URLs. A changed image/caption/account/date still requires a new artifact and approval. Unknown/partial provider outcomes retain the existing reconciliation/no-duplicate rules.
+
+No public bucket, new credential, new external sender or database migration is required. The existing private Storage access and staged originals are reused. Issued links are bearer capabilities until expiry; removing an approval prevents new links, but does not individually revoke a link already issued. Keep their lifetimes deliberate and do not place them in public notes or logs. Incomplete batches may have minted a small number of short-lived grants before failure; those are not social posts and are not returned as a successful pack.
+
+Validation uses synthetic media and provider mocks. Actual signed Storage anonymous-download proof is a separate root acceptance step using only an owned non-sensitive fixture. Actual GHL/platform ingestion, scheduling and publication remain untested until a separately authorised controlled post is allowed. The existing real carousel remains draft and unapproved.
