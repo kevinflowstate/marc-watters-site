@@ -207,7 +207,7 @@ function dependencies(): LessonPublicationDeps {
     readMedia: (url) =>
       fetch(url, {
         redirect: "error",
-        signal: AbortSignal.timeout(90000),
+        signal: AbortSignal.timeout(270000),
         cache: "no-store",
       }),
     saveVerification: (input, actorId) =>
@@ -272,7 +272,7 @@ function dependencies(): LessonPublicationDeps {
   };
 }
 
-/** Must be exposed only through a verified admin route/worker. Streams at most 256 MiB. */
+/** Must be exposed only through a verified admin route/worker. Streams at most 4 GiB. */
 export async function verifyStoredLessonMedia(
   input: unknown,
   actorId: string,
@@ -295,7 +295,7 @@ export async function verifyStoredLessonMedia(
     throw new OpsError("The stored video has no valid file size; upload a complete private MP4", 409);
   if (before.bytes > MAX_LESSON_VERIFY_BYTES)
     throw new OpsError(
-      "Files above 256 MiB need a larger-file handoff or an agreed smaller export; the private copy can still be reviewed",
+      "Files above 4 GiB need a larger-file handoff or an agreed smaller export; the private copy can still be reviewed",
       413,
     );
   const inspected = await inspectLessonMp4(
@@ -435,4 +435,15 @@ export async function publishLessonArtifact(
   };
   // SQL checks current media and module atomically and returns the saved receipt on replay.
   return deps.publish(manifest, claim);
+}
+
+export async function getLesson(id: string) {
+  const r = await createAdminClient()
+    .from("lesson_recordings")
+    .select("*")
+    .eq("id", uuid(id))
+    .maybeSingle();
+  if (r.error) throw new OpsError(r.error.message, 503);
+  if (!r.data) throw new OpsError("Recording not found", 404);
+  return r.data;
 }

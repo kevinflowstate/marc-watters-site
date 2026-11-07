@@ -5,7 +5,6 @@ export const actionLabels = {
   report_sending: "Send business reports",
   notifications: "Send notifications",
   portal_sending: "Send portal messages",
-  legacy_lesson_pipeline: "Process lessons through the earlier workflow",
 } as const;
 
 export type PortalActionSwitches = Record<keyof typeof actionLabels, boolean>;

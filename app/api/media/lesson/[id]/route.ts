@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAccessibleModuleIds } from "@/lib/portal-training-access";
-import { getLesson } from "@/lib/ops/lessons";
+
 import { OpsError } from "@/lib/ops/tasks";
-import { assertPublishedLessonMediaCurrent } from "@/lib/ops/lesson-publication";
+import { assertPublishedLessonMediaCurrent, getLesson } from "@/lib/ops/lesson-publication";
 export async function GET(
   _request: Request,
   c: { params: Promise<{ id: string }> },

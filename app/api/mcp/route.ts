@@ -23,7 +23,6 @@ import {
 } from "@/lib/ops/tasks";
 import { areas, assignees, statuses } from "@/lib/ops/types";
 import { getClient, listClientsNeedingAttention } from "@/lib/ops/clients";
-import { getLesson, listLessons, proposeCuts } from "@/lib/ops/lessons";
 import {
   createReportDraft,
   getReport,
@@ -227,55 +226,6 @@ function makeHandler(access: OpsAccess) {
             inputSchema: z.object({}),
           },
           () => run(() => listClientsNeedingAttention()),
-        );
-      if (access.kind === "legacy")
-        server.registerTool(
-          "get_lesson",
-          {
-            description:
-              "Read a recording, transcript and proposed editing cuts.",
-            inputSchema: z.object({ id }),
-          },
-          (a) => run(() => getLesson(a.id)),
-        );
-      if (access.kind === "legacy")
-        server.registerTool(
-          "list_lessons",
-          {
-            description: "See lesson recordings and their preparation status.",
-            inputSchema: z.object({}),
-          },
-          () => run(() => listLessons()),
-        );
-      if (access.kind === "legacy")
-        server.registerTool(
-          "propose_lesson_cuts",
-          {
-            description:
-              "Legacy portal cut review only; requires OPS_LEGACY_LESSON_PIPELINE_ENABLED. Save supplied cuts without a model or render. In the standard workflow, review edits in Codex/Drive and attach the preview to a workspace task.",
-            inputSchema: z.object({
-              id,
-              cuts: z
-                .array(
-                  z.object({
-                    start_s: z.number(),
-                    end_s: z.number(),
-                    reason: z.enum([
-                      "housekeeping",
-                      "dead_air",
-                      "admin",
-                      "off_topic",
-                      "tech_issue",
-                    ]),
-                    confidence: z.number().min(0).max(1),
-                    snippet: z.string(),
-                    keep: z.boolean(),
-                  }),
-                )
-                .max(500),
-            }),
-          },
-          (a) => run(() => proposeCuts(a.id, a.cuts)),
         );
       if (hasOpsScope(access, "reports:write"))
         server.registerTool(

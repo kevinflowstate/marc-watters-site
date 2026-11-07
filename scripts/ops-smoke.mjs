@@ -60,22 +60,14 @@ await call("/api/ops/tasks/" + task.id, "POST", {
   decision: "approved",
   note: "Smoke check",
 });
-const clientId = process.env.OPS_SMOKE_CLIENT_ID,
-  lessonId = process.env.OPS_SMOKE_LESSON_ID,
-  jobId = process.env.OPS_SMOKE_JOB_ID;
+const clientId = process.env.OPS_SMOKE_CLIENT_ID;
 const domain = process.env.OPS_SMOKE_DOMAIN === "true";
 if (domain) {
-  assert.ok(clientId && lessonId && jobId, "Fixture IDs required");
+  assert.ok(clientId, "Fixture ID required");
   await call("/api/ops/clients");
   await call("/api/ops/clients/" + clientId);
   await call("/api/ops/clients/" + clientId + "/onboarding", "POST", {
     stage: "invited",
-  });
-  await call("/api/ops/lessons");
-  await call("/api/ops/lessons/" + lessonId);
-  await call("/api/ops/render-jobs/" + jobId, "PATCH", {
-    status: "running",
-    progress: 10,
   });
   await call("/api/ops/reports");
   await call("/api/ops/reports", "POST", {});
@@ -121,9 +113,6 @@ try {
     },
     get_client: { id: clientId },
     list_clients_needing_attention: {},
-    get_lesson: { id: lessonId },
-    list_lessons: {},
-    propose_lesson_cuts: { id: lessonId, cuts: [] },
     create_report_draft: {},
     update_client_onboarding: { id: clientId, stage: "invited" },
   };
@@ -154,8 +143,6 @@ try {
       arguments: args[tool.name],
     });
     const guarded =
-      (tool.name === "propose_lesson_cuts" &&
-        process.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED !== "true") ||
       (tool.name === "submit_report_draft" &&
         (reportForMcp.status !== "draft" ||
           reportForMcp.send_claim_id ||

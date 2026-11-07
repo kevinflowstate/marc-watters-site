@@ -35,8 +35,7 @@ describe("connection and action status a person can rely on", () => {
     vi.stubEnv("CBB_GHL_USER_ID", "");
     vi.stubEnv("OPS_CONTENT_MEDIA_HOSTS", "");
     vi.stubEnv("FLOWSTATE_PORTAL_SEND_ENABLED", "true");
-    vi.stubEnv("OPS_LEGACY_LESSON_PIPELINE_ENABLED", "true");
-    expect(portalActionSwitches()).toMatchObject({ content_scheduling: true, portal_sending: true, legacy_lesson_pipeline: true });
+    expect(portalActionSwitches()).toMatchObject({ content_scheduling: true, portal_sending: true });
     expect(sendingState(portalActionSwitches())).toBe("enabled");
   });
   it("shows real account names, reconnect status and file-only scope without raw IDs", () => {

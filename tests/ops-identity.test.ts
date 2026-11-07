@@ -19,7 +19,7 @@ describe("scoped destination proof", () => {
     expect(r.headers.get("Cache-Control")).toBe("no-store");
     const body = await r.json();
     expect(body.identity).toEqual({ application: "cbb-ops", environment: "isolated_preview", database_ref: "abmmlybdqwzujcysagvf", revision: "a".repeat(40) });
-    expect(Object.keys(body.controls)).toHaveLength(7);
+    expect(Object.keys(body.controls)).toHaveLength(6);
     expect(JSON.stringify(body)).not.toContain(token);
   });
   it("rejects anonymous and wrong-scope tokens without identity metadata", async () => {

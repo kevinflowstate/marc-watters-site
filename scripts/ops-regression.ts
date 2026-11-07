@@ -1,5 +1,4 @@
-// Legacy worker regression harness; opt-in only for this non-live test process.
-process.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED = "true";
+// Ops regression harness for non-live test processes.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "../lib/supabase/admin";
@@ -14,14 +13,6 @@ import {
   updateTask,
   attachOutput,
 } from "../lib/ops/tasks";
-import {
-  getLesson,
-  ingest,
-  lessonAction,
-  proposeCuts,
-  approveCuts,
-  draftLesson,
-} from "../lib/ops/lessons";
 import { createReportDraft, getReport, updateReport } from "../lib/ops/reports";
 import { reportPeriods } from "../lib/ops/report-data";
 assert.match(
@@ -33,10 +24,8 @@ assert.notEqual(process.env.OPS_NOTIFICATIONS_ENABLED, "true");
 const db = createAdminClient(),
   prefix = "reg-" + randomUUID(),
   checks: string[] = [],
-  lessonIds: string[] = [],
   reportIds: string[] = [],
-  taskIds: string[] = [],
-  moduleIds: string[] = [];
+  taskIds: string[] = [];
 const clientId = process.env.OPS_SMOKE_CLIENT_ID!;
 const adminAccount = await db
   .from("users")
@@ -53,19 +42,7 @@ const client = await db
 assert.equal(client.error, null);
 assert.ok(client.data);
 assert.equal(client.data.users.email, "cbb-ops-client@example.invalid");
-const original = client.data,
-  renderHost = process.env.RENDER_HOST_URL;
-process.env.RENDER_HOST_URL = "";
-const cuts = [
-  {
-    start_s: 0,
-    end_s: 15,
-    reason: "housekeeping",
-    confidence: 0.99,
-    snippet: "Synthetic opening",
-    keep: false,
-  },
-];
+const original = client.data;
 try {
   // Late reminder delivery must still count both unique reminders in the unpaid cycle.
   const epoch = Date.now(),
@@ -379,124 +356,6 @@ try {
   assert.ok(all.some((t) => t.id === open.id));
   assert.ok(all.length > 1000);
   checks.push("work queue includes open approval beyond 1,000 closed rows");
-  const source = await db
-    .from("lesson_recordings")
-    .select("source_storage_path")
-    .not("source_storage_path", "is", null)
-    .limit(1)
-    .single();
-  assert.equal(source.error, null);
-  assert.ok(source.data);
-  // Source renewal can run after proposing cuts, and old failures must stay retired.
-  const recovery = await db
-    .from("lesson_recordings")
-    .insert({
-      source: "fathom",
-      fathom_recording_id: "999999999",
-      title: prefix + " source recovery",
-      status: "cuts_proposed",
-      duration_s: 120,
-      transcript: [],
-      transcript_text: "Synthetic transcript",
-      cut_list: cuts,
-    })
-    .select()
-    .single();
-  assert.equal(recovery.error, null);
-  assert.ok(recovery.data);
-  lessonIds.push(recovery.data.id);
-  const old = await db
-    .from("render_jobs")
-    .insert({
-      recording_id: recovery.data.id,
-      job_type: "copy_source",
-      status: "failed",
-      cut_list: [],
-      payload: { download_id: "expired" },
-      created_at: new Date(Date.now() - 60000).toISOString(),
-    })
-    .select()
-    .single();
-  assert.equal(old.error, null);
-  assert.ok(old.data);
-  let downloads = 0;
-  await ingest(recovery.data.id, {
-    request: async () => {
-      downloads++;
-      return { download_id: "replacement", status: "processing" };
-    },
-  });
-  assert.equal(downloads, 1);
-  assert.equal((await getLesson(recovery.data.id)).status, "cuts_proposed");
-  await lessonAction(recovery.data.id, { action: "retry_worker" });
-  const retired = await db.rpc("ops_retry_render_job", { p_job: old.data.id });
-  assert.equal(retired.error, null);
-  assert.equal(retired.data.status, "failed");
-
-  const currentJob = await db
-    .from("render_jobs")
-    .select("id")
-    .eq("recording_id", recovery.data.id)
-    .eq("status", "queued")
-    .single();
-  assert.ok(currentJob.data);
-  await db
-    .from("render_jobs")
-    .update({ status: "running", progress: 45 })
-    .eq("id", currentJob.data.id);
-  await assert.rejects(
-    () => lessonAction(recovery.data.id, { action: "recover_worker" }),
-    /Confirm/,
-  );
-  await lessonAction(recovery.data.id, {
-    action: "recover_worker",
-    worker_stopped: true,
-  });
-  const recovered = await db
-    .from("render_jobs")
-    .select("status,progress")
-    .eq("id", currentJob.data.id)
-    .single();
-  assert.ok(recovered.data);
-  assert.equal(recovered.data.status, "queued");
-  assert.equal(recovered.data.progress, 0);
-  checks.push(
-    "interrupted running job only recovers with explicit stopped-worker confirmation",
-  );
-  checks.push("source renewal after cut proposal preserves editing state");
-  checks.push(
-    "superseded failed copy does not conflict with replacement retry",
-  );
-  // A late Codex proposal may not rewind a recording after approval.
-  const recording = await db
-    .from("lesson_recordings")
-    .insert({
-      source: "upload",
-      title: prefix + " stale proposal",
-      status: "cuts_proposed",
-      duration_s: 120,
-      transcript_text: "Synthetic housekeeping then teaching",
-      cut_list: cuts,
-      source_storage_path: source.data.source_storage_path,
-    })
-    .select()
-    .single();
-  assert.equal(recording.error, null);
-  assert.ok(recording.data);
-  lessonIds.push(recording.data.id);
-  await assert.rejects(
-    () =>
-      approveCuts(recording.data.id, {
-        cut_list: [{ ...cuts[0], end_s: 120 }],
-      }),
-    /playable/,
-  );
-  assert.equal((await getLesson(recording.data.id)).status, "cuts_proposed");
-  checks.push("all-content cut rejected before a job or approval state change");
-  await approveCuts(recording.data.id, { cut_list: cuts });
-  await assert.rejects(() => proposeCuts(recording.data.id, cuts), /not ready/);
-  assert.equal((await getLesson(recording.data.id)).status, "cuts_approved");
-  checks.push("stale AI proposal rejected after cut approval");
   // An incomplete Monday snapshot refreshes on Thursday without losing human writing.
   const monday = new Date("2099-01-05T12:00:00Z"),
     period = reportPeriods(monday),
@@ -640,134 +499,10 @@ try {
   checks.push(
     "historical refresh rejected without creating or returning another week",
   );
-  const modules = await db
-    .from("training_modules")
-    .insert([
-      { title: prefix + " draft", is_published: false },
-      { title: prefix + " published", is_published: true },
-    ])
-    .select();
-  assert.equal(modules.error, null);
-  assert.equal(modules.data?.length, 2);
-  const draftModule = modules.data!.find((m) => !m.is_published)!,
-    publishedModule = modules.data!.find((m) => m.is_published)!;
-  moduleIds.push(...modules.data!.map((m) => m.id));
-  const content = await db
-    .from("module_content")
-    .insert({
-      module_id: draftModule.id,
-      title: prefix,
-      content_type: "video",
-      order_index: 0,
-    })
-    .select()
-    .single();
-  assert.ok(content.data);
-  const moved = await db
-    .from("lesson_recordings")
-    .insert({
-      source: "upload",
-      title: prefix,
-      source_storage_path: source.data.source_storage_path,
-      transcript_text: "Synthetic transcript",
-      status: "lesson_drafted",
-      module_content_id: content.data.id,
-    })
-    .select()
-    .single();
-  assert.ok(moved.data);
-  lessonIds.push(moved.data.id);
-  const publishTask = await createTask(
-    {
-      kind: "task",
-      area: "lessons",
-      title: prefix,
-      external_ref: `lesson-publish:${moved.data.id}`,
-    },
-    "regression",
-  );
-  taskIds.push(publishTask.id);
-  assert.equal(
-    (
-      await db
-        .from("module_content")
-        .update({ module_id: publishedModule.id })
-        .eq("id", content.data.id)
-    ).error,
-    null,
-  );
-  assert.equal((await getLesson(moved.data.id)).status, "published");
-  await draftLesson(moved.data.id, draftModule.id);
-  const replayedPublication = await db
-    .from("ops_tasks")
-    .select("status,links")
-    .eq("id", publishTask.id)
-    .single();
-  assert.equal(replayedPublication.data?.status, "done");
-  assert.equal(
-    replayedPublication.data?.links[0].url,
-    `/admin/training/${publishedModule.id}`,
-  );
-  checks.push(
-    "replayed published draft preserves completed publication work and actual destination",
-  );
-  const publishedTask = await db
-    .from("ops_tasks")
-    .select("status,links")
-    .eq("id", publishTask.id)
-    .single();
-  assert.ok(publishedTask.data);
-  assert.equal(publishedTask.data.status, "done");
-  assert.equal(
-    publishedTask.data.links[0].url,
-    `/admin/training/${publishedModule.id}`,
-  );
-  await db
-    .from("module_content")
-    .update({ module_id: draftModule.id })
-    .eq("id", content.data.id);
-  assert.equal((await getLesson(moved.data.id)).status, "lesson_drafted");
-  const reopened = await db
-    .from("ops_tasks")
-    .select("status")
-    .eq("id", publishTask.id)
-    .single();
-  assert.equal(reopened.data?.status, "open");
-  checks.push(
-    "moving a lesson both ways synchronizes publication state, task and destination link",
-  );
-
-  await db.from("module_content").delete().eq("id", content.data.id);
-  const removed = await getLesson(moved.data.id);
-  assert.equal(removed.module_content_id, null);
-  assert.equal(removed.status, "transcribed");
-  const cancelled = await db
-    .from("ops_tasks")
-    .select("status")
-    .eq("id", publishTask.id)
-    .single();
-  assert.equal(cancelled.data?.status, "cancelled");
-  const redrafted = await draftLesson(moved.data.id, draftModule.id);
-  assert.notEqual(redrafted.module_content_id, content.data.id);
-  const requeued = await db
-    .from("ops_tasks")
-    .select("status")
-    .eq("id", publishTask.id)
-    .single();
-  assert.equal(requeued.data?.status, "open");
-  checks.push(
-    "removing a training lesson restores draft eligibility and re-drafting reopens publication work",
-  );
   console.log(JSON.stringify({ pass: true, checks, externalMessages: 0 }));
 } finally {
-  if (renderHost === undefined) delete process.env.RENDER_HOST_URL;
-  else process.env.RENDER_HOST_URL = renderHost;
   for (const id of reportIds)
     await db.from("ops_reports").delete().eq("id", id);
-  for (const id of lessonIds)
-    await db.from("lesson_recordings").delete().eq("id", id);
-  for (const id of moduleIds)
-    await db.from("training_modules").delete().eq("id", id);
   if (taskIds.length)
     assert.equal(
       (
@@ -778,11 +513,6 @@ try {
       ).error,
       null,
     );
-  for (const id of lessonIds)
-    await db
-      .from("ops_tasks")
-      .delete()
-      .eq("external_ref", `lesson-publish:${id}`);
   await db
     .from("ops_tasks")
     .delete()

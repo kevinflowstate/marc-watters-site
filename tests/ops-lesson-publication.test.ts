@@ -201,14 +201,14 @@ describe("approved lesson publication", () => {
     expect(changing.saveVerification).not.toHaveBeenCalled();
   });
   it("rejects oversized media before obtaining its bytes", async () => {
-    const d = deps({ object: async () => ({ ...object, bytes: 268435457 }) });
+    const d = deps({ object: async () => ({ ...object, bytes: 4 * 1024 ** 3 + 1 }) });
     await expect(
       api.verifyStoredLessonMedia(
         { storage_path: object.storage_path, expected_sha256: digest },
         id,
         d,
       ),
-    ).rejects.toThrow("above 256 MiB");
+    ).rejects.toThrow("above 4 GiB");
     expect(d.readMedia).not.toHaveBeenCalled();
   });
   it("rejects invalid stored sizes before signing or downloading a video", async () => {

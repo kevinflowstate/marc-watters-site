@@ -1,6 +1,6 @@
 import { adminActor, respond } from "@/lib/ops/http";
 import { verifyStoredLessonMedia } from "@/lib/ops/lesson-publication";
-export const maxDuration = 120;
+export const maxDuration = 300;
 export async function POST(request: Request) {
   return respond(async () => {
     const actor = await adminActor();

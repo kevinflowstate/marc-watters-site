@@ -3,7 +3,7 @@ import { OpsError } from "./tasks";
 
 const MAX_MOOV_BYTES = 8 * 1024 * 1024;
 const MAX_DURATION_S = 8 * 60 * 60;
-export const MAX_LESSON_VERIFY_BYTES = 256 * 1024 * 1024;
+export const MAX_LESSON_VERIFY_BYTES = 4 * 1024 ** 3;
 
 function boxes(buffer: Buffer) {
   const found: Array<{ type: string; payload: Buffer }> = [];

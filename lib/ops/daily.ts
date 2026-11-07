@@ -71,19 +71,6 @@ export async function runDaily(now = new Date()) {
         c.id,
       );
   }
-  const lessons = await createAdminClient()
-    .from("lesson_recordings")
-    .select("id,title,publish_due_at,status")
-    .lt("publish_due_at", now.toISOString())
-    .neq("status", "published");
-  if (lessons.error && lessons.error.code !== "PGRST205")
-    throw new OpsError(lessons.error.message, 500);
-  for (const l of lessons.data || [])
-    await make(
-      `lessons: publication needs attention — ${l.title}`,
-      "lessons",
-      `lesson-overdue:${l.id}`,
-    );
   if (now.getUTCDay() === 1)
     await make(
       "payments: weekly review",
