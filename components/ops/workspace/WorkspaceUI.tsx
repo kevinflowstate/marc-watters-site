@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { areaLabels, ownerLabels } from "@/lib/ops/workspace";
+import { areaLabels, isClosed, ownerLabels } from "@/lib/ops/workspace";
 import type { OpsTask } from "@/lib/ops/types";
 import type { WorkspaceCard, WorkspaceResult } from "@/lib/ops/workspace-types";
 
@@ -18,9 +18,16 @@ const paths: Record<string, string> = {
   info: "M12 8h.01M11 12h1v5h1M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
   check: "m5 12 5 5L20 7",
   checkCircle: "M8 12.5 11 15l5-6M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
+  circle: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
   sparkle: "M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6",
   clock: "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
+  history: "M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 3v5h5",
+  calendar: "M7 3v3M17 3v3M4 8h16M5 5h14v15H5z",
+  owner: "M15 19v-1a5 5 0 0 0-10 0v1M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z",
+  tag: "M20 12l-8 8-8-8V4h8l8 8ZM8 8h.01",
+  flag: "M5 21V4h11l-1.5 4L16 12H5",
   link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
+  inboxEmpty: "M4 13h4l2 3h4l2-3h4M4 13l2.5-8h11L20 13v6H4v-6Z",
   content: "M4 5h16v14H4zM4 15l4.5-4.5 4 4 2.5-2.5L20 17M15 9h.01",
   lessons: "M5 4.5v15l14-7.5L5 4.5Z",
   payments: "M3 7h18v10H3zM3 11h18M7 15h3",
@@ -68,46 +75,60 @@ export function Icon({
   );
 }
 
-/* ---------- Formatting ---------- */
+/* ---------- Dates ---------- */
 
 const london = "Europe/London";
-function dayKey(d: Date) {
-  return d.toLocaleDateString("en-GB", { timeZone: london });
+const valid = (value: string | null | undefined): value is string => !!value && Number.isFinite(Date.parse(value));
+/** Whole days since the epoch, counted in London so "today" flips at local midnight. */
+function londonDay(d: Date) {
+  const [y, m, day] = d.toLocaleDateString("en-CA", { timeZone: london }).split("-").map(Number);
+  return Date.UTC(y, m - 1, day) / 864e5;
 }
-export function fullDate(value: string | null | undefined) {
-  return value && Number.isFinite(Date.parse(value))
-    ? new Date(value).toLocaleString("en-GB", {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: london,
-      })
-    : "Not recorded";
+export function dayDiff(value: string, now = new Date()) {
+  return londonDay(new Date(value)) - londonDay(now);
 }
-export function when(value: string | null | undefined) {
-  if (!value || !Number.isFinite(Date.parse(value))) return "";
-  const d = new Date(value);
-  const now = new Date();
-  const time = d.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
+const weekday = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "short", timeZone: london });
+const shortDate = (d: Date, now = new Date()) =>
+  d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
     timeZone: london,
   });
-  if (dayKey(d) === dayKey(now)) return time;
-  if (dayKey(d) === dayKey(new Date(now.getTime() - 864e5))) return `Yesterday ${time}`;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: london });
+
+export function fullDate(value: string | null | undefined) {
+  return valid(value)
+    ? new Date(value).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: london })
+    : "Not recorded";
 }
 
-/** Due date the way a task list reads it: Overdue, Today, Tomorrow, then the date. */
-export function dueLabel(value: string | null | undefined, now = new Date()): { text: string; tone?: "attn" | "bad" } | null {
-  if (!value || !Number.isFinite(Date.parse(value))) return null;
+/** How long ago, the way a feed reads it: just now, 12m ago, 2h ago, Yesterday, Mon, 18 Nov. */
+export function when(value: string | null | undefined, now = new Date()) {
+  if (!valid(value)) return "";
   const d = new Date(value);
-  const today = dayKey(now);
-  if (d.getTime() < now.getTime() && dayKey(d) !== today) return { text: "Overdue", tone: "bad" };
-  if (dayKey(d) === today) return { text: "Today", tone: "attn" };
-  if (dayKey(d) === dayKey(new Date(now.getTime() + 864e5))) return { text: "Tomorrow" };
-  return { text: d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: london }) };
+  const days = dayDiff(value, now);
+  if (days > 0) return shortDate(d, now);
+  const mins = Math.round((now.getTime() - d.getTime()) / 6e4);
+  if (days === 0) {
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.round(mins / 60)}h ago`;
+  }
+  if (days === -1) return "Yesterday";
+  if (days > -7) return weekday(d);
+  return shortDate(d, now);
+}
+
+/** Due date the way a task list reads it: Overdue, Today, Tomorrow, a weekday this week, then the date. */
+export function dueLabel(value: string | null | undefined, now = new Date()): { text: string; tone?: "attn" | "bad" } | null {
+  if (!valid(value)) return null;
+  const d = new Date(value);
+  const days = dayDiff(value, now);
+  if (days < 0) return { text: "Overdue", tone: "bad" };
+  if (days === 0) return { text: "Today", tone: "attn" };
+  if (days === 1) return { text: "Tomorrow" };
+  if (days < 7) return { text: weekday(d) };
+  return { text: shortDate(d, now) };
 }
 
 /* ---------- Colours ---------- */
@@ -137,13 +158,54 @@ export function Avatar({ owner, size }: { owner: Owner; size?: "sm" }) {
   const initial =
     owner === "system" ? <Icon name="sparkle" size={size === "sm" ? 11 : 13} stroke={2.2} /> : ownerLabels[owner][0];
   return (
-    <span
-      aria-hidden="true"
-      className={`ws-avatar ${size ? `is-${size}` : ""}`}
-      style={{ "--c": ownerColour[owner] } as CSSProperties}
-    >
+    <span aria-hidden="true" className={`ws-avatar ${size ? `is-${size}` : ""}`} style={{ "--c": ownerColour[owner] } as CSSProperties}>
       {initial}
     </span>
+  );
+}
+
+/* ---------- Status ---------- */
+
+export type Tone = "open" | "decide" | "attn" | "running" | "ok" | "closed";
+const toneColour: Record<Tone, string> = {
+  open: "var(--ws-ink-4)",
+  decide: "var(--ws-decide)",
+  attn: "var(--ws-attn)",
+  running: "var(--ws-accent-ink)",
+  ok: "var(--ws-ok)",
+  closed: "var(--ws-ink-4)",
+};
+
+/** One glyph per state: hollow is open, a ring with a dot waits on a decision, half full needs a look, full with a tick is finished. */
+export function StatusIcon({ tone = "open", size = 14 }: { tone?: Tone; size?: number }) {
+  const c = toneColour[tone];
+  let inner: ReactNode;
+  if (tone === "ok" || tone === "closed")
+    inner = (
+      <>
+        <circle cx="7" cy="7" r="6.2" fill={c} />
+        <path d="M4.4 7.2 6.2 9 9.7 5.3" fill="none" stroke="var(--ws-panel)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    );
+  else if (tone === "attn" || tone === "running")
+    inner = (
+      <>
+        <circle cx="7" cy="7" r="5.4" fill="none" stroke={c} strokeWidth="1.5" />
+        <path d="M7 3.4A3.6 3.6 0 0 1 7 10.6Z" fill={c} />
+      </>
+    );
+  else if (tone === "decide")
+    inner = (
+      <>
+        <circle cx="7" cy="7" r="5.4" fill="none" stroke={c} strokeWidth="1.5" />
+        <circle cx="7" cy="7" r="2.3" fill={c} />
+      </>
+    );
+  else inner = <circle cx="7" cy="7" r="5.4" fill="none" stroke={c} strokeWidth="1.5" />;
+  return (
+    <svg className="ws-status-ic" width={size} height={size} viewBox="0 0 14 14" aria-hidden="true">
+      {inner}
+    </svg>
   );
 }
 
@@ -165,13 +227,7 @@ export function Segmented<T extends string>({
   return (
     <div role="group" aria-label={label} className={`ws-seg ${className}`}>
       {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-          className="ws-seg-btn ws-focus"
-        >
+        <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)} className="ws-seg-btn ws-focus">
           {o.label}
           {o.count !== undefined && o.count > 0 && <span className="ws-seg-count">{o.count}</span>}
         </button>
@@ -184,6 +240,35 @@ export function Segmented<T extends string>({
 
 export function Chip({ tone, children }: { tone?: "decide" | "attn" | "ok" | "bad"; children: ReactNode }) {
   return <span className={`ws-chip ${tone ? `is-${tone}` : ""}`}>{children}</span>;
+}
+
+/* ---------- Empty and loading ---------- */
+
+export function Empty({ icon = "checkCircle", title, text }: { icon?: string; title: string; text?: string }) {
+  return (
+    <div className="ws-empty">
+      <span className="ws-empty-glyph">
+        <Icon name={icon} size={20} />
+      </span>
+      <p className="ws-empty-h">{title}</p>
+      {text && <p>{text}</p>}
+    </div>
+  );
+}
+
+export function SkeletonRows({ count = 5 }: { count?: number }) {
+  return (
+    <div role="status" aria-label="Loading">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="ws-skrow">
+          <span className="ws-skel" style={{ width: 14, height: 14, borderRadius: "50%" }} />
+          <span className="ws-skel" style={{ width: `${38 + ((i * 13) % 30)}%`, height: 10 }} />
+          <span className="flex-1" />
+          <span className="ws-skel" style={{ width: 54, height: 10 }} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* ---------- Rows ---------- */
@@ -207,7 +292,7 @@ export function Row({
   timeTone,
   onOpen,
 }: {
-  tone?: "decide" | "attn" | "ok" | "closed";
+  tone?: Tone;
   title: string;
   sub?: string;
   area?: string;
@@ -220,7 +305,7 @@ export function Row({
 }) {
   return (
     <button type="button" onClick={onOpen} className="ws-row ws-focus">
-      <span className={`ws-status ${tone ? `is-${tone}` : ""}`} aria-hidden="true" />
+      <StatusIcon tone={tone ?? "open"} />
       <span className="min-w-0">
         <span className="ws-row-title">{title}</span>
         {sub && <span className="ws-row-sub">{sub}</span>}
@@ -241,6 +326,7 @@ export function Row({
 
 /** Generic instructions the feed attaches to every task; they belong in the drawer, not the row. */
 const boilerplate = /^(Open the task|Review the linked work|Open the report|Open the saved version|Open the client)/;
+export const isBoilerplate = (text: string | null | undefined) => !text || boilerplate.test(text);
 
 export function CardRow({ card, onOpen }: { card: WorkspaceCard; onOpen: (card: WorkspaceCard) => void }) {
   const tone = card.history ? "closed" : cardTone(card);
@@ -267,11 +353,11 @@ export function CardRow({ card, onOpen }: { card: WorkspaceCard; onOpen: (card: 
 type Group = { key: string; label: string; tone: string; cards: WorkspaceCard[] };
 
 function groupCards(cards: WorkspaceCard[], history: boolean): Group[] {
-  if (history) return [{ key: "history", label: "Closed", tone: "var(--ws-ink-3)", cards }];
+  if (history) return [{ key: "history", label: "Closed", tone: "var(--ws-ink-4)", cards }];
   return [
     { key: "decide", label: "Decide", tone: "var(--ws-decide)", cards: cards.filter((c) => c.approval) },
     { key: "attn", label: "Follow up", tone: "var(--ws-attn)", cards: cards.filter((c) => !c.approval && c.attention) },
-    { key: "rest", label: "Open", tone: "var(--ws-ink-3)", cards: cards.filter((c) => !c.approval && !c.attention) },
+    { key: "rest", label: "Open", tone: "var(--ws-ink-4)", cards: cards.filter((c) => !c.approval && !c.attention) },
   ].filter((g) => g.cards.length);
 }
 
@@ -283,7 +369,7 @@ function GroupList({ group, onOpen, limit: initial }: { group: Group; onOpen: (c
       <div className="ws-group">
         <span className="ws-dot" style={{ color: group.tone }} />
         {group.label}
-        <span className="opacity-70">{group.cards.length}</span>
+        <span className="ws-cnt">{group.cards.length}</span>
       </div>
       {shown.map((c) => (
         <CardRow key={c.id} card={c} onOpen={onOpen} />
@@ -327,30 +413,77 @@ export function Lane({
         {!decide && !attn && !loading && cards.length > 0 && <span className="ws-caption">{cards.length}</span>}
       </header>
       {loading ? (
-        <div className="space-y-3 p-4" role="status" aria-label="Loading">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex gap-3">
-              <div className="ws-skel h-7 w-7 flex-none" />
-              <div className="flex-1 space-y-2 pt-1">
-                <div className="ws-skel h-3 w-3/4" />
-                <div className="ws-skel h-2.5 w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <SkeletonRows count={4} />
       ) : groups.length ? (
         groups.map((g) => <GroupList key={`${g.key}-${history}`} group={g} onOpen={onOpen} limit={limit} />)
+      ) : history ? (
+        <Empty icon="history" title="Nothing closed yet" text="Finished work will be kept here." />
       ) : (
-        <p className="ws-empty">{history ? "Nothing closed yet." : "Nothing waiting."}</p>
+        <Empty title="All clear" text={`Nothing is waiting on ${title}.`} />
       )}
+    </section>
+  );
+}
+
+/* ---------- Coming up ---------- */
+
+type DueGroup = { key: string; label: string; bad?: boolean; tasks: OpsTask[] };
+
+export function UpcomingPanel({ tasks, loading, onOpen }: { tasks: OpsTask[]; loading: boolean; onOpen: (taskId: string) => void }) {
+  const now = new Date();
+  const open = tasks.filter((t) => !isClosed(t) && valid(t.due_at)).sort((a, b) => Date.parse(a.due_at!) - Date.parse(b.due_at!));
+  const inRange = (lo: number, hi: number) => open.filter((t) => { const n = dayDiff(t.due_at!, now); return n >= lo && n <= hi; });
+  const all: DueGroup[] = [
+    { key: "overdue", label: "Overdue", bad: true, tasks: inRange(-9999, -1) },
+    { key: "today", label: "Today", tasks: inRange(0, 0) },
+    { key: "tomorrow", label: "Tomorrow", tasks: inRange(1, 1) },
+    { key: "week", label: "This week", tasks: inRange(2, 7) },
+  ];
+  // Today always shows; the other groups only when something is in them, so a quiet week is one line, not four.
+  const groups = all.filter((g) => g.key === "today" || g.tasks.length);
+  const total = groups.reduce((n, g) => n + g.tasks.length, 0);
+  return (
+    <section className="ws-panel overflow-hidden" aria-label="Coming up">
+      <header className="ws-panel-head">
+        <h2 className="ws-h2 flex-1">Coming up</h2>
+        {!loading && total > 0 && <span className="ws-caption">{total} due</span>}
+      </header>
+      <div className="pb-2">
+        {loading ? (
+          <SkeletonRows count={3} />
+        ) : (
+          groups.map((g) => (
+            <div key={g.key}>
+              <div className={`ws-up-group ${g.bad ? "is-bad" : ""}`}>
+                {g.label}
+                <span className="ws-cnt">{g.tasks.length}</span>
+              </div>
+              {g.tasks.length ? (
+                <>
+                  {g.tasks.slice(0, 4).map((t) => (
+                    <button key={t.id} type="button" className="ws-up-row ws-focus" onClick={() => onOpen(t.id)}>
+                      <span className="ws-pdot" style={{ "--c": areaColour[t.area] } as CSSProperties} />
+                      <span className="ws-trunc">{t.title}</span>
+                      <Avatar owner={t.assignee} size="sm" />
+                    </button>
+                  ))}
+                  {g.tasks.length > 4 && <div className="ws-up-more">+{g.tasks.length - 4} more</div>}
+                </>
+              ) : (
+                <div className="ws-up-none">{all.some((x) => x.key !== "overdue" && x.tasks.length) ? "Nothing due" : "Nothing due this week"}</div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </section>
   );
 }
 
 /* ---------- Codex result meta ---------- */
 
-export const outcomeMeta: Record<WorkspaceResult["outcome"], { label: string; tone: "ok" | "attn" | "bad" }> = {
-  complete: { label: "Checked", tone: "ok" },
-  partial: { label: "Information missing", tone: "attn" },
-  failed: { label: "Could not finish", tone: "bad" },
+export const outcomeMeta: Record<WorkspaceResult["outcome"], { label: string; short: string; tone: "ok" | "attn" | "bad" }> = {
+  complete: { label: "Checked", short: "Checked", tone: "ok" },
+  partial: { label: "Information missing", short: "Partial", tone: "attn" },
+  failed: { label: "Could not finish", short: "Failed", tone: "bad" },
 };

@@ -1,6 +1,13 @@
 import { adminActor, respond } from "@/lib/ops/http";
-import { decideTask, updateTask, completeTask } from "@/lib/ops/tasks";
+import { decideTask, listTaskEvents, updateTask, completeTask } from "@/lib/ops/tasks";
 type Context = { params: Promise<{ id: string }> };
+export async function GET(_request: Request, c: Context) {
+  return respond(async () => {
+    await adminActor();
+    const { id } = await c.params;
+    return { events: await listTaskEvents(id) };
+  });
+}
 export async function PATCH(request: Request, c: Context) {
   return respond(async () => {
     const actor = await adminActor(),

@@ -1,6 +1,6 @@
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminMobileNav from "@/components/admin/AdminMobileNav";
-import AdminBackground from "@/components/admin/AdminBackground";
+import AdminTopbar from "@/components/admin/AdminTopbar";
 import PushNotificationBanner from "@/components/portal/PushNotificationBanner";
 import { ToastProvider } from "@/components/ui/Toast";
 
@@ -10,18 +10,20 @@ export const metadata = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <div className="portal-v2-shell min-h-screen bg-bg-primary relative">
-        <AdminBackground />
+    <div className="portal-v2-shell admin-shell">
+      <ToastProvider>
         <AdminSidebar />
-        <main className="lg:ml-[260px] min-h-screen relative z-[1]">
-          <div className="portal-v2-content px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-            <PushNotificationBanner />
-            {children}
-          </div>
-        </main>
+        <div className="adm-main">
+          <AdminTopbar />
+          <main className="adm-content">
+            <div className="portal-v2-content adm-page">
+              <PushNotificationBanner />
+              {children}
+            </div>
+          </main>
+        </div>
         <AdminMobileNav />
-      </div>
-    </ToastProvider>
+      </ToastProvider>
+    </div>
   );
 }

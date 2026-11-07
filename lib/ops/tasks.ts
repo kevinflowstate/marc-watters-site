@@ -237,3 +237,22 @@ export async function reopenApproval(id: string, actor = "system") {
   await notifyApproval(task);
   return task;
 }
+
+export type OpsEvent = {
+  id: number;
+  actor: string;
+  action: string;
+  data: Record<string, unknown>;
+  created_at: string;
+};
+/** Audit trail for one task, newest first. */
+export async function listTaskEvents(id: string): Promise<OpsEvent[]> {
+  const { data, error } = await createAdminClient()
+    .from("ops_events")
+    .select("id,actor,action,data,created_at")
+    .eq("task_id", uuid(id))
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new OpsError("Could not load the task history", 500);
+  return (data || []) as OpsEvent[];
+}
