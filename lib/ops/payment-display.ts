@@ -115,6 +115,7 @@ const workflowLabels: Record<string, string> = {
   reminders_off: "Automatic reminders were off when this case opened",
   enrolling: "Adding to the CRM reminder workflow",
   no_contact_match: "Not in the reminder workflow · no single CRM contact matched",
+  held_for_review: "Not in the reminder workflow · held for Eimear to review",
   enrol_failed: "Not in the reminder workflow · adding them failed",
   enrolled: "In the CRM reminder workflow · no reminder reported yet",
   reminder_1_sent: "Reminder 1 reported sent",

@@ -243,6 +243,14 @@ async function startReminders(c: PaymentCase) {
     await logCaseEvent(c.id, "reminders_off", {});
     return "reminders_off";
   }
+  // A case Eimear paused, a contact on DND or one awaiting a person is never auto-enrolled.
+  if (c.manual_pause || c.reply_needs_human || c.contact_dnd) {
+    await updateCase(c.id, { latest_delivery: "held_for_review" });
+    await logCaseEvent(c.id, "held_for_review", {
+      manual_pause: c.manual_pause, reply_needs_human: c.reply_needs_human, contact_dnd: c.contact_dnd,
+    });
+    return "held_for_review";
+  }
   // Claim the case so two concurrent Stripe events cannot enrol twice.
   const claim = await createAdminClient()
     .from("ops_payment_cases")
