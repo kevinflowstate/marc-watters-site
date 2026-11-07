@@ -45,6 +45,8 @@ export type WorkspaceCard = {
   source: string;
   observed_at: string | null;
   task_id?: string;
+  /** Client-side enrichment from the task list; the feed itself does not set it. */
+  due_at?: string | null;
   history?: boolean;
   approval?: boolean;
   attention?: boolean;

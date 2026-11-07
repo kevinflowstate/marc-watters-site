@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ThemeToggle from "@/components/portal/ThemeToggle";
 import { useInboxUnreadCount } from "@/components/inbox/useInboxUnreadCount";
+import { useWorkspaceDecideCount } from "@/components/ops/workspace/useWorkspaceDecideCount";
 import { useManagementRole } from "@/components/admin/useManagementRole";
 
 const navItems = [
@@ -26,6 +27,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const inboxUnreadCount = useInboxUnreadCount();
+  const decideCount = useWorkspaceDecideCount();
   const role = useManagementRole();
   const visibleNavItems = role === "admin"
     ? navItems
@@ -71,6 +73,11 @@ export default function AdminSidebar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
                 </svg>
                 <span>{item.label}</span>
+                {item.href === "/admin/work" && decideCount > 0 && (
+                  <span className="ml-auto bg-accent-bright text-white text-[10px] font-bold min-w-5 h-5 rounded-full px-1.5 flex items-center justify-center">
+                    {decideCount > 9 ? "9+" : decideCount}
+                  </span>
+                )}
                 {item.href === "/admin/inbox" && inboxUnreadCount > 0 && (
                   <span className="ml-auto bg-accent-bright text-white text-[10px] font-bold min-w-5 h-5 rounded-full px-1.5 flex items-center justify-center">
                     {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount}

@@ -39,6 +39,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!r.ok) throw Error(body.error || "Could not load this information. Please try again.");
   return body;
 }
+function dayBucket(ts: number) {
+  const key = (d: Date) => d.toLocaleDateString("en-GB", { timeZone: "Europe/London" });
+  const now = new Date();
+  const d = new Date(ts);
+  if (key(d) === key(now)) return "Today";
+  if (key(d) === key(new Date(now.getTime() - 864e5))) return "Yesterday";
+  if (now.getTime() - ts < 7 * 864e5) return "This week";
+  return "Earlier";
+}
 function greeting() {
   const h = Number(new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/London" }));
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
@@ -69,6 +78,8 @@ export default function WorkPage() {
   const [owner, setOwner] = useState<(typeof assignees)[number]>("eimear");
   const [newArea, setNewArea] = useState<OpsTask["area"]>("other");
   const [today, setToday] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [search, setSearch] = useState("");
   const panel = useRef<HTMLDialogElement>(null);
   const composer = useRef<HTMLDialogElement>(null);
   const initial = useRef(true);
@@ -76,6 +87,16 @@ export default function WorkPage() {
 
   useEffect(() => {
     setToday(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" }));
+    let cancelled = false;
+    fetch("/api/portal/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => {
+        if (!cancelled && me && typeof me.fullName === "string") setFirstName(me.fullName.trim().split(/\s+/)[0] || "");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const load = useCallback((afterCurrent = false) => {
@@ -165,9 +186,19 @@ export default function WorkPage() {
     composer.current?.close();
   }
 
-  const cards = useMemo(() => data?.cards || [], [data]);
+  const cards = useMemo(() => {
+    const due = new Map((data?.tasks || []).map((t) => [t.id, t.due_at]));
+    return (data?.cards || []).map((c) => (c.task_id && due.has(c.task_id) ? { ...c, due_at: due.get(c.task_id) } : c));
+  }, [data]);
   const current = cards.filter((c) => !c.history);
-  const lane = (owner: WorkspaceCard["owner"][]) => cards.filter((c) => owner.includes(c.owner) && (history ? c.history : !c.history));
+  const q = search.trim().toLowerCase();
+  const lane = (owner: WorkspaceCard["owner"][]) =>
+    cards.filter(
+      (c) =>
+        owner.includes(c.owner) &&
+        (history ? c.history : !c.history) &&
+        (!q || `${c.title} ${c.next} ${c.detail}`.toLowerCase().includes(q)),
+    );
   const decideCount = current.filter((c) => c.approval).length;
   const decideMarc = current.filter((c) => c.approval && c.owner === "marc").length;
   const decideEimear = current.filter((c) => c.approval && c.owner === "eimear").length;
@@ -257,7 +288,7 @@ export default function WorkPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="ws-kicker">Workspace</p>
-          <h1 className="ws-title mt-1">{today ? greeting() : "Workspace"}</h1>
+          <h1 className="ws-title mt-1">{today ? `${greeting()}${firstName ? `, ${firstName}` : ""}` : "Workspace"}</h1>
           <p className="ws-meta mt-1.5">
             {today}
             {data ? ` · checked ${when(data.checked_at)}` : ""}
@@ -321,12 +352,22 @@ export default function WorkPage() {
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
         <h2 className="ws-h2">The team’s work</h2>
-        <Segmented<"open" | "closed">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            className="ws-input ws-search"
+            placeholder="Search"
+            aria-label="Search the team's work"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Segmented<"open" | "closed">
           label="Show"
           value={history ? "closed" : "open"}
           onChange={(v) => setHistory(v === "closed")}
           options={[{ value: "open", label: "Open" }, { value: "closed", label: "Closed" }]}
-        />
+          />
+        </div>
       </div>
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         <Lane title="Marc" owner="marc" cards={lane(["marc"])} history={history} loading={firstLoad} onOpen={openCard} />
@@ -374,7 +415,18 @@ export default function WorkPage() {
         {firstLoad ? (
           <div className="space-y-3 p-4">{[0, 1, 2].map((i) => <div key={i} className="ws-skel h-9 w-full" />)}</div>
         ) : codexRows.length ? (
-          <div className="[&>button:first-child]:border-t-0">{codexRows.map((r) => r.node)}</div>
+          <div>
+            {codexRows.map((r, i) => {
+              const day = dayBucket(r.sort);
+              const prev = i ? dayBucket(codexRows[i - 1].sort) : null;
+              return (
+                <div key={r.key}>
+                  {day !== prev && <div className="ws-day">{day}</div>}
+                  {r.node}
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <p className="ws-empty">Nothing prepared in this view yet.</p>
         )}

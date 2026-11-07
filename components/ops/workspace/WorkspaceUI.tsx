@@ -99,6 +99,17 @@ export function when(value: string | null | undefined) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: london });
 }
 
+/** Due date the way a task list reads it: Overdue, Today, Tomorrow, then the date. */
+export function dueLabel(value: string | null | undefined, now = new Date()): { text: string; tone?: "attn" | "bad" } | null {
+  if (!value || !Number.isFinite(Date.parse(value))) return null;
+  const d = new Date(value);
+  const today = dayKey(now);
+  if (d.getTime() < now.getTime() && dayKey(d) !== today) return { text: "Overdue", tone: "bad" };
+  if (dayKey(d) === today) return { text: "Today", tone: "attn" };
+  if (dayKey(d) === dayKey(new Date(now.getTime() + 864e5))) return { text: "Tomorrow" };
+  return { text: d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: london }) };
+}
+
 /* ---------- Colours ---------- */
 
 export const areaColour: Record<OpsTask["area"], string> = {
@@ -193,6 +204,7 @@ export function Row({
   chip,
   chipTone,
   time,
+  timeTone,
   onOpen,
 }: {
   tone?: "decide" | "attn" | "ok" | "closed";
@@ -203,6 +215,7 @@ export function Row({
   chip?: string;
   chipTone?: "decide" | "attn" | "ok" | "bad";
   time?: string;
+  timeTone?: "attn" | "bad";
   onOpen: () => void;
 }) {
   return (
@@ -220,7 +233,7 @@ export function Row({
             {area}
           </span>
         )}
-        {time && <span className="ws-row-time">{time}</span>}
+        {time && <span className={`ws-row-time ${timeTone ? `is-${timeTone}` : ""}`}>{time}</span>}
       </span>
     </button>
   );
@@ -232,6 +245,7 @@ const boilerplate = /^(Open the task|Review the linked work|Open the report|Open
 export function CardRow({ card, onOpen }: { card: WorkspaceCard; onOpen: (card: WorkspaceCard) => void }) {
   const tone = card.history ? "closed" : cardTone(card);
   const sub = card.next && !boilerplate.test(card.next) ? card.next : undefined;
+  const due = card.history ? null : dueLabel(card.due_at);
   return (
     <Row
       tone={tone}
@@ -241,7 +255,8 @@ export function CardRow({ card, onOpen }: { card: WorkspaceCard; onOpen: (card: 
       areaColour={areaColour[card.area]}
       chip={tone === "attn" ? card.state : undefined}
       chipTone={tone === "attn" ? "attn" : undefined}
-      time={when(card.observed_at)}
+      time={due ? due.text : when(card.observed_at)}
+      timeTone={due?.tone}
       onOpen={() => onOpen(card)}
     />
   );

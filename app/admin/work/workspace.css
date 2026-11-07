@@ -142,6 +142,11 @@ button.ws-stat:hover { background: var(--ws-panel-2); }
 .ws-tag { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--ws-ink-2); white-space: nowrap; }
 .ws-tag .ws-dot { width: 6px; height: 6px; }
 .ws-row-time { min-width: 3.2rem; text-align: right; color: var(--ws-ink-3); }
+.ws-row-time.is-attn { color: var(--ws-attn); font-weight: 600; }
+.ws-row-time.is-bad { color: var(--ws-bad); font-weight: 600; }
+.ws-search { max-width: 240px; min-height: 34px; padding: 0.3rem 0.65rem; font-size: 0.8125rem; }
+.ws-day { padding: 0.55rem 1rem 0.25rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ws-ink-3); border-top: 1px solid var(--ws-line); }
+.ws-day:first-child { border-top: 0; }
 .ws-row-title {
   display: block;
   font-size: 0.875rem;
