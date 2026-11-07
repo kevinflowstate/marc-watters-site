@@ -31,8 +31,10 @@ export const onboardingStages = [
   "complete",
 ] as const;
 export async function startOnboarding(id: string) {
+  const client = await getClient(uuid(id));
+  if (client.archived_at) throw new OpsError("Archived clients cannot start onboarding", 409);
   const r = await createAdminClient().rpc("ops_start_onboarding", {
-    p_client: uuid(id),
+    p_client: client.id,
   });
   if (r.error) throw new OpsError(r.error.message, 409);
   return getClient(id);
