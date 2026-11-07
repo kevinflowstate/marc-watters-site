@@ -43,7 +43,7 @@ describe("connection and action status a person can rely on", () => {
     expect(html).toContain("MRW Management LTD");
     expect(html).toContain("Reconnect");
     expect(html).toContain("cannot edit them or browse Marc’s wider Drive");
-    expect(html).toContain("All seven portal action switches are off");
+    expect(html).toContain("All portal action switches are off");
     expect(html).toContain("cannot verify or change their schedules");
     expect(html).not.toMatch(/private-social|private-file|private-user|location-private/);
     expect(html).not.toContain("OPS_");

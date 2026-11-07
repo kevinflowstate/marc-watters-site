@@ -14,9 +14,9 @@ export function ConnectionDetails({ status }: { status: ConnectionStatus }) {
     <>
       <p className="ws-caption mt-4">Checked {fullDate(status.checked_at)} · London time. This is a connection check, not a scheduled job.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <section className="ws-connection-card">
+        <section className="ws-panel p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="ws-detail-heading !mb-0">CRM &amp; social accounts</h3>
+            <h3 className="ws-h2">CRM &amp; social accounts</h3>
             <span className={`ws-chip is-${status.ghl.connected ? "ok" : "attn"}`}>{status.ghl.connected ? "Connected" : "Needs checking"}</span>
           </div>
           <p className="ws-caption mt-3">{status.ghl.connected
@@ -33,9 +33,9 @@ export function ConnectionDetails({ status }: { status: ConnectionStatus }) {
           </>}
           <p className="ws-caption mt-3">This does not check payment reminders or send a post.</p>
         </section>
-        <section className="ws-connection-card">
+        <section className="ws-panel p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="ws-detail-heading !mb-0">Content from Google Drive</h3>
+            <h3 className="ws-h2">Content from Google Drive</h3>
             <span className={`ws-chip is-${status.drive.connected ? "ok" : "attn"}`}>{status.drive.connected ? "Connected" : "Needs checking"}</span>
           </div>
           <p className="ws-caption mt-3">{status.drive.connected
@@ -44,16 +44,16 @@ export function ConnectionDetails({ status }: { status: ConnectionStatus }) {
           <p className="ws-caption mt-3">Checking access does not import a new pack. Imported work still needs review before anything can be scheduled.</p>
         </section>
       </div>
-      <section className="ws-connection-card mt-4">
-        <h3 className="ws-detail-heading">Content: what happens next</h3>
+      <section className="ws-panel mt-4 p-4">
+        <h3 className="ws-h3">Content: what happens next</h3>
         <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-text-secondary">
           {contentNextSteps(status).map((step) => <li key={step}>{step}</li>)}
         </ol>
-        <Link className="ws-btn ws-btn-glass mt-4" href="/admin/automation">Review prepared work <Icon name="arrow" size={15} /></Link>
+        <Link className="ws-btn mt-4" href="/admin/work">Review prepared work <Icon name="arrow" size={15} /></Link>
       </section>
-      <section className="ws-connection-card mt-4">
-        <h3 className="ws-detail-heading">Sending &amp; publishing</h3>
-        <p className="ws-caption">{actions === "off" ? "All seven portal action switches are off. Reviewing work or saving an approval sends nothing."
+      <section className="ws-panel mt-4 p-4">
+        <h3 className="ws-h3">Sending &amp; publishing</h3>
+        <p className="ws-caption">{actions === "off" ? "All portal action switches are off. Reviewing work or saving an approval sends nothing."
           : actions === "enabled" ? "One or more action switches are on. An enabled switch is not proof that the action is ready or has run."
           : "The complete switch status could not be confirmed. Treat it as unknown."}</p>
         <ul className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
@@ -65,8 +65,8 @@ export function ConnectionDetails({ status }: { status: ConnectionStatus }) {
           </li>)}
         </ul>
       </section>
-      <section className="ws-connection-card mt-4">
-        <h3 className="ws-detail-heading">Checks still handled separately</h3>
+      <section className="ws-panel mt-4 p-4">
+        <h3 className="ws-h3">Checks still handled separately</h3>
         <dl className="space-y-4 text-sm leading-relaxed text-text-secondary">
           <div><dt className="font-bold text-text-primary">Payment reminders</dt><dd>Flowstate still needs to test the complete path from a failed payment to the correct reminder and Eimear’s follow-up. This connection check cannot confirm that a reminder was sent.</dd></div>
           <div><dt className="font-bold text-text-primary">Lesson videos</dt><dd>Marc’s Codex handles the Fathom connection. The full video download, edit and review needs its own test. This page cannot verify his Fathom access.</dd></div>
@@ -77,7 +77,7 @@ export function ConnectionDetails({ status }: { status: ConnectionStatus }) {
   );
 }
 
-export function ConnectionChecks() {
+export function ConnectionsPanel() {
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -108,25 +108,19 @@ export function ConnectionChecks() {
   }
 
   return (
-    <details className="ws-glass ws-connections mt-5">
-      <summary className="ws-focus flex cursor-pointer items-center justify-between gap-3 p-5">
-        <span><strong className="block text-base">Connections &amp; next steps</strong><span className="ws-caption mt-1 block">See what is connected and what still needs finishing.</span></span>
-        <Icon name="chevron" size={18} className="ws-connection-chevron flex-none" />
-      </summary>
-      <div className="border-t border-[color:var(--ws-edge)] p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="ws-caption max-w-xl">Check CRM and Drive access here. This does not start an automation, import content or send anything.</p>
-          <button type="button" className="ws-btn ws-btn-glass" disabled={busy} onClick={() => void check()}>
-            <Icon name="refresh" size={15} className={busy ? "ws-spin" : ""} />{busy ? "Checking connections…" : "Check connections"}
-          </button>
-        </div>
-        <div role="status" aria-live="polite">
-          {busy && <p className="ws-caption mt-4">Checking the saved connections. This can take up to a minute.</p>}
-          {!status && !busy && !error && <p className="ws-caption mt-4">No connection check has run in this visit.</p>}
-        </div>
-        {error && <p role="alert" className="ws-notice is-attn mt-4">{error}</p>}
-        {status && <ConnectionDetails status={status} />}
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="ws-caption max-w-xl">Checks CRM and Drive access. It does not start an automation, import content or send anything.</p>
+        <button type="button" className="ws-btn" disabled={busy} onClick={() => void check()}>
+          <Icon name="refresh" size={15} className={busy ? "ws-spin" : ""} />{busy ? "Checking…" : "Check connections"}
+        </button>
       </div>
-    </details>
+      <div role="status" aria-live="polite">
+        {busy && <p className="ws-caption mt-4">Checking the saved connections. This can take up to a minute.</p>}
+        {!status && !busy && !error && <p className="ws-caption mt-4">No connection check has run in this visit.</p>}
+      </div>
+      {error && <p role="alert" className="ws-note is-attn mt-4">{error}</p>}
+      {status && <ConnectionDetails status={status} />}
+    </div>
   );
 }

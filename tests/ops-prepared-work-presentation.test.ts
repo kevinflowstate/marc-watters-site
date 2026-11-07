@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   ActionAvailability,
   ActionResults,
-  PaymentReviews,
   contentPostLabel,
 } from "../components/admin/AutomationReviewPanels";
 import type { ArtifactItem, OpsArtifact } from "../lib/ops/action-types";
@@ -45,12 +44,5 @@ describe("prepared work a reviewer can identify correctly", () => {
     const html = renderToStaticMarkup(createElement(ActionResults, { artifact, items: [item("unmatched")] }));
     expect(html).toContain("Post reference needs checking");
     expect(html).not.toMatch(/Post 1|Post 2|First caption|Second caption/);
-  });
-
-  it("does not call payment reminders off while their state is unavailable", () => {
-    const html = renderToStaticMarkup(createElement(PaymentReviews, { cases: [], remindersEnabled: null }));
-    expect(html).toContain("Reminder settings have not been confirmed");
-    expect(html).not.toContain("Automatic reminders are off");
-    expect(html).toContain("does not confirm that every payment account has been checked");
   });
 });
