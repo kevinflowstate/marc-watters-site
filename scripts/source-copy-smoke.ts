@@ -1,0 +1,74 @@
+import assert from "node:assert/strict";
+import { createAdminClient } from "../lib/supabase/admin";
+import { dispatchRenderJob } from "../lib/ops/render";
+const db = createAdminClient();
+assert.match(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  /abmmlybdqwzujcysagvf/,
+);
+const existing = await db
+  .from("lesson_recordings")
+  .select("*")
+  .not("source_storage_path", "is", null)
+  .limit(1)
+  .single();
+assert.equal(existing.error, null);
+const source = await db.storage
+  .from("lesson-media")
+  .createSignedUrl(existing.data.source_storage_path, 3600);
+assert.equal(source.error, null);
+const recording = await db
+  .from("lesson_recordings")
+  .insert({
+    source: "upload",
+    title: "Synthetic streamed copy proof",
+    duration_s: 120,
+    status: "transcribed",
+    transcript_text: "Synthetic copy fixture",
+  })
+  .select()
+  .single();
+assert.equal(recording.error, null);
+const job = await db
+  .from("render_jobs")
+  .insert({
+    recording_id: recording.data.id,
+    job_type: "copy_source",
+    cut_list: [],
+    payload: { source_url: source.data!.signedUrl },
+  })
+  .select()
+  .single();
+assert.equal(job.error, null);
+await dispatchRenderJob(job.data.id);
+let result;
+for (let n = 0; n < 60; n++) {
+  result = await db
+    .from("render_jobs")
+    .select("*")
+    .eq("id", job.data.id)
+    .single();
+  if (["done", "failed"].includes(result.data?.status)) break;
+  await new Promise((r) => setTimeout(r, 1000));
+}
+assert.equal(result?.data?.status, "done", JSON.stringify(result?.data));
+const saved = await db
+  .from("lesson_recordings")
+  .select("*")
+  .eq("id", recording.data.id)
+  .single();
+assert.equal(saved.data.source_storage_path, `source/${recording.data.id}.mp4`);
+assert.equal(saved.data.status, "transcribed");
+console.log(
+  JSON.stringify({
+    pass: true,
+    recordingId: recording.data.id,
+    jobId: job.data.id,
+    checks: [
+      "source streamed from signed URL",
+      "resumable private source upload",
+      "callback source path",
+      "transcribed state preserved",
+    ],
+  }),
+);

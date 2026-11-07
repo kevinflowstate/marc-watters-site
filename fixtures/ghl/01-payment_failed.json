@@ -1,0 +1,9 @@
+{
+  "event_type": "payment_failed",
+  "contact_email": "cbb-ops-client@example.invalid",
+  "contact_id": "fixture-only",
+  "external_id": "fixture-payment-1",
+  "amount": 100,
+  "currency": "GBP",
+  "occurred_at": "2026-10-31T12:00:00Z"
+}

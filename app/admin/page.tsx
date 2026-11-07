@@ -1,4 +1,5 @@
 "use client";
+import AttentionCard from "@/components/ops/AttentionCard";
 import { lastPortalActivity } from "@/lib/portal-activity";
 
 import { useState, useEffect } from "react";
@@ -213,6 +214,8 @@ export default function AdminDashboard() {
         </h1>
         <p className="text-text-secondary mt-2 text-sm">{formatDate(new Date())}</p>
       </div>
+
+      <AttentionCard />
 
       {/* Stats */}
       <div className="v2-stat-strip mb-6 sm:mb-8">

@@ -1,0 +1,116 @@
+export const FLOWSTATE_TEST_LOCATION = "G8y4IyfApuOFkG9QgYGv";
+export type SocialDraft = {
+  locationId: string;
+  accountIds: string[];
+  userId: string;
+  caption: string;
+  images: { url: string; type: "image/png" | "image/jpeg"; caption?: string }[];
+};
+export function socialDraftPayload(input: SocialDraft) {
+  if (input.locationId !== FLOWSTATE_TEST_LOCATION)
+    throw new Error(
+      "Foundation writes are restricted to Flowstate; Marc’s live location is disabled",
+    );
+  if (
+    !Array.isArray(input.accountIds) ||
+    !input.accountIds.length ||
+    !input.userId ||
+    !input.caption?.trim() ||
+    !Array.isArray(input.images) ||
+    input.images.length < 2 ||
+    input.images.length > 10
+  )
+    throw new Error(
+      "Carousel requires accounts, user, caption and 2–10 ordered images",
+    );
+  for (const image of input.images)
+    if (
+      !/^https:\/\//.test(image.url) ||
+      !["image/png", "image/jpeg"].includes(image.type)
+    )
+      throw new Error("Public HTTPS PNG/JPEG image URLs required");
+  return {
+    accountIds: input.accountIds,
+    userId: input.userId,
+    status: "draft",
+    type: "post",
+    summary: input.caption,
+    media: input.images.map((image) => ({
+      url: image.url,
+      type: image.type,
+      ...(image.caption ? { caption: image.caption } : {}),
+    })),
+    facebookPostDetails: { type: "post" },
+    instagramPostDetails: { type: "post" },
+  };
+}
+export async function createSocialDraft(
+  input: SocialDraft,
+  options: { token?: string; dryRun?: boolean } = {},
+) {
+  const body = socialDraftPayload(input),
+    base = "https://services.leadconnectorhq.com",
+    path = `/social-media-posting/${input.locationId}/posts`;
+  if (options.dryRun !== false)
+    return { dry_run: true, method: "POST", path, body };
+  if (!options.token) throw new Error("Flowstate location token required");
+  const headers = {
+    Authorization: `Bearer ${options.token.trim()}`,
+    Version: "2021-07-28",
+    "Content-Type": "application/json",
+  };
+  const identity = await fetch(`${base}/locations/${input.locationId}`, {
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
+  if (
+    !identity.ok ||
+    (await identity.json()).location?.name !== "Flowstate Marketing"
+  )
+    throw new Error("Flowstate identity could not be verified");
+  const accounts = await fetch(
+    `${base}/social-media-posting/${input.locationId}/accounts`,
+    { headers, signal: AbortSignal.timeout(15000) },
+  );
+  if (!accounts.ok) throw new Error("Social accounts unavailable");
+  const live = (await accounts.json()).results?.accounts || [];
+  if (
+    !input.accountIds.every((id) =>
+      live.some(
+        (a: { id: string; active: boolean; isExpired: boolean }) =>
+          a.id === id && a.active && !a.isExpired,
+      ),
+    )
+  )
+    throw new Error("Selected social account is unavailable");
+  const response = await fetch(base + path, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok)
+    throw new Error(
+      `Draft request returned ${response.status}; reconcile before retrying`,
+    );
+  const result = await response.json(),
+    post = result.results?.post;
+  if (!post?._id || post.status !== "draft")
+    throw new Error("Draft receipt incomplete; reconcile before retrying");
+  const read = await fetch(base + path + "/" + post._id, {
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!read.ok)
+    throw new Error("Draft created; readback unavailable, do not recreate");
+  const saved = (await read.json()).results?.post;
+  if (
+    saved?.status !== "draft" ||
+    saved.scheduleDate ||
+    saved.summary !== body.summary
+  )
+    throw new Error(
+      "Draft created but readback differs; do not retry creation",
+    );
+  return { dry_run: false, id: post._id, status: "draft", post: saved };
+}

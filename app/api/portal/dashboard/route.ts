@@ -1,3 +1,4 @@
+import { PORTAL_PROFILE_COLUMNS } from "@/lib/portal-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getCurrentMetricsMonthStart,
@@ -31,14 +32,17 @@ function normalizePlanItem(item: Record<string, unknown>) {
     id: normalizeText(item.id),
     title: normalizeText(item.title, "Untitled action"),
     completed: Boolean(item.completed),
-    completed_at: typeof item.completed_at === "string" ? item.completed_at : undefined,
+    completed_at:
+      typeof item.completed_at === "string" ? item.completed_at : undefined,
     order_index: normalizeNumber(item.order_index),
   };
 }
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const admin = createAdminClient();
 
@@ -58,12 +62,15 @@ export async function GET() {
 
   const { data: profile } = await admin
     .from("client_profiles")
-    .select("*")
+    .select(PORTAL_PROFILE_COLUMNS)
     .eq("user_id", userId)
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: "Client profile not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Client profile not found" },
+      { status: 404 },
+    );
   }
 
   // Update last_login timestamp
@@ -72,32 +79,29 @@ export async function GET() {
     .update({ last_login: new Date().toISOString() })
     .eq("id", profile.id);
 
-  const [checkinsRes, planRes, formConfigRes, contentProgressRes] = await Promise.all([
-    admin
-      .from("checkins")
-      .select("*")
-      .eq("client_id", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(5),
-    admin
-      .from("business_plans")
-      .select("*")
-      .eq("client_id", profile.id)
-      .eq("status", "active")
-      .limit(1)
-      .single(),
-    admin
-      .from("form_config")
-      .select("*")
-      .eq("form_type", "checkin")
-      .single(),
-    // Content progress for training completion tracking
-    admin
-      .from("content_progress")
-      .select("content_id, completed")
-      .eq("client_id", profile.id)
-      .eq("completed", true),
-  ]);
+  const [checkinsRes, planRes, formConfigRes, contentProgressRes] =
+    await Promise.all([
+      admin
+        .from("checkins")
+        .select("*")
+        .eq("client_id", profile.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      admin
+        .from("business_plans")
+        .select("*")
+        .eq("client_id", profile.id)
+        .eq("status", "active")
+        .limit(1)
+        .single(),
+      admin.from("form_config").select("*").eq("form_type", "checkin").single(),
+      // Content progress for training completion tracking
+      admin
+        .from("content_progress")
+        .select("content_id, completed")
+        .eq("client_id", profile.id)
+        .eq("completed", true),
+    ]);
 
   const { data: monthlyMetrics } = await admin
     .from("client_monthly_metrics")
@@ -107,8 +111,14 @@ export async function GET() {
     .eq("client_id", profile.id)
     .order("month_start", { ascending: true });
 
-  let modules: Array<{ id: string; title: string; created_at: string; content?: { id: string }[] }> = [];
-  let recentModules: Array<{ id: string; title: string; created_at: string }> = [];
+  let modules: Array<{
+    id: string;
+    title: string;
+    created_at: string;
+    content?: { id: string }[];
+  }> = [];
+  let recentModules: Array<{ id: string; title: string; created_at: string }> =
+    [];
   let onboardingModuleId: string | null = null;
 
   const accessibleModuleIds = await getAccessibleModuleIds(admin, profile.id);
@@ -122,12 +132,16 @@ export async function GET() {
 
     modules = moduleRows || [];
     recentModules = [...modules]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
       .slice(0, 3)
       .map(({ id, title, created_at }) => ({ id, title, created_at }));
 
     onboardingModuleId =
-      modules.find((module) => module.title === ONBOARDING_MODULE_TITLE)?.id || null;
+      modules.find((module) => module.title === ONBOARDING_MODULE_TITLE)?.id ||
+      null;
   }
 
   // Get business plan phases and items if plan exists
@@ -149,27 +163,38 @@ export async function GET() {
 
       planPhases = phases.map((phase: { id: string }) => ({
         ...phase,
-        name: normalizeText((phase as Record<string, unknown>).name, "Untitled phase"),
+        name: normalizeText(
+          (phase as Record<string, unknown>).name,
+          "Untitled phase",
+        ),
         notes: normalizeText((phase as Record<string, unknown>).notes),
-        order_index: normalizeNumber((phase as Record<string, unknown>).order_index),
+        order_index: normalizeNumber(
+          (phase as Record<string, unknown>).order_index,
+        ),
         items: (items || [])
           .filter((item: { phase_id: string }) => item.phase_id === phase.id)
-          .map((item) => normalizePlanItem(item as unknown as Record<string, unknown>)),
+          .map((item) =>
+            normalizePlanItem(item as unknown as Record<string, unknown>),
+          ),
       }));
     }
   }
 
   // Build a set of completed content IDs for training progress
   const completedContentIds = new Set(
-    (contentProgressRes.data || []).map((p: { content_id: string }) => p.content_id)
+    (contentProgressRes.data || []).map(
+      (p: { content_id: string }) => p.content_id,
+    ),
   );
 
   // Count total lessons and completed lessons across all modules
-  const allLessons = modules.flatMap(
-    (m: { content?: { id: string }[] }) => (m.content || []).map((c: { id: string }) => c.id)
+  const allLessons = modules.flatMap((m: { content?: { id: string }[] }) =>
+    (m.content || []).map((c: { id: string }) => c.id),
   );
   const totalLessons = allLessons.length;
-  const completedLessons = allLessons.filter((id: string) => completedContentIds.has(id)).length;
+  const completedLessons = allLessons.filter((id: string) =>
+    completedContentIds.has(id),
+  ).length;
 
   return NextResponse.json(
     {

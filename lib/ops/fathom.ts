@@ -1,0 +1,65 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { getEnv } from "@/lib/env";
+import { OpsError } from "./tasks";
+import { rateLimit } from "@/lib/rate-limit";
+export function verifyFathom(headers: Headers, raw: string) {
+  const secret = getEnv("FATHOM_WEBHOOK_SECRET"),
+    id = headers.get("webhook-id"),
+    ts = headers.get("webhook-timestamp"),
+    signatures = headers.get("webhook-signature");
+  if (
+    !secret?.startsWith("whsec_") ||
+    !id ||
+    !ts ||
+    !/^\d+$/.test(ts) ||
+    Math.abs(Date.now() / 1000 - Number(ts)) > 300 ||
+    !signatures
+  )
+    return false;
+  const expected = createHmac("sha256", Buffer.from(secret.slice(6), "base64"))
+    .update(`${id}.${ts}.${raw}`)
+    .digest();
+  return signatures.split(" ").some((s) => {
+    const [version, signature] = s.split(",");
+    if (version !== "v1" || !signature) return false;
+    const actual = Buffer.from(signature, "base64");
+    return (
+      actual.length === expected.length && timingSafeEqual(actual, expected)
+    );
+  });
+}
+export async function fathomRequest(path: string, method = "GET") {
+  if (!getEnv("FATHOM_API_KEY"))
+    throw new OpsError("NEEDS MARC: Fathom API key is not configured", 503);
+  if (!rateLimit("fathom-heavy", 30, 60000).success)
+    throw new OpsError("Fathom budget reached; retry later", 429);
+  const r = await fetch(`https://api.fathom.ai/external/v1${path}`, {
+    method,
+    headers: {
+      "X-Api-Key": getEnv("FATHOM_API_KEY")!,
+      "Content-Type": "application/json",
+    },
+    ...(method === "POST" ? { body: "{}" } : {}),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!r.ok)
+    throw new OpsError(
+      `Fathom request returned ${r.status}; retry after ${r.headers.get("retry-after") || "60"} seconds`,
+      r.status === 429 ? 429 : 502,
+    );
+  return r.json();
+}
+export function transcriptText(input: unknown) {
+  if (!Array.isArray(input)) throw new OpsError("Transcript must be an array");
+  return input
+    .map((row) => {
+      if (
+        !row ||
+        typeof row.text !== "string" ||
+        typeof row.timestamp !== "string"
+      )
+        throw new OpsError("Transcript rows require text and timestamps");
+      return `[${row.timestamp}] ${row.speaker?.display_name || "Speaker"}: ${row.text}`;
+    })
+    .join("\n");
+}

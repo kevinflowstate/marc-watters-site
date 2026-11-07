@@ -1,0 +1,156 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+type Signals = {
+  payment_status: string;
+  payment_chase_count: number;
+  last_payment_at: string | null;
+  onboarding_stage: string;
+  onboarding_due_at: string | null;
+  next_action: string | null;
+  next_action_due: string | null;
+};
+const stages = [
+  "none",
+  "invited",
+  "form_received",
+  "paid",
+  "welcomed",
+  "community_added",
+  "pack_sent",
+  "complete",
+];
+export default function ClientSignals({ id }: { id: string }) {
+  const [s, setS] = useState<Signals | null>(null),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/admin/clients/${id}/signals`),
+      d = await r.json();
+    if (!r.ok) {
+      setError(d.error);
+      return;
+    }
+    setS(d.client);
+  }, [id]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  async function save(b: unknown) {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch(`/api/admin/clients/${id}/signals`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(b),
+        }),
+        d = await r.json();
+      if (!r.ok) throw Error(d.error);
+      setS(d.client);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="v2-surface p-5 my-6">
+      <h2 className="font-heading text-lg font-bold">
+        Payments and onboarding
+      </h2>
+      {error && (
+        <p role="alert" className="text-amber-600 my-3">
+          {error}
+        </p>
+      )}
+      {s && (
+        <div className="grid sm:grid-cols-2 gap-5 mt-4">
+          <label>
+            Payment status
+            <select
+              className="block w-full p-3 rounded-lg border border-current/15 bg-bg-secondary mt-2"
+              value={s.payment_status}
+              disabled={busy}
+              onChange={(e) => void save({ payment_status: e.target.value })}
+            >
+              {["current", "failed", "chasing", "paused", "cancelled"].map(
+                (x) => (
+                  <option key={x}>{x}</option>
+                ),
+              )}
+            </select>
+            <span className="text-sm text-text-secondary block mt-2">
+              {s.payment_chase_count} reminders · Last paid{" "}
+              {s.last_payment_at
+                ? new Date(s.last_payment_at).toLocaleDateString("en-GB")
+                : "not recorded"}
+            </span>
+          </label>
+          <label>
+            Onboarding
+            <select
+              className="block w-full p-3 rounded-lg border border-current/15 bg-bg-secondary mt-2"
+              value={s.onboarding_stage}
+              disabled={busy}
+              onChange={(e) => void save({ stage: e.target.value })}
+            >
+              {stages.map((x, i) => (
+                <option
+                  key={x}
+                  value={x}
+                  disabled={i < stages.indexOf(s.onboarding_stage)}
+                >
+                  {x.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-text-secondary block mt-2">
+              Due{" "}
+              {s.onboarding_due_at
+                ? new Date(s.onboarding_due_at).toLocaleDateString("en-GB")
+                : "not set"}
+            </span>
+          </label>
+          <form
+            className="sm:col-span-2 flex flex-wrap gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const data = new FormData(e.currentTarget);
+              void save({
+                next_action: data.get("next_action"),
+                next_action_due: data.get("due")
+                  ? new Date(String(data.get("due"))).toISOString()
+                  : null,
+              });
+            }}
+          >
+            <label className="flex-1 min-w-40">
+              Next action
+              <input
+                key={s.next_action}
+                name="next_action"
+                className="block w-full p-3 bg-bg-secondary border border-current/15 rounded-lg mt-2"
+                defaultValue={s.next_action || ""}
+              />
+            </label>
+            <label>
+              Due
+              <input
+                name="due"
+                type="date"
+                className="block p-3 bg-bg-secondary border border-current/15 rounded-lg mt-2"
+                defaultValue={s.next_action_due?.slice(0, 10) || ""}
+              />
+            </label>
+            <button
+              className="bg-accent text-white px-4 py-3 rounded-lg self-end"
+              disabled={busy}
+            >
+              Save action
+            </button>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}

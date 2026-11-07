@@ -1,4 +1,5 @@
 "use client";
+import {isNativeLessonVideo,nativeLessonVideoUrl} from "@/lib/lesson-video";
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -866,7 +867,7 @@ function LessonCard({
               {lesson.content_type === "video" && lesson.content_url && (
                 <div className="rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)] shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
                   <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                    <iframe
+                    {isNativeLessonVideo(lesson.content_url) ? <video controls preload="metadata" src={nativeLessonVideoUrl(lesson.content_url)} className="absolute inset-0 w-full h-full" aria-label={lesson.title} /> : (<iframe
                       src={getVideoEmbed(lesson.content_url).embedUrl}
                       className="absolute top-0 left-0 w-full h-full"
                       allow="encrypted-media *; fullscreen *"
@@ -874,7 +875,7 @@ function LessonCard({
                       scrolling="no"
                       title={lesson.title}
                       style={{ border: 0 }}
-                    />
+                    />)}
                   </div>
                 </div>
               )}

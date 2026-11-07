@@ -1,4 +1,5 @@
 "use client";
+import {isNativeLessonVideo,nativeLessonVideoUrl} from "@/lib/lesson-video";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -346,14 +347,14 @@ export default function ModuleView() {
                         {lesson.content_type === "video" && lesson.content_url && (
                           <div className="overflow-hidden rounded-[var(--cbb-radius-md)] border border-white/[0.08] bg-black shadow-[0_18px_45px_rgba(0,0,0,0.28)]">
                             <div className="relative aspect-video w-full">
-                              <iframe
+                              {isNativeLessonVideo(lesson.content_url) ? <video controls preload="metadata" src={nativeLessonVideoUrl(lesson.content_url)} className="absolute inset-0 w-full h-full" aria-label={lesson.title} /> : (<iframe
                                 src={getVideoEmbedUrl(lesson.content_url)}
                                 className="absolute inset-0 h-full w-full"
                                 allow="encrypted-media *; fullscreen *"
                                 allowFullScreen
                                 scrolling="no"
                                 title={lesson.title}
-                              />
+                              />)}
                             </div>
                           </div>
                         )}
