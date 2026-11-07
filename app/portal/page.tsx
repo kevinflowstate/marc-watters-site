@@ -389,73 +389,72 @@ export default function PortalDashboard() {
           {checkins.length === 0 ? (
             <p className="text-text-muted text-sm">No check-ins yet.</p>
           ) : (
-            <div className="space-y-2 relative z-10">
+            <ul className="pt-ci-list">
               {checkins.map((c) => {
                 const isExpanded = expandedCheckin === c.id;
+                const moodTone = c.mood === "great" ? "is-ok" : c.mood === "okay" ? "is-attn" : c.mood === "good" ? "" : "is-bad";
+                const moodLabel = c.mood ? c.mood.charAt(0).toUpperCase() + c.mood.slice(1) : "";
                 return (
-                  <div key={c.id} className="border border-[rgba(255,255,255,0.04)] rounded-xl overflow-hidden">
+                  <li key={c.id} className="pt-ci-item">
                     <button
+                      type="button"
                       onClick={() => setExpandedCheckin(isExpanded ? null : c.id)}
-                      className="w-full py-3 px-4 flex items-center justify-between hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer"
+                      aria-expanded={isExpanded}
+                      className="pt-ci-row"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-text-primary text-sm font-medium">Week {c.week_number}</span>
-                        <span className="text-text-muted text-xs">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          c.mood === "great" ? "bg-emerald-500/10 text-emerald-400" :
-                          c.mood === "good" ? "bg-blue-500/10 text-blue-400" :
-                          c.mood === "okay" ? "bg-amber-500/10 text-amber-400" :
-                          "bg-red-500/10 text-red-400"
-                        }`}>{c.mood}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {c.admin_reply ? <span className="text-xs text-accent-bright">Replied</span> : <span className="text-xs text-text-muted">Pending</span>}
-                        <svg className={`w-4 h-4 text-text-muted transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <span className="pt-ci-main">
+                        <span className="pt-ci-title">Week {c.week_number}</span>
+                        <span className="pt-ci-date">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                      </span>
+                      <span className="pt-ci-meta">
+                        {moodLabel && <span className={`pt-chip ${moodTone}`}>{moodLabel}</span>}
+                        {c.admin_reply ? <span className="pt-chip is-accent">Replied</span> : <span className="pt-chip">Pending</span>}
+                        <svg className={`pt-ci-chev ${isExpanded ? "is-open" : ""}`} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M6 9l6 6 6-6" />
                         </svg>
-                      </div>
+                      </span>
                     </button>
                     <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                      <div className="px-4 pb-4 space-y-3">
+                      <div className="pt-ci-body">
                         {c.responses && checkinConfig?.questions?.map((question: FormQuestion) => {
                           const answer = getQuestionAnswerLabel(question, c.responses);
                           if (!answer) return null;
 
                           return (
                             <div key={question.id}>
-                              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
-                                {question.label}
-                              </div>
-                              <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-line">{answer}</p>
+                              <div className="pt-ci-q">{question.label}</div>
+                              <p className="pt-ci-a whitespace-pre-line">{answer}</p>
                             </div>
                           );
                         })}
                         {c.responses && !checkinConfig && Object.entries(c.responses).map(([key, value]) => (
                           <div key={key}>
-                            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{key}</div>
-                            <p className="text-xs text-text-secondary leading-relaxed">{value}</p>
+                            <div className="pt-ci-q">{key}</div>
+                            <p className="pt-ci-a">{value}</p>
                           </div>
                         ))}
                         {!c.responses && (
                           <>
-                            {c.wins && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Wins</div><p className="text-xs text-text-secondary">{c.wins}</p></div>}
-                            {c.challenges && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Challenges</div><p className="text-xs text-text-secondary">{c.challenges}</p></div>}
-                            {c.questions && <div><div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Questions</div><p className="text-xs text-text-secondary">{c.questions}</p></div>}
+                            {c.wins && <div><div className="pt-ci-q">Wins</div><p className="pt-ci-a">{c.wins}</p></div>}
+                            {c.challenges && <div><div className="pt-ci-q">Challenges</div><p className="pt-ci-a">{c.challenges}</p></div>}
+                            {c.questions && <div><div className="pt-ci-q">Questions</div><p className="pt-ci-a">{c.questions}</p></div>}
                           </>
                         )}
                         {c.admin_reply && (
-                          <div className="mt-2 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
-                            <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">Marc&apos;s Reply</div>
-                            <p className="text-xs text-text-secondary leading-relaxed">{c.admin_reply}</p>
-                            {c.replied_at && <div className="text-[10px] text-text-muted mt-1">{new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
+                          <div className="pt-ci-reply">
+                            <div className="pt-ci-reply-head">
+                              Marc&apos;s reply
+                              {c.replied_at && <span>{new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+                            </div>
+                            <p className="pt-ci-a">{c.admin_reply}</p>
                           </div>
                         )}
                       </div>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </div>
       </div>

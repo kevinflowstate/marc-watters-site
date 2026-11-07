@@ -211,6 +211,7 @@ export default function MonthlyMetricsSection({
 
       <MonthlyMetricsOverview
         history={history}
+        title=""
         subtitle="Each card shows your latest monthly number and how it has moved since the previous month. Click any metric to open the trend graph."
         emptyMessage="Once you submit your first monthly scorecard, the trend view will appear here for you and Marc."
       />

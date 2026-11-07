@@ -409,7 +409,7 @@ export default function CheckInPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
-        {storageWarning ? <InlineNotice tone="error">{storageWarning}</InlineNotice> : <p className="text-xs text-text-muted">Unsent answers are kept on this browser for your account for up to 30 days. Unconfirmed submissions are kept until resolved.</p>}
+        {storageWarning ? <InlineNotice tone="error">{storageWarning}</InlineNotice> : <p className="pt-caption">Answers are saved on this device until you send them.</p>}
         {draftConflict && <InlineNotice tone="error">Another tab changed your draft. Your answers are still visible here. Keep this page open and finish in the other tab to avoid overwriting its answers.</InlineNotice>}
         {pending && <InlineNotice>These answers are waiting for save confirmation. Retry the same submission below before changing them.</InlineNotice>}
         <fieldset disabled={pending || draftConflict || submitting} className="min-w-0 space-y-5 sm:space-y-6">

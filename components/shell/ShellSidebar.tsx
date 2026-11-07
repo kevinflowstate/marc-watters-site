@@ -34,7 +34,7 @@ export default function ShellSidebar({
     <aside className="adm-side" aria-label={config.ariaLabel}>
       <div className="adm-side-top">
         <Link href={config.homeHref} className="adm-ws">
-          <Image src="/images/cbb-logo.png" alt="" width={22} height={22} />
+          <Image src="/icon-192x192.png" alt="" width={22} height={22} />
           <span className="min-w-0 truncate">{config.productName}</span>
         </Link>
       </div>

@@ -597,10 +597,10 @@ export default function InboxThread({
                         {message.reply_context && (
                           <a
                             href={message.reply_context.href || "#"}
-                            className={`mt-3 block rounded-xl border-l-4 px-3 py-2 no-underline ${
+                            className={`mt-3 block rounded-lg px-3 py-2 no-underline ${
                               isOwn
-                                ? "border-accent-bright bg-[rgba(255,255,255,0.08)]"
-                                : "border-accent-bright bg-[rgba(34,114,222,0.08)]"
+                                ? "bg-[rgba(255,255,255,0.08)]"
+                                : "bg-[rgba(34,114,222,0.08)]"
                             }`}
                           >
                             <div className="text-xs font-semibold text-accent-bright">
@@ -853,11 +853,13 @@ export default function InboxThread({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingAttachments || recordingVoiceNote}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl text-base transition-colors hover:bg-[rgba(255,255,255,0.06)] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl text-base text-text-muted transition-colors hover:bg-[rgba(255,255,255,0.06)] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                   aria-label="Attach file"
                   title={attachmentHelpText || "Attach file"}
                 >
-                  <span className="-translate-y-px" aria-hidden="true">📎</span>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m20.5 11.5-8.3 8.3a5.3 5.3 0 0 1-7.5-7.5l8.3-8.3a3.5 3.5 0 0 1 5 5l-8.3 8.3a1.8 1.8 0 0 1-2.5-2.5l7.6-7.6" />
+                  </svg>
                 </button>
               )}
               {showVoiceButton && (

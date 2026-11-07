@@ -82,7 +82,7 @@ export default function AdminBlueprintAIPage() {
 
       const pageTop = Math.max(currentPage.getBoundingClientRect().top, 0);
       const mobileNav = window.innerWidth < 1024
-        ? document.querySelector<HTMLElement>(".portal-mobile-nav")
+        ? document.querySelector<HTMLElement>(".adm-bottomnav")
         : null;
       const bottomClearance = mobileNav ? mobileNav.getBoundingClientRect().height + 8 : 16;
 
@@ -290,9 +290,9 @@ export default function AdminBlueprintAIPage() {
             <div className="flex shrink-0 justify-start" role="status">
               <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.04)] rounded-2xl rounded-bl-md px-4 py-3">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-pulse" style={{ animationDelay: "0ms" }} />
+                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-pulse" style={{ animationDelay: "150ms" }} />
+                  <div className="w-2 h-2 rounded-full bg-accent-bright/40 animate-pulse" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             </div>

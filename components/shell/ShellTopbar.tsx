@@ -25,7 +25,7 @@ export default function ShellTopbar({ config, extra }: { config: ShellConfig; ex
   return (
     <header className="adm-topbar">
       <Link href={config.homeHref} className="adm-topbar-mark" aria-label={`${config.productName} home`}>
-        <Image src="/images/cbb-logo.png" alt="" width={22} height={22} />
+        <Image src="/icon-192x192.png" alt="" width={22} height={22} />
       </Link>
       <nav className="adm-crumbs" aria-label="Breadcrumb">
         {trail.map((c, i) => (

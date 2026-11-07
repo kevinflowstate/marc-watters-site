@@ -1134,3 +1134,77 @@ img.adm-av { object-fit: cover; }
 .portal-shell .adm-page > .mx-auto[class*="max-w-5xl"] { margin-left: 0; }
 /* Business plan phase headers were washed in the phase colour; colour stays in the icon tile only. */
 .portal-shell .v2-surface > div.border-b:first-child { background-color: transparent !important; }
+
+/* ---------- Portal check-ins: flat rows, not boxes inside the card ----------
+   Week rows run edge to edge of the panel and are split by 1px dividers,
+   the same anatomy as the admin workspace rows. */
+.portal-shell .pt-ci-list { list-style: none; margin: 0 -20px -20px; padding: 0; border-top: 1px solid var(--adm-line); }
+@media (min-width: 640px) { .portal-shell .pt-ci-list { margin: 0 -24px -24px; } }
+.portal-shell .pt-ci-item + .pt-ci-item { border-top: 1px solid var(--adm-divider); }
+.portal-shell .pt-ci-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 20px;
+  border: 0;
+  background: transparent;
+  color: var(--adm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+@media (min-width: 640px) { .portal-shell .pt-ci-row { padding-inline: 24px; } }
+.portal-shell .pt-ci-row:hover { background: var(--adm-surface-2); }
+.portal-shell .pt-ci-row:hover .pt-ci-title { text-decoration: underline; text-decoration-color: var(--adm-line-strong); text-underline-offset: 3px; }
+.portal-shell .pt-ci-main { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.portal-shell .pt-ci-title { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+.portal-shell .pt-ci-date { font-size: 12px; color: var(--adm-text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.portal-shell .pt-ci-meta { display: flex; align-items: center; gap: 6px; }
+.portal-shell .pt-ci-chev { width: 14px; height: 14px; color: var(--adm-text-3); transition: transform 120ms; }
+.portal-shell .pt-ci-chev.is-open { transform: rotate(180deg); }
+.portal-shell .pt-ci-body { display: grid; gap: 12px; padding: 2px 20px 16px; }
+@media (min-width: 640px) { .portal-shell .pt-ci-body { padding-inline: 24px; } }
+.portal-shell .pt-ci-q { margin-bottom: 2px; font-size: 12px; font-weight: 500; color: var(--adm-text-3); }
+.portal-shell .pt-ci-a { font-size: 13px; line-height: 1.5; color: var(--adm-text-2); }
+/* Marc's reply is a note (8px radius, tone at 10%), not a card with a coloured edge strip. */
+.portal-shell .pt-ci-reply { padding: 10px 12px; border-radius: 8px; background: var(--adm-accent-soft); }
+.portal-shell .pt-ci-reply-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 2px; font-size: 12px; font-weight: 600; color: var(--adm-accent-ink); }
+.portal-shell .pt-ci-reply-head span { font-weight: 400; color: var(--adm-text-3); font-variant-numeric: tabular-nums; }
+/* Chips: 20px, tone at 12 to 13% with no border; neutral chips carry a line. */
+.portal-shell .pt-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 5px;
+  border: 1px solid var(--adm-line);
+  background: var(--adm-surface-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--adm-text-2);
+  white-space: nowrap;
+}
+.portal-shell .pt-chip.is-ok { color: var(--adm-green); background: color-mix(in srgb, var(--adm-green) 12%, transparent); border-color: transparent; }
+.portal-shell .pt-chip.is-attn { color: var(--adm-amber); background: color-mix(in srgb, var(--adm-amber) 13%, transparent); border-color: transparent; }
+.portal-shell .pt-chip.is-bad { color: var(--adm-red); background: color-mix(in srgb, var(--adm-red) 12%, transparent); border-color: transparent; }
+.portal-shell .pt-chip.is-accent { color: var(--adm-accent-ink); background: var(--adm-accent-soft); border-color: transparent; }
+/* A caveat is one quiet caption line, not a paragraph. */
+.portal-shell .pt-caption { font-size: 12px; color: var(--adm-text-3); }
+
+/* ---------- Craft-floor sweep, 7 Nov ---------- */
+/* The build drops the unprefixed "backdrop-filter: none" above, so Tailwind's blur
+   still reached sticky bars and the calendar card. Zero the variable it reads instead. */
+.admin-shell [class*="backdrop-blur"] { --tw-backdrop-blur: blur(0); }
+/* Status chips written with the 300 shades were tuned for dark only and wash out on light;
+   use the theme's status tokens like the 400 shades already do. */
+.admin-shell [class*="text-amber-3"] { color: var(--adm-amber) !important; }
+.admin-shell [class*="text-emerald-3"] { color: var(--adm-green) !important; }
+/* Settings profile summary was a bordered grey box inside the account card; flat label-value pair. */
+.portal-shell .v2-surface-strong .grid.gap-px[class*="bg-white/[0.07]"], .portal-shell .v2-surface-strong .grid.gap-px[class*="bg-white/[0.07]"] > div { background: transparent !important; border-color: transparent !important; }
+/* The empty "next event" card keeps a 230px floor to match the focus card beside it; stacked on phones it is dead space. */
+@media (max-width: 1023px) { .portal-shell .v2-surface[class*="min-h-[230px]"] { min-height: 0; } }
+.portal-shell .v2-surface-strong .grid.gap-px[class*="bg-white/[0.07]"] > div { padding-left: 0; }
