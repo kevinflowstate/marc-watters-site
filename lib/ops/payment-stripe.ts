@@ -9,6 +9,8 @@ export type StripePaymentAccount = {
   api_key: string;
   webhook_secret: string;
   livemode: boolean;
+  /** Optional display name, e.g. "MRW Management Ltd (programme)". */
+  label?: string;
 };
 export function stripePaymentAccount(alias: string): StripePaymentAccount {
   let configured: unknown;
@@ -36,26 +38,29 @@ export function stripePaymentAccount(alias: string): StripePaymentAccount {
     api_key: b.api_key,
     webhook_secret: b.webhook_secret,
     livemode: b.livemode,
+    ...(typeof b.label === "string" && b.label.trim()
+      ? { label: b.label.trim().slice(0, 120) }
+      : {}),
   };
 }
-export function stripePaymentAccountById(accountId: string) {
-  let all: Record<string, unknown>;
+
+/** Human label for a saved merchant account. Never throws; falls back to the alias or ID. */
+export function stripeAccountLabel(accountId: string) {
   try {
-    all = record(
+    const all = record(
       JSON.parse(getEnv("OPS_STRIPE_PAYMENT_ACCOUNTS_JSON") || "{}"),
     );
+    for (const [alias, value] of Object.entries(all)) {
+      const entry = record(value);
+      if (entry.account_id === accountId)
+        return typeof entry.label === "string" && entry.label.trim()
+          ? entry.label.trim()
+          : alias;
+    }
   } catch {
-    throw new OpsError("Stripe payment account configuration is invalid", 503);
+    // fall through to the raw ID
   }
-  const aliases = Object.keys(all).filter(
-    (key) => record(all[key]).account_id === accountId,
-  );
-  if (aliases.length !== 1)
-    throw new OpsError(
-      "Unique Stripe payment account configuration required",
-      503,
-    );
-  return stripePaymentAccount(aliases[0]);
+  return accountId;
 }
 export function verifyStripePaymentSignature(
   raw: string,

@@ -3,7 +3,30 @@ process.env.OPS_LEGACY_LESSON_PIPELINE_ENABLED = "true";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "../lib/supabase/admin";
-import { recordPayment } from "../lib/ops/payments";
+// The legacy email-based payment webhook path was removed; this harness still
+// exercises the database function directly while it exists.
+async function recordPayment(b: {
+  event_type: string;
+  external_id: string;
+  contact_email: string;
+  amount: number;
+  currency: string;
+  occurred_at: string;
+}) {
+  const r = await createAdminClient().rpc("ops_payment_event", {
+    p_event: {
+      event_type: b.event_type,
+      external_id: b.external_id,
+      contact_email: b.contact_email.toLowerCase(),
+      contact_id: null,
+      amount_pence: Math.round(b.amount * 100),
+      currency: b.currency.toUpperCase(),
+      occurred_at: b.occurred_at,
+    },
+  });
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+}
 import { listClientsNeedingAttention } from "../lib/ops/clients";
 import { updateClientSignals } from "../lib/ops/onboarding";
 import {
