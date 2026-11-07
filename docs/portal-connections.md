@@ -1,6 +1,6 @@
 # Portal connections
 
-The portal reads the business sources and shows work for review. Saving a connection does not turn on sending, scheduling or publication. Keep all seven action flags false while testing.
+The portal reads the business sources and shows work for review. Saving a connection does not turn on sending, scheduling or publication. Keep all six action flags false while testing.
 
 ## GHL
 
@@ -37,6 +37,6 @@ The workspace’s **Connections & next steps** section runs this read-only check
 
 The content section links to Prepared work, where the exact post’s media, date, destination and saved approval must be checked. A configured image host is not presented as tested image delivery. Payment-template/delivery validation, Fathom video access and the actual Codex scheduler remain explicitly outside this connection check.
 
-The workspace now displays all seven raw action switches, including portal sending and the earlier lesson pipeline. This is intentionally separate from the execution adapter’s prerequisite checks: an enabled scheduling switch must remain visible even if missing credentials or image hosting prevent execution. A missing field means unknown, never “Off”. No toggle, activation or provider-write control is added.
+The workspace now displays all six raw action switches, including portal sending. This is intentionally separate from the execution adapter’s prerequisite checks: an enabled scheduling switch must remain visible even if missing credentials or image hosting prevent execution. A missing field means unknown, never “Off”. No toggle, activation or provider-write control is added.
 
 Reference: [Google service account authentication](https://developers.google.com/identity/protocols/oauth2/service-account) and [sharing specific files with a service account](https://developers.google.com/workspace/guides/create-credentials).

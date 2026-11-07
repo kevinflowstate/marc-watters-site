@@ -13,9 +13,6 @@ All `/api/ops/*` and `/api/mcp` requests require `Authorization: Bearer <OPS_API
 | `/api/ops/clients`                 | GET         | Client signals and user summary                                               |
 | `/api/ops/clients/{id}`            | GET         | One client                                                                    |
 | `/api/ops/clients/{id}/onboarding` | POST        | Advance onboarding                                                            |
-| `/api/ops/lessons`                 | GET         | Recording queue                                                               |
-| `/api/ops/lessons/{id}`            | GET, POST   | Read; editing actions require explicit legacy mode                            |
-| `/api/ops/render-jobs/{id}`        | PATCH       | Existing worker progress/output callback                                      |
 | `/api/ops/reports`                 | GET, POST   | List; gather current weekly figures without AI generation                     |
 | `/api/ops/reports/{id}`            | GET, PATCH  | Read figures/revision; submit Codex-prepared narrative as an unapproved draft |
 | `/api/mcp`                         | POST        | Stateless Streamable HTTP; authenticated GET/DELETE may return 405            |
@@ -25,7 +22,7 @@ curl "$PORTAL/api/ops/tasks?area=content" -H "Authorization: Bearer $OPS_API_TOK
 curl "$PORTAL/api/ops/tasks" -H "Authorization: Bearer $OPS_API_TOKEN" -H 'Content-Type: application/json' --data '{"kind":"approval","title":"Review caption","area":"content","external_ref":"content:example:1"}'
 ```
 
-MCP tools: `create_task`, `list_tasks`, `update_task`, `request_approval`, `attach_output`, `get_client`, `list_clients_needing_attention`, `get_lesson`, `list_lessons`, `propose_lesson_cuts`, `create_report_draft`, `get_report`, `submit_report_draft`. `update_client_onboarding` is added in Stream D. Each has a JSON schema and a plain-language description. Codex-generated outputs go to human approval; these tools do not publish content or send client messages. `propose_lesson_cuts` is optional legacy mode only and requires `OPS_LEGACY_LESSON_PIPELINE_ENABLED=true` plus a supplied `cuts` array; it no longer generates cuts using an AI API. `create_report_draft` gathers figures only. Read them using `get_report`, then call `submit_report_draft` with `id`, `expected_updated_at` and `narrative_md`. This rejects stale revisions, reviewed/sending reports and existing human edits; it never grants review or send approval.
+MCP tools: `create_task`, `list_tasks`, `update_task`, `request_approval`, `attach_output`, `get_client`, `list_clients_needing_attention`, `create_report_draft`, `get_report`, `submit_report_draft`. `update_client_onboarding` is added in Stream D. Each has a JSON schema and a plain-language description. Codex-generated outputs go to human approval; these tools do not publish content or send client messages. `create_report_draft` gathers figures only. Read them using `get_report`, then call `submit_report_draft` with `id`, `expected_updated_at` and `narrative_md`. This rejects stale revisions, reviewed/sending reports and existing human edits; it never grants review or send approval.
 
 The Next 16 build accepts `mcp-handler` 2.x with the official SDK dependencies. It creates a fresh server per request and supports current and 2025 stateless Streamable HTTP clients; no Redis/session state. No legacy SSE URL.
 
@@ -45,7 +42,7 @@ Keep `CBB_OPS_TOKEN` in the local secure environment, matching the server’s `O
 
 ## Server configuration
 
-All values pass through `lib/env.ts` normalisation (`.trim()` plus pasted literal newline cleanup): `OPS_API_TOKEN`, `OPS_WEBHOOK_SECRET`, `FATHOM_API_KEY`, `FATHOM_WEBHOOK_SECRET`, `RENDER_HOST_URL`, `RENDER_HOST_SECRET`, optional `GHL_LOCATION_TOKEN`, `OPS_LEGACY_LESSON_PIPELINE_ENABLED` (default false), `OPS_REPORT_SEND_ENABLED` (default false), `OPS_NOTIFICATIONS_ENABLED` (default false). The new Ops flow no longer requires an AI-provider key. Existing unrelated Blueprint AI functionality retains its own configuration. `CRON_SECRET`, `WEBHOOK_SECRET` and `RESEND_API_KEY` remain server-only. Existing `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` identify only the permitted non-live project for these branches; service-role keys are never public. Do not reuse production webhook/cron secrets in previews.
+All values pass through `lib/env.ts` normalisation (`.trim()` plus pasted literal newline cleanup): `OPS_API_TOKEN`, `OPS_WEBHOOK_SECRET`, optional `GHL_LOCATION_TOKEN`, `OPS_REPORT_SEND_ENABLED` (default false), `OPS_NOTIFICATIONS_ENABLED` (default false). The new Ops flow no longer requires an AI-provider key. Existing unrelated Blueprint AI functionality retains its own configuration. `CRON_SECRET`, `WEBHOOK_SECRET` and `RESEND_API_KEY` remain server-only. Existing `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` identify only the permitted non-live project for these branches; service-role keys are never public. Do not reuse production webhook/cron secrets in previews.
 
 Non-live database: `abmmlybdqwzujcysagvf`. Production `eeatjpbwwkgytznkfdww` is forbidden for this build. New migrations are additive numbered 019–022; apply only to non-live/local. Scripts refuse production targets. The old non-live database predates some portal columns; record any baseline compatibility requirements separately.
 
@@ -53,7 +50,7 @@ Non-live database: `abmmlybdqwzujcysagvf`. Production `eeatjpbwwkgytznkfdww` is 
 
 `OPS_TEST_ACCOUNT=/private/test-account.json node --env-file=.env.local scripts/ops-admin-smoke.mjs` exercises admin work API against port 3087.
 
-`node --env-file=.env.local scripts/ops-smoke.mjs` checks all REST routes and every tool through the official MCP SDK client. The historical full-domain test needs a disposable demo client/recording/render job via `OPS_SMOKE_CLIENT_ID`, `OPS_SMOKE_LESSON_ID`, `OPS_SMOKE_JOB_ID`; use only non-live fixtures. Full domain smoke runs after Streams D–G. The 31 October run exercised the then-current 12 tools. The 5 November handoff smoke discovers 14 tools and verifies the new report read/submit flow; this does not re-certify every retained legacy path. Neither script sends email, notifications or CRM writes.
+`node --env-file=.env.local scripts/ops-smoke.mjs` checks all REST routes and every tool through the official MCP SDK client. The historical full-domain test needs a disposable demo client via `OPS_SMOKE_CLIENT_ID`; use only non-live fixtures. Full domain smoke runs after Streams D–G. The 31 October run exercised the then-current 12 tools. The 5 November handoff smoke discovers 14 tools and verifies the new report read/submit flow; this does not re-certify every retained legacy path. Neither script sends email, notifications or CRM writes.
 
 Installed Codex CLI verification: `codex mcp add cbb_ops --url https://YOUR-PREVIEW/api/mcp --bearer-token-env-var CBB_OPS_TOKEN`. This is documentation only; no connector was installed or configuration changed.
 

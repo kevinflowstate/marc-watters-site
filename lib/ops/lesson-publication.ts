@@ -436,3 +436,14 @@ export async function publishLessonArtifact(
   // SQL checks current media and module atomically and returns the saved receipt on replay.
   return deps.publish(manifest, claim);
 }
+
+export async function getLesson(id: string) {
+  const r = await createAdminClient()
+    .from("lesson_recordings")
+    .select("*")
+    .eq("id", uuid(id))
+    .maybeSingle();
+  if (r.error) throw new OpsError(r.error.message, 503);
+  if (!r.data) throw new OpsError("Recording not found", 404);
+  return r.data;
+}

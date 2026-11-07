@@ -48,7 +48,7 @@ Use environment-owned secrets only, separate by target. Relevant configured name
 
 Marc's cloud has only the existing read/draft/task scopes on the exact stable preview host, with access expiring20 November. It cannot approve, send or publish. Drive access is Viewer on one exact handoff file, not the Business Hub/folder. Keep file-ID/version/hash checking; future content updates require a new review. Live client identity mapping must be verified per Stripe merchant/invoice and GHL contact; preview test profiles are not live client mappings.
 
-Keep all seven variables explicitly false, then independently read `/api/ops/identity` and the admin connections endpoint:
+Keep all six variables explicitly false, then independently read `/api/ops/identity` and the admin connections endpoint:
 
 - `OPS_CONTENT_SCHEDULING_ENABLED`
 - `OPS_LESSON_PUBLICATION_ENABLED`
@@ -56,13 +56,12 @@ Keep all seven variables explicitly false, then independently read `/api/ops/ide
 - `OPS_REPORT_SEND_ENABLED`
 - `OPS_NOTIFICATIONS_ENABLED`
 - `FLOWSTATE_PORTAL_SEND_ENABLED`
-- `OPS_LEGACY_LESSON_PIPELINE_ENABLED`
 
 Verify the five actual Codex scheduler records remain disabled with no next run. Environment publication and saving a draft must not change them. Do not connect an active event source until the specific workflow's controlled trial and business rules are agreed.
 
 ## Smoke checks and rollback
 
-After a separately authorised deployment: verify exact app/database/revision; anonymous401 and insufficient-scope403; private image byte/hash readback; same-input result replay without duplication; reply/reopen/task ownership; no account creation with onboarding sending off; all seven switches false; five actual jobs paused. Use owned synthetic fixtures only. Exercise the visible review controls on desktop/mobile and Eimear's own account before claiming team readiness.
+After a separately authorised deployment: verify exact app/database/revision; anonymous401 and insufficient-scope403; private image byte/hash readback; same-input result replay without duplication; reply/reopen/task ownership; no account creation with onboarding sending off; all six switches false; five actual jobs paused. Use owned synthetic fixtures only. Exercise the visible review controls on desktop/mobile and Eimear's own account before claiming team readiness.
 
 For an application regression, stop new intake, retain all outbound switches false, preserve provider receipts and return the deployment/alias to the previous reviewed compatible revision. Repoint Marc's exact-host connection only if the intended preview still passes identity checks. Keep additive tables/buckets and saved human decisions: do not destructively drop migrations or erase unknown dispatches as rollback. If a schema repair is required, prepare a forward fix or restore the verified backup with explicit approval. Never reset an uncertain send or re-enable a workflow automatically.
 
