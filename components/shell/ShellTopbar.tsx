@@ -3,27 +3,28 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { useTheme } from "@/components/portal/ThemeToggle";
-import { adminSections } from "@/components/admin/admin-nav";
+import { isActive, type ShellConfig } from "@/components/shell/nav";
 
 /** Section and, for a nested route, the kind of record it opens. */
-function crumbs(pathname: string) {
-  const match = adminSections
-    .flatMap((s) => s.items)
-    .filter((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(`${i.href}/`)))
+function crumbs(pathname: string, config: ShellConfig) {
+  const items = [...config.sections.flatMap((s) => s.items), ...(config.settingsItem ? [config.settingsItem] : [])];
+  const match = items
+    .filter((i) => isActive(pathname, i, config.root))
     .sort((a, b) => b.href.length - a.href.length)[0];
-  if (!match) return [{ label: "Admin", href: "/admin" }];
+  if (!match) return [{ label: config.rootLabel, href: config.root }];
   const nested = pathname !== match.href && match.child;
   return nested ? [{ label: match.label, href: match.href }, { label: match.child! }] : [{ label: match.label }];
 }
 
-export default function AdminTopbar() {
+export default function ShellTopbar({ config, extra }: { config: ShellConfig; extra?: ReactNode }) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const trail = crumbs(pathname);
+  const trail = crumbs(pathname, config);
   return (
     <header className="adm-topbar">
-      <Link href="/admin" className="adm-topbar-mark" aria-label="Admin home">
+      <Link href={config.homeHref} className="adm-topbar-mark" aria-label={`${config.productName} home`}>
         <Image src="/images/cbb-logo.png" alt="" width={22} height={22} />
       </Link>
       <nav className="adm-crumbs" aria-label="Breadcrumb">
@@ -35,6 +36,7 @@ export default function AdminTopbar() {
         ))}
       </nav>
       <span className="flex-1" />
+      {extra}
       <button
         type="button"
         className="adm-ibtn"

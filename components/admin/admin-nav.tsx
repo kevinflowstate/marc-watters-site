@@ -1,19 +1,10 @@
-/** One list for the sidebar, the phone nav and the topbar crumb. */
-export type AdminNavItem = {
-  href: string;
-  label: string;
-  /** What a nested route under this section opens, for the crumb. */
-  child?: string;
-  icon: string;
-  /** Growth operators only ever see this one page. */
-  operator?: boolean;
-};
-export type AdminNavSection = { label?: string; items: AdminNavItem[] };
+import { settingsIcon, type ShellConfig, type ShellNavSection } from "@/components/shell/nav";
 
-export const adminSections: AdminNavSection[] = [
+/** Admin nav config. One list for the sidebar, the phone nav and the topbar crumb. */
+export const adminSections: ShellNavSection[] = [
   {
     items: [
-      { href: "/admin", label: "Dashboard", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
+      { href: "/admin", label: "Dashboard", short: "Home", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
       { href: "/admin/work", label: "Workspace", child: "Item", icon: "M9 12l2 2 4-4M5 4h14v16H5z" },
       { href: "/admin/inbox", label: "Inbox", child: "Conversation", icon: "M8 10h8m-8 4h5m-7 6h12a2 2 0 002-2V8a2 2 0 00-.586-1.414l-4-4A2 2 0 0014 2H6a2 2 0 00-2 2v14a2 2 0 002 2z" },
     ],
@@ -37,20 +28,24 @@ export const adminSections: AdminNavSection[] = [
   },
 ];
 
-export const settingsItem: AdminNavItem = {
-  href: "/admin/settings",
-  label: "Settings",
-  icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+export const adminConfig: ShellConfig = {
+  root: "/admin",
+  rootLabel: "Admin",
+  homeHref: "/admin",
+  productName: "Blueprint Admin",
+  ariaLabel: "Admin",
+  sections: adminSections,
+  settingsItem: { href: "/admin/settings", label: "Settings", icon: settingsIcon },
+  primaryHrefs: ["/admin", "/admin/work", "/admin/clients", "/admin/inbox"],
+  publicSite: true,
 };
 
-export function isActive(pathname: string, href: string) {
-  return pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
-}
-
-export function NavIcon({ d, size = 16, stroke = 1.6 }: { d: string; size?: number; stroke?: number }) {
-  return (
-    <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
+/** Growth operators get a one-item shell: their page and sign out. */
+export const operatorConfig: ShellConfig = {
+  ...adminConfig,
+  homeHref: "/admin/growth-engine",
+  productName: "Growth Engine",
+  sections: [{ items: adminSections.flatMap((s) => s.items).filter((i) => i.operator) }],
+  settingsItem: undefined,
+  primaryHrefs: undefined,
+};

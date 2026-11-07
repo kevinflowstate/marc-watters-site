@@ -459,59 +459,6 @@ body::after {
 
 .v2-stat-strip > *:last-child { border-right: 0; }
 
-.portal-v2-sidebar {
-  background: rgba(7, 8, 12, 0.94);
-  border-color: var(--cbb-line);
-  box-shadow: 18px 0 60px rgba(0, 0, 0, 0.18);
-}
-
-.portal-v2-nav-item {
-  position: relative;
-  min-height: 44px;
-  border: 1px solid transparent;
-}
-
-.portal-v2-nav-item::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  top: 11px;
-  bottom: 11px;
-  width: 2px;
-  border-radius: 999px;
-  background: transparent;
-}
-
-.portal-v2-nav-item.is-active::before {
-  background: var(--color-accent-bright);
-  box-shadow: 0 0 14px rgba(96, 165, 250, 0.65);
-}
-
-.portal-v2-mobile-nav {
-  background: rgba(7, 8, 12, 0.94);
-  border-color: var(--cbb-line-strong);
-  box-shadow: 0 -16px 44px rgba(0, 0, 0, 0.35);
-}
-
-.portal-v2-mobile-item {
-  min-height: 52px;
-  min-width: 0;
-  padding-inline: 2px;
-  border-radius: 12px;
-}
-
-.portal-v2-mobile-nav .portal-v2-mobile-item .portal-v2-mobile-label {
-  display: block;
-  max-width: 100%;
-  font-size: 10px !important;
-  line-height: 1 !important;
-  white-space: nowrap;
-}
-
-.portal-v2-mobile-item.is-active {
-  background: rgba(34, 114, 222, 0.1);
-}
-
 /* V2 light mode: pair light surfaces with light-mode foreground tokens.
    The V2 shell's dark workspace tokens are declared after the global light
    theme, so they need an explicit light counterpart at the same scope. */
@@ -675,8 +622,10 @@ body::after {
 
 /* ============================================================
    ADMIN SHELL — flat product UI
-   Scoped to .admin-shell (the admin layout) so the client portal keeps
-   its own look. Legacy token names are re-pointed here so every admin
+   Scoped to .admin-shell, which both the admin and the client portal
+   layouts carry (components/shell/AppShell.tsx); the portal adds a
+   .portal-shell modifier for its few differences. The marketing site is
+   untouched. Legacy token names are re-pointed here so every admin
    page follows without being rewritten; Tailwind colour utilities are
    inlined at build time, so they are re-pointed by class pattern below,
    the same way the light theme already does it.
@@ -930,6 +879,47 @@ body::after {
 }
 .adm-ibtn:hover { background: var(--adm-surface-2); color: var(--adm-text); }
 .adm-ibtn svg { width: 16px; height: 16px; }
+.adm-ibtn { position: relative; }
+.adm-ibtn-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--adm-accent); box-shadow: 0 0 0 2px var(--adm-surface); }
+img.adm-av { object-fit: cover; }
+
+/* ---------- Topbar popover (portal notifications) ---------- */
+.adm-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--adm-surface);
+  border-radius: 10px;
+  box-shadow: var(--adm-shadow-pop);
+}
+.adm-pop-h { padding: 8px 10px 6px; font-size: 12.5px; font-weight: 600; color: var(--adm-text); }
+.adm-pop-empty { padding: 6px 10px 12px; font-size: 12.5px; color: var(--adm-text-3); }
+.adm-pop-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px 8px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--adm-text);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.adm-pop-row:hover { background: var(--adm-surface-2); }
+.adm-pop-dot { width: 6px; height: 6px; margin: 6px auto 0; border-radius: 50%; }
+.adm-pop-row.is-unread .adm-pop-dot { background: var(--adm-accent); }
+.adm-pop-title { display: block; font-size: 13px; font-weight: 500; }
+.adm-pop-msg { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 1px; font-size: 12.5px; color: var(--adm-text-2); }
+.adm-pop-time { display: block; margin-top: 2px; font-size: 12px; color: var(--adm-text-3); font-variant-numeric: tabular-nums; }
 
 /* ---------- Bottom nav (phones) ---------- */
 .adm-bottomnav {
@@ -1109,3 +1099,38 @@ body::after {
 .admin-shell .adm-page > *:nth-child(3) { animation-delay: 0.06s; }
 .admin-shell .adm-page > *:nth-child(n + 4) { animation-delay: 0.09s; }
 @media (prefers-reduced-motion: reduce) { .admin-shell .adm-page > * { animation: none; } }
+
+/* ============================================================
+   CLIENT PORTAL — differences on top of the shared flat shell
+   (.portal-shell sits beside .admin-shell on the portal layout root).
+   Each rule reaches a pattern the shared overrides cannot.
+   ============================================================ */
+/* Sentence case: uppercase eyebrows, field labels and weekday heads read as shouting. */
+.portal-shell .uppercase { text-transform: none; }
+.portal-shell .uppercase, .portal-shell .tracking-wider, .portal-shell .tracking-widest, .portal-shell [class*="tracking-[0."] { letter-spacing: 0; }
+/* Display-sized tracking collapses at 22px; keep the system's -0.02em floor. */
+.portal-shell [class*="tracking-[-0.0"], .portal-shell .tracking-tight { letter-spacing: -0.02em; }
+/* One heading scale: page and card titles at 22px / 600, section heads at 15px. */
+.portal-shell h1:not(.v2-page-title), .portal-shell h2[class*="text-3xl"], .portal-shell h2[class*="text-[28px]"] {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.portal-shell :is(h2, h3).text-xl { font-size: 15px; letter-spacing: -0.01em; }
+/* Decorative glow blobs and radial washes behind cards. */
+.portal-shell [class*="blur-3xl"], .portal-shell [class*="bg-[radial-gradient"] { display: none; }
+/* The eyebrow is hidden, so a header row holding only its icon and the eyebrow goes too. */
+.portal-shell div:has(> svg + .v2-eyebrow:last-child) { display: none; }
+/* The dashboard's percentage sat in a card inside a card; let the number stand on the panel. */
+.portal-shell .v2-surface-strong div[class*="bg-black/20"][class*="border"] { background: transparent !important; border-color: transparent !important; padding: 0; }
+/* Settings sub-blocks were bordered boxes inside a panel; flatten them to plain rows. */
+.portal-shell .v2-surface [class*="bg-white/[0.018]"][class*="rounded-[var(--cbb-radius-md)]"] { background: transparent !important; border-color: transparent !important; padding-inline: 0; }
+/* Fields and choice buttons sized for a dense tool: 34px, not 46 to 48. */
+.portal-shell input[class*="py-3"]:not([type="checkbox"]):not([type="radio"]), .portal-shell select[class*="py-3"] { min-height: 34px; padding-block: 6px; }
+.portal-shell button.min-h-12:not(.v2-button-primary):not(.v2-button-secondary) { min-height: 34px; padding-block: 6px; }
+/* Narrow pages (inbox, AI, settings) line up with the page edge instead of floating centred. */
+.portal-shell .adm-page > .mx-auto[class*="max-w-5xl"] { margin-left: 0; }
+/* Business plan phase headers were washed in the phase colour; colour stays in the icon tile only. */
+.portal-shell .v2-surface > div.border-b:first-child { background-color: transparent !important; }

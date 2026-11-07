@@ -186,7 +186,7 @@ export default function BlueprintAIPage() {
 
       const pageTop = Math.max(currentPage.getBoundingClientRect().top, 0);
       const mobileNav = window.innerWidth < 1024
-        ? document.querySelector<HTMLElement>(".portal-mobile-nav")
+        ? document.querySelector<HTMLElement>(".adm-bottomnav")
         : null;
       const bottomClearance = mobileNav ? mobileNav.getBoundingClientRect().height + 8 : 16;
 
