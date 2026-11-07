@@ -1,35 +1,28 @@
 {
-  "enabled": false,
-  "revision": "kevin-payment-calendar-2026-11-05",
+  "revision": "kevin-payment-timing-2026-11-07",
   "approved_by": "Kevin Harkin",
-  "approved_at": "2026-11-05",
+  "approved_at": "2026-11-07",
   "location_id": "93GJEdsr0cT9el3OINXq",
+  "workflow_id": "5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed",
   "timezone": "Europe/London",
   "max_reminders": 2,
-  "allowed_local_hours": {
-    "start": 9,
-    "end": 10
+  "timing": {
+    "first": "next_working_day_mon_to_fri",
+    "first_local_time": "09:00",
+    "second_hours_after_first": 48,
+    "bank_holidays": "not handled"
   },
   "steps": [
     {
       "key": "first",
-      "template_id": null,
-      "body_template": "Hi {{first_name}}, it's Eimear from Construction Business Blueprint. A payment on your account hasn't gone through. Please reply here and I'll help you get it sorted.",
       "template_name": "cbb_payment_issue_v1",
-      "template_status": "pending_meta_approval"
+      "body_template": "Hi {{first_name}}, it's Eimear from Construction Business Blueprint. A payment on your account hasn't gone through. Please reply here and I'll help you get it sorted."
     },
     {
       "key": "second",
-      "template_id": null,
-      "body_template": "Hi {{first_name}}, it's Eimear from Construction Business Blueprint. The payment we contacted you about is still showing as unpaid. Please reply here if you need help getting it sorted.",
       "template_name": "cbb_payment_followup_v1",
-      "template_status": "pending_meta_approval"
+      "body_template": "Hi {{first_name}}, it's Eimear from Construction Business Blueprint. The payment we contacted you about is still showing as unpaid. Please reply here if you need help getting it sorted."
     }
   ],
-  "timing": {
-    "first": "next_working_day",
-    "followup_calendar_days": 3,
-    "local_hour": 9
-  },
-  "timing_note": "Kevin approved next working day, then one follow-up three calendar days after verified first send, weekends roll forward. Proposed 09:00 execution hour; jobs remain disabled until activation."
+  "timing_note": "Kevin confirmed 7 Nov 2026: reminder 1 at 09:00 Europe/London on the next working day (Mon-Fri) after the failure; reminder 2 exactly 48 hours after reminder 1 if still unpaid; then Eimear takes over. GHL enforces the timing; the portal displays it."
 }

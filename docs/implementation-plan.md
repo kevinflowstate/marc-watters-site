@@ -35,7 +35,7 @@ Verified in the normal browser at `app.flow-state.tech`, location MRW Management
 - WhatsApp account Approved, Meta business Verified; sender 07411 235027 Connected and quality Green. The action's mapped-template selector offered marketing templates. Searching the full template inventory for “payment” returned none before this task created the new template.
 - Created **inactive trigger draft** `5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed`: “CBB Ops | Payment recovery | DRAFT - awaiting activation”, Payment Received filtered Payment Status Is Failed. Re-entry/multiple-opportunity entry off, stop-on-response on. Reopened and confirmed Saved/Draft. No sending action or live enrollment exists yet.
 - This draft is not a complete reminder runner. It still needs the deployed authenticated preflight, approved templates, per-run case/attempt retention, receipt callbacks, reply/DND handoff and controlled acceptance. GHL's invoice-trigger re-entry exception means the portal reservation remains necessary even with re-entry disabled.
-- Contact-based first-step preflight: `POST /api/ops/payment-reminders/preflight`, dedicated workflow secret, exact location/contact and step key. It selects only one already bound unpaid case and reserves at most one permitted reminder. It does not send.
+- Payment reminders are GHL-native (portal enrols the contact; GHL sends; progress returns to `/api/webhooks/ghl-payment`). The preflight/dispatch/receipt routes were removed on 7 Nov 2026. See docs/payment-workflows.md.
 
 Direct Stripe events from both accounts remain authoritative. Do not assume that the native GHL payment trigger sees all payments made directly in Stripe.
 

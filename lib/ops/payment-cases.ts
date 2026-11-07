@@ -1,27 +1,44 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, record, uuid } from "./tasks";
-import { paymentHumanHandoff } from "./payment-display";
 import {
-  MARC_PAYMENT_LOCATION,
-  paymentRules,
-  reminderEligibility,
-  renderPaymentReminder,
-  singleBoundPaymentCase,
+  paymentCaseView,
+  paymentHumanHandoff,
+  paymentReminderPlan,
+  paymentTaskText,
+  reportedReminderAttempts,
+} from "./payment-display";
+import {
+  GHL_PROGRESS_EVENTS,
+  reminderStatusRank,
+  type GhlProgressEvent,
   type PaymentCase,
-  type PaymentAttempt,
+  type PaymentCaseEvent,
 } from "./payment-policy";
 import {
   readStripePaymentSnapshot,
+  stripeAccountLabel,
   stripePaymentAccount,
-  stripePaymentAccountById,
   verifyStripePaymentSignature,
 } from "./payment-stripe";
+import {
+  addContactToWorkflow,
+  findContactsByEmail,
+  getGhlContact,
+  GhlWorkflowError,
+  removeContactFromWorkflow,
+} from "./ghl-workflow";
+
+const OPEN_STATES = ["unpaid", "unknown", "paused", "uncollectible"];
+const remindersEnabled = () => getEnv("OPS_PAYMENT_REMINDERS_ENABLED") === "true";
+const errorText = (e: unknown) =>
+  e instanceof Error ? e.message.slice(0, 300) : "Unknown error";
 
 function dbError(error: { message: string } | null) {
   if (error) throw new OpsError(error.message, 409);
 }
+
 export async function listPaymentCases() {
   const r = await createAdminClient()
     .from("ops_payment_cases")
@@ -29,40 +46,59 @@ export async function listPaymentCases() {
     .order("updated_at", { ascending: false })
     .limit(501);
   dbError(r.error);
-  if (!r.data || r.data.length > 500) throw new OpsError("Payment cases exceed this view’s limit; the source needs checking", 503);
+  if (!r.data || r.data.length > 500)
+    throw new OpsError("Payment cases exceed this view’s limit; the source needs checking", 503);
   return r.data as PaymentCase[];
 }
-export async function getPaymentCase(id: string) {
-  const db = createAdminClient();
-  const r = await db
+
+async function loadCase(id: string) {
+  const r = await createAdminClient()
     .from("ops_payment_cases")
     .select("*")
-    .eq("id", uuid(id))
+    .eq("id", id)
     .maybeSingle();
   dbError(r.error);
   if (!r.data) throw new OpsError("Payment case not found", 404);
-  const attempts = await db
-    .from("ops_payment_attempts")
-    .select("*")
-    .eq("case_id", id)
-    .order("created_at");
-  dbError(attempts.error);
+  return r.data as PaymentCase;
+}
+
+export async function getPaymentCase(id: string) {
+  const db = createAdminClient();
+  const payment = await loadCase(uuid(id));
   const events = await db
     .from("ops_payment_case_events")
-    .select("id,source,event_type,occurred_at,created_at")
-    .eq("case_id", id)
+    .select("id,source,event_type,occurred_at,created_at,data")
+    .eq("case_id", payment.id)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(200);
   dbError(events.error);
+  const rows = (events.data || []) as PaymentCaseEvent[];
+  let note: string | null = null;
+  if (payment.task_id) {
+    const task = await db
+      .from("ops_tasks")
+      .select("id,status,decision_note")
+      .eq("id", payment.task_id)
+      .maybeSingle();
+    dbError(task.error);
+    note = (task.data?.decision_note as string | null) ?? null;
+  }
+  const attempts = reportedReminderAttempts(rows);
   return {
-    payment_case: r.data as PaymentCase,
-    attempts: attempts.data as PaymentAttempt[],
-    events: events.data,
-    human_followup: paymentHumanHandoff(
-      r.data as PaymentCase,
-      attempts.data as PaymentAttempt[],
-      getEnv("OPS_PAYMENT_REMINDERS_ENABLED") === "true",
-    ),
+    payment_case: payment,
+    attempts,
+    events: rows.slice(0, 50).map((e) => ({
+      id: e.id,
+      source: e.source,
+      event_type: e.event_type,
+      occurred_at: e.occurred_at,
+      created_at: e.created_at,
+    })),
+    human_followup: paymentHumanHandoff(payment, attempts, remindersEnabled()),
+    view: paymentCaseView(payment, rows, {
+      accountLabel: stripeAccountLabel(payment.stripe_account_id),
+      note,
+    }),
   };
 }
 
@@ -79,7 +115,7 @@ export async function savePaymentSnapshot(
     p_occurred: occurredAt,
   });
   dbError(r.error);
-  return r.data as { duplicate: boolean; case: PaymentCase };
+  return r.data as { duplicate: boolean; case?: PaymentCase };
 }
 
 export async function receiveStripePaymentEvent(
@@ -119,9 +155,7 @@ export async function receiveStripePaymentEvent(
       throw new OpsError("Invoice event required");
     invoiceIds = [object.id];
   } else if (
-    ["customer.subscription.updated", "customer.subscription.deleted"].includes(
-      type,
-    )
+    ["customer.subscription.updated", "customer.subscription.deleted"].includes(type)
   ) {
     if (
       object.object !== "subscription" ||
@@ -135,6 +169,7 @@ export async function receiveStripePaymentEvent(
       .eq("stripe_account_id", account.account_id)
       .eq("subscription_id", object.id)
       .neq("state", "paid")
+      .neq("state", "void")
       .limit(101);
     dbError(r.error);
     if ((r.data || []).length > 100)
@@ -142,86 +177,291 @@ export async function receiveStripePaymentEvent(
         "Subscription has too many open cases for synchronous refresh; reconcile the backlog",
         503,
       );
-    invoiceIds = (r.data || []).map(
-      (row: { invoice_id: string }) => row.invoice_id,
-    );
+    invoiceIds = (r.data || []).map((row: { invoice_id: string }) => row.invoice_id);
   } else return { received: true, ignored: true };
   const results = [];
   for (const invoiceId of invoiceIds) {
     const snapshot = await readStripePaymentSnapshot(account, invoiceId);
-    results.push(
-      await savePaymentSnapshot(
-        snapshot,
-        `${account.account_id}:${event.id}:${invoiceId}`,
-        type,
-        occurred,
-      ),
+    const saved = await savePaymentSnapshot(
+      snapshot,
+      `${account.account_id}:${event.id}:${invoiceId}`,
+      type,
+      occurred,
     );
+    results.push(await afterSnapshot(saved));
   }
   return { received: true, cases: results };
 }
 
-async function ghlPaymentRead(path: string) {
-  const token = getEnv("OPS_GHL_PAYMENT_TOKEN");
-  if (!token)
-    throw new OpsError("Scoped CRM payment read access is not configured", 503);
-  const r = await fetch("https://services.leadconnectorhq.com" + path, {
-    headers: {
-      Authorization: "Bearer " + token,
-      Version: "v3",
-      Accept: "application/json",
-    },
-    signal: AbortSignal.timeout(15000),
-    redirect: "error",
-    cache: "no-store",
-  });
-  if (!r.ok) throw new OpsError("CRM payment readback unavailable", 503);
-  return record(await r.json());
-}
-async function verifyGhlPaymentLocation() {
-  // Location/contact APIs retain the dated version; message read uses its current v3 contract.
-  const token = getEnv("OPS_GHL_PAYMENT_TOKEN");
-  if (!token)
-    throw new OpsError("Scoped CRM payment read access is not configured", 503);
-  const r = await fetch(
-    `https://services.leadconnectorhq.com/locations/${MARC_PAYMENT_LOCATION}`,
-    {
-      headers: { Authorization: "Bearer " + token, Version: "2021-07-28" },
-      signal: AbortSignal.timeout(15000),
-      redirect: "error",
-      cache: "no-store",
-    },
-  );
-  if (!r.ok)
-    throw new OpsError("CRM payment location could not be verified", 503);
-  const location = record(record(await r.json()).location);
-  if (
-    location.id !== MARC_PAYMENT_LOCATION ||
-    location.name !== "MRW Management LTD"
-  )
-    throw new OpsError("CRM payment location does not match", 409);
-}
-export async function readGhlPaymentContact(contactId: string) {
-  await verifyGhlPaymentLocation();
-  const response = await fetch(
-    `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contactId)}`,
-    {
-      headers: {
-        Authorization: "Bearer " + getEnv("OPS_GHL_PAYMENT_TOKEN"),
-        Version: "2021-07-28",
-      },
-      signal: AbortSignal.timeout(15000),
-      redirect: "error",
-      cache: "no-store",
-    },
-  );
-  if (!response.ok) throw new OpsError("CRM contact cannot be verified", 409);
-  const contact = record(record(await response.json()).contact);
-  if (contact.id !== contactId || contact.locationId !== MARC_PAYMENT_LOCATION)
-    throw new OpsError("CRM contact destination does not match", 409);
-  return contact;
+/** The Stripe event is already recorded, so CRM problems are saved on the case, never thrown. */
+async function afterSnapshot(saved: { duplicate: boolean; case?: PaymentCase }) {
+  const c = saved?.case;
+  if (!c?.id || saved.duplicate) return saved;
+  let reminders: string;
+  try {
+    if (["paid", "void", "cancelled"].includes(c.state)) reminders = await stopReminders(c);
+    else if (c.state === "unpaid") reminders = await startReminders(c);
+    else reminders = c.latest_delivery || "not_started";
+    await syncPaymentTask(await loadCase(c.id));
+  } catch (e) {
+    console.error("Payment reminder follow-on failed", errorText(e));
+    reminders = "follow_on_failed";
+  }
+  return { ...saved, reminders };
 }
 
+async function updateCase(id: string, patch: Record<string, unknown>) {
+  const r = await createAdminClient().from("ops_payment_cases").update(patch).eq("id", id);
+  dbError(r.error);
+}
+
+async function logCaseEvent(
+  caseId: string,
+  eventType: string,
+  data: Record<string, unknown>,
+  options: { externalId?: string; occurredAt?: string } = {},
+) {
+  const r = await createAdminClient().from("ops_payment_case_events").insert({
+    case_id: caseId,
+    source: "ghl",
+    external_id: options.externalId || `portal:${eventType}:${caseId}:${randomUUID()}`,
+    event_type: eventType,
+    occurred_at: options.occurredAt || new Date().toISOString(),
+    data,
+  });
+  if (r.error && (r.error as { code?: string }).code === "23505") return false;
+  dbError(r.error);
+  return true;
+}
+
+/** New unpaid case: find the CRM contact by email and add them to the reminder workflow. */
+async function startReminders(c: PaymentCase) {
+  if (c.latest_delivery) return c.latest_delivery;
+  if (!c.first_failed_at) return "not_started";
+  if (!remindersEnabled()) {
+    await updateCase(c.id, { latest_delivery: "reminders_off" });
+    await logCaseEvent(c.id, "reminders_off", {});
+    return "reminders_off";
+  }
+  // Claim the case so two concurrent Stripe events cannot enrol twice.
+  const claim = await createAdminClient()
+    .from("ops_payment_cases")
+    .update({ latest_delivery: "enrolling" })
+    .eq("id", c.id)
+    .is("latest_delivery", null)
+    .select("id");
+  dbError(claim.error);
+  if (!claim.data?.length) return "already_started";
+  try {
+    let contactId = c.contact_id;
+    if (!contactId) {
+      const matches = c.contact_email ? await findContactsByEmail(c.contact_email) : [];
+      if (matches.length !== 1) {
+        await updateCase(c.id, { latest_delivery: "no_contact_match" });
+        await logCaseEvent(c.id, "no_contact_match", {
+          email: c.contact_email,
+          matches: matches.length,
+        });
+        return "no_contact_match";
+      }
+      contactId = matches[0].id;
+    }
+    const plan = paymentReminderPlan(c.first_failed_at);
+    await addContactToWorkflow(contactId, { eventStartTime: plan?.first });
+    const at = new Date().toISOString();
+    await updateCase(c.id, { contact_id: contactId, bound_at: at, latest_delivery: "enrolled" });
+    await logCaseEvent(
+      c.id,
+      "enrolled",
+      {
+        contact_id: contactId,
+        workflow_id: getEnv("OPS_PAYMENT_WORKFLOW_ID") || null,
+        event_start_time: plan?.first ?? null,
+      },
+      { occurredAt: at },
+    );
+    return "enrolled";
+  } catch (e) {
+    await updateCase(c.id, { latest_delivery: "enrol_failed" });
+    await logCaseEvent(c.id, "enrol_failed", { error: errorText(e) });
+    return "enrol_failed";
+  }
+}
+
+/** Paid, voided or cancelled: take the contact out of the reminder workflow once. */
+async function stopReminders(c: PaymentCase) {
+  if (!c.contact_id) return "no_contact";
+  const externalId = `portal:removed:${c.id}`;
+  const done = await createAdminClient()
+    .from("ops_payment_case_events")
+    .select("id")
+    .eq("source", "ghl")
+    .eq("external_id", externalId)
+    .maybeSingle();
+  dbError(done.error);
+  if (done.data) return "already_removed";
+  try {
+    const result = await removeContactFromWorkflow(c.contact_id);
+    await logCaseEvent(c.id, "removed_from_workflow", { contact_id: c.contact_id, ...result }, { externalId });
+    return result.removed ? "removed" : "not_in_workflow";
+  } catch (e) {
+    await logCaseEvent(c.id, "removal_failed", { contact_id: c.contact_id, error: errorText(e) });
+    return "removal_failed";
+  }
+}
+
+async function mutateTask(action: string, data: Record<string, unknown>, actor: string, id?: string) {
+  const r = await createAdminClient().rpc("ops_mutate_task", {
+    p_action: action,
+    p_data: data,
+    p_actor: actor,
+    p_id: id ?? null,
+  });
+  dbError(r.error);
+  return r.data as { id: string; status: string };
+}
+
+/** Rebuild Eimear's task from the case. Closing keeps her decision note (migration 031). */
+export async function syncPaymentTask(
+  c: PaymentCase,
+  options: { reopen?: boolean; extraLines?: string[] } = {},
+) {
+  if (["paid", "void"].includes(c.state)) {
+    if (!c.task_id) return null;
+    const t = await createAdminClient()
+      .from("ops_tasks")
+      .select("id,status")
+      .eq("id", c.task_id)
+      .maybeSingle();
+    dbError(t.error);
+    if (t.data && !["done", "cancelled"].includes(String(t.data.status)))
+      await mutateTask(
+        "complete",
+        {
+          status: "done",
+          completion_reason:
+            c.state === "paid"
+              ? "Stripe confirms this invoice is paid; this invoice follow-up is closed."
+              : "Stripe shows this invoice was voided; this invoice follow-up is closed.",
+        },
+        "stripe-payment",
+        c.task_id,
+      );
+    return c.task_id;
+  }
+  const text = paymentTaskText(c, {
+    accountLabel: stripeAccountLabel(c.stripe_account_id),
+    extraLines: options.extraLines,
+  });
+  const task = await mutateTask(
+    "create",
+    {
+      kind: "flag",
+      area: "payments",
+      assignee: "eimear",
+      external_ref: `payment-case:${c.id}`,
+      title: text.title,
+      detail: text.detail,
+      payload: {
+        payment_case_id: c.id,
+        stripe_account_id: c.stripe_account_id,
+        invoice_id: c.invoice_id,
+        state: c.state,
+        latest_delivery: c.latest_delivery,
+      },
+      links: [{ label: "Review payment case", url: `/admin/automation?payment=${c.id}` }],
+    },
+    "payment-case",
+  );
+  if (task?.id && task.id !== c.task_id) await updateCase(c.id, { task_id: task.id });
+  if (options.reopen && task && ["done", "cancelled", "rejected"].includes(task.status))
+    await mutateTask("update", { status: "open" }, "payment-case", task.id);
+  return task?.id ?? null;
+}
+
+function progressPatch(c: PaymentCase, type: GhlProgressEvent) {
+  const advance = (status: string, count: number) => ({
+    reminder_count: Math.max(c.reminder_count || 0, count),
+    latest_delivery:
+      (reminderStatusRank[c.latest_delivery || ""] || 0) < reminderStatusRank[status]
+        ? status
+        : c.latest_delivery,
+  });
+  if (type === "reminder_1_sent") return advance("reminder_1_sent", 1);
+  if (type === "reminder_2_sent") return advance("reminder_2_sent", 2);
+  if (type === "escalated") return advance("escalated", 2);
+  if (type === "reply_received") return { reply_needs_human: true };
+  return { contact_dnd: true };
+}
+
+/** GHL workflow progress: { event_type, contact_id, occurred_at, event_id, invoice_id? }. */
+export async function recordGhlPaymentProgress(input: unknown) {
+  const b = record(input);
+  // occurred_at is optional: GHL may not expose a reliable timestamp merge field.
+  const occurredRaw =
+    typeof b.occurred_at === "string" && b.occurred_at.trim() ? b.occurred_at.trim() : new Date().toISOString();
+  const invoiceId = typeof b.invoice_id === "string" && b.invoice_id.trim() ? b.invoice_id.trim() : null;
+  if (
+    !GHL_PROGRESS_EVENTS.includes(b.event_type as GhlProgressEvent) ||
+    typeof b.contact_id !== "string" ||
+    !/^[A-Za-z0-9]{8,100}$/.test(b.contact_id) ||
+    typeof b.event_id !== "string" ||
+    !b.event_id.trim() ||
+    b.event_id.length > 200 ||
+    !Number.isFinite(Date.parse(occurredRaw)) ||
+    Date.parse(occurredRaw) > Date.now() + 300000 ||
+    (invoiceId !== null && !/^in_[A-Za-z0-9]+$/.test(invoiceId))
+  )
+    throw new OpsError(
+      "event_type, contact_id and event_id are required (occurred_at must be a valid past time if sent); event_type must be one of " +
+        GHL_PROGRESS_EVENTS.join(", "),
+    );
+  const type = b.event_type as GhlProgressEvent;
+  const eventId = b.event_id.trim();
+  const occurredAt = new Date(occurredRaw).toISOString();
+  const db = createAdminClient();
+  let query = db
+    .from("ops_payment_cases")
+    .select("*")
+    .eq("contact_id", b.contact_id)
+    .in("state", OPEN_STATES);
+  if (invoiceId) query = query.eq("invoice_id", invoiceId);
+  const found = await query.limit(20);
+  dbError(found.error);
+  const cases = (found.data || []) as PaymentCase[];
+  if (!cases.length)
+    return { received: true, matched: 0, note: "No open payment case for this contact" };
+  const externalIds = cases.map((c) => `progress:${eventId}:${c.id}`);
+  const seen = await db
+    .from("ops_payment_case_events")
+    .select("external_id")
+    .eq("source", "ghl")
+    .in("external_id", externalIds);
+  dbError(seen.error);
+  const seenIds = new Set((seen.data || []).map((e: { external_id: string }) => e.external_id));
+  const fresh = cases.filter((c) => !seenIds.has(`progress:${eventId}:${c.id}`));
+  if (!fresh.length) return { received: true, duplicate: true, matched: cases.length };
+  const note =
+    cases.length > 1
+      ? `This CRM contact has ${cases.length} open invoices; the workflow update "${type}" was applied to all of them.`
+      : undefined;
+  for (const c of fresh) {
+    await updateCase(c.id, progressPatch(c, type));
+    await logCaseEvent(
+      c.id,
+      type,
+      { event_id: eventId, contact_id: b.contact_id, invoice_id: invoiceId },
+      { externalId: `progress:${eventId}:${c.id}`, occurredAt },
+    );
+    await syncPaymentTask(await loadCase(c.id), {
+      reopen: ["escalated", "reply_received", "dnd"].includes(type),
+      extraLines: note ? [note] : [],
+    });
+  }
+  return { received: true, duplicate: false, matched: cases.length, applied: fresh.length, note };
+}
+
+/** Admin match of a case to a CRM contact (e.g. after "no single CRM contact matched"). */
 export async function bindPaymentContact(
   caseId: string,
   input: unknown,
@@ -229,386 +469,31 @@ export async function bindPaymentContact(
 ) {
   const b = record(input);
   if (
-    Object.keys(b).some(
-      (k) =>
-        !["contact_id", "whatsapp_opt_in", "consent_reference"].includes(k),
-    ) ||
+    Object.keys(b).some((k) => !["contact_id", "whatsapp_opt_in", "consent_reference"].includes(k)) ||
     typeof b.contact_id !== "string" ||
     !/^[A-Za-z0-9]{8,100}$/.test(b.contact_id) ||
-    typeof b.whatsapp_opt_in !== "boolean" ||
-    typeof b.consent_reference !== "string" ||
-    b.consent_reference.length > 2000
+    (b.whatsapp_opt_in !== undefined && typeof b.whatsapp_opt_in !== "boolean") ||
+    (b.consent_reference !== undefined &&
+      (typeof b.consent_reference !== "string" || b.consent_reference.length > 2000))
   )
-    throw new OpsError(
-      "Verified contact, WhatsApp permission and evidence reference required",
-    );
+    throw new OpsError("A valid CRM contact_id is required");
   uuid(authenticatedAdminId);
-  await getPaymentCase(caseId);
-  await readGhlPaymentContact(b.contact_id);
+  await loadCase(uuid(caseId));
+  try {
+    await getGhlContact(b.contact_id);
+  } catch (e) {
+    if (e instanceof GhlWorkflowError) throw new OpsError(e.message, e.status);
+    throw e;
+  }
   const r = await createAdminClient().rpc("ops_bind_payment_contact", {
     p_case: caseId,
     p_contact: b.contact_id,
-    p_opt_in: b.whatsapp_opt_in,
-    p_consent: b.consent_reference,
+    p_opt_in: b.whatsapp_opt_in === true,
+    p_consent: typeof b.consent_reference === "string" ? b.consent_reference : "",
     p_actor: authenticatedAdminId,
   });
   dbError(r.error);
-  return r.data as PaymentCase;
-}
-
-export async function paymentReminderPreflight(
-  caseId: string,
-  input: unknown,
-  expectedContactId?: string,
-) {
-  const b = record(input);
-  if (
-    Object.keys(b).some((k) => !["step_key", "workflow_run_id"].includes(k)) ||
-    typeof b.step_key !== "string" ||
-    (b.workflow_run_id !== undefined && !validPaymentWorkflowRun(b.workflow_run_id))
-  )
-    throw new OpsError("step_key required");
-  if (getEnv("OPS_PAYMENT_REMINDERS_ENABLED") !== "true")
-    return { authorised_send: false, reason: "Payment reminders are disabled" };
-  // Native GHL does not need to expose an enrollment ID: the first successful
-  // reservation creates its own per-invoice handoff identity. Later nodes must
-  // retain that response value rather than use a contact custom field.
-  const workflowRun = b.workflow_run_id ?? (b.step_key === "first" ? randomUUID() : null);
-  if (!validPaymentWorkflowRun(workflowRun))
-    return { authorised_send: false, reason: "The original saved workflow context is required for the follow-up" };
-  let configured: unknown;
-  try {
-    configured = JSON.parse(getEnv("OPS_PAYMENT_RULES_JSON") || "{}");
-  } catch {
-    throw new OpsError("Payment rules configuration is invalid", 503);
-  }
-  const rules = paymentRules(configured);
-  const existing = await getPaymentCase(caseId);
-  if (
-    expectedContactId &&
-    existing.payment_case.contact_id !== expectedContactId
-  )
-    return {
-      authorised_send: false,
-      reason: "Contact binding changed; manual review required",
-    };
-  const account = stripePaymentAccountById(
-    existing.payment_case.stripe_account_id,
-  );
-  const snapshot = await readStripePaymentSnapshot(
-    account,
-    existing.payment_case.invoice_id,
-  );
-  await savePaymentSnapshot(
-    snapshot,
-    `${account.account_id}:preflight:${randomUUID()}`,
-    "preflight",
-    new Date().toISOString(),
-  );
-  const current = await getPaymentCase(caseId);
-  if (b.step_key === "second" && !current.attempts.some((attempt) =>
-    attempt.step_key === "first" && attempt.workflow_run_id === workflowRun &&
-    Boolean(attempt.dispatch_claimed_at) && attempt.receipt_verified &&
-    ["sent", "delivered"].includes(attempt.state)))
-    return { authorised_send: false, reason: "The follow-up must belong to the original verified workflow run" };
-  if (
-    expectedContactId &&
-    current.payment_case.contact_id !== expectedContactId
-  )
-    return {
-      authorised_send: false,
-      reason: "Contact binding changed; manual review required",
-    };
-  if (!current.payment_case.contact_id)
-    return {
-      authorised_send: false,
-      reason: "Verified CRM contact binding required",
-    };
-  const contact = await readGhlPaymentContact(current.payment_case.contact_id);
-  const dndSettings =
-    contact.dndSettings && typeof contact.dndSettings === "object"
-      ? record(contact.dndSettings)
-      : {};
-  const whatsappDnd =
-    dndSettings.WhatsApp && typeof dndSettings.WhatsApp === "object"
-      ? record(dndSettings.WhatsApp)
-      : null;
-  if (
-    typeof contact.dnd !== "boolean" ||
-    contact.dnd ||
-    (whatsappDnd && whatsappDnd.status !== "inactive")
-  )
-    return {
-      authorised_send: false,
-      reason: "CRM DND is active or cannot be verified",
-    };
-  const result = reminderEligibility(
-    current.payment_case,
-    current.attempts,
-    rules,
-    b.step_key,
-  );
-  if (!result.eligible)
-    return {
-      authorised_send: false,
-      reason: result.reason,
-      due_at: result.due_at,
-    };
-  if (expectedContactId) {
-    const candidate =
-      await resolveSinglePaymentCaseForContact(expectedContactId);
-    if (!candidate.eligible || candidate.case_id !== caseId)
-      return {
-        authorised_send: false,
-        reason:
-          "Contact now has another unresolved invoice; manual review required",
-      };
-  }
-  const rendered = renderPaymentReminder(
-    current.payment_case,
-    result.step.body_template,
-    contact,
-  );
-  const body = rendered.body;
-  const bodyHash = createHash("sha256")
-    .update(normalisePaymentMessageBody(body))
-    .digest("hex");
-  const contextToken = randomBytes(32).toString("hex");
-  const r = await createAdminClient().rpc("ops_reserve_payment_delivery", {
-    p_case: caseId,
-    p_expected: current.payment_case.updated_at,
-    p_step: result.step.key,
-    p_template: result.step.template_id,
-    p_rules: rules.revision,
-    p_location: rules.location_id,
-    p_body_hash: bodyHash,
-    p_run: workflowRun,
-    p_context_hash: createHash("sha256").update(contextToken).digest("hex"),
-  });
-  dbError(r.error);
-  if (!r.data.authorised_send) return r.data;
-  return {
-    ...r.data,
-    // Reservation is never the native action's final permission. Only the
-    // separate one-use dispatch gate may return authorised_send:true.
-    authorised_send: false,
-    reserved: true,
-    context_token: contextToken,
-    workflow_run_id: workflowRun,
-    contact_id: current.payment_case.contact_id,
-    location_id: rules.location_id,
-    template_id: result.step.template_id,
-    rendered_body: body,
-    due_at: result.due_at,
-    payment_link: current.payment_case.hosted_invoice_url,
-    first_name: rendered.first_name,
-    invoice_reference:
-      current.payment_case.invoice_number || current.payment_case.invoice_id,
-    case_id: caseId,
-    stripe_account_id: current.payment_case.stripe_account_id,
-    invoice_id: current.payment_case.invoice_id,
-  };
-}
-
-// A native contact-triggered first reminder need not carry mutable invoice fields.
-// Ambiguous/multiple outstanding cases are held for a person rather than selected.
-export async function paymentReminderPreflightForContact(
-  contactId: string,
-  input: unknown,
-) {
-  const b = record(input);
-  if (
-    !/^[A-Za-z0-9]{8,100}$/.test(contactId) ||
-    Object.keys(b).some((k) => !["step_key", "workflow_run_id"].includes(k)) ||
-    typeof b.step_key !== "string" ||
-    (b.workflow_run_id !== undefined && !validPaymentWorkflowRun(b.workflow_run_id))
-  )
-    throw new OpsError("Verified contact ID and step_key required");
-  if (getEnv("OPS_PAYMENT_REMINDERS_ENABLED") !== "true")
-    return { authorised_send: false, reason: "Payment reminders are disabled" };
-  if (b.step_key !== "first")
-    return { authorised_send: false, reason: "Use the original invoice case for its follow-up" };
-  const candidate = await resolveSinglePaymentCaseForContact(contactId);
-  if (!candidate.eligible)
-    return { authorised_send: false, reason: candidate.reason };
-  return paymentReminderPreflight(candidate.case_id, b, contactId);
-}
-
-async function resolveSinglePaymentCaseForContact(contactId: string) {
-  const r = await createAdminClient()
-    .from("ops_payment_cases")
-    .select("id,contact_id,state")
-    .eq("contact_id", contactId)
-    .in("state", ["unpaid", "unknown", "paused", "uncollectible"])
-    .limit(2);
-  dbError(r.error);
-  return singleBoundPaymentCase(r.data || [], contactId);
-}
-
-export function normalisePaymentMessageBody(body: string) {
-  return body.replace(/\r\n/g, "\n").trim();
-}
-export function validPaymentWorkflowRun(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/.test(value);
-}
-export function verifiedPaymentMessage(
-  message: Record<string, unknown>,
-  attempt: Record<string, unknown>,
-) {
-  const timestamp = Date.parse(String(message.dateAdded));
-  const created = Date.parse(String(attempt.created_at)),
-    expires = Date.parse(String(attempt.expires_at));
-  const contextBound = Boolean(attempt.context_token_hash);
-  const dispatched = Date.parse(String(attempt.dispatch_claimed_at));
-  // An earlier identical message is not this native action's receipt. Context
-  // attempts fail closed on clock skew/rounded provider time before dispatch;
-  // the legacy creation-time allowance applies only to older unbound attempts.
-  const earliest = contextBound ? dispatched : created - 5000;
-  if (
-    message.id !== attempt.provider_message_id ||
-    message.contactId !== attempt.contact_id ||
-    message.locationId !== MARC_PAYMENT_LOCATION ||
-    message.direction !== "outbound" ||
-    !["TYPE_WHATSAPP", "WHATSAPP", "WhatsApp"].includes(
-      String(message.messageType),
-    ) ||
-    !Number.isFinite(timestamp) ||
-    !Number.isFinite(created) ||
-    !Number.isFinite(expires) ||
-    (contextBound && (!Number.isFinite(dispatched) || dispatched < created)) ||
-    timestamp < earliest ||
-    timestamp > expires ||
-    typeof message.body !== "string" ||
-    createHash("sha256")
-      .update(normalisePaymentMessageBody(message.body))
-      .digest("hex") !== attempt.expected_body_hash
-  )
-    return null;
-  if (["delivered", "read", "opened"].includes(String(message.status)))
-    return "delivered";
-  if (message.status === "sent") return "sent";
-  if (["failed", "undelivered"].includes(String(message.status)))
-    return "failed";
-  return null;
-}
-
-export async function recordGhlPaymentCaseEvent(
-  input: unknown,
-  workflowContext?: { run: string; hash: string },
-) {
-  const b = record(input);
-  const allowed = [
-    "schema_version",
-    "stripe_account_id",
-    "invoice_id",
-    "location_id",
-    "contact_id",
-    "external_id",
-    "event_type",
-    "occurred_at",
-    "attempt_id",
-    "provider_message_id",
-  ];
-  if (
-    Object.keys(b).some((k) => !allowed.includes(k)) ||
-    b.schema_version !== 2 ||
-    typeof b.stripe_account_id !== "string" ||
-    !/^acct_[A-Za-z0-9]+$/.test(b.stripe_account_id) ||
-    typeof b.invoice_id !== "string" ||
-    !/^in_[A-Za-z0-9]+$/.test(b.invoice_id) ||
-    b.location_id !== MARC_PAYMENT_LOCATION ||
-    typeof b.contact_id !== "string" ||
-    !/^[A-Za-z0-9]{8,100}$/.test(b.contact_id) ||
-    typeof b.external_id !== "string" ||
-    !b.external_id.trim() ||
-    b.external_id.length > 500 ||
-    typeof b.occurred_at !== "string" ||
-    !Number.isFinite(Date.parse(b.occurred_at)) ||
-    Date.parse(b.occurred_at) > Date.now() + 300000 ||
-    ![
-      "reminder_requested",
-      "reminder_sent",
-      "reminder_delivered",
-      "reminder_failed",
-      "reply_needs_human",
-      "contact_dnd",
-      "manual_pause",
-    ].includes(String(b.event_type))
-  )
-    throw new OpsError("Valid invoice-scoped CRM payment event required");
-  let verified: string | null = null;
-  let error: string | null = null;
-  let verifiedSentAt: string | null = null;
-  let verifiedMessageAt: string | null = null;
-  if (String(b.event_type).startsWith("reminder_")) {
-    uuid(b.attempt_id);
-    const attempt = await createAdminClient()
-      .from("ops_payment_attempts")
-      .select("*")
-      .eq("id", b.attempt_id)
-      .maybeSingle();
-    dbError(attempt.error);
-    if (!attempt.data)
-      throw new OpsError("Reserved reminder attempt not found", 409);
-    if (attempt.data.context_token_hash && (
-      !attempt.data.dispatch_claimed_at ||
-      attempt.data.workflow_run_id !== workflowContext?.run ||
-      attempt.data.context_token_hash !== workflowContext?.hash
-    )) throw new OpsError("Use the original workflow context to record this reminder's receipt", 409);
-    if (
-      typeof b.provider_message_id === "string" &&
-      /^[A-Za-z0-9_-]{1,200}$/.test(b.provider_message_id)
-    ) {
-      try {
-        await verifyGhlPaymentLocation();
-        const message = await ghlPaymentRead(
-          "/conversations/messages/" +
-            encodeURIComponent(b.provider_message_id),
-        );
-        verified = verifiedPaymentMessage(message, {
-          ...attempt.data,
-          provider_message_id: b.provider_message_id,
-        });
-        if (verified)
-          verifiedMessageAt = new Date(String(message.dateAdded)).toISOString();
-        if (verified && ["sent", "delivered"].includes(verified))
-          verifiedSentAt = new Date(String(message.dateAdded)).toISOString();
-        if (!verified)
-          error =
-            "Message context/status could not be verified; reconcile before another reminder";
-      } catch {
-        error = "Provider message readback unavailable; delivery is unverified";
-      }
-    } else
-      error = "Workflow reported progress without a provider message receipt";
-  }
-  const payload = {
-    ...b,
-    // Keep an unverified candidate in the event evidence without permanently
-    // binding a wrong message ID and blocking the genuine later receipt.
-    reported_provider_message_id: b.provider_message_id,
-    provider_message_id: verified ? b.provider_message_id : undefined,
-    receipt_verified: Boolean(verified),
-    delivery_state: verified,
-    verified_sent_at: verifiedSentAt,
-    verified_message_at: verifiedMessageAt,
-    error,
-  };
-  const r = await createAdminClient().rpc("ops_record_payment_ghl_event", {
-    p_event: payload,
-  });
-  dbError(r.error);
-  const result = record(r.data);
-  const persisted = result.receipt && typeof result.receipt === "object"
-    ? record(result.receipt) : null;
-  return {
-    ...result,
-    receipt: {
-      // Idempotent callbacks can return an earlier stored receipt. Report that
-      // committed state, never a fresh provider read that was not persisted.
-      verified: persisted?.verified === true,
-      state: typeof persisted?.state === "string" ? persisted.state : null,
-      sent_at: typeof persisted?.sent_at === "string" ? persisted.sent_at : null,
-    },
-  };
+  const bound = r.data as PaymentCase;
+  await syncPaymentTask(await loadCase(bound.id));
+  return bound;
 }

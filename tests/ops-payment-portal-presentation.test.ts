@@ -29,7 +29,7 @@ describe("payment cards for Marc and Eimear", () => {
     expect(html).toContain("London time");
     expect(html).toContain("Next action for Eimear");
     expect(html).toContain("Automatic reminders are off");
-    expect(html).toContain("Reminder result saved · open history to check");
+    expect(html).toContain("Not in the reminder workflow");
     expect(html).not.toContain("Delivery confirmed");
     expect(html).not.toContain("Verified reminders:");
     expect(html).toContain("does not send a reminder or mark the invoice as paid");

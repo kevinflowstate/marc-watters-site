@@ -2,9 +2,9 @@
 
 The invoice-scoped implementation and disabled-by-default CRM reminder contract are in [payment workflows](payment-workflows.md). Stripe-signed current invoice reads are the payment authority; CRM events report reminders/replies/DND and cannot assert settlement. Each account/invoice has its own case/task, and duplicate preflights cannot grant another send. No client messages were sent by this build.
 
-The current native reminder contract uses a server-issued first handoff ID and a per-step opaque context token. First preflight reserves only (`reserved:true`, `authorised_send:false`); `/api/ops/payment-reminders/dispatch` grants the native action once after fresh checks. `/api/ops/payment-reminders/receipt` accepts saved context plus the actual message ID, reconstructs invoice identity and verifies provider delivery. It remains available while sending is paused. Carry saved webhook outputs inside the enrollment; never use contact-level current-invoice fields. The exact inactive builder recipe and remaining account-specific output/receipt checks are in [payment workflows](payment-workflows.md#inactive-native-builder-recipe--6-november-2026).
+The current design (7 November 2026) is GHL-native: the portal adds the contact to reminder workflow `5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed`, GHL sends both WhatsApp reminders, and Custom Webhook actions report progress to `POST /api/webhooks/ghl-payment` with `x-payment-workflow-secret`. The earlier preflight/dispatch/receipt routes were removed. Build spec: [payment workflows](payment-workflows.md).
 
-The earlier email/global-state webhook below is retained only for compatibility testing behind `OPS_LEGACY_PAYMENT_EVENTS_ENABLED=true`. It is off by default and must not be used as the production payment authority. New-client onboarding/daily signal work below is historical foundation context; timing thresholds still need confirmation.
+The earlier email/global-state webhook described below has been removed (`OPS_LEGACY_PAYMENT_EVENTS_ENABLED` no longer exists). New-client onboarding/daily signal work below is historical foundation context.
 
 ---
 

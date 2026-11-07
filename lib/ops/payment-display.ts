@@ -1,40 +1,30 @@
-import type { PaymentAttempt, PaymentCase } from "./payment-policy";
+import type {
+  PaymentAttempt,
+  PaymentCase,
+  PaymentCaseEvent,
+} from "./payment-policy";
 
-// Calendar arithmetic uses London dates, then resolves the due date's own UTC offset.
-// This preserves 09:00 through BST changes instead of adding fixed 24/72-hour durations.
-export function paymentReminderDueAt(
-  failedAt: string | null,
-  stepKey: string,
-  firstVerifiedSentAt: string | null = null,
-): string | null {
-  if (!["first", "second"].includes(stepKey)) return null;
-  const base = Date.parse(
-    (stepKey === "first" ? failedAt : firstVerifiedSentAt) || "",
-  );
-  if (!Number.isFinite(base)) return null;
+// TIMING RULE (Kevin, 7 Nov 2026): reminder 1 at 09:00 Europe/London on the next
+// working day (Mon-Fri) after the failure; reminder 2 exactly 48 hours after
+// reminder 1 if still unpaid; then Eimear takes over. No bank-holiday handling.
+// GHL enforces this; the portal only calculates it for display.
+const HOUR = 3600000;
+
+function londonDate(ms: number) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date(base));
+  }).formatToParts(new Date(ms));
   const part = (name: string) =>
     Number(parts.find((p) => p.type === name)?.value);
-  const date = new Date(
-    Date.UTC(
-      part("year"),
-      part("month") - 1,
-      part("day") + (stepKey === "first" ? 1 : 3),
-    ),
-  );
-  while ([0, 6].includes(date.getUTCDay()))
-    date.setUTCDate(date.getUTCDate() + 1);
-  const nominal = Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    9,
-  );
+  return { year: part("year"), month: part("month"), day: part("day") };
+}
+
+/** 09:00 London on a London calendar date, resolving that date's own UTC offset. */
+function londonNine(year: number, month: number, day: number) {
+  const nominal = Date.UTC(year, month - 1, day, 9);
   const londonHour = Number(
     new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/London",
@@ -42,51 +32,118 @@ export function paymentReminderDueAt(
       hourCycle: "h23",
     }).format(nominal),
   );
-  return new Date(nominal - (londonHour - 9) * 3600000).toISOString();
+  return nominal - (londonHour - 9) * HOUR;
+}
+
+export function paymentReminderPlan(
+  failedAt: string | null,
+  firstSentAt: string | null = null,
+) {
+  const failed = Date.parse(failedAt || "");
+  if (!Number.isFinite(failed)) return null;
+  const d = londonDate(failed);
+  const date = new Date(Date.UTC(d.year, d.month - 1, d.day + 1));
+  while ([0, 6].includes(date.getUTCDay()))
+    date.setUTCDate(date.getUTCDate() + 1);
+  const first = londonNine(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+  );
+  const sent = Date.parse(firstSentAt || "");
+  const second = (Number.isFinite(sent) ? sent : first) + 48 * HOUR;
+  return {
+    first: new Date(first).toISOString(),
+    second: new Date(second).toISOString(),
+    /** 48 hours after a Friday reminder 1 lands on a Sunday. */
+    second_on_weekend: ["Sat", "Sun"].includes(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/London",
+        weekday: "short",
+      }).format(new Date(second)),
+    ),
+  };
+}
+
+export function paymentReminderDueAt(
+  failedAt: string | null,
+  stepKey: string,
+  firstSentAt: string | null = null,
+): string | null {
+  const plan = paymentReminderPlan(failedAt, firstSentAt);
+  if (!plan) return null;
+  if (stepKey === "first") return plan.first;
+  if (stepKey === "second") return plan.second;
+  return null;
+}
+
+/** Reminders GHL has reported as sent, shaped for the existing drawer list. */
+export function reportedReminderAttempts(
+  events: PaymentCaseEvent[],
+): PaymentAttempt[] {
+  const out: PaymentAttempt[] = [];
+  for (const [type, step] of [
+    ["reminder_1_sent", "first"],
+    ["reminder_2_sent", "second"],
+  ] as const) {
+    const event = events
+      .filter((e) => e.source === "ghl" && e.event_type === type)
+      .sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at))[0];
+    if (event)
+      out.push({
+        id: event.id,
+        step_key: step,
+        state: "sent",
+        provider_message_id: null,
+        created_at: event.created_at,
+        receipt_verified: true,
+        verified_sent_at: event.occurred_at,
+      });
+  }
+  return out;
 }
 
 export const paymentDeliveryLabels: Record<string, string> = {
-  reserved: "Prepared · not sent",
-  requested: "Send requested · result not confirmed",
-  sent: "Send confirmed · delivery not confirmed",
-  delivered: "Delivery confirmed",
-  failed: "Send failed · check before retrying",
-  unknown: "Outcome unknown · check before retrying",
+  sent: "Reported sent by the CRM workflow",
 };
 
-function hasVerifiedSend(attempt: PaymentAttempt) {
-  return (
-    ["sent", "delivered"].includes(attempt.state) &&
-    attempt.receipt_verified === true &&
-    Number.isFinite(Date.parse(attempt.verified_sent_at || ""))
-  );
-}
-
-/** A native action status alone cannot establish that the provider sent anything. */
 export function paymentAttemptDeliveryLabel(attempt: PaymentAttempt) {
-  if (["sent", "delivered"].includes(attempt.state) && !hasVerifiedSend(attempt))
-    return "Send result not verified · check before following up";
   return paymentDeliveryLabels[attempt.state] || "Reminder result needs checking";
 }
+
+const workflowLabels: Record<string, string> = {
+  reminders_off: "Automatic reminders were off when this case opened",
+  enrolling: "Adding to the CRM reminder workflow",
+  no_contact_match: "Not in the reminder workflow · no single CRM contact matched",
+  enrol_failed: "Not in the reminder workflow · adding them failed",
+  enrolled: "In the CRM reminder workflow · no reminder reported yet",
+  reminder_1_sent: "Reminder 1 reported sent",
+  reminder_2_sent: "Both reminders reported sent",
+  escalated: "Both reminders sent · Eimear takes over",
+};
 
 export function paymentReminderSummary(
   payment: PaymentCase,
   attempts: PaymentAttempt[] | null,
 ) {
-  if (attempts === null) {
-    if (["sent", "delivered"].includes(payment.latest_delivery || ""))
-      return "Reminder result saved · open history to check";
-    return paymentDeliveryLabels[payment.latest_delivery || ""] ||
-      (payment.latest_delivery ? "Reminder result needs checking" : "No reminder result recorded");
-  }
-  const latest = attempts[attempts.length - 1];
-  if (!latest)
-    return payment.latest_delivery || payment.reminder_count > 0
-      ? "Reminder records need checking"
-      : "No reminder result recorded";
-  if (payment.latest_delivery && payment.latest_delivery !== latest.state)
-    return "Reminder records need checking";
-  return paymentAttemptDeliveryLabel(latest);
+  const base =
+    workflowLabels[payment.latest_delivery || ""] ||
+    "Not in the reminder workflow";
+  const latest = attempts?.[attempts.length - 1];
+  return latest?.verified_sent_at
+    ? `${base} · last reported ${londonTime(latest.verified_sent_at)}`
+    : base;
+}
+
+function londonTime(iso: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
 }
 
 /** Link only to this saved merchant/invoice; keep internal IDs out of the main copy. */
@@ -94,9 +151,40 @@ export function paymentInvoiceSourceUrl(payment: PaymentCase) {
   if (
     !/^acct_[A-Za-z0-9]+$/.test(payment.stripe_account_id) ||
     !/^in_[A-Za-z0-9]+$/.test(payment.invoice_id)
-  ) return null;
+  )
+    return null;
   return `https://dashboard.stripe.com/${payment.stripe_account_id}/invoices/${payment.invoice_id}`;
 }
+
+export function paymentAmountText(payment: Pick<PaymentCase, "amount_minor" | "currency">) {
+  if (payment.amount_minor == null || !payment.currency) return "Amount not recorded";
+  try {
+    const formatter = new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: payment.currency.toUpperCase(),
+    });
+    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
+    return formatter.format(payment.amount_minor / 10 ** digits);
+  } catch {
+    return `${payment.amount_minor} ${payment.currency}`;
+  }
+}
+
+export type PaymentDisplayStatus =
+  | "unpaid"
+  | "paid"
+  | "voided"
+  | "needs_person"
+  | "cancelled";
+export function paymentDisplayStatus(payment: PaymentCase): PaymentDisplayStatus {
+  if (payment.state === "paid") return "paid";
+  if (payment.state === "void") return "voided";
+  if (payment.state === "cancelled") return "cancelled";
+  if (payment.reply_needs_human || payment.contact_dnd || payment.state !== "unpaid")
+    return "needs_person";
+  return "unpaid";
+}
+
 export type PaymentNextStep = {
   kind: "planned" | "stopped" | "review" | "settled" | "unloaded";
   title: string;
@@ -106,55 +194,11 @@ export type PaymentNextStep = {
   overdue?: boolean;
 };
 
-/** A useful human path while native reminders are inactive or need reconciliation.
- * These are review instructions, never permission to message or a completed task. */
-export function paymentHumanHandoff(
-  payment: PaymentCase,
-  attempts: PaymentAttempt[] | null,
-  remindersEnabled: boolean,
-  now = Date.now(),
-) {
-  const next = paymentNextStep(payment, attempts, now);
-  const closed = ["paid", "void", "cancelled"].includes(payment.state);
-  const steps: string[] = [];
-  if (closed) {
-    steps.push("No payment chase is needed for this saved invoice status.");
-  } else {
-    steps.push("Open this invoice in the correct payment account and confirm its current status.");
-    if (!payment.source_verified_at || !Number.isFinite(Date.parse(payment.source_verified_at)))
-      steps.push("The last payment-account check is not recorded. Refresh the invoice before deciding what to do.");
-    if (payment.reply_needs_human)
-      steps.push("Read the client’s reply and deal with their question before arranging any further follow-up.");
-    if (payment.contact_dnd)
-      steps.push("Do not message this client: Do not disturb is set.");
-    else if (payment.manual_pause || payment.state === "paused")
-      steps.push("Follow-up is paused. Review the reason before deciding whether to resume it.");
-    if (!payment.contact_id)
-      steps.push("Match the invoice to the correct CRM contact before any reminder is considered.");
-    if (!payment.whatsapp_opt_in)
-      steps.push("WhatsApp permission is not verified. Do not send a WhatsApp reminder.");
-    if (next.kind === "review" || next.kind === "unloaded")
-      steps.push(next.detail);
-    if (payment.reminder_count >= 2)
-      steps.push("The two-reminder limit has been reached. Eimear handles the remaining follow-up personally; no third automatic reminder.");
-  }
-  return {
-    owner: "eimear" as const,
-    required: !closed,
-    title: closed ? "No payment chase needed" : "Eimear’s payment review",
-    summary: closed
-      ? "The saved payment-account check records this invoice as closed. No further reminder is planned."
-      : remindersEnabled
-      ? "A saved plan is not proof that a message was sent. Check the invoice and reminder history."
-      : "Automatic reminders are off. This case remains available for Eimear to review; no message has been queued by this check.",
-    steps,
-    source_checked_at: payment.source_verified_at,
-    reminder_plan: next,
-    sends_message: false as const,
-  };
+export function noContactMatchLine(email: string | null) {
+  return `No single CRM contact matched ${email || "the invoice email"}; match it in the CRM, then add them to the reminder workflow.`;
 }
 
-/** A display-only plan, never sending eligibility. No request, mutation or claim. */
+/** Display-only plan. GHL owns the actual sending and its timing. */
 export function paymentNextStep(
   payment: PaymentCase,
   attempts: PaymentAttempt[] | null,
@@ -166,118 +210,171 @@ export function paymentNextStep(
       title: "No further reminder planned",
       detail:
         payment.state === "paid"
-          ? "The saved invoice check records this payment as paid."
-          : "The saved invoice is closed. Do not send another reminder.",
+          ? "Stripe records this invoice as paid."
+          : "This invoice is closed in Stripe. No reminder is needed.",
     };
   if (payment.contact_dnd)
     return {
       kind: "stopped",
       title: "Messages stopped",
-      detail:
-        "Do not disturb is set. Eimear needs to review the case; no further reminder is planned.",
+      detail: "The client is set to Do not disturb in the CRM. Eimear handles this one personally.",
     };
   if (payment.reply_needs_human)
     return {
       kind: "stopped",
       title: "Eimear takes over",
-      detail:
-        "The client has replied. Read their reply before deciding what happens next.",
-    };
-  if (payment.manual_pause || payment.state === "paused")
-    return {
-      kind: "stopped",
-      title: "Follow-up paused",
-      detail: "Eimear needs to review this case before any further reminder.",
+      detail: "The client replied to a reminder. Read their reply in the CRM and pick it up from there.",
     };
   if (payment.state !== "unpaid")
     return {
       kind: "review",
       title: "Check the invoice first",
-      detail:
-        "The saved status does not confirm an unpaid invoice. Eimear should check the payment account.",
+      detail: "Stripe does not show this invoice as simply unpaid (it may be paused or need a decision). Eimear should check it.",
     };
-  if (payment.reminder_count >= 2)
+  const status = payment.latest_delivery || "";
+  if (status === "escalated" || payment.reminder_count >= 2)
     return {
       kind: "stopped",
       title: "Eimear takes over",
-      detail:
-        "Two reminders are recorded. The agreed reminder limit has been reached; no third reminder is planned.",
+      detail: "Both reminders have gone and the invoice is still unpaid. Eimear follows up personally.",
     };
-  if (attempts === null)
-    return {
-      kind: "unloaded",
-      title: "Check reminder history",
-      detail:
-        "Open the details to see the planned next step and any confirmed sends.",
-    };
-  if (
-    attempts.some(
-      (a) =>
-        !["sent", "delivered"].includes(a.state) ||
-        !a.receipt_verified ||
-        !a.verified_sent_at ||
-        !Number.isFinite(Date.parse(a.verified_sent_at)),
-    )
-  )
+  if (status === "reminders_off")
     return {
       kind: "review",
-      title: "Check the previous reminder result",
-      detail:
-        "An attempt has no confirmed successful send time, or its outcome needs checking. Do not send or repeat a reminder until it is reconciled.",
+      title: "Eimear chases this one",
+      detail: "Automatic reminders were off when this case opened, so the client was not added to the reminder workflow.",
     };
-  const steps = new Set(attempts.map((a) => a.step_key));
-  if (
-    attempts.length !== steps.size ||
-    [...steps].some((s) => !["first", "second"].includes(s)) ||
-    steps.size !== payment.reminder_count ||
-    (steps.has("second") && !steps.has("first"))
-  )
+  if (status === "no_contact_match")
+    return { kind: "review", title: "Match the client in the CRM", detail: noContactMatchLine(payment.contact_email) };
+  if (status === "enrol_failed")
     return {
       kind: "review",
-      title: "Reminder records need checking",
-      detail:
-        "The case count and verified reminder history do not agree. Eimear should reconcile the records before another reminder.",
+      title: "Add them to the reminder workflow",
+      detail: "The portal could not add this client to the CRM reminder workflow. Add them by hand in the CRM.",
     };
-  if (steps.size >= 2)
+  if (!["enrolled", "reminder_1_sent", "reminder_2_sent", "enrolling"].includes(status))
     return {
-      kind: "stopped",
-      title: "Eimear takes over",
-      detail:
-        "Both reminders have a confirmed send. No third reminder is planned.",
+      kind: "review",
+      title: "Not in the reminder workflow",
+      detail: "This case is not in the CRM reminder workflow. Eimear decides whether to add them or chase personally.",
     };
-  const step = steps.has("first") ? "second" : "first";
-  const first = attempts.find((a) => a.step_key === "first");
-  const planned_at = paymentReminderDueAt(
-    payment.first_failed_at,
-    step,
-    first?.verified_sent_at || null,
-  );
+  const firstSent =
+    attempts?.find((a) => a.step_key === "first")?.verified_sent_at || null;
+  const step: "first" | "second" =
+    payment.reminder_count >= 1 || firstSent || status === "reminder_1_sent"
+      ? "second"
+      : "first";
+  const planned_at = paymentReminderDueAt(payment.first_failed_at, step, firstSent);
   if (!planned_at)
     return {
       kind: "review",
       title: "Reminder timing needs checking",
-      detail:
-        "The required failure date or confirmed first-send time is missing. A reminder date cannot be calculated safely.",
+      detail: "The failure date is missing, so the reminder dates cannot be shown.",
     };
-  const prerequisites = !payment.contact_id
-    ? "The client’s CRM record still needs matching. "
-    : !payment.whatsapp_opt_in
-      ? "WhatsApp permission still needs verifying. "
-      : "";
   return {
     kind: "planned",
-    title:
-      step === "first"
-        ? "First reminder · planned timing"
-        : "One follow-up · planned timing",
+    title: step === "first" ? "Reminder 1 · planned timing" : "Reminder 2 · planned timing",
     detail:
-      prerequisites +
-      (step === "first"
-        ? "The next weekday after the recorded failure, at 09:00 London time."
-        : "Three calendar days after the confirmed first send, moving weekends to Monday at 09:00 London time.") +
-      " The invoice and sending permissions must be checked again before any send.",
+      step === "first"
+        ? "The CRM workflow sends reminder 1 at 09:00 London time on the next working day after the failure."
+        : "The CRM workflow sends reminder 2 48 hours after reminder 1 if the invoice is still unpaid. Then Eimear takes over.",
     step,
     planned_at,
     overdue: Date.parse(planned_at) <= now,
+  };
+}
+
+/** Eimear's view of what to do next. It never sends a message. */
+export function paymentHumanHandoff(
+  payment: PaymentCase,
+  attempts: PaymentAttempt[] | null,
+  remindersEnabled: boolean,
+  now = Date.now(),
+) {
+  const next = paymentNextStep(payment, attempts, now);
+  const closed = ["paid", "void", "cancelled"].includes(payment.state);
+  const steps: string[] = [];
+  if (closed) steps.push("No payment chase is needed for this invoice.");
+  else {
+    steps.push(next.detail);
+    if (payment.latest_delivery === "no_contact_match" && next.kind !== "review")
+      steps.push(noContactMatchLine(payment.contact_email));
+    if (next.kind === "stopped" || next.kind === "review")
+      steps.push("Open the invoice in Stripe to confirm it is still unpaid before contacting the client.");
+  }
+  return {
+    owner: "eimear" as const,
+    required: !closed && next.kind !== "planned",
+    title: closed ? "No payment chase needed" : next.title,
+    summary: closed
+      ? "Stripe records this invoice as closed. The client has been taken out of the reminder workflow."
+      : remindersEnabled
+        ? "The CRM workflow sends the two reminders. This portal records what it reports back."
+        : "Automatic reminders are off. New cases are recorded for Eimear only.",
+    steps,
+    source_checked_at: payment.source_verified_at,
+    reminder_plan: next,
+    sends_message: false as const,
+  };
+}
+
+/** Everything the drawer needs for one case. */
+export function paymentCaseView(
+  payment: PaymentCase,
+  events: PaymentCaseEvent[],
+  options: { accountLabel: string; note: string | null; now?: number },
+) {
+  const reported = reportedReminderAttempts(events);
+  const firstSent = reported.find((a) => a.step_key === "first")?.verified_sent_at || null;
+  const plan = paymentReminderPlan(payment.first_failed_at, firstSent);
+  const enrolled = events.find((e) => e.event_type === "enrolled");
+  return {
+    client_name: payment.customer_name || payment.contact_email || "Client not matched",
+    amount: paymentAmountText(payment),
+    invoice_number: payment.invoice_number || payment.invoice_id,
+    invoice_url: payment.hosted_invoice_url,
+    stripe_invoice_url: paymentInvoiceSourceUrl(payment),
+    stripe_account_label: options.accountLabel,
+    status: paymentDisplayStatus(payment),
+    reminder_plan: plan
+      ? { reminder_1_at: plan.first, reminder_2_at: plan.second, reminder_2_on_weekend: plan.second_on_weekend }
+      : null,
+    reminders_sent: reported.map((a) => ({
+      reminder: a.step_key === "first" ? 1 : 2,
+      sent_at: a.verified_sent_at,
+    })),
+    enrolled:
+      Boolean(enrolled) ||
+      ["enrolled", "reminder_1_sent", "reminder_2_sent", "escalated"].includes(
+        payment.latest_delivery || "",
+      ),
+    enrolled_at: enrolled?.occurred_at || payment.bound_at || null,
+    workflow_status: payment.latest_delivery,
+    eimear_note: options.note,
+    next_action: paymentNextStep(payment, reported, options.now).detail,
+  };
+}
+
+/** Eimear's task title and detail, rebuilt from the case every time it changes. */
+export function paymentTaskText(
+  payment: PaymentCase,
+  options: { accountLabel: string; extraLines?: string[] },
+) {
+  const label = payment.customer_name || payment.contact_email || payment.invoice_id;
+  const next = paymentNextStep(payment, null);
+  const lines = [
+    `Invoice ${payment.invoice_number || payment.invoice_id} · ${options.accountLabel}`,
+    `Amount: ${paymentAmountText(payment)}`,
+    `Payment: ${payment.state}`,
+    `Reminders: ${paymentReminderSummary(payment, null)} (${payment.reminder_count} of 2 reported sent)`,
+    `Next: ${next.detail}`,
+    ...(options.extraLines || []),
+  ];
+  return {
+    title:
+      next.kind === "stopped"
+        ? `Eimear: follow up on unpaid payment — ${label}`
+        : `Payment needs checking — ${label}`,
+    detail: lines.join("\n"),
   };
 }
