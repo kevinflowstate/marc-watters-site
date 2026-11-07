@@ -1,15 +1,25 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
-import { preparePendingAdmission, prepareOnboardingChecklist, startOnboarding } from "@/lib/ops/onboarding";
+import { startOnboarding } from "@/lib/ops/onboarding";
 import { sendWelcomeEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 
 function generateTemporaryPassword(): string {
-  const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(
-    /-/g,
-    "",
-  );
+  const entropy = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
   return `Tmp!${entropy.slice(0, 24)}aA1`;
+}
+
+// The Ops onboarding checklist is best effort. It must never block, fail or
+// undo client activation, which has already happened by the time it runs.
+async function beginOnboarding(profileId: string) {
+  try {
+    await startOnboarding(profileId);
+    return { onboarding_started: true as const };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.log("[WEBHOOK] Onboarding checklist failed:", message);
+    return { onboarding_started: false as const, onboarding_error: message };
+  }
 }
 
 export async function POST(request: Request) {
@@ -20,33 +30,28 @@ export async function POST(request: Request) {
   }
 
   let body;
-  try { body = await request.json(); } catch {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json({ error: "Valid JSON is required" }, { status: 400 });
   }
   if (!body || typeof body !== "object" || Array.isArray(body))
     return NextResponse.json({ error: "A client object is required" }, { status: 400 });
-  const sendingEnabled = process.env.FLOWSTATE_PORTAL_SEND_ENABLED?.trim() === "true";
 
   // GHL sends various field names — handle them all
-  const rawName = (
+  const rawName =
     body.name ||
     body.full_name ||
     body.contact_name ||
     body.fullName ||
     body.contactName ||
-    [body.first_name || body.firstName, body.last_name || body.lastName]
-      .filter(Boolean)
-      .join(" ")
-  );
+    [body.first_name || body.firstName, body.last_name || body.lastName].filter(Boolean).join(" ");
   const rawEmail = body.email || body.contact_email || body.contactEmail;
   const name = typeof rawName === "string" ? rawName.trim() : "";
   const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
 
   if (!name || !email) {
-    return NextResponse.json(
-      { error: "name and email are required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "name and email are required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -68,49 +73,30 @@ export async function POST(request: Request) {
       .eq("user_id", existing[0].id)
       .single();
     if (profileError || !profile)
-      return NextResponse.json(
-        { error: "Client profile is not ready; retry intake" },
-        { status: 503 },
-      );
-    if (sendingEnabled) await startOnboarding(profile.id);
-    else {
-      try { await prepareOnboardingChecklist(profile.id); } catch {
-        return NextResponse.json({ error: "Internal onboarding checklist could not be saved; retry intake" }, { status: 503 });
-      }
-    }
+      return NextResponse.json({ error: "Client profile is not ready; retry intake" }, { status: 503 });
+    // A replay never creates another account, invitation or welcome email.
+    // It only makes sure the onboarding checklist exists.
+    const onboarding = await beginOnboarding(profile.id);
     return NextResponse.json({
       success: true,
       message: "Client already exists",
       alreadyExisted: true,
-      delivery_status: sendingEnabled ? "existing_account_unchanged" : "paused",
+      ...onboarding,
     });
   }
 
-  if (!sendingEnabled) {
-    let review;
-    try { review = await preparePendingAdmission(name, email); } catch {
-      return NextResponse.json({ error: "Access review could not be saved; retry intake" }, { status: 503 });
-    }
-    return NextResponse.json({ success: true, taskId: review.id, emailSent: false,
-      delivery_status: "paused", admission_status: "needs_human_review",
-      message: "Access review saved. No account, invitation or welcome message was created." });
-  }
-
-  // Enabled intake requires the upstream admission contract to be agreed before rollout.
   // Create user in Supabase Auth (triggers handle_new_user + handle_new_client)
-  const { data: newUser, error: authError } = await admin.auth.admin.createUser(
-    {
-      email,
-      email_confirm: true,
-      password: generateTemporaryPassword(),
-      user_metadata: {
-        full_name: name,
-        role: "client",
-        app_name: "marc-watters-portal",
-        requires_password_setup: true,
-      },
+  const { data: newUser, error: authError } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    password: generateTemporaryPassword(),
+    user_metadata: {
+      full_name: name,
+      role: "client",
+      app_name: "marc-watters-portal",
+      requires_password_setup: true,
     },
-  );
+  });
 
   if (authError) {
     return NextResponse.json({ error: authError.message }, { status: 500 });
@@ -127,10 +113,7 @@ export async function POST(request: Request) {
     .single();
 
   if (!profile) {
-    return NextResponse.json(
-      { error: "Client profile was not created" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Client profile was not created" }, { status: 500 });
   }
 
   // The published "Welcome & Onboarding" module is auto-assigned by the DB trigger on client_profiles.
@@ -157,15 +140,11 @@ export async function POST(request: Request) {
       emailSent = true;
     }
   } catch (e) {
-    console.log(
-      "[WEBHOOK] Welcome email failed:",
-      e instanceof Error ? e.message : e,
-    );
+    console.log("[WEBHOOK] Welcome email failed:", e instanceof Error ? e.message : e);
   }
 
-  // Keep activation independent of Ops availability. A webhook retry resumes only
-  // idempotent onboarding above, without generating another invite or welcome email.
-  await startOnboarding(profile.id);
+  // Activation is complete. Start the Ops onboarding checklist for Eimear.
+  const onboarding = await beginOnboarding(profile.id);
 
   return NextResponse.json({
     success: true,
@@ -173,5 +152,6 @@ export async function POST(request: Request) {
     profileId: profile.id,
     emailSent,
     setupUrl: emailSent ? null : setupUrl,
+    ...onboarding,
   });
 }

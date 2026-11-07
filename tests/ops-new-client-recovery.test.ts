@@ -9,8 +9,6 @@ const f = vi.hoisted(() => ({
   createUser: vi.fn(),
   profileReady: true,
   lookupError: false,
-  prepare: vi.fn(),
-  pending: vi.fn(),
 }));
 // Follow this repository's source-loading test pattern without adding a global alias config.
 const source = readFileSync(
@@ -40,12 +38,10 @@ const POST = new Function(
   "createAdminClient",
   "createOrReplaceClientInvite",
   "startOnboarding",
-  "prepareOnboardingChecklist",
-  "preparePendingAdmission",
   "sendWelcomeEmail",
   "NextResponse",
   code + ";return POST;",
-)(db, f.invite, f.onboarding, f.prepare, f.pending, f.welcome, {
+)(db, f.invite, f.onboarding, f.welcome, {
   json: (data: unknown, init?: ResponseInit) =>
     new Response(JSON.stringify(data), init),
 }) as (request: Request) => Promise<Response>;
@@ -61,14 +57,13 @@ const request = () =>
       email: "fixture@example.invalid",
     }),
   });
-describe("Ops onboarding does not strand account activation", () => {
+describe("New-client intake activates the account and starts onboarding best effort", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     f.existing = false;
     f.profileReady = true;
     f.lookupError = false;
     vi.stubEnv("WEBHOOK_SECRET", "fixture-only");
-    vi.stubEnv("FLOWSTATE_PORTAL_SEND_ENABLED", "true");
     f.createUser.mockResolvedValue({
       data: { user: { id: "fixture-user" } },
       error: null,
@@ -77,17 +72,37 @@ describe("Ops onboarding does not strand account activation", () => {
       activationUrl: "https://example.invalid/fixture",
     });
     f.welcome.mockResolvedValue(undefined);
-    f.pending.mockResolvedValue({ id: "fixture-admission-task" });
   });
-  it("finishes activation before a failed Ops dependency and retries only onboarding", async () => {
-    f.onboarding.mockRejectedValueOnce(new Error("Synthetic Ops outage"));
-    await expect(POST(request())).rejects.toThrow("Synthetic Ops outage");
+  it("creates the account, invitation and welcome email, then starts onboarding", async () => {
+    f.onboarding.mockResolvedValue({});
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      emailSent: true,
+      onboarding_started: true,
+    });
+    expect(f.createUser).toHaveBeenCalledOnce();
     expect(f.invite).toHaveBeenCalledOnce();
     expect(f.welcome).toHaveBeenCalledOnce(); // mocked: no external send
+    expect(f.onboarding).toHaveBeenCalledWith("fixture-profile");
+  });
+  it("never fails activation because the Ops checklist failed; a replay retries only onboarding", async () => {
+    f.onboarding.mockRejectedValueOnce(new Error("Synthetic Ops outage"));
+    const first = await POST(request());
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({
+      success: true,
+      onboarding_started: false,
+      onboarding_error: "Synthetic Ops outage",
+    });
+    expect(f.invite).toHaveBeenCalledOnce();
+    expect(f.welcome).toHaveBeenCalledOnce();
     f.existing = true;
     f.onboarding.mockResolvedValueOnce({});
-    const result = await POST(request());
-    expect(result.status).toBe(200);
+    const replay = await POST(request());
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ alreadyExisted: true, onboarding_started: true });
     expect(f.onboarding).toHaveBeenCalledTimes(2);
     expect(f.invite).toHaveBeenCalledOnce();
     expect(f.welcome).toHaveBeenCalledOnce();
@@ -120,38 +135,13 @@ describe("Ops onboarding does not strand account activation", () => {
     expect(f.invite).not.toHaveBeenCalled();
     expect(f.welcome).not.toHaveBeenCalled();
     expect(f.onboarding).not.toHaveBeenCalled();
-  });
-  it("prepares an internal checklist with sending off and never creates an invite or welcome", async () => {
-    vi.stubEnv("FLOWSTATE_PORTAL_SEND_ENABLED", "false");
-    const response = await POST(request());
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ emailSent: false, delivery_status: "paused" });
-    expect(f.pending).toHaveBeenCalledWith("Synthetic Client", "fixture@example.invalid");
-    expect(f.createUser).not.toHaveBeenCalled(); // No Auth/profile trigger or module grant.
-    expect(f.invite).not.toHaveBeenCalled();
-    expect(f.welcome).not.toHaveBeenCalled();
-    expect(f.onboarding).not.toHaveBeenCalled();
-    f.existing = true;
-    expect((await POST(request())).status).toBe(200);
-    expect(f.prepare).toHaveBeenCalledOnce();
     expect(f.createUser).not.toHaveBeenCalled();
   });
   it("fails closed on an unavailable account lookup instead of creating another client", async () => {
     f.lookupError = true;
     expect((await POST(request())).status).toBe(503);
     expect(f.createUser).not.toHaveBeenCalled();
-    expect(f.prepare).not.toHaveBeenCalled();
     expect(f.invite).not.toHaveBeenCalled();
-  });
-  it("reports retryable persistence failure while access and delivery remain paused", async () => {
-    vi.stubEnv("FLOWSTATE_PORTAL_SEND_ENABLED", "false");
-    f.pending.mockRejectedValueOnce(new Error("Synthetic persistence failure"));
-    const response = await POST(request());
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ error: "Access review could not be saved; retry intake" });
-    expect(f.createUser).not.toHaveBeenCalled();
-    expect(f.invite).not.toHaveBeenCalled();
-    expect(f.welcome).not.toHaveBeenCalled();
   });
   it("rejects malformed or wrongly typed intake without attempting a database write", async () => {
     for (const payload of ["{", "[]", "null", '{"name":123,"email":456}']) {
