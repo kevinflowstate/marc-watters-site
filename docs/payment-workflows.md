@@ -41,7 +41,7 @@ Workflow `5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed` ("CBB Ops | Payment recovery"). 
 
 **Custom Webhook action settings (every step)**
 - Method: `POST`
-- URL: `https://marc-watters-site.vercel.app/api/webhooks/ghl-payment` (use the live portal domain if it is different)
+- URL: `https://portal.constructionbusinessblueprint.co.uk/api/webhooks/ghl-payment`
 - Header: `x-payment-workflow-secret` = the value of `OPS_PAYMENT_WORKFLOW_SECRET`
 - Header: `Content-Type` = `application/json`
 - Body (change only `event_type` and the suffix of `event_id`):
