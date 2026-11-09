@@ -16,7 +16,7 @@ describe("private complete-lesson transfer grants", () => {
     const d = deps();
     const result = await prepareLessonTransfer(input, d);
     expect(result).toMatchObject({ storage_path: `approved/${input.sha256}.mp4`, bytes: input.bytes,
-      approval: null, publication_enabled: false, portal_size_supported: false });
+      approval: null, publication_enabled: false, portal_size_supported: true });
     expect(result).not.toHaveProperty("verification_id");
     expect(d.uploadToken).toHaveBeenCalledWith(`approved/${input.sha256}.mp4`);
     expect(d.readUrl).not.toHaveBeenCalled();

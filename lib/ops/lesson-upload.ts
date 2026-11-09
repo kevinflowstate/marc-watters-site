@@ -1,9 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEnv } from "@/lib/env";
 import { OpsError, record } from "./tasks";
+import { MAX_LESSON_VERIFY_BYTES } from "./publication-mp4";
 
-const MAX_BYTES = 4 * 1024 ** 3;
-const PORTAL_BYTES = 256 * 1024 ** 2;
+const MAX_BYTES = MAX_LESSON_VERIFY_BYTES;
 export type LessonUploadDeps = {
   projectRef(): string;
   bucket(): Promise<{ public: boolean; file_size_limit: number | null }>;
@@ -68,7 +68,7 @@ export async function prepareLessonTransfer(input: unknown, deps?: LessonUploadD
     project_ref: d.projectRef(), storage_path, sha256: b.sha256, bytes: Number(b.bytes),
     ...(b.action === "upload" ? { upload_token: await d.uploadToken(storage_path) }
       : { readback_url: await d.readUrl(storage_path) }),
-    portal_size_supported: Number(b.bytes) <= PORTAL_BYTES,
+    portal_size_supported: Number(b.bytes) <= MAX_LESSON_VERIFY_BYTES,
     approval: null, publication_enabled: false,
     note: "Temporary private transfer grant. Store owner-only; do not paste into chat or logs. This is not a publication verification receipt.",
   };
