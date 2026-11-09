@@ -19,6 +19,13 @@ describe("scoped lesson transfer route", () => {
     expect(state.transfer).not.toHaveBeenCalled();
     expect(state.scope).toHaveBeenCalledWith(expect.any(Request), "lessons:upload");
   });
+  it("refuses readback through the scoped connection", async () => {
+    state.scope.mockReturnValue({ id: "codex", actor: "integration:codex", scopes: ["lessons:upload"] });
+    const input = { action: "readback", sha256: "b".repeat(64), bytes: 4096 };
+    const result = await POST(new Request(url, { method: "POST", body: JSON.stringify(input) }));
+    expect(result.status).toBe(403);
+    expect(state.transfer).not.toHaveBeenCalled();
+  });
   it("passes only the submitted body and never caches the grant", async () => {
     state.scope.mockReturnValue({ id: "codex", actor: "integration:codex", scopes: ["lessons:upload"] });
     state.transfer.mockResolvedValue({ upload_token: "temporary-token", publication_enabled: false });
