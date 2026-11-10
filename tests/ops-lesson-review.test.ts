@@ -29,6 +29,7 @@ function deps(over: Record<string, unknown> = {}) {
     verify: vi.fn(async () => ({ verification: { id: VERIFY, duration_s: 3536 } })),
     submit: vi.fn(async () => ({ id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" })),
     complete: vi.fn(async () => ({})),
+    workbookPdf: vi.fn(async () => ({ storage_path: `workbooks/${"a".repeat(64)}.pdf`, sha256: "a".repeat(64), bytes: 640000, name: "Start_from_the_Source_Workbook.pdf" })),
     ...over,
   } as never;
 }
@@ -58,6 +59,22 @@ describe("lesson package to lesson review", () => {
     expect(submitted.payload.mode).toBe("append");
     expect(d.complete).toHaveBeenCalledWith(TASK, expect.stringContaining("Video checked"), ADMIN);
     expect(out.review_url).toBe("/admin/work?artifact=dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  });
+
+  it("draws the workbook PDF and carries it in the reviewed manifest", async () => {
+    const workbook = { title: "Start From The Source", sections: [{ title: "Map it out", blocks: [{ type: "write", question: "Where does your work come from?" }] }] };
+    const d = deps({
+      loadTask: vi.fn(async () => ({ id: TASK, status: "awaiting_approval", area: "lessons", payload: { lesson_package: { ...pack, workbook } } })),
+    }) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    await startLessonReview({ task_id: TASK }, ADMIN, d as never);
+    expect(d.workbookPdf).toHaveBeenCalledWith(expect.objectContaining({ title: "Start From The Source" }), "Start from the Source");
+    const [submitted] = d.submit.mock.calls[0];
+    expect(submitted.payload.workbook_pdf).toMatchObject({ storage_path: `workbooks/${"a".repeat(64)}.pdf`, name: "Start_from_the_Source_Workbook.pdf" });
+    expect(submitted.payload.workbook).toBeUndefined();
+  });
+
+  it("refuses a package that brings its own PDF", () => {
+    expect(() => validateLessonPackage({ ...pack, workbook_pdf: { storage_path: "x" } })).toThrow("send the workbook outline");
   });
 
   it("refuses closed tasks, tasks without a package and extra input", async () => {

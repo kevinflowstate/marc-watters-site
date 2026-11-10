@@ -69,6 +69,7 @@ const api = load<typeof import("../lib/ops/artifact-execution")>(
     "./content-scheduling": {},
     "./content-preflight": {},
     "./content-signed-delivery": { signedDeliveryConfigured: () => false },
+    "./lesson-workbook-attach": { attachLessonWorkbook: async () => ({ attached: false, reason: "no_workbook" }) },
     "./lesson-publication": {
       validateLessonPublicationManifest: lessonManifest,
     },

@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadWorkbookAssets, renderWorkbookPdf, validateWorkbookSpec, type WorkbookSpec } from "./workbook-pdf";
 import { submitArtifact } from "./actions";
 import {
   validateLessonPublicationManifest,
   verifyStoredLessonMedia,
   type LessonPublicationManifest,
+  type WorkbookPdfRef,
 } from "./lesson-publication";
 import { completeTask, OpsError, record, uuid } from "./tasks";
 
@@ -17,13 +20,16 @@ import { completeTask, OpsError, record, uuid } from "./tasks";
 
 const PLACEHOLDER_ID = "00000000-0000-4000-8000-000000000000";
 
-export type LessonPackage = Omit<LessonPublicationManifest, "media"> & {
+export type LessonPackage = Omit<LessonPublicationManifest, "media" | "workbook_pdf"> & {
   media: { storage_path: string; sha256: string };
+  /** Structured workbook; the portal draws it as a CBB-style PDF. */
+  workbook?: WorkbookSpec;
 };
 
 /** Same rules as a full lesson manifest, minus the check receipt that does not exist yet. */
 export function validateLessonPackage(input: unknown): LessonPackage {
-  const b = record(input);
+  const { workbook, workbook_pdf, ...b } = record(input);
+  if (workbook_pdf !== undefined) throw new OpsError("The portal creates the workbook PDF; send the workbook outline instead");
   const media = record(b.media);
   if (Object.keys(media).some((k) => !["storage_path", "sha256"].includes(k)))
     throw new OpsError("Lesson package media takes storage_path and sha256 only");
@@ -34,6 +40,7 @@ export function validateLessonPackage(input: unknown): LessonPackage {
   return {
     ...manifest,
     media: { storage_path: manifest.media.storage_path, sha256: manifest.media.sha256 },
+    ...(workbook !== undefined ? { workbook: validateWorkbookSpec(workbook) } : {}),
   };
 }
 
@@ -48,7 +55,26 @@ type Deps = {
   verify: typeof verifyStoredLessonMedia;
   submit: typeof submitArtifact;
   complete: typeof completeTask;
+  workbookPdf: (spec: WorkbookSpec, title: string) => Promise<WorkbookPdfRef>;
 };
+
+function fileName(title: string) {
+  const base = title.replace(/[^A-Za-z0-9 ]+/g, " ").trim().replace(/\s+/g, "_").slice(0, 80) || "Lesson";
+  return `${base}_Workbook.pdf`;
+}
+
+/** Draws the workbook PDF and stores it privately next to the lesson video, named by its fingerprint. */
+async function storeWorkbookPdf(spec: WorkbookSpec, title: string): Promise<WorkbookPdfRef> {
+  const { bytes } = await renderWorkbookPdf(spec, { assets: await loadWorkbookAssets(), createdAt: new Date("2026-01-01T00:00:00Z") });
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const storage_path = `workbooks/${sha256}.pdf`;
+  const upload = await createAdminClient()
+    .storage.from("lesson-media")
+    .upload(storage_path, bytes, { contentType: "application/pdf", upsert: false });
+  if (upload.error && !/exists|duplicate/i.test(upload.error.message))
+    throw new OpsError("The workbook PDF could not be saved", 503);
+  return { storage_path, sha256, bytes: bytes.length, name: fileName(title) };
+}
 
 function dependencies(): Deps {
   return {
@@ -65,6 +91,7 @@ function dependencies(): Deps {
     verify: verifyStoredLessonMedia,
     submit: submitArtifact,
     complete: completeTask,
+    workbookPdf: storeWorkbookPdf,
   };
 }
 
@@ -90,8 +117,11 @@ export async function startLessonReview(
     { storage_path: pack.media.storage_path, expected_sha256: pack.media.sha256 },
     actor,
   );
+  const { workbook, ...lesson } = pack;
+  const workbookPdf = workbook ? await d.workbookPdf(workbook, pack.title) : undefined;
   const manifest: LessonPublicationManifest = {
-    ...pack,
+    ...lesson,
+    ...(workbookPdf ? { workbook_pdf: workbookPdf } : {}),
     media: {
       verification_id: uuid(checked.verification.id),
       storage_path: pack.media.storage_path,

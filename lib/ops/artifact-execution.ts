@@ -1,3 +1,4 @@
+import { attachLessonWorkbook } from "./lesson-workbook-attach";
 import { getEnv } from "@/lib/env";
 import {
   getArtifact,
@@ -54,6 +55,7 @@ export type ArtifactExecutionDeps = {
   contentExecute: typeof executeContentPost;
   lessonPreview: typeof previewLessonPublication;
   lessonPublish: typeof publishLessonArtifact;
+  lessonAttachWorkbook?: typeof attachLessonWorkbook;
 };
 function dependencies(): ArtifactExecutionDeps {
   return {
@@ -69,6 +71,7 @@ function dependencies(): ArtifactExecutionDeps {
     contentExecute: executeContentPost,
     lessonPreview: previewLessonPublication,
     lessonPublish: publishLessonArtifact,
+    lessonAttachWorkbook: attachLessonWorkbook,
   };
 }
 function domainError(e: unknown): never {
@@ -397,10 +400,13 @@ export async function executePreparedArtifact(
     if (validated.kind === "lesson") {
       try {
         // This RPC writes the lesson and settles its item in one database transaction.
-        await d.lessonPublish(validated.manifest, {
+        const receipt = await d.lessonPublish(validated.manifest, {
           artifact_id: id,
           claim_id: claimId,
         });
+        // The lesson is already added; attaching its workbook never throws (it leaves a task instead).
+        if (validated.manifest.workbook_pdf && d.lessonAttachWorkbook)
+          await d.lessonAttachWorkbook(validated.manifest, receipt);
       } catch {
         const readback = (await d.items(id)).find(
           (i) => i.item_key === candidate.item_key,
