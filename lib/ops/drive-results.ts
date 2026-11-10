@@ -41,6 +41,8 @@ export type DriveResultsOutcome = {
   conflicts: number;
   invalid: number;
   skipped: number;
+  /** Files that were rejected, so someone can be told. */
+  problems: { file_id: string; name: string; md5: string; reason: string }[];
 };
 
 type Options = {
@@ -105,6 +107,7 @@ export async function importDriveResults(
     conflicts: 0,
     invalid: 0,
     skipped: 0,
+    problems: [],
   };
   const config = readConfig(options);
   if (!config) return outcome;
@@ -163,6 +166,13 @@ export async function importDriveResults(
 
   for (const file of files.slice(0, MAX_FILES)) {
     outcome.files += 1;
+    const problem = (reason: string) =>
+      outcome.problems.push({
+        file_id: typeof file.id === "string" && idPattern.test(file.id) ? file.id : "unknown",
+        name: String(file.name ?? "unnamed").slice(0, 200),
+        md5: typeof file.md5Checksum === "string" ? file.md5Checksum.slice(0, 32) : "",
+        reason,
+      });
     const owner = file.owners?.[0]?.emailAddress;
     // Owner alone is not enough: someone else with edit access could rewrite Marc's file.
     const editor = file.lastModifyingUser?.emailAddress;
@@ -181,6 +191,11 @@ export async function importDriveResults(
       !(size > 0 && size <= MAX_FILE_BYTES)
     ) {
       outcome.skipped += 1;
+      problem(
+        !(size > 0 && size <= MAX_FILE_BYTES)
+          ? "it is empty or larger than 64 KB"
+          : "it was created or last changed by someone other than Marc's account, or is shared too widely",
+      );
       continue;
     }
     let documents: unknown[];
@@ -194,16 +209,19 @@ export async function importDriveResults(
       // The bytes must be the version whose owner and editor were checked above.
       if (!body.ok || body.md5 !== file.md5Checksum) {
         outcome.skipped += 1;
+        problem("it could not be downloaded intact");
         continue;
       }
       const parsed = JSON.parse(body.text);
       documents = Array.isArray(parsed) ? parsed : [parsed];
     } catch {
       outcome.invalid += 1;
+      problem("it is not valid JSON");
       continue;
     }
     if (!documents.length || documents.length > MAX_RESULTS_PER_FILE) {
       outcome.invalid += 1;
+      problem("it holds no results or too many");
       continue;
     }
     for (const document of documents) {
@@ -215,10 +233,14 @@ export async function importDriveResults(
           outcome.unchanged += 1;
         else outcome.saved += 1;
       } catch (error) {
-        if (error instanceof OpsError && error.status === 409)
+        if (error instanceof OpsError && error.status === 409) {
           outcome.conflicts += 1;
-        else if (error instanceof OpsError && error.status === 400)
+          problem("it reuses a run key that was already saved with different content");
+        }
+        else if (error instanceof OpsError && error.status === 400) {
           outcome.invalid += 1;
+          problem(`a result in it was refused: ${error.message}`);
+        }
         else throw error;
       }
     }

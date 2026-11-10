@@ -150,6 +150,7 @@ describe("Drive results handoff", () => {
       ),
     });
     expect(out).toMatchObject({ files: 6, skipped: 6, saved: 0 });
+    expect(out.problems).toHaveLength(6);
     expect(submit).not.toHaveBeenCalled();
   });
 
@@ -184,6 +185,9 @@ describe("Drive results handoff", () => {
     // "not json at all" is valid JSON (a string) but not a result; the validator rejects it.
     expect(out).toMatchObject({ saved: 1, conflicts: 1 });
     expect(out.invalid).toBe(3);
+    // Every rejection is reported so someone is told; the conflict is reported too.
+    expect(out.problems).toHaveLength(4);
+    expect(out.problems.map((p) => p.reason).join(" | ")).toMatch(/not valid JSON|too many|refused|run key/);
   });
 
   it("skips a file whose bytes changed after the checks", async () => {
