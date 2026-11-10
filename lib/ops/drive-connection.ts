@@ -3,6 +3,8 @@ import { ContentPackError, contentResponseBytes } from "./content-pack";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const READ_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+/** Write access is still limited by sharing: the reader can only edit files explicitly shared with it as Editor. */
+const WRITE_SCOPE = "https://www.googleapis.com/auth/drive";
 const FILES_URL = "https://www.googleapis.com/drive/v3/files/";
 const idPattern = /^[A-Za-z0-9_-]{10,200}$/;
 
@@ -19,6 +21,7 @@ export async function connectContentDrive(
     allowedFileIds?: string[];
     fetch?: typeof fetch;
     now?: Date;
+    access?: "read" | "write";
   } = {},
 ): Promise<DriveConnection> {
   const raw =
@@ -69,7 +72,7 @@ export async function connectContentDrive(
     Buffer.from(JSON.stringify(value)).toString("base64url");
   const unsigned = `${encode({ alg: "RS256", typ: "JWT" })}.${encode({
     iss: credentials.client_email,
-    scope: READ_SCOPE,
+    scope: options.access === "write" ? WRITE_SCOPE : READ_SCOPE,
     aud: TOKEN_URL,
     iat: now,
     exp: now + 3600,
