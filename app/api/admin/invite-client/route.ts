@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "@/lib/email-templates";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { startOnboarding } from "@/lib/ops/onboarding";
 import { NextResponse } from "next/server";
 
 function generateTemporaryPassword(): string {
@@ -175,8 +176,20 @@ export async function POST(request: Request) {
     console.log("[INVITE] Email send failed (likely domain not verified):", e instanceof Error ? e.message : e);
   }
 
+  // A newly invited client gets Eimear's onboarding checklist. Best effort: it never blocks the invite.
+  let onboardingStarted = false;
+  if (!clientAlreadyExisted) {
+    try {
+      await startOnboarding(profile.id);
+      onboardingStarted = true;
+    } catch (e) {
+      console.log("[INVITE] Onboarding checklist failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
   return NextResponse.json({
     success: true,
+    onboardingStarted,
     userId,
     profileId: profile.id,
     alreadyExisted: clientAlreadyExisted,

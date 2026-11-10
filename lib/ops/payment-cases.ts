@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { onboardFromPayment } from "./stripe-new-client";
 import { getEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, record, uuid } from "./tasks";
@@ -141,6 +142,14 @@ export async function receiveStripePaymentEvent(
   const object = record(record(event.data).object);
   const occurred = new Date(Number(event.created) * 1000).toISOString();
   const type = String(event.type);
+  // New client check runs on its own, before the payment-case read, and never blocks or fails the event.
+  if (type === "invoice.paid" || type === "checkout.session.completed") {
+    try {
+      await onboardFromPayment(account, type, object);
+    } catch (e) {
+      console.error("New-client onboarding from Stripe failed", errorText(e));
+    }
+  }
   let invoiceIds: string[];
   if (
     [
