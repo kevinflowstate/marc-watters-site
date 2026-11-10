@@ -78,6 +78,51 @@ function stripeAccounts(): Account[] {
   }
 }
 
+type Summary = Record<string, { payments: number; amount: number; refunded: number }>;
+
+function summarise(items: { at: number; currency: string; amount: number; refunded: number }[], range: Range): Summary {
+  const by: Summary = {};
+  for (const x of items) {
+    if (!within(new Date(x.at * 1000).toISOString(), range)) continue;
+    const cur = x.currency.toUpperCase();
+    by[cur] ??= { payments: 0, amount: 0, refunded: 0 };
+    by[cur].payments += 1;
+    by[cur].amount += x.amount / 100;
+    by[cur].refunded += x.refunded / 100;
+  }
+  for (const v of Object.values(by)) {
+    v.amount = Math.round(v.amount * 100) / 100;
+    v.refunded = Math.round(v.refunded * 100) / 100;
+  }
+  return by;
+}
+
+async function stripeList(f: Fetch, key: string, path: string, params: Record<string, string>) {
+  const rows: Record<string, unknown>[] = [];
+  let after = "";
+  for (let page = 0; page < 20; page += 1) {
+    const q = new URLSearchParams({ ...params, limit: "100" });
+    if (after) q.set("starting_after", after);
+    const r = await f(`https://api.stripe.com/v1/${path}?${q}`, {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
+    });
+    if (!r.ok) return { ok: false as const, status: r.status };
+    const body = (await r.json()) as { data?: Record<string, unknown>[]; has_more?: boolean };
+    const batch = body.data || [];
+    rows.push(...batch);
+    if (!body.has_more || !batch.length) return { ok: true as const, rows };
+    after = String(batch[batch.length - 1].id);
+  }
+  return { ok: false as const, status: 507 };
+}
+
+/**
+ * Money taken in each period, per Stripe account. Uses successful charges when the key can read
+ * them; otherwise paid invoices by the date they were paid (restricted keys made for payment
+ * alerts can read invoices only), which leaves out payments taken without an invoice.
+ */
 export async function paymentsReceived(
   ranges: { current: Range; previous: Range },
   f: Fetch = fetch,
@@ -89,44 +134,38 @@ export async function paymentsReceived(
   const results = await Promise.all(
     accounts.map(async (a) => {
       try {
-        const charges: Record<string, unknown>[] = [];
-        let after = "";
-        for (let page = 0; page < 20; page += 1) {
-          const q = new URLSearchParams({ "created[gte]": String(gte), "created[lt]": String(lt), limit: "100" });
-          if (after) q.set("starting_after", after);
-          const r = await f(`https://api.stripe.com/v1/charges?${q}`, {
-            headers: { Authorization: `Bearer ${a.api_key}` },
-            signal: AbortSignal.timeout(15_000),
-            cache: "no-store",
-          });
-          if (!r.ok) return { account: a.label, connected: false as const, note: "not connected - this key cannot read payments" };
-          const body = (await r.json()) as { data?: Record<string, unknown>[]; has_more?: boolean };
-          const rows = body.data || [];
-          charges.push(...rows);
-          if (!body.has_more || !rows.length) {
-            const period = (range: Range) => {
-              const paid = charges.filter(
-                (c) => c.status === "succeeded" && c.paid === true && within(new Date(Number(c.created) * 1000).toISOString(), range),
-              );
-              const by: Record<string, { payments: number; amount: number; refunded: number }> = {};
-              for (const c of paid) {
-                const cur = String(c.currency || "gbp").toUpperCase();
-                by[cur] ??= { payments: 0, amount: 0, refunded: 0 };
-                by[cur].payments += 1;
-                by[cur].amount += Number(c.amount_captured ?? c.amount ?? 0) / 100;
-                by[cur].refunded += Number(c.amount_refunded ?? 0) / 100;
-              }
-              for (const v of Object.values(by)) {
-                v.amount = Math.round(v.amount * 100) / 100;
-                v.refunded = Math.round(v.refunded * 100) / 100;
-              }
-              return by;
-            };
-            return { account: a.label, connected: true as const, current: period(ranges.current), previous: period(ranges.previous) };
-          }
-          after = String(rows[rows.length - 1].id);
+        const charges = await stripeList(f, a.api_key, "charges", { "created[gte]": String(gte), "created[lt]": String(lt) });
+        if (charges.ok) {
+          const items = charges.rows
+            .filter((c) => c.status === "succeeded" && c.paid === true)
+            .map((c) => ({
+              at: Number(c.created),
+              currency: String(c.currency || "gbp"),
+              amount: Number(c.amount_captured ?? c.amount ?? 0),
+              refunded: Number(c.amount_refunded ?? 0),
+            }));
+          return { account: a.label, connected: true as const, basis: "all successful payments", current: summarise(items, ranges.current), previous: summarise(items, ranges.previous) };
         }
-        return { account: a.label, connected: false as const, note: "not connected - too many payments to read" };
+        if (charges.status !== 401 && charges.status !== 403)
+          return { account: a.label, connected: false as const, note: "not connected" };
+        // Invoices can be paid long after they are raised, so look back 180 days and keep those PAID in the period.
+        const invoices = await stripeList(f, a.api_key, "invoices", { status: "paid", "created[gte]": String(gte - 180 * 86_400), "created[lt]": String(lt) });
+        if (!invoices.ok) return { account: a.label, connected: false as const, note: "not connected - this key cannot read payments or invoices" };
+        const items = invoices.rows
+          .filter((i) => Number(i.amount_paid) > 0)
+          .map((i) => ({
+            at: Number((i.status_transitions as Record<string, unknown> | undefined)?.paid_at ?? 0),
+            currency: String(i.currency || "gbp"),
+            amount: Number(i.amount_paid ?? 0),
+            refunded: 0,
+          }));
+        return {
+          account: a.label,
+          connected: true as const,
+          basis: "invoices paid in the period (payments without an invoice, and refunds, are not included)",
+          current: summarise(items, ranges.current),
+          previous: summarise(items, ranges.previous),
+        };
       } catch {
         return { account: a.label, connected: false as const, note: "not connected" };
       }
@@ -134,7 +173,7 @@ export async function paymentsReceived(
   );
   return {
     connected: results.some((r) => r.connected),
-    note: "successful card and bank payments taken in the period, by Stripe account; refunds shown separately. Not invoices raised, not payouts.",
+    note: "money taken in the period, by Stripe account, by the date it was paid. Not invoices raised, not payouts.",
     accounts: results,
   };
 }

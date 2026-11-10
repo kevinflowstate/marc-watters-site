@@ -15,7 +15,7 @@ describe("job health", () => {
   });
 
   it("raises nothing before a job's deadline, then one missed-run task with a stable reference", async () => {
-    const raiseTask = vi.fn(async () => ({}) as never);
+    const raiseTask = vi.fn(async (..._args: unknown[]) => ({}) as never);
     const results = vi.fn(async () => []);
     expect((await checkScheduledJobs(new Date("2026-11-10T09:00:00Z"), { results, raiseTask })).raised).toEqual([]);
     const r = await checkScheduledJobs(new Date("2026-11-10T10:00:00Z"), { results, raiseTask });
@@ -25,7 +25,7 @@ describe("job health", () => {
   });
 
   it("is satisfied by a result observed on the same London day, and flags a failed run", async () => {
-    const raiseTask = vi.fn(async () => ({}) as never);
+    const raiseTask = vi.fn(async (..._args: unknown[]) => ({}) as never);
     const results = vi.fn(async () => [
       row("daily_brief", "partial", "2026-11-10T08:27:00Z"),
       row("sales_review", "failed", "2026-11-10T17:35:00Z"),
@@ -35,7 +35,7 @@ describe("job health", () => {
   });
 
   it("does not count yesterday's result as today's", async () => {
-    const raiseTask = vi.fn(async () => ({}) as never);
+    const raiseTask = vi.fn(async (..._args: unknown[]) => ({}) as never);
     const results = vi.fn(async () => [row("daily_brief", "complete", "2026-11-09T08:27:00Z")]);
     const r = await checkScheduledJobs(new Date("2026-11-10T10:00:00Z"), { results, raiseTask });
     expect(r.raised).toContain("job-health:missed:daily:2026-11-10");
@@ -47,10 +47,20 @@ describe("job health", () => {
     expect(results).not.toHaveBeenCalled();
   });
 
-  it("raises one task per rejected file version and per broken step per day", async () => {
-    const raiseTask = vi.fn(async () => ({}) as never);
-    await reportFileProblems([{ file_id: "abcdefghij12", name: "daily.json", md5: "a".repeat(32), reason: "it is not valid JSON" }], raiseTask);
-    expect((raiseTask.mock.calls[0][0] as Record<string, unknown>).external_ref).toBe(`job-health:file:abcdefghij12:${"a".repeat(32)}`);
+  it("raises one task per day for rejected files, never naming untrusted ones, and one per broken step", async () => {
+    const raiseTask = vi.fn(async (..._args: unknown[]) => ({}) as never);
+    await reportFileProblems(
+      [
+        { trusted: true, name: "daily.json", reason: "empty, larger than 64 KB or unreadable" },
+        { trusted: false, name: "", reason: "created or last changed by someone other than Marc's account" },
+      ],
+      new Date("2026-11-10T12:00:00Z"),
+      raiseTask,
+    );
+    const filesTask = raiseTask.mock.calls[0][0] as Record<string, unknown>;
+    expect(filesTask.external_ref).toBe("job-health:files:2026-11-10");
+    expect(String(filesTask.detail)).toContain("daily.json");
+    expect(String(filesTask.detail)).toContain("1 file not from Marc's account was ignored");
     await reportStepFailure("portal-snapshot", "Google refused", new Date("2026-11-10T12:00:00Z"), raiseTask);
     expect((raiseTask.mock.calls[1][0] as Record<string, unknown>).external_ref).toBe("job-health:step:portal-snapshot:2026-11-10");
   });
