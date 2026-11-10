@@ -300,7 +300,7 @@ export function LessonReview({
         {workbookPdfPath(payload) ? (
           <>
             <iframe
-              src={`/api/admin/ops/lesson-media/workbook?path=${encodeURIComponent(workbookPdfPath(payload))}#view=FitH`}
+              src={`/api/admin/ops/lesson-media/workbook?path=${encodeURIComponent(workbookPdfPath(payload))}#navpanes=0&view=FitH`}
               title="Workbook PDF"
               className="h-[560px] w-full rounded-lg border border-current/10 bg-white"
             />
