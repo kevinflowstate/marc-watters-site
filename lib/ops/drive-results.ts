@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { connectContentDrive, type DriveConnection } from "./drive-connection";
 import { ContentPackError, contentResponseBytes } from "./content-pack";
 import { submitWorkspaceResult } from "./workspace-results";
@@ -28,6 +29,7 @@ type DriveFile = {
   size?: unknown;
   owners?: { emailAddress?: unknown }[];
   lastModifyingUser?: { emailAddress?: unknown };
+  md5Checksum?: unknown;
   capabilities?: { canDownload?: unknown; canEdit?: unknown };
 };
 
@@ -84,8 +86,12 @@ async function driveText(
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) return { ok: false as const, status: response.status };
-  const text = (await contentResponseBytes(response, limit)).toString("utf8");
-  return { ok: true as const, text };
+  const bytes = await contentResponseBytes(response, limit);
+  return {
+    ok: true as const,
+    text: bytes.toString("utf8"),
+    md5: createHash("md5").update(bytes).digest("hex"),
+  };
 }
 
 export async function importDriveResults(
@@ -130,7 +136,7 @@ export async function importDriveResults(
     new URLSearchParams({
       q: query,
       fields:
-        "files(id,name,mimeType,modifiedTime,size,owners(emailAddress),lastModifyingUser(emailAddress),capabilities(canDownload,canEdit))",
+        "files(id,name,mimeType,modifiedTime,size,owners(emailAddress),lastModifyingUser(emailAddress),md5Checksum,capabilities(canDownload,canEdit))",
       orderBy: "modifiedTime",
       pageSize: String(MAX_FILES),
       supportsAllDrives: "true",
@@ -167,6 +173,8 @@ export async function importDriveResults(
       typeof owner !== "string" ||
       !config.ownerEmails.includes(owner.toLowerCase()) ||
       typeof editor !== "string" ||
+      typeof file.md5Checksum !== "string" ||
+      !/^[a-f0-9]{32}$/.test(file.md5Checksum) ||
       !config.ownerEmails.includes(editor.toLowerCase()) ||
       file.capabilities?.canDownload !== true ||
       file.capabilities?.canEdit !== false ||
@@ -183,7 +191,8 @@ export async function importDriveResults(
         request,
         MAX_FILE_BYTES,
       );
-      if (!body.ok) {
+      // The bytes must be the version whose owner and editor were checked above.
+      if (!body.ok || body.md5 !== file.md5Checksum) {
         outcome.skipped += 1;
         continue;
       }
