@@ -23,11 +23,14 @@ export function LessonPackageCard({
   pack,
   destination,
   disabled,
+  onOpened,
 }: {
   taskId: string;
   pack: Pack;
   destination?: string;
   disabled?: boolean;
+  /** Opens the lesson review in the same drawer, without reloading the page. */
+  onOpened: (artifactId: string) => Promise<void> | void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -45,9 +48,9 @@ export function LessonPackageCard({
         body: JSON.stringify({ task_id: taskId }),
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || typeof result.review_url !== "string")
+      if (!response.ok || typeof result.artifact_id !== "string")
         throw new Error(typeof result.error === "string" ? result.error : "The video could not be checked. Try again in a minute.");
-      window.location.assign(result.review_url);
+      await onOpened(result.artifact_id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "The video could not be checked.");
       setBusy(false);
@@ -73,6 +76,12 @@ export function LessonPackageCard({
         {busy ? <Icon name="refresh" size={14} className="ws-spin" /> : <Icon name="check" size={14} />}
         {busy ? "Checking the video…" : "Check the video and open the review"}
       </button>
+      {busy && (
+        <div className="mt-4" role="status" aria-live="polite">
+          <div className="ws-skel aspect-video w-full" style={{ borderRadius: 8 }} />
+          <p className="ws-caption mt-2">Checking the video matches the edit. This takes about a minute; the player opens here when it’s done.</p>
+        </div>
+      )}
       {error && <p role="alert" className="ws-note is-bad mt-3">{error}</p>}
 
       {summary && (

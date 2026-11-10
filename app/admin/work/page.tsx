@@ -515,7 +515,19 @@ export default function WorkPage() {
                 </div>
               )}
               {selectedTask && (
-                <TaskDetail task={selectedTask} card={selectedCard} busy={busy} note={note} setNote={setNote} mutate={mutate} />
+                <TaskDetail
+                  task={selectedTask}
+                  card={selectedCard}
+                  busy={busy}
+                  note={note}
+                  setNote={setNote}
+                  mutate={mutate}
+                  onLessonReview={async (artifactId) => {
+                    await load(true);
+                    setNote("");
+                    setDrawer({ kind: "artifact", id: artifactId });
+                  }}
+                />
               )}
               {selectedTask && taskPaymentId && (
                 <div className="ws-section">
@@ -700,7 +712,7 @@ function CardDetail({ card }: { card: WorkspaceCard }) {
 }
 
 function TaskDetail({
-  task, card, busy, note, setNote, mutate,
+  task, card, busy, note, setNote, mutate, onLessonReview,
 }: {
   task: OpsTask;
   card?: WorkspaceCard;
@@ -708,6 +720,7 @@ function TaskDetail({
   note: string;
   setNote: (s: string) => void;
   mutate: (path: string, method: string, body: unknown) => Promise<boolean>;
+  onLessonReview: (artifactId: string) => Promise<void>;
 }) {
   const deciding = needsApproval(task);
   const closed = isClosed(task);
@@ -805,7 +818,7 @@ function TaskDetail({
       </dl>
       {card && !isBoilerplate(card.next) && <p className="mt-5 text-[14px] font-medium leading-relaxed">{card.next}</p>}
       {lessonPackage(task.payload) && !closed ? (
-        <LessonPackageCard taskId={task.id} pack={lessonPackage(task.payload)!} disabled={busy} />
+        <LessonPackageCard taskId={task.id} pack={lessonPackage(task.payload)!} disabled={busy} onOpened={onLessonReview} />
       ) : (
         <>
           {task.detail && (
