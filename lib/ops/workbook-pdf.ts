@@ -337,6 +337,9 @@ export async function renderWorkbookPdf(
     c.y -= titleLines.length * 17 + 6;
     if (section.prompt) paragraph(c, section.prompt, { size: 10, gap: 8 });
     for (const block of section.blocks) {
+      // A question never sits at the foot of a page with its answer area on the next.
+      const h = blockHeight(c, block);
+      if (h < A4[1] - MARGIN - BOTTOM) ensure(c, h);
       if (block.type === "write") {
         ensure(c, 30 + 16 * (block.lines ?? 4));
         question(c, block.question, block.hint);
