@@ -49,6 +49,30 @@ describe("strategy calls", () => {
 });
 
 describe("payments received", () => {
+  it("falls back to invoices paid in the period when the key cannot read charges", async () => {
+    const ts = (iso: string) => Date.parse(iso) / 1000;
+    const f = vi.fn(async (url: string) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/charges")) return new Response("{}", { status: 403 });
+      expect(u.searchParams.get("status")).toBe("paid");
+      return Response.json({
+        has_more: false,
+        data: [
+          { id: "in_1", amount_paid: 300000, currency: "gbp", status_transitions: { paid_at: ts("2026-11-10T12:00:00Z") } },
+          { id: "in_2", amount_paid: 99900, currency: "gbp", status_transitions: { paid_at: ts("2026-11-05T12:00:00Z") } },
+          { id: "in_3", amount_paid: 50000, currency: "gbp", status_transitions: { paid_at: ts("2026-10-01T12:00:00Z") } },
+          { id: "in_4", amount_paid: 0, currency: "gbp", status_transitions: { paid_at: ts("2026-11-10T12:00:00Z") } },
+        ],
+      });
+    });
+    const r = await paymentsReceived(ranges, f as unknown as typeof fetch, [{ label: "Programme", api_key: "k" }]);
+    const a = r.accounts![0] as Record<string, unknown>;
+    expect(a.connected).toBe(true);
+    expect(String(a.basis)).toMatch(/invoices paid/);
+    expect(a.current).toEqual({ GBP: { payments: 1, amount: 3000, refunded: 0 } });
+    expect(a.previous).toEqual({ GBP: { payments: 1, amount: 999, refunded: 0 } });
+  });
+
   it("is not connected with no Stripe accounts", async () => {
     expect((await paymentsReceived(ranges, vi.fn(), [])).connected).toBe(false);
   });
@@ -84,7 +108,7 @@ describe("payments received", () => {
     expect(a.previous).toEqual({ GBP: { payments: 1, amount: 500, refunded: 100 }, EUR: { payments: 1, amount: 200, refunded: 0 } });
   });
 
-  it("marks one account not connected when its key cannot read payments, keeping the others", async () => {
+  it("marks one account not connected when its key cannot read payments or invoices, keeping the others", async () => {
     const f = vi.fn(async (_url: string, init?: RequestInit) =>
       String((init?.headers as Record<string, string>).Authorization).endsWith("bad")
         ? new Response("{}", { status: 403 })

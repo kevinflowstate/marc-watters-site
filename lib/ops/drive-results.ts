@@ -42,7 +42,7 @@ export type DriveResultsOutcome = {
   invalid: number;
   skipped: number;
   /** Files that were rejected, so someone can be told. */
-  problems: { file_id: string; name: string; md5: string; reason: string }[];
+  problems: { trusted: boolean; name: string; reason: string }[];
 };
 
 type Options = {
@@ -166,11 +166,11 @@ export async function importDriveResults(
 
   for (const file of files.slice(0, MAX_FILES)) {
     outcome.files += 1;
-    const problem = (reason: string) =>
+    // Only files from Marc's own account are named in a task; anything else is counted, not described.
+    const problem = (reason: string, trusted = true) =>
       outcome.problems.push({
-        file_id: typeof file.id === "string" && idPattern.test(file.id) ? file.id : "unknown",
-        name: String(file.name ?? "unnamed").slice(0, 200),
-        md5: typeof file.md5Checksum === "string" ? file.md5Checksum.slice(0, 32) : "",
+        trusted,
+        name: trusted ? String(file.name ?? "unnamed").replace(/[^A-Za-z0-9 ._:-]/g, "").slice(0, 80) : "",
         reason,
       });
     const owner = file.owners?.[0]?.emailAddress;
@@ -191,10 +191,16 @@ export async function importDriveResults(
       !(size > 0 && size <= MAX_FILE_BYTES)
     ) {
       outcome.skipped += 1;
+      const trusted =
+        typeof owner === "string" && config.ownerEmails.includes(owner.toLowerCase()) &&
+        typeof editor === "string" && config.ownerEmails.includes(editor.toLowerCase());
       problem(
-        !(size > 0 && size <= MAX_FILE_BYTES)
-          ? "it is empty or larger than 64 KB"
-          : "it was created or last changed by someone other than Marc's account, or is shared too widely",
+        !trusted
+          ? "created or last changed by someone other than Marc's account"
+          : file.capabilities?.canEdit !== false
+            ? "shared too widely (the portal's reader must be Viewer only)"
+            : "empty, larger than 64 KB or unreadable",
+        trusted,
       );
       continue;
     }

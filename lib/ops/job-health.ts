@@ -107,18 +107,25 @@ export async function checkScheduledJobs(
   return { checked: true, raised };
 }
 
-export type FileProblem = { file_id: string; name: string; md5: string; reason: string };
+export type FileProblem = { trusted: boolean; name: string; reason: string };
 
-/** One task per rejected result file version. */
-export async function reportFileProblems(problems: FileProblem[], raiseTask: Raise = createTask) {
-  for (const p of problems.slice(0, 10)) {
-    await raise(
-      raiseTask,
-      `job-health:file:${p.file_id}:${p.md5 || "nomd5"}`,
-      `A Codex result file was not accepted · ${p.name.slice(0, 120)}`,
-      `The portal skipped this file in the CBB Portal Handoff folder: ${p.reason}. Nothing from it was saved. If it came from a scheduled job, check the job's instructions still write the agreed result format, then let it run again.`,
-    );
-  }
+/** At most ONE task per day for rejected result files, naming only files from Marc's own account. */
+export async function reportFileProblems(problems: FileProblem[], now = new Date(), raiseTask: Raise = createTask) {
+  if (!problems.length) return;
+  const clock = londonClock(now);
+  const named = problems.filter((p) => p.trusted).slice(0, 5).map((p) => `- ${p.name || "unnamed"}: ${p.reason}`);
+  const others = problems.filter((p) => !p.trusted).length;
+  const lines = [
+    ...named,
+    ...(problems.filter((p) => p.trusted).length > 5 ? ["- and more"] : []),
+    ...(others ? [`- ${others} file${others === 1 ? "" : "s"} not from Marc's account ${others === 1 ? "was" : "were"} ignored (not opened)`] : []),
+  ];
+  await raise(
+    raiseTask,
+    `job-health:files:${clock.date}`,
+    `Codex result files were not accepted · ${clock.date}`,
+    `The portal skipped files in the CBB Portal Handoff folder. Nothing from them was saved.\n\n${lines.join("\n")}\n\nIf one came from a scheduled job, check the job's instructions still write the agreed result format. Only Marc's account should be able to add files to that folder.`,
+  );
 }
 
 /** One task per day when a portal background step itself breaks. */

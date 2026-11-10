@@ -151,6 +151,8 @@ describe("Drive results handoff", () => {
     });
     expect(out).toMatchObject({ files: 6, skipped: 6, saved: 0 });
     expect(out.problems).toHaveLength(6);
+    // Files not written by Marc's account are never named.
+    for (const p of out.problems.filter((x) => !x.trusted)) expect(p.name).toBe("");
     expect(submit).not.toHaveBeenCalled();
   });
 

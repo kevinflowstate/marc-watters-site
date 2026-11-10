@@ -72,12 +72,13 @@ function CallsAndPayments({ data }: { data: Record<string, unknown> }) {
                 <>
                   {payRow("This week so far", object(a.current))}
                   {payRow("Last week", object(a.previous))}
+                  {typeof a.basis === "string" && <p className="text-xs text-text-muted">Counted from {a.basis}.</p>}
                 </>
               )}
             </div>
           ))
         )}
-        <p className="text-xs text-text-muted mt-2">Money taken by card or bank in Stripe, not invoices raised or payouts.</p>
+        <p className="text-xs text-text-muted mt-2">Money taken in Stripe by the date it was paid. Not invoices raised, not payouts.</p>
       </section>
     </div>
   );
