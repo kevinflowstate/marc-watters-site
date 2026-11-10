@@ -27,6 +27,7 @@ type DriveFile = {
   modifiedTime?: unknown;
   size?: unknown;
   owners?: { emailAddress?: unknown }[];
+  lastModifyingUser?: { emailAddress?: unknown };
   capabilities?: { canDownload?: unknown; canEdit?: unknown };
 };
 
@@ -129,7 +130,7 @@ export async function importDriveResults(
     new URLSearchParams({
       q: query,
       fields:
-        "files(id,name,mimeType,modifiedTime,size,owners(emailAddress),capabilities(canDownload,canEdit))",
+        "files(id,name,mimeType,modifiedTime,size,owners(emailAddress),lastModifyingUser(emailAddress),capabilities(canDownload,canEdit))",
       orderBy: "modifiedTime",
       pageSize: String(MAX_FILES),
       supportsAllDrives: "true",
@@ -157,12 +158,16 @@ export async function importDriveResults(
   for (const file of files.slice(0, MAX_FILES)) {
     outcome.files += 1;
     const owner = file.owners?.[0]?.emailAddress;
+    // Owner alone is not enough: someone else with edit access could rewrite Marc's file.
+    const editor = file.lastModifyingUser?.emailAddress;
     const size = Number(file.size ?? 0);
     if (
       typeof file.id !== "string" ||
       !idPattern.test(file.id) ||
       typeof owner !== "string" ||
       !config.ownerEmails.includes(owner.toLowerCase()) ||
+      typeof editor !== "string" ||
+      !config.ownerEmails.includes(editor.toLowerCase()) ||
       file.capabilities?.canDownload !== true ||
       file.capabilities?.canEdit !== false ||
       !(size > 0 && size <= MAX_FILE_BYTES)

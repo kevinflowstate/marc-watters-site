@@ -34,6 +34,7 @@ function driveFile(id: string, extra: Record<string, unknown> = {}) {
     modifiedTime: "2026-11-10T08:40:00Z",
     size: "400",
     owners: [{ emailAddress: OWNER }],
+    lastModifyingUser: { emailAddress: OWNER },
     capabilities: { canDownload: true, canEdit: false },
     ...extra,
   };
@@ -132,13 +133,15 @@ describe("Drive results handoff", () => {
         [
           driveFile("other-owner-12345", { owners: [{ emailAddress: "someone@else.com" }] }),
           driveFile("editable-123456", { capabilities: { canDownload: true, canEdit: true } }),
+          driveFile("edited-by-other", { lastModifyingUser: { emailAddress: "someone@else.com" } }),
+          driveFile("no-editor-12345", { lastModifyingUser: undefined }),
           driveFile("too-big-1234567", { size: "70000" }),
           driveFile("empty-12345678", { size: "0" }),
         ],
         {},
       ),
     });
-    expect(out).toMatchObject({ files: 4, skipped: 4, saved: 0 });
+    expect(out).toMatchObject({ files: 6, skipped: 6, saved: 0 });
     expect(submit).not.toHaveBeenCalled();
   });
 
