@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import {
   DRIVE_RESULTS_ACTOR,
@@ -26,6 +27,9 @@ const result = (run_key: string) => ({
   links: [],
 });
 
+const md5 = (value: unknown) =>
+  createHash("md5").update(JSON.stringify(value)).digest("hex");
+let bodiesForMd5: Record<string, unknown> = {};
 function driveFile(id: string, extra: Record<string, unknown> = {}) {
   return {
     id,
@@ -35,6 +39,9 @@ function driveFile(id: string, extra: Record<string, unknown> = {}) {
     size: "400",
     owners: [{ emailAddress: OWNER }],
     lastModifyingUser: { emailAddress: OWNER },
+    get md5Checksum() {
+      return id in bodiesForMd5 ? md5(bodiesForMd5[id]) : "0".repeat(32);
+    },
     capabilities: { canDownload: true, canEdit: false },
     ...extra,
   };
@@ -44,6 +51,7 @@ function fakeDrive(
   files: Record<string, unknown>[],
   bodies: Record<string, unknown>,
 ) {
+  bodiesForMd5 = bodies;
   return vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const href = String(url);
     expect(init?.redirect).toBe("error");
@@ -176,6 +184,28 @@ describe("Drive results handoff", () => {
     // "not json at all" is valid JSON (a string) but not a result; the validator rejects it.
     expect(out).toMatchObject({ saved: 1, conflicts: 1 });
     expect(out.invalid).toBe(3);
+  });
+
+  it("skips a file whose bytes changed after the checks", async () => {
+    const submit = vi.fn();
+    const drive = fakeDrive([driveFile("swapped-123456")], {
+      "swapped-123456": result("daily:2026-11-10"),
+    });
+    const listing = [{ ...driveFile("swapped-123456"), md5Checksum: "f".repeat(32) }];
+    const out = await importDriveResults({
+      folderId: FOLDER,
+      ownerEmails: [OWNER],
+      now: NOW,
+      connect,
+      submit,
+      fetch: vi.fn(async (url: string | URL | Request, init?: RequestInit) =>
+        String(url).includes("alt=media")
+          ? drive(url, init)
+          : Response.json({ files: listing }),
+      ),
+    });
+    expect(out).toMatchObject({ files: 1, skipped: 1, saved: 0 });
+    expect(submit).not.toHaveBeenCalled();
   });
 
   it("explains a folder that is not shared with the reader", async () => {
