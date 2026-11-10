@@ -209,6 +209,13 @@ export function ContentReview({
   );
 }
 
+function workbookPdfPath(payload: Record<string, JsonValue>) {
+  const ref = payload.workbook_pdf;
+  if (!ref || typeof ref !== "object" || Array.isArray(ref)) return "";
+  const path = (ref as Record<string, JsonValue>).storage_path;
+  return typeof path === "string" && /^workbooks\/[a-f0-9]{64}\.pdf$/.test(path) ? path : "";
+}
+
 export function LessonReview({
   payload,
   preview,
@@ -290,7 +297,26 @@ export function LessonReview({
       </div>
       <div className="rounded-xl border border-current/10 p-4">
         <h3 className="mb-3 font-heading font-bold">Workbook</h3>
-        {text(payload.workbook_md) ? (
+        {workbookPdfPath(payload) ? (
+          <>
+            <iframe
+              src={`/api/admin/ops/lesson-media/workbook?path=${encodeURIComponent(workbookPdfPath(payload))}#view=FitH`}
+              title="Workbook PDF"
+              className="h-[560px] w-full rounded-lg border border-current/10 bg-white"
+            />
+            <a
+              href={`/api/admin/ops/lesson-media/workbook?path=${encodeURIComponent(workbookPdfPath(payload))}`}
+              className="mt-2 inline-block text-sm text-accent-bright underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open the workbook PDF
+            </a>
+            <p className="mt-1 text-xs text-text-muted">
+              This PDF is attached to the lesson when it is added to Training.
+            </p>
+          </>
+        ) : text(payload.workbook_md) ? (
           <div className="break-words text-sm">
             <MarkdownPreview text={text(payload.workbook_md)} />
           </div>

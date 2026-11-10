@@ -15,7 +15,10 @@ export type LessonPublicationManifest = {
   workbook_md: string;
   source?: { ref: string; sha256: string | null };
   media: { verification_id: string; storage_path: string; sha256: string };
+  /** CBB-style workbook PDF drawn by the portal, stored privately until the lesson is added. */
+  workbook_pdf?: WorkbookPdfRef;
 };
+export type WorkbookPdfRef = { storage_path: string; sha256: string; bytes: number; name: string };
 export type StoredLessonObject = {
   object_id: string;
   storage_path: string;
@@ -96,6 +99,19 @@ export function lessonStoragePath(value: unknown) {
     throw new OpsError("Use an approved/ private MP4 storage path");
   return path;
 }
+export function workbookPdfRef(input: unknown): WorkbookPdfRef {
+  const w = record(input);
+  exactKeys(w, ["storage_path", "sha256", "bytes", "name"]);
+  if (typeof w.storage_path !== "string" || !/^workbooks\/[a-f0-9]{64}\.pdf$/.test(w.storage_path))
+    throw new OpsError("Workbook PDF must be stored at workbooks/<sha256>.pdf");
+  if (typeof w.sha256 !== "string" || w.storage_path !== `workbooks/${w.sha256}.pdf`)
+    throw new OpsError("Workbook PDF fingerprint does not match its path");
+  if (!Number.isSafeInteger(w.bytes) || Number(w.bytes) <= 0 || Number(w.bytes) > 5_000_000)
+    throw new OpsError("Workbook PDF size must be 1 byte to 5 MB");
+  if (typeof w.name !== "string" || !/^[A-Za-z0-9 _.,()&'-]{1,120}\.pdf$/.test(w.name))
+    throw new OpsError("Workbook PDF needs a plain file name ending .pdf");
+  return { storage_path: w.storage_path, sha256: w.sha256, bytes: Number(w.bytes), name: w.name };
+}
 export function validateLessonPublicationManifest(
   input: unknown,
 ): LessonPublicationManifest {
@@ -111,6 +127,7 @@ export function validateLessonPublicationManifest(
     "workbook_md",
     "media",
     "source",
+    "workbook_pdf",
   ]);
   const media = record(b.media);
   exactKeys(media, ["verification_id", "storage_path", "sha256"]);
@@ -153,6 +170,7 @@ export function validateLessonPublicationManifest(
     summary_md: string(b.summary_md, "summary_md", 50000, true),
     workbook_md: string(b.workbook_md, "workbook_md", 100000, true),
     ...(source ? { source } : {}),
+    ...(b.workbook_pdf !== undefined ? { workbook_pdf: workbookPdfRef(b.workbook_pdf) } : {}),
     media: {
       verification_id: uuid(media.verification_id),
       storage_path: lessonStoragePath(media.storage_path),
