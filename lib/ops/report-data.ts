@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEnv } from "@/lib/env";
+import { paymentsReceived, strategyCalls } from "./report-sources";
 const DAY = 86400000;
 export function reportPeriods(now = new Date()) {
   const monday = new Date(now);
@@ -116,7 +117,7 @@ async function social() {
 export async function gatherReportData(now = new Date()) {
   const db = createAdminClient(),
     periods = reportPeriods(now);
-  const [tasks, events, clients, lessons, checkins, inbox, socialData] =
+  const [tasks, events, clients, lessons, checkins, inbox, socialData, calls, money] =
     await Promise.all([
       source(
         db.from("ops_tasks").select("id,area,kind,status,due_at").order("id"),
@@ -153,6 +154,8 @@ export async function gatherReportData(now = new Date()) {
           .lt("created_at", periods.current.to),
       ),
       social(),
+      strategyCalls(periods),
+      paymentsReceived(periods),
     ]);
   const active = clients.connected
     ? clients.rows.filter((c) => !c.archived_at)
@@ -267,5 +270,7 @@ export async function gatherReportData(now = new Date()) {
         }
       : { connected: false, note: "not connected" },
     social_planner: socialData,
+    strategy_calls: calls,
+    payments_received: money,
   };
 }
