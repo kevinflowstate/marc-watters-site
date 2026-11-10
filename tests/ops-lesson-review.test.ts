@@ -1,0 +1,79 @@
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+vi.mock("../lib/ops/actions", () => ({ submitArtifact: vi.fn() }));
+vi.mock("@/lib/ops/actions", () => ({ submitArtifact: vi.fn() }));
+
+import { startLessonReview, validateLessonPackage } from "../lib/ops/lesson-review";
+
+const ADMIN = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const TASK = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const MODULE = "faa36657-fa83-4f66-87cb-cf597b3d75b2";
+const VERIFY = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const SHA = "9911e9bb8dfe5d4923e307fa9cb745e2ed084a301271f73742f136ad8c773e13";
+const pack = {
+  schema_version: 1,
+  lesson_ref: "lesson:2026-11-03:start-from-the-source",
+  version: 1,
+  mode: "append",
+  module_id: MODULE,
+  title: "Start from the Source",
+  summary_md: "Why winning more work starts with where your leads come from.",
+  workbook_md: "1. List your last ten jobs and where each lead came from.",
+  media: { storage_path: `approved/${SHA}.mp4`, sha256: SHA },
+};
+
+function deps(over: Record<string, unknown> = {}) {
+  return {
+    loadTask: vi.fn(async () => ({ id: TASK, status: "awaiting_approval", area: "lessons", payload: { lesson_package: pack } })),
+    verify: vi.fn(async () => ({ verification: { id: VERIFY, duration_s: 3536 } })),
+    submit: vi.fn(async () => ({ id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" })),
+    complete: vi.fn(async () => ({})),
+    ...over,
+  } as never;
+}
+
+describe("lesson package to lesson review", () => {
+  it("validates a package without a check receipt and rejects extra media fields", () => {
+    expect(validateLessonPackage(pack).media).toEqual({ storage_path: pack.media.storage_path, sha256: SHA });
+    expect(() => validateLessonPackage({ ...pack, media: { ...pack.media, verification_id: VERIFY } })).toThrow(
+      "storage_path and sha256 only",
+    );
+  });
+
+  it("checks the exact file as the signed-in admin, then submits the full lesson review", async () => {
+    const d = deps() as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    const out = await startLessonReview({ task_id: TASK }, ADMIN, d as never);
+    expect(d.verify).toHaveBeenCalledWith({ storage_path: pack.media.storage_path, expected_sha256: SHA }, ADMIN);
+    const [submitted, actor] = d.submit.mock.calls[0];
+    expect(actor).toBe(ADMIN);
+    expect(submitted).toMatchObject({
+      external_ref: "lesson:lesson:2026-11-03:start-from-the-source:v1",
+      kind: "lesson",
+      action: "publish_lesson",
+      destination: { module_id: MODULE },
+      item_keys: ["lesson"],
+    });
+    expect(submitted.payload.media).toEqual({ verification_id: VERIFY, storage_path: pack.media.storage_path, sha256: SHA });
+    expect(submitted.payload.mode).toBe("append");
+    expect(d.complete).toHaveBeenCalledWith(TASK, expect.stringContaining("Video checked"), ADMIN);
+    expect(out.review_url).toBe("/admin/work?artifact=dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  });
+
+  it("refuses closed tasks, tasks without a package and extra input", async () => {
+    await expect(
+      startLessonReview({ task_id: TASK }, ADMIN, deps({ loadTask: vi.fn(async () => ({ id: TASK, status: "done", area: "lessons", payload: { lesson_package: pack } })) })),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      startLessonReview({ task_id: TASK }, ADMIN, deps({ loadTask: vi.fn(async () => ({ id: TASK, status: "open", area: "lessons", payload: {} })) })),
+    ).rejects.toThrow("no lesson package");
+    await expect(startLessonReview({ task_id: TASK, extra: 1 }, ADMIN, deps())).rejects.toThrow("Only task_id");
+  });
+
+  it("does not submit or close anything when the file check fails", async () => {
+    const d = deps({ verify: vi.fn(async () => { throw new Error("Stored media hash does not match"); }) }) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    await expect(startLessonReview({ task_id: TASK }, ADMIN, d as never)).rejects.toThrow("does not match");
+    expect(d.submit).not.toHaveBeenCalled();
+    expect(d.complete).not.toHaveBeenCalled();
+  });
+});

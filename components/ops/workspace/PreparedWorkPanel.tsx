@@ -201,7 +201,7 @@ export function PreparedWorkPanel({
             ? `${completed} of ${total} posts have a confirmed result.`
             : "Done. The saved result is below."
           : decision === "approved"
-            ? "Approved. Scheduling is the next step."
+            ? displayed.kind === "lesson" ? "Approved. Adding it to Training is the next step." : "Approved. Scheduling is the next step."
             : "Changes requested. A revised version will come back for review.",
       );
     } catch (e) {
@@ -296,7 +296,9 @@ export function PreparedWorkPanel({
       ? "Schedule this week’s posts"
       : text(current.payload.mode) === "draft"
         ? "Add lesson draft to Training"
-        : "Publish lesson";
+        : text(current.payload.mode) === "append"
+          ? `Add to ${text((detail?.preview?.destination as Record<string, unknown> | undefined)?.title) || "the module"}`
+          : "Publish lesson";
 
   return (
     <div>
@@ -423,7 +425,9 @@ export function PreparedWorkPanel({
               ? "Scheduling is a separate step. Each post gets its own saved result."
               : text(current.payload.mode) === "draft"
                 ? "Adds the lesson to Training as an unpublished draft."
-                : "Adds the lesson and publishes its Training module."}
+                : text(current.payload.mode) === "append"
+                  ? "Adds the lesson to the end of the module. Clients who have that module see it straight away."
+                  : "Adds the lesson and publishes its Training module."}
           </p>
           {!actionEnabled && (
             <p className="ws-note is-attn mt-3">

@@ -265,9 +265,11 @@ export function LessonReview({
             "Destination module has not been checked."}
         </p>
         <p className="mt-1 text-sm text-text-secondary">
-          {published
-            ? "Add the lesson and publish its dedicated module."
-            : "Add the lesson as an unpublished draft."}
+          {payload.mode === "append"
+            ? "Adds the lesson to the end of this module. Clients who have it will see the lesson straight away. You can move it to another module later."
+            : published
+              ? "Add the lesson and publish its dedicated module."
+              : "Add the lesson as an unpublished draft."}
         </p>
         <details className="mt-2 text-xs text-text-muted">
           <summary className="cursor-pointer">Module reference</summary>
