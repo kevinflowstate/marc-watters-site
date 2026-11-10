@@ -408,3 +408,29 @@ describe("approved lesson publication", () => {
     ).rejects.toThrow("Stored media changed");
   });
 });
+
+describe("adding a lesson to a live module (Call Replays)", () => {
+  const live = () => ({ id, title: "Call Replays", is_published: true, content_count: 1 });
+  it("accepts append only for a live module and says clients will see it", async () => {
+    const result = (await api.previewLessonPublication(
+      { ...manifest, mode: "append" },
+      deps({ module: async () => live() }),
+    )) as { review: { remaining: string[] }; would_publish_module: boolean };
+    expect(result.would_publish_module).toBe(false);
+    expect(result.review.remaining.join(" ")).toContain("Call Replays");
+    expect(result.review.remaining.join(" ")).toContain("straight away");
+  });
+  it("refuses append to an unpublished module and still refuses draft/publish to a live one", async () => {
+    await expect(
+      api.previewLessonPublication({ ...manifest, mode: "append" }, deps()),
+    ).rejects.toThrow("live module");
+    await expect(
+      api.previewLessonPublication(manifest, deps({ module: async () => live() })),
+    ).rejects.toThrow("unpublished");
+  });
+  it("rejects an unknown mode", () => {
+    expect(() =>
+      api.validateLessonPublicationManifest({ ...manifest, mode: "replace" }),
+    ).toThrow("draft, publish or append");
+  });
+});

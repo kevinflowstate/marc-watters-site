@@ -22,6 +22,7 @@ import {
   PreparedWorkPanel, artifactKindLabel, artifactStatusLabels, artifactTone, emptyControls, type ActionControls,
 } from "@/components/ops/workspace/PreparedWorkPanel";
 import { PaymentCasePanel } from "@/components/ops/workspace/PaymentCasePanel";
+import { LessonPackageCard, lessonPackage } from "@/components/ops/workspace/LessonPackageCard";
 
 type Summary = { artifacts: OpsArtifact[]; payments: PaymentCase[]; controls: ActionControls };
 type Drawer =
@@ -525,7 +526,7 @@ export default function WorkPage() {
               {drawer.kind === "task" && !selectedTask && <p className="ws-caption mt-3">This task is no longer listed. Refresh to check.</p>}
               {drawer.kind === "card" && selectedCard && <CardDetail card={selectedCard} />}
             </div>
-            {selectedTask && !isClosed(selectedTask) && (
+            {selectedTask && !isClosed(selectedTask) && !lessonPackage(selectedTask.payload) && (
               <div className="ws-drawer-foot">
                 {needsApproval(selectedTask) ? (
                   <>
@@ -803,12 +804,18 @@ function TaskDetail({
         )}
       </dl>
       {card && !isBoilerplate(card.next) && <p className="mt-5 text-[14px] font-medium leading-relaxed">{card.next}</p>}
-      {task.detail && (
-        <div className="ws-section">
-          <ReportText text={task.detail} />
-        </div>
+      {lessonPackage(task.payload) && !closed ? (
+        <LessonPackageCard taskId={task.id} pack={lessonPackage(task.payload)!} disabled={busy} />
+      ) : (
+        <>
+          {task.detail && (
+            <div className="ws-section">
+              <ReportText text={task.detail} />
+            </div>
+          )}
+          <LinkList links={[...task.links, ...task.outputs]} />
+        </>
       )}
-      <LinkList links={[...task.links, ...task.outputs]} />
 
       {!closed && (
         <label className="ws-section block">

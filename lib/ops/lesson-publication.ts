@@ -7,7 +7,8 @@ export type LessonPublicationManifest = {
   schema_version: 1;
   lesson_ref: string;
   version: number;
-  mode: "draft" | "publish";
+  /** draft/publish: a dedicated unpublished module. append: add to an existing live module such as Call Replays. */
+  mode: "draft" | "publish" | "append";
   module_id: string;
   title: string;
   summary_md: string;
@@ -34,7 +35,7 @@ export type LessonPublicationReceipt = {
   artifact_id: string;
   manifest_hash: string;
   version: number;
-  mode: "draft" | "publish";
+  mode: "draft" | "publish" | "append";
   recording_id: string;
   content_id: string;
   module_id: string;
@@ -120,8 +121,8 @@ export function validateLessonPublicationManifest(
     Number(b.version) > 1000000
   )
     throw new OpsError("Valid lesson schema/version required");
-  if (b.mode !== "draft" && b.mode !== "publish")
-    throw new OpsError("Choose draft or publish explicitly");
+  if (b.mode !== "draft" && b.mode !== "publish" && b.mode !== "append")
+    throw new OpsError("Choose draft, publish or append explicitly");
   const ref = string(b.lesson_ref, "lesson_ref", 200);
   if (!/^[a-zA-Z0-9][a-zA-Z0-9:._/-]*$/.test(ref))
     throw new OpsError("Invalid lesson_ref");
@@ -340,7 +341,12 @@ export async function previewLessonPublication(
   const object = await deps.object(manifest.media.storage_path);
   assertSameObject(verification, object);
   const destination = await deps.module(manifest.module_id);
-  if (destination.is_published)
+  if (manifest.mode === "append" && !destination.is_published)
+    throw new OpsError(
+      "Adding to an existing module needs a live module such as Call Replays; choose draft for an unpublished module",
+      409,
+    );
+  if (manifest.mode !== "append" && destination.is_published)
     throw new OpsError(
       "Choose an unpublished destination module; this action cannot add material to an already published module",
       409,
@@ -354,7 +360,9 @@ export async function previewLessonPublication(
     "Watch the edited video, especially the opening, ending and each join.",
     ...(!manifest.summary_md.trim() ? ["Add the lesson summary."] : []),
     ...(!manifest.workbook_md.trim() ? ["Add the draft workbook."] : []),
-    "Eimear must approve this exact version and Training destination before it is added.",
+    manifest.mode === "append"
+      ? `Eimear must approve this exact version before it is added to ${destination.title}. Clients who have that module will see it straight away.`
+      : "Eimear must approve this exact version and Training destination before it is added.",
   ];
   const materialsReady = Boolean(manifest.summary_md.trim() && manifest.workbook_md.trim());
   return {
