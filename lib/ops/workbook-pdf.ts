@@ -257,6 +257,17 @@ function table(c: Ctx, block: Extract<WorkbookBlock, { type: "table" }>) {
   c.y -= 12;
 }
 
+function blockHeight(c: Ctx, block: WorkbookBlock): number {
+  const q = (text?: string, hint?: string) =>
+    (text ? wrap(text, c.bold, 10.5, WIDTH).length * 14.7 + 5 : 0) + (hint ? wrap(hint, c.italic, 9, WIDTH).length * 12.6 + 5 : 0);
+  if (block.type === "write") return q(block.question, block.hint) + 16 * (block.lines ?? 4) + 22;
+  if (block.type === "checklist") return q(block.question, block.hint) + Math.ceil(block.items.length / 2) * 19 + 8;
+  if (block.type === "score")
+    return q(block.question) + 40 + block.items.reduce((h, item) => h + wrap(item, c.regular, 9.5, WIDTH - 90).length * 12 + 14, 0) + 32 + (block.bands?.length ?? 0) * 14;
+  if (block.type === "table") return q(block.question) + 22 * (1 + block.rows.length + (block.blank_rows ?? 0)) + 12;
+  return wrap(block.text, c.regular, 10, WIDTH).length * 14 + 8;
+}
+
 export type WorkbookAssets = { regular: Uint8Array; bold: Uint8Array; italic: Uint8Array; logoPng?: Uint8Array };
 
 /** Arimo (Apache 2.0, metric-compatible with Arial, which Marc's Word workbooks use) is embedded so every viewer shows the same type. */
@@ -313,9 +324,11 @@ export async function renderWorkbookPdf(
   }
   header(c, spec);
   spec.sections.forEach((section, i) => {
-    // Keep a section heading with the start of its first block (tables and score lists especially).
+    // Keep a section heading, its prompt and its whole first block together when they fit on one page.
     const first = section.blocks[0];
-    ensure(c, first && (first.type === "table" || first.type === "score") ? 190 : first?.type === "write" ? 140 : 80);
+    const promptH = section.prompt ? wrap(section.prompt, c.regular, 10, WIDTH).length * 14 + 8 : 0;
+    const keep = 40 + promptH + (first ? blockHeight(c, first) : 0);
+    ensure(c, keep < A4[1] - MARGIN - BOTTOM ? keep : 120);
     const label = `[${section.label ?? `Q${i + 1}`}]`;
     c.page.drawText(pdfSafe(label), { x: MARGIN, y: c.y - 13, size: 13, font: c.bold, color: BLUE });
     const labelW = c.bold.widthOfTextAtSize(pdfSafe(label), 13) + 8;
