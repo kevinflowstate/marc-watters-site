@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadWorkbookAssets, renderWorkbookPdf, validateWorkbookSpec, type WorkbookSpec } from "./workbook-pdf";
 import { submitArtifact } from "./actions";
+import { findCalendarWorkbook, storeCalendarWorkbook } from "./calendar-workbook";
 import {
   validateLessonPublicationManifest,
   verifyStoredLessonMedia,
@@ -56,6 +57,8 @@ type Deps = {
   submit: typeof submitArtifact;
   complete: typeof completeTask;
   workbookPdf: (spec: WorkbookSpec, title: string) => Promise<WorkbookPdfRef>;
+  /** Marc's own workbook attached to that Tuesday's portal calendar event, if any. */
+  calendarWorkbook?: (lessonRef: string) => Promise<WorkbookPdfRef | null>;
 };
 
 function fileName(title: string) {
@@ -92,6 +95,10 @@ function dependencies(): Deps {
     submit: submitArtifact,
     complete: completeTask,
     workbookPdf: storeWorkbookPdf,
+    calendarWorkbook: async (lessonRef) => {
+      const found = await findCalendarWorkbook(lessonRef);
+      return found ? storeCalendarWorkbook(found) : null;
+    },
   };
 }
 
@@ -118,7 +125,9 @@ export async function startLessonReview(
     actor,
   );
   const { workbook, ...lesson } = pack;
-  const workbookPdf = workbook ? await d.workbookPdf(workbook, pack.title) : undefined;
+  // Marc's own workbook from the calendar wins; the generated one is only the fallback.
+  const fromCalendar = d.calendarWorkbook ? await d.calendarWorkbook(pack.lesson_ref).catch(() => null) : null;
+  const workbookPdf = fromCalendar ?? (workbook ? await d.workbookPdf(workbook, pack.title) : undefined);
   const manifest: LessonPublicationManifest = {
     ...lesson,
     ...(workbookPdf ? { workbook_pdf: workbookPdf } : {}),
@@ -145,6 +154,7 @@ export async function startLessonReview(
   return {
     artifact_id: artifact.id,
     duration_s: checked.verification.duration_s,
+    workbook_source: fromCalendar ? "calendar" : workbookPdf ? "generated" : "none",
     review_url: `/admin/work?artifact=${artifact.id}`,
   };
 }
