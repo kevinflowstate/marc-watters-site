@@ -41,7 +41,7 @@ export async function attachLessonWorkbook(
         detail: "The lesson was added to Training, but its workbook PDF did not attach. Open the lesson in Training and attach the workbook from the lesson review.",
         area: "lessons",
         assignee: "eimear",
-        source: "automation",
+        source: "system",
       },
       "system",
     ).catch(() => undefined);

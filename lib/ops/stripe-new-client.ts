@@ -109,7 +109,7 @@ export async function onboardFromPayment(account: StripePaymentAccount, type: st
       kind: "task",
       area: "onboarding",
       assignee: "eimear",
-      source: "automation",
+      source: "system",
       priority: 1,
       external_ref: `onboarding-stripe:${ref}`,
       title: `New client paid · ${name}`,
