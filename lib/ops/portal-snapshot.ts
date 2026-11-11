@@ -7,6 +7,7 @@ import {
   messageReplyState,
 } from "./portal-monitor";
 import { reportWeekStart } from "./report-week";
+import { lessonSourceForSnapshot } from "./lesson-source";
 import { OpsError } from "./tasks";
 
 /**
@@ -197,6 +198,8 @@ export async function buildPortalSnapshot(now = new Date()) {
           attachments: files.map((f) => clip(f.name, 120)).slice(0, 6),
         };
       }),
+    // Short-lived links for the scheduled weekly lesson job (see lib/ops/lesson-source.ts).
+    lesson_source: await lessonSourceForSnapshot({ now }).catch(() => ({ status: "unavailable" })),
     thursday_report: r
       ? {
           id: r.id,

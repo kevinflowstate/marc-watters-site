@@ -129,10 +129,12 @@ export async function reportFileProblems(problems: FileProblem[], now = new Date
 }
 
 /** One task per day when a portal background step itself breaks. */
-export async function reportStepFailure(step: "drive-results" | "portal-snapshot", message: string, now = new Date(), raiseTask: Raise = createTask) {
+export async function reportStepFailure(step: "drive-results" | "portal-snapshot" | "lesson-source", message: string, now = new Date(), raiseTask: Raise = createTask) {
   const clock = londonClock(now);
   const what =
-    step === "drive-results"
+    step === "lesson-source"
+      ? { name: "Preparing Tuesday's lesson video from Fathom", fix: "Check the portal's Fathom key still works (it is Marc's Fathom API key) and that the recording exists in Fathom." }
+      : step === "drive-results"
       ? { name: "Collecting Codex results from Drive", fix: "Check the CBB Portal Handoff folder is still shared with the portal's reader as Viewer and the Drive connection still works (Workspace > Connections)." }
       : { name: "Writing the portal snapshot for Codex", fix: "Check portal-snapshot.json is still shared with the portal's reader as Editor. Until it is fixed, scheduled jobs read an old snapshot; its observed_at time shows how old." };
   await raise(
