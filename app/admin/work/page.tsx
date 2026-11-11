@@ -16,13 +16,14 @@ import type { PaymentCase } from "@/lib/ops/payment-policy";
 import { useToast } from "@/components/ui/Toast";
 import {
   Avatar, Chip, Empty, Icon, Lane, Row, Segmented, SkeletonRows, UpcomingPanel,
-  areaColour, dueLabel, fullDate, isBoilerplate, outcomeMeta, ownerColour, when,
+  areaColour, dueLabel, fullDate, isBoilerplate, outcomeMeta, ownerColour, when, type LaneRowOptions,
 } from "@/components/ops/workspace/WorkspaceUI";
 import {
   PreparedWorkPanel, artifactKindLabel, artifactStatusLabels, artifactTone, emptyControls, type ActionControls,
 } from "@/components/ops/workspace/PreparedWorkPanel";
 import { PaymentCasePanel } from "@/components/ops/workspace/PaymentCasePanel";
 import { LessonPackageCard, lessonPackage } from "@/components/ops/workspace/LessonPackageCard";
+import { archiveWeeks, isCarriedOver, isCompletedThisWeek, londonDateAt } from "@/lib/ops/task-weeks";
 
 type Summary = { artifacts: OpsArtifact[]; payments: PaymentCase[]; controls: ActionControls };
 type Drawer =
@@ -104,8 +105,11 @@ export default function WorkPage() {
   const [note, setNote] = useState("");
   const [actionError, setActionError] = useState("");
   const [codexFilter, setCodexFilter] = useState<CodexFilter>("all");
-  const [history, setHistory] = useState(false);
   const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [toggling, setToggling] = useState("");
+  const [archiveSearch, setArchiveSearch] = useState("");
   const [owner, setOwner] = useState<(typeof assignees)[number]>("eimear");
   const [newArea, setNewArea] = useState<OpsTask["area"]>("other");
   const [today, setToday] = useState("");
@@ -122,7 +126,12 @@ export default function WorkPage() {
     fetch("/api/portal/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((me) => {
-        if (!cancelled && me && typeof me.fullName === "string") setFirstName(me.fullName.trim().split(/\s+/)[0] || "");
+        if (!cancelled && me && typeof me.fullName === "string") {
+          const first = me.fullName.trim().split(/\s+/)[0] || "";
+          setFirstName(first);
+          // New tasks default to the other person: Marc mostly adds work for Eimear, and back.
+          if (first.toLowerCase() === "eimear") setOwner("marc");
+        }
       })
       .catch(() => {});
     return () => {
@@ -231,13 +240,55 @@ export default function WorkPage() {
   }, [data]);
   const current = cards.filter((c) => !c.history);
   const q = search.trim().toLowerCase();
-  const lane = (owner: WorkspaceCard["owner"][]) =>
-    cards.filter(
-      (c) =>
-        owner.includes(c.owner) &&
-        (history ? c.history : !c.history) &&
-        (!q || `${c.title} ${c.next} ${c.detail}`.toLowerCase().includes(q)),
+  const matches = (c: WorkspaceCard) => !q || `${c.title} ${c.next} ${c.detail}`.toLowerCase().includes(q);
+  const taskById = useMemo(() => new Map((data?.tasks || []).map((t) => [t.id, t])), [data]);
+  const lane = (owner: WorkspaceCard["owner"][]) => cards.filter((c) => owner.includes(c.owner) && !c.history && matches(c));
+  // Done this week: stays in the owner's list under "Completed" until Sunday midnight (London).
+  const completedThisWeek = (owner: WorkspaceCard["owner"]) =>
+    cards
+      .filter((c) => c.owner === owner && c.task_id && matches(c))
+      .map((c) => ({ card: c, task: taskById.get(c.task_id!) }))
+      .filter((x) => x.task && isCompletedThisWeek(x.task))
+      .sort((a, b) => Date.parse(b.task!.completed_at!) - Date.parse(a.task!.completed_at!))
+      .map((x) => ({ ...x.card, observed_at: x.task!.completed_at! }));
+  const completable = (t: OpsTask | undefined) =>
+    !!t && t.kind !== "approval" && t.status !== "cancelled" && !lessonPackage(t.payload) && typeof t.payload?.payment_case_id !== "string";
+  async function toggleDone(t: OpsTask) {
+    const done = t.status === "done";
+    setToggling(t.id);
+    try {
+      await request(`/api/admin/work/${t.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(done ? { status: "open" } : { status: "done" }),
+      });
+      await load(true);
+      toast(done ? "Moved back to open." : "Marked as done.", done ? "info" : "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not save", "error");
+    } finally {
+      setToggling("");
+    }
+  }
+  const rowOptions: LaneRowOptions = {
+    carried: (c) => {
+      const t = c.task_id ? taskById.get(c.task_id) : undefined;
+      return !!t && isCarriedOver(t);
+    },
+    toggle: (c) => {
+      const t = c.task_id ? taskById.get(c.task_id) : undefined;
+      if (!completable(t)) return undefined;
+      return { done: t!.status === "done", busy: toggling === t!.id, onToggle: () => void toggleDone(t!) };
+    },
+  };
+  const archive = useMemo(() => {
+    const aq = archiveSearch.trim().toLowerCase();
+    const done = (data?.tasks || []).filter(
+      (t) => t.status === "done" && (!aq || `${t.title} ${t.detail || ""} ${t.decision_note || ""}`.toLowerCase().includes(aq)),
     );
+    return archiveWeeks(done);
+  }, [data, archiveSearch]);
+  const archiveTotal = useMemo(() => archiveWeeks((data?.tasks || []).filter((t) => t.status === "done")).reduce((n, w) => n + w.tasks.length, 0), [data]);
   const decideCount = current.filter((c) => c.approval).length;
   const decideMarc = current.filter((c) => c.approval && c.owner === "marc").length;
   const decideEimear = current.filter((c) => c.approval && c.owner === "eimear").length;
@@ -363,14 +414,14 @@ export default function WorkPage() {
       )}
 
       <div className="ws-strip mt-5" aria-label="Today">
-        <button type="button" className="ws-stat ws-focus" onClick={() => setHistory(false)}>
+        <button type="button" className="ws-stat ws-focus">
           <span className="ws-stat-l"><Icon name="checkCircle" size={14} /> To decide</span>
           <span className="ws-stat-n">{firstLoad ? "–" : decideCount}</span>
           <span className={`ws-stat-s ${decideCount ? "is-accent" : ""}`}>
             {firstLoad ? " " : decideCount ? `${decideMarc} for Marc · ${decideEimear} for Eimear` : "nothing waiting"}
           </span>
         </button>
-        <button type="button" className="ws-stat ws-focus" onClick={() => setHistory(false)}>
+        <button type="button" className="ws-stat ws-focus">
           <span className="ws-stat-l"><Icon name="alert" size={14} /> Follow up</span>
           <span className="ws-stat-n">{firstLoad ? "–" : attnCount}</span>
           <span className={`ws-stat-s ${attnCount ? "is-attn" : ""}`}>{firstLoad ? " " : attnCount ? "clients and records needing a look" : "all clear"}</span>
@@ -402,19 +453,13 @@ export default function WorkPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Segmented<"open" | "closed">
-            label="Show"
-            value={history ? "closed" : "open"}
-            onChange={(v) => setHistory(v === "closed")}
-            options={[{ value: "open", label: "Open" }, { value: "closed", label: "Closed" }]}
-          />
         </div>
       </div>
 
       <div className="ws-grid2 mt-3">
         <div className="ws-stack">
-          <Lane title="Marc" owner="marc" cards={lane(["marc"])} history={history} loading={firstLoad} onOpen={openCard} />
-          <Lane title="Eimear" owner="eimear" cards={lane(["eimear"])} history={history} loading={firstLoad} onOpen={openCard} />
+          <Lane title="Marc" owner="marc" cards={lane(["marc"])} completed={completedThisWeek("marc")} rows={rowOptions} history={false} loading={firstLoad} onOpen={openCard} />
+          <Lane title="Eimear" owner="eimear" cards={lane(["eimear"])} completed={completedThisWeek("eimear")} rows={rowOptions} history={false} loading={firstLoad} onOpen={openCard} />
           {teamCards.length > 0 && (
             <details className="ws-panel overflow-hidden">
               <summary className="ws-panel-head cursor-pointer list-none">
@@ -478,6 +523,56 @@ export default function WorkPage() {
           </section>
         </div>
       </div>
+
+      {/* Completed tasks: earlier weeks, collapsed until Marc or Eimear wants to look back. */}
+      <section className="ws-panel mt-6 overflow-hidden" aria-label="Completed tasks">
+        <details className="ws-archive" open={archiveSearch.trim() ? true : undefined}>
+          <summary className="ws-panel-head cursor-pointer">
+            <Icon name="chevron" size={14} className="ws-archive-chev" />
+            <h2 className="ws-h2 flex-1">Completed tasks</h2>
+            <span className="ws-caption">{archiveTotal ? `${archiveTotal} from earlier weeks` : "none yet"}</span>
+          </summary>
+          <div className="px-[14px] py-3">
+            <input
+              type="search"
+              className="ws-input"
+              placeholder="Search completed tasks"
+              aria-label="Search completed tasks"
+              value={archiveSearch}
+              onChange={(e) => setArchiveSearch(e.target.value)}
+            />
+          </div>
+          {archive.length ? (
+            archive.map((w) => (
+              <details key={`${w.key}-${archiveSearch.trim() ? "q" : ""}`} className="ws-week" open={archiveSearch.trim() ? true : undefined}>
+                <summary>
+                  <Icon name="chevron" size={13} className="ws-archive-chev" />
+                  <span className="flex-1">{w.label}</span>
+                  <span className="ws-cnt">{w.tasks.length}</span>
+                </summary>
+                {w.tasks.map((t) => (
+                  <Row
+                    key={t.id}
+                    tone="closed"
+                    title={t.title}
+                    sub={`${ownerLabels[t.assignee]}${t.decision_note ? ` · ${t.decision_note}` : ""}`}
+                    area={areaLabels[t.area]}
+                    areaColour={areaColour[t.area]}
+                    time={when(t.completed_at!)}
+                    onOpen={() => openTask(t.id)}
+                  />
+                ))}
+              </details>
+            ))
+          ) : (
+            <Empty
+              icon="history"
+              title={archiveSearch.trim() ? "No matches" : "Nothing archived yet"}
+              text={archiveSearch.trim() ? "Try another word." : "Tasks completed this week move here after Sunday night."}
+            />
+          )}
+        </details>
+      </section>
 
       {/* Drawer */}
       <dialog ref={panel} className="ws-drawer" tabIndex={-1} aria-label={drawerTitle} onClose={close} onCancel={(e) => { e.preventDefault(); close(); }}>
@@ -587,6 +682,23 @@ export default function WorkPage() {
                 )}
               </div>
             )}
+            {selectedTask && selectedTask.status === "done" && completable(selectedTask) && (
+              <div className="ws-drawer-foot">
+                <button
+                  type="button"
+                  className="ws-btn"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await mutate(`/api/admin/work/${selectedTask.id}`, "PATCH", { status: "open" })) {
+                      close();
+                      toast("Moved back to open.", "info");
+                    }
+                  }}
+                >
+                  <Icon name="history" size={14} /> Mark as not done
+                </button>
+              </div>
+            )}
             {drawer.kind === "card" && selectedCard && openHref && (
               <div className="ws-drawer-foot">
                 <Link className="ws-btn ws-btn-primary" href={openHref}>
@@ -605,10 +717,22 @@ export default function WorkPage() {
           onSubmit={async (e) => {
             e.preventDefault();
             if (!title.trim()) return;
-            if (await mutate("/api/admin/work", "POST", { title, kind: "task", area: newArea, source: "human", assignee: owner })) {
+            setBusy(true);
+            setActionError("");
+            try {
+              const due_at = dueDate ? londonDateAt(dueDate) : null;
+              const body = { title, kind: "task", area: newArea, source: "human", assignee: owner, ...(detail.trim() ? { detail: detail.trim() } : {}), ...(due_at ? { due_at } : {}) };
+              const r = await request<{ notified?: boolean }>("/api/admin/work", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+              await load(true);
               setTitle("");
+              setDetail("");
+              setDueDate("");
               closeComposer();
-              toast("Task added.");
+              toast(r.notified ? `Task added. ${ownerLabels[owner]} has been emailed.` : "Task added.");
+            } catch (err) {
+              setActionError(err instanceof Error ? err.message : "Could not save");
+            } finally {
+              setBusy(false);
             }
           }}
         >
@@ -628,6 +752,14 @@ export default function WorkPage() {
               ))}
             </div>
           </div>
+          <label className="mt-4 block">
+            <span className="ws-label">Details <span>(optional)</span></span>
+            <textarea className="ws-input" rows={3} maxLength={5000} value={detail} disabled={busy} onChange={(e) => setDetail(e.target.value)} placeholder="Anything they need to know" />
+          </label>
+          <label className="mt-4 block">
+            <span className="ws-label">Due <span>(optional)</span></span>
+            <input type="date" className="ws-input" value={dueDate} disabled={busy} onChange={(e) => setDueDate(e.target.value)} />
+          </label>
           <label className="mt-4 block">
             <span className="ws-label">Area</span>
             <select className="ws-input" value={newArea} disabled={busy} onChange={(e) => setNewArea(e.target.value as OpsTask["area"])}>

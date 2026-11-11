@@ -142,3 +142,33 @@ export async function sendWeeklySummaryEmail(to: string, summary: {
     `),
   });
 }
+
+/** A team task added or handed over by Marc or Eimear. Internal staff only, never clients. */
+export async function sendTeamTaskEmail(
+  to: string,
+  input: { recipientName: string; fromName: string; title: string; detail?: string | null; due?: string | null; url: string; reassigned?: boolean; taskId: string },
+) {
+  const firstName = input.recipientName.split(" ")[0] || "there";
+  const lead = input.reassigned
+    ? `${escapeHtml(input.fromName)} has passed a task to you.`
+    : `${escapeHtml(input.fromName)} has added a task for you.`;
+  const resend = await getResend();
+  return resend.emails.send(
+    {
+      from: FROM,
+      to,
+      subject: `New task from ${input.fromName}: ${input.title}`.slice(0, 200),
+      html: wrap(`
+      <h2 style="margin: 0 0 8px; font-size: 20px; color: #111;">Hi ${escapeHtml(firstName)},</h2>
+      <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">${lead}</p>
+      <div style="background: #f8f9fa; border-left: 3px solid #2272de; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 0 0 24px;">
+        <p style="margin: 0; color: #111; font-size: 15px; font-weight: 600;">${escapeHtml(input.title)}</p>
+        ${input.due ? `<p style="margin: 6px 0 0; color: #555; font-size: 14px;">Due ${escapeHtml(input.due)}</p>` : ""}
+        ${input.detail ? `<p style="margin: 10px 0 0; color: #333; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(input.detail.slice(0, 2000))}</p>` : ""}
+      </div>
+      ${button(input.url, "Open in the workspace")}
+    `),
+    },
+    { idempotencyKey: `team-task:${input.taskId}:${to}:${input.reassigned ? "assigned" : "created"}` },
+  );
+}
