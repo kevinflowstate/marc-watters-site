@@ -319,7 +319,7 @@ export default function PortalDashboard() {
       </div>
 
       {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="ws-pair">
         {/* Business Plan Summary */}
         <section className="ws-panel min-w-0" aria-label="Business plan">
           <div className="ws-panel-head">
@@ -488,7 +488,7 @@ function DashboardSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="ws-pair">
         <div className="ws-panel"><SkeletonRows count={4} /></div>
         <div className="ws-panel"><SkeletonRows count={4} /></div>
       </div>

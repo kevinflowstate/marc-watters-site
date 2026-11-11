@@ -75,3 +75,8 @@
 
 /* Panel head title */
 .ws-panel-head .ws-h2 { margin-right: auto; }
+
+/* Side-by-side panels keep their own height instead of stretching to the taller one. */
+.ws-page .ws-grid2, .ws-page .ws-pair { align-items: start; }
+.ws-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1024px) { .ws-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
