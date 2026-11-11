@@ -41,6 +41,26 @@ describe("job health", () => {
     expect(r.raised).toContain("job-health:missed:daily:2026-11-10");
   });
 
+  it("expects the Thursday report commentary on Thursdays only", async () => {
+    const raiseTask = vi.fn(async (..._args: unknown[]) => ({}) as never);
+    const daily = [row("daily_brief", "complete", "2026-11-12T08:40:00Z")];
+    // Thursday 12 Nov, 10:30 London: daily brief in, no weekly report yet.
+    let r = await checkScheduledJobs(new Date("2026-11-12T10:30:00Z"), { results: async () => daily, raiseTask });
+    expect(r.raised).toEqual(["job-health:missed:thursday:2026-11-12"]);
+    // Arrived: nothing raised.
+    r = await checkScheduledJobs(new Date("2026-11-12T10:30:00Z"), {
+      results: async () => [...daily, row("weekly_report", "complete", "2026-11-12T09:20:00Z")],
+      raiseTask,
+    });
+    expect(r.raised).toEqual([]);
+    // Any other weekday: never expected.
+    r = await checkScheduledJobs(new Date("2026-11-11T10:30:00Z"), {
+      results: async () => [row("daily_brief", "complete", "2026-11-11T08:40:00Z")],
+      raiseTask,
+    });
+    expect(r.raised).toEqual([]);
+  });
+
   it("does not check at weekends", async () => {
     const results = vi.fn(async () => []);
     expect(await checkScheduledJobs(new Date("2026-11-14T20:00:00Z"), { results, raiseTask: vi.fn() })).toEqual({ checked: false, raised: [] });
