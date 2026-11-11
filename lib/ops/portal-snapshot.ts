@@ -200,6 +200,14 @@ export async function buildPortalSnapshot(now = new Date()) {
       }),
     // Short-lived links for the scheduled weekly lesson job (see lib/ops/lesson-source.ts).
     lesson_source: await lessonSourceForSnapshot({ now }).catch(() => ({ status: "unavailable" })),
+    // So the lesson job can see a lesson Marc or Eimear already added by hand.
+    call_replays_recent: await admin
+      .from("module_content")
+      .select("title,created_at")
+      .eq("module_id", "faa36657-fa83-4f66-87cb-cf597b3d75b2")
+      .order("created_at", { ascending: false })
+      .limit(12)
+      .then((r) => (r.error ? null : (r.data || []).map((c) => ({ title: clip(c.title, 200), added: String(c.created_at).slice(0, 10) }))), () => null),
     thursday_report: r
       ? {
           id: r.id,
