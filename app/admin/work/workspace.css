@@ -591,7 +591,7 @@ details.ws-details[open] > summary::before { transform: rotate(45deg); }
   transition: opacity 120ms;
 }
 .ws-tick:hover .ws-tick-hint, .ws-tick:focus-visible .ws-tick-hint { opacity: 1; }
-.ws-tickrow.is-done .ws-row-title { color: var(--ws-ink-3); }
+.ws-tickrow.is-done .ws-row-title, .ws-done-group .ws-row-title { color: var(--ws-ink-3); }
 
 /* Completed tasks archive: collapsed weeks, newest first. */
 .ws-archive > summary { list-style: none; }

@@ -480,7 +480,7 @@ export function Lane({
           ) : (
             <Empty title="All clear" text={`Nothing is waiting on ${title}.`} />
           )}
-          {done && <GroupList key="done" group={done} onOpen={onOpen} limit={limit} rows={rows} />}
+          {done && <div className="ws-done-group"><GroupList key="done" group={done} onOpen={onOpen} limit={limit} rows={rows} /></div>}
         </>
       )}
     </section>
