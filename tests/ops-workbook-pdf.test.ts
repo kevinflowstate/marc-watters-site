@@ -45,3 +45,37 @@ describe("CBB workbook PDF", () => {
     expect(pdfSafe("It’s “fine” → go")).toBe("It's \"fine\" -> go");
   });
 });
+
+describe("workbook outline round trip", () => {
+  // 10 Nov 2026: the import saved the validated outline (tables with rows: []) and the review
+  // re-validated it, rejecting the empty list. A validated outline must validate again unchanged.
+  const real = {
+    title: "Price for Real Profit",
+    date_line: "Tuesday 10th November 2026",
+    intro: "Know your real costs before you put a price on the job.",
+    how_to_use: ["Use your actual bank statements.", "Check the figures yourself."],
+    sections: [
+      {
+        title: "Find your overheads",
+        prompt: "Go through your bank statement line by line.",
+        blocks: [
+          { type: "table", columns: ["Item", "Direct cost", "Monthly overhead"], blank_rows: 8 },
+          { type: "write", lines: 3, question: "What is your average monthly overhead?" },
+        ],
+      },
+      {
+        title: "Build your schedule of rates",
+        blocks: [
+          { type: "checklist", question: "Gather your evidence.", items: ["Supplier invoices", "Bank statements"] },
+          { type: "table", columns: ["Item", "Unit"], rows: ["Blocks"], blank_rows: 2 },
+        ],
+      },
+    ],
+  };
+
+  it("validates its own output again", () => {
+    const once = validateWorkbookSpec(real);
+    const twice = validateWorkbookSpec(JSON.parse(JSON.stringify(once)));
+    expect(twice).toEqual(once);
+  });
+});
