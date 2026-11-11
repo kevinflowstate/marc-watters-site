@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import MonthlyMetricsSection from "@/components/portal/MonthlyMetricsSection";
+import { Chip, Icon, SkeletonRows, StatusIcon } from "@/components/ops/workspace/WorkspaceUI";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import type {
   ClientProfile,
@@ -14,15 +15,6 @@ import type {
   CheckinFormConfig,
   FormQuestion,
 } from "@/lib/types";
-
-function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-2">
-      <div className="h-2 rounded-full gradient-accent transition-all duration-500" style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
 
 function cleanPhaseName(name: string): string {
   if (typeof name !== "string") return "Untitled phase";
@@ -200,80 +192,69 @@ export default function PortalDashboard() {
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
   const newModules = recentModules.filter((m) => new Date(m.created_at) > twoWeeksAgo);
 
+  const statusText = profile?.status === "green" ? "On track" : profile?.status === "amber" ? "Needs attention" : profile?.status === "red" ? "Behind" : "-";
+  const statusTone = profile?.status === "green" ? "is-ok" : profile?.status ? "is-attn" : "";
+
   return (
-    <>
-      <div className="mb-7 sm:mb-9">
-        <div className="v2-eyebrow mb-3">Client dashboard</div>
-        {loading ? (
-          <div className="skeleton rounded-lg h-9 w-64 mb-2" />
-        ) : (
-          <h1 className="v2-page-title">
-            {`Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}
-          </h1>
-        )}
-        <p className="mt-2 max-w-2xl text-sm text-text-secondary">Your plan, progress and next steps in one place.</p>
+    <div className="ws ws-page">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          {loading ? (
+            <span className="ws-skel" style={{ width: 240, height: 22 }} />
+          ) : (
+            <h1 className="ws-title">{`Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}`}</h1>
+          )}
+          <p className="ws-meta mt-1">Your plan, progress and next steps in one place.</p>
+        </div>
       </div>
 
       {shouldShowOnboardingWelcome && onboardingModuleId && (
-        <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-bg-card p-8 mb-8">
-          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_left,rgba(34,114,222,0.18),transparent_45%)] pointer-events-none" />
-          <div className="relative z-10 max-w-3xl">
-            <div className="inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent-bright mb-4">
-              Getting Started
-            </div>
-            <h2 className="text-3xl font-heading font-bold text-text-primary">
+        <section className="ws-panel" aria-label="Getting started">
+          <div className="p-5 sm:p-6 max-w-3xl">
+            <span className="ws-chip is-decide">Getting started</span>
+            <h2 className="mt-3 text-[19px] font-semibold tracking-[-0.018em]" style={{ color: "var(--ws-ink)" }}>
               Welcome {userName ? userName.split(" ")[0] : ""}
             </h2>
-            <p className="mt-2 text-lg text-text-secondary">
-              Welcome to The Construction Business Blueprint.
-            </p>
-            <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+            <p className="ws-meta mt-1" style={{ fontSize: 14 }}>Welcome to The Construction Business Blueprint.</p>
+            <p className="ws-meta mt-3">
               Your business plan will be assigned soon, for now go straight to the onboarding materials to get started.
             </p>
-            <Link
-              href={`/portal/training/${onboardingModuleId}`}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl gradient-accent px-5 py-3 text-sm font-semibold text-white no-underline hover:opacity-90 transition-opacity"
-            >
-              Start Onboarding
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+            <Link href={`/portal/training/${onboardingModuleId}`} className="ws-btn ws-btn-primary ws-focus mt-5">
+              Start onboarding
+              <Icon name="chevron" size={14} />
             </Link>
           </div>
-        </div>
+        </section>
       )}
 
       {loading ? (
         <DashboardSkeleton />
       ) : (
       <>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)] mb-5">
-        <section className="v2-surface-strong relative overflow-hidden p-6 sm:p-7">
-          <div className="absolute right-0 top-0 h-48 w-48 translate-x-16 -translate-y-20 rounded-full bg-accent/10 blur-3xl" aria-hidden />
-          <div className="relative">
+      <div className="ws-grid2">
+        <section className="ws-panel min-w-0" aria-label="Current focus">
+          <div className="p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="v2-eyebrow">Current focus</div>
-                <h2 className="mt-3 max-w-2xl font-heading text-2xl font-bold tracking-[-0.025em] text-text-primary sm:text-3xl">
+              <div className="min-w-0">
+                <div className="ws-caption">Current focus</div>
+                <h2 className="mt-1.5 max-w-2xl text-[20px] font-semibold leading-snug tracking-[-0.02em]" style={{ color: "var(--ws-ink)" }}>
                   {nextPlanItem?.title || currentPhaseLabel || "Your business plan is being prepared"}
                 </h2>
-                <p className="mt-3 text-sm text-text-secondary">
+                <p className="ws-meta mt-1.5">
                   {currentPhaseLabel ? `Part of ${currentPhaseLabel}` : "Marc will assign your next actions here."}
                 </p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-right">
-                <div className="text-2xl font-heading font-bold text-text-primary">{planPct}%</div>
-                <div className="text-[11px] text-text-muted">plan complete</div>
+              <div className="text-right">
+                <div className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: "var(--ws-ink)" }}>{planPct}%</div>
+                <div className="ws-caption">plan complete</div>
               </div>
             </div>
-            <div className="mt-7 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-              <div className="h-full rounded-full bg-accent-bright transition-[width] duration-500" style={{ width: `${planPct}%` }} />
-            </div>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-xs text-text-muted">{completedPlanItems} of {totalPlanItems} actions complete</span>
-              <Link href="/portal/plan" className="v2-button-primary">
-                Open Business Plan
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <span className="ws-bar mt-5"><i style={{ width: `${planPct}%` }} /></span>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <span className="ws-caption">{completedPlanItems} of {totalPlanItems} actions complete</span>
+              <Link href="/portal/plan" className="ws-btn ws-btn-primary ws-focus">
+                Open business plan
+                <Icon name="chevron" size={14} />
               </Link>
             </div>
           </div>
@@ -290,173 +271,187 @@ export default function PortalDashboard() {
       />
 
       {newModules.length > 0 && (
-        <section className="v2-surface mb-5 overflow-hidden">
-          <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] px-5 py-4">
-            <div className="v2-eyebrow text-emerald-400">What&apos;s new</div>
-            <span className="text-xs text-text-muted">{newModules.length} recent module{newModules.length === 1 ? "" : "s"}</span>
+        <section className="ws-panel" aria-label="What's new">
+          <div className="ws-panel-head">
+            <span className="ws-dot" style={{ color: "var(--ws-ok)" }} />
+            <h2 className="ws-h2">What&apos;s new</h2>
+            <span className="ws-caption">{newModules.length} recent module{newModules.length === 1 ? "" : "s"}</span>
           </div>
-          <div className="divide-y divide-white/[0.055]">
+          <div>
             {newModules.map((module) => (
-              <div key={module.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-text-primary">{module.title}</div>
-                  <div className="mt-1 text-xs text-text-muted">
+              <Link key={module.id} href={`/portal/training/${module.id}`} className="ws-row ws-focus no-underline">
+                <Icon name="play" size={13} className="ws-status-ic" />
+                <span className="min-w-0">
+                  <span className="ws-row-title">{module.title}</span>
+                  <span className="ws-row-sub">
                     Added {new Date(module.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </div>
-                </div>
-                <Link href={`/portal/training/${module.id}`} className="v2-button-secondary shrink-0">View training</Link>
-              </div>
+                  </span>
+                </span>
+                <span className="ws-row-meta">
+                  <span className="ws-link" style={{ fontSize: 12.5 }}>View training</span>
+                </span>
+              </Link>
             ))}
           </div>
         </section>
       )}
 
-      <div className="v2-stat-strip mb-6 sm:mb-8">
+      <div className="ws-strip">
         {[
-          { label: "Plan Progress", value: `${planPct}%`, sub: `${completedPlanItems}/${totalPlanItems} actions done` },
+          { label: "Plan progress", icon: "plan", value: `${planPct}%`, sub: `${completedPlanItems}/${totalPlanItems} actions done` },
           {
-            label: "Current Phase",
-            value: currentPhaseLabel || "Not Yet Assigned",
+            label: "Current phase",
+            icon: "target",
+            value: currentPhaseLabel || "Not yet assigned",
             sub: currentPhaseLabel ? `${completedPhaseCount}/${planPhases.length} phases complete` : "Marc will assign your plan soon",
           },
-          { label: "Trainings", value: `${totalModules}`, sub: totalModules > 0 ? `${totalModules} module${totalModules !== 1 ? "s" : ""} available` : "Coming soon" },
-          { label: "Status", value: profile?.status === "green" ? "On Track" : profile?.status === "amber" ? "Needs Attention" : profile?.status === "red" ? "Behind" : "-" },
+          { label: "Trainings", icon: "book", value: `${totalModules}`, sub: totalModules > 0 ? `${totalModules} module${totalModules !== 1 ? "s" : ""} available` : "Coming soon" },
+          { label: "Status", icon: "checkCircle", value: statusText, sub: "", tone: statusTone },
         ].map((stat, i) => (
-          <div key={i}>
-            <div className="text-[11px] font-semibold text-text-muted">{stat.label}</div>
-            <div className="mt-1 truncate font-heading text-lg font-bold text-text-primary sm:text-xl">{stat.value}</div>
-            {stat.sub && <div className="mt-0.5 truncate text-[11px] text-text-secondary">{stat.sub}</div>}
+          <div key={i} className="ws-stat" style={{ cursor: "default" }}>
+            <span className="ws-stat-l"><Icon name={stat.icon} size={14} />{stat.label}</span>
+            <span className="ws-stat-n ws-trunc" style={{ fontSize: stat.value.length > 8 ? 16 : undefined, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {stat.value}
+            </span>
+            {stat.sub ? <span className="ws-stat-s ws-trunc">{stat.sub}</span> : stat.tone ? <span className={`ws-stat-s ${stat.tone}`}>&nbsp;</span> : null}
           </div>
         ))}
       </div>
 
       {/* Split columns: Business Plan Progress (left) + Check-ins (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Business Plan Summary */}
-        <div className="v2-surface relative p-5 sm:p-6 overflow-hidden">
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <h2 className="v2-section-title">Business Plan</h2>
-            <Link href="/portal/plan" className="v2-button-secondary min-h-0 px-3 py-2 text-xs">
-              Go To Plan
+        <section className="ws-panel min-w-0" aria-label="Business plan">
+          <div className="ws-panel-head">
+            <h2 className="ws-h2">Business plan</h2>
+            <Link href="/portal/plan" className="ws-btn ws-btn-sm ws-focus">
+              Go to plan
             </Link>
           </div>
-          <div className="relative z-10"><ProgressBar value={completedPlanItems} max={totalPlanItems} /></div>
-          <div className="flex justify-between mt-2 text-sm text-text-muted mb-4 relative z-10">
-            <span>{completedPlanItems} completed</span>
-            <span>{totalPlanItems - completedPlanItems} remaining</span>
+          <div className="px-[14px] py-3">
+            <span className="ws-bar"><i style={{ width: `${totalPlanItems > 0 ? Math.round((completedPlanItems / totalPlanItems) * 100) : 0}%` }} /></span>
+            <div className="flex justify-between mt-2 ws-caption">
+              <span>{completedPlanItems} completed</span>
+              <span>{totalPlanItems - completedPlanItems} remaining</span>
+            </div>
           </div>
           {planPhases.length > 0 && (
-            <div className="space-y-3 relative z-10">
+            <div>
               {planPhases.map((phase) => {
                 const phaseCompleted = (phase.items || []).filter((i) => i.completed).length;
                 const phaseTotal = (phase.items || []).length;
                 const phasePct = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
                 return (
-                  <div key={phase.id} className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-text-primary truncate">{phase.name}</span>
-                        <span className="text-[10px] text-text-muted ml-2">{phaseCompleted}/{phaseTotal}</span>
+                  <div key={phase.id} className="ws-line" style={{ gridTemplateColumns: "14px minmax(0,1fr)", alignItems: "center" }}>
+                    <StatusIcon tone={phasePct === 100 ? "ok" : phaseCompleted > 0 ? "running" : "open"} />
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <span className="ws-row-title">{phase.name}</span>
+                        <span className="ws-caption">{phaseCompleted}/{phaseTotal}</span>
                       </div>
-                      <div className="w-full bg-[rgba(255,255,255,0.04)] rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all duration-500 ${phasePct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
-                          style={{ width: `${phasePct}%` }}
-                        />
-                      </div>
+                      <span className="ws-bar" style={phasePct === 100 ? ({ "--c": "var(--ws-ok)" } as CSSProperties) : undefined}>
+                        <i style={{ width: `${phasePct}%` }} />
+                      </span>
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Check-ins */}
-        <div className="v2-surface relative p-5 sm:p-6 overflow-hidden">
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <h2 className="v2-section-title">Check-Ins</h2>
+        <section className="ws-panel min-w-0" aria-label="Check-ins">
+          <div className="ws-panel-head">
+            <h2 className="ws-h2">Check-ins</h2>
             {isCheckinToday ? (
-              <Link href="/portal/checkin" className="v2-button-primary min-h-0 px-3 py-2 text-xs">
-                Submit Check-In
+              <Link href="/portal/checkin" className="ws-btn ws-btn-primary ws-btn-sm ws-focus">
+                Submit check-in
               </Link>
             ) : (
-              <span className="text-xs text-text-muted">
+              <span className="ws-caption">
                 Next: {nextCheckinDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
               </span>
             )}
           </div>
           {checkins.length === 0 ? (
-            <p className="text-text-muted text-sm">No check-ins yet.</p>
+            <p className="ws-up-none" style={{ padding: 14 }}>No check-ins yet.</p>
           ) : (
-            <ul className="pt-ci-list">
+            <div>
               {checkins.map((c) => {
                 const isExpanded = expandedCheckin === c.id;
-                const moodTone = c.mood === "great" ? "is-ok" : c.mood === "okay" ? "is-attn" : c.mood === "good" ? "" : "is-bad";
+                const moodTone = c.mood === "great" ? "ok" : c.mood === "okay" ? "attn" : c.mood === "good" ? "decide" : "bad";
                 const moodLabel = c.mood ? c.mood.charAt(0).toUpperCase() + c.mood.slice(1) : "";
                 return (
-                  <li key={c.id} className="pt-ci-item">
+                  <div key={c.id}>
                     <button
                       type="button"
                       onClick={() => setExpandedCheckin(isExpanded ? null : c.id)}
                       aria-expanded={isExpanded}
-                      className="pt-ci-row"
+                      className="ws-row ws-focus"
                     >
-                      <span className="pt-ci-main">
-                        <span className="pt-ci-title">Week {c.week_number}</span>
-                        <span className="pt-ci-date">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                      <StatusIcon tone={c.admin_reply ? "ok" : "open"} />
+                      <span className="min-w-0">
+                        <span className="ws-row-title">Week {c.week_number}</span>
+                        <span className="ws-row-sub">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
                       </span>
-                      <span className="pt-ci-meta">
-                        {moodLabel && <span className={`pt-chip ${moodTone}`}>{moodLabel}</span>}
-                        {c.admin_reply ? <span className="pt-chip is-accent">Replied</span> : <span className="pt-chip">Pending</span>}
-                        <svg className={`pt-ci-chev ${isExpanded ? "is-open" : ""}`} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
+                      <span className="ws-row-meta">
+                        {moodLabel && <Chip tone={moodTone as "ok" | "attn" | "decide" | "bad"}>{moodLabel}</Chip>}
+                        <span className="ws-row-time" style={c.admin_reply ? { color: "var(--ws-accent-ink)" } : undefined}>
+                          {c.admin_reply ? "Replied" : "Pending"}
+                        </span>
+                        <Icon name="chevron" size={14} className={`ws-chev ${isExpanded ? "is-open" : ""}`} />
                       </span>
                     </button>
-                    <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                      <div className="pt-ci-body">
-                        {c.responses && checkinConfig?.questions?.map((question: FormQuestion) => {
-                          const answer = getQuestionAnswerLabel(question, c.responses);
-                          if (!answer) return null;
+                    {isExpanded && (
+                      <div className="ws-expand">
+                        <div className="ws-expand-box space-y-3">
+                          {c.responses && checkinConfig?.questions?.map((question: FormQuestion) => {
+                            const answer = getQuestionAnswerLabel(question, c.responses);
+                            if (!answer) return null;
 
-                          return (
-                            <div key={question.id}>
-                              <div className="pt-ci-q">{question.label}</div>
-                              <p className="pt-ci-a whitespace-pre-line">{answer}</p>
+                            return (
+                              <div key={question.id}>
+                                <div className="ws-field-l">{question.label}</div>
+                                <p className="ws-prose" style={{ fontSize: 13 }}>{answer}</p>
+                              </div>
+                            );
+                          })}
+                          {c.responses && !checkinConfig && Object.entries(c.responses).map(([key, value]) => (
+                            <div key={key}>
+                              <div className="ws-field-l">{key}</div>
+                              <p className="ws-prose" style={{ fontSize: 13 }}>{value}</p>
                             </div>
-                          );
-                        })}
-                        {c.responses && !checkinConfig && Object.entries(c.responses).map(([key, value]) => (
-                          <div key={key}>
-                            <div className="pt-ci-q">{key}</div>
-                            <p className="pt-ci-a">{value}</p>
-                          </div>
-                        ))}
-                        {!c.responses && (
-                          <>
-                            {c.wins && <div><div className="pt-ci-q">Wins</div><p className="pt-ci-a">{c.wins}</p></div>}
-                            {c.challenges && <div><div className="pt-ci-q">Challenges</div><p className="pt-ci-a">{c.challenges}</p></div>}
-                            {c.questions && <div><div className="pt-ci-q">Questions</div><p className="pt-ci-a">{c.questions}</p></div>}
-                          </>
-                        )}
-                        {c.admin_reply && (
-                          <div className="pt-ci-reply">
-                            <div className="pt-ci-reply-head">
-                              Marc&apos;s reply
-                              {c.replied_at && <span>{new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+                          ))}
+                          {!c.responses && (
+                            <>
+                              {c.wins && <div><div className="ws-field-l">Wins</div><p className="ws-prose" style={{ fontSize: 13 }}>{c.wins}</p></div>}
+                              {c.challenges && <div><div className="ws-field-l">Challenges</div><p className="ws-prose" style={{ fontSize: 13 }}>{c.challenges}</p></div>}
+                              {c.questions && <div><div className="ws-field-l">Questions</div><p className="ws-prose" style={{ fontSize: 13 }}>{c.questions}</p></div>}
+                            </>
+                          )}
+                          {c.admin_reply && (
+                            <div className="ws-quote" style={{ "--c": "var(--ws-accent-ink)" } as CSSProperties}>
+                              <div className="ws-quote-h">
+                                Marc&apos;s reply
+                                {c.replied_at && (
+                                  <span className="ws-caption" style={{ fontWeight: 400 }}>
+                                    {new Date(c.replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="ws-prose" style={{ fontSize: 13 }}>{c.admin_reply}</p>
                             </div>
-                            <p className="pt-ci-a">{c.admin_reply}</p>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </li>
+                    )}
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
       <JourneyTracker phases={planPhases} />
@@ -467,45 +462,35 @@ export default function PortalDashboard() {
       />
       </>
       )}
-    </>
+    </div>
   );
-}
-
-function SkeletonPulse({ className }: { className?: string }) {
-  return <div className={`skeleton rounded-lg ${className || ""}`} />;
 }
 
 function DashboardSkeleton() {
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-          <SkeletonPulse className="h-4 w-24 mb-3" />
-          <SkeletonPulse className="h-6 w-48 mb-2" />
-          <SkeletonPulse className="h-4 w-36" />
+      <div className="ws-grid2">
+        <div className="ws-panel p-5">
+          <span className="ws-skel" style={{ width: 90, height: 10 }} />
+          <span className="ws-skel mt-3" style={{ width: "60%", height: 18 }} />
+          <span className="ws-skel mt-3" style={{ width: "100%", height: 4 }} />
+        </div>
+        <div className="ws-panel p-5">
+          <span className="ws-skel" style={{ width: 90, height: 10 }} />
+          <span className="ws-skel mt-3" style={{ width: "70%", height: 14 }} />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="ws-strip">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-            <SkeletonPulse className="h-3 w-20 mb-3" />
-            <SkeletonPulse className="h-8 w-16 mb-2" />
-            <SkeletonPulse className="h-3 w-28" />
+          <div key={i} className="ws-stat" style={{ cursor: "default" }}>
+            <span className="ws-skel" style={{ width: 80, height: 10 }} />
+            <span className="ws-skel" style={{ width: 48, height: 20 }} />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[...Array(2)].map((_, i) => (
-          <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-            <SkeletonPulse className="h-5 w-32 mb-4" />
-            <SkeletonPulse className="h-2 w-full mb-4" />
-            <div className="space-y-3">
-              {[...Array(3)].map((_, j) => (
-                <SkeletonPulse key={j} className="h-4 w-full" />
-              ))}
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="ws-panel"><SkeletonRows count={4} /></div>
+        <div className="ws-panel"><SkeletonRows count={4} /></div>
       </div>
     </>
   );
@@ -528,14 +513,14 @@ function BriefingBanner({
   const [currentTime] = useState(() => Date.now());
 
   if (isCheckinToday) {
-    items.push({ icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4", text: "Your weekly check-in is due today", href: "/portal/checkin", accent: true });
+    items.push({ icon: "plan", text: "Your weekly check-in is due today", href: "/portal/checkin", accent: true });
   } else {
     const dayStr = nextCheckinDate.toLocaleDateString("en-GB", { weekday: "long" });
-    items.push({ icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", text: `Next check-in: ${dayStr}` });
+    items.push({ icon: "calendar", text: `Next check-in: ${dayStr}` });
   }
 
   if (uncompletedModules > 0) {
-    items.push({ icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253", text: `${uncompletedModules} training module${uncompletedModules > 1 ? "s" : ""} available`, href: "/portal/training" });
+    items.push({ icon: "book", text: `${uncompletedModules} training module${uncompletedModules > 1 ? "s" : ""} available`, href: "/portal/training" });
   }
 
   if (latestReply?.admin_reply && latestReply.replied_at) {
@@ -543,7 +528,7 @@ function BriefingBanner({
     const daysDiff = Math.floor((currentTime - replyDate.getTime()) / (1000 * 60 * 60 * 24));
     if (daysDiff <= 3) {
       items.push({
-        icon: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z",
+        icon: "chat",
         text: "Marc replied to your latest check-in",
         href: `/portal/checkins/${latestReply.id}`,
         accent: true,
@@ -552,36 +537,41 @@ function BriefingBanner({
   }
 
   if (planPct > 0 && planPct < 100) {
-    items.push({ icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z", text: `Business plan ${planPct}% complete`, href: "/portal/plan" });
+    items.push({ icon: "reporting", text: `Business plan ${planPct}% complete`, href: "/portal/plan" });
   }
 
   if (items.length === 0) return null;
 
   return (
-    <div className="v2-surface mb-5 px-5 py-4">
-      <div className="flex items-center gap-2 mb-3">
-        <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span className="v2-eyebrow">This Week</span>
+    <section className="ws-panel" aria-label="This week">
+      <div className="ws-panel-head">
+        <h2 className="ws-h2">This week</h2>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <svg className={`w-4 h-4 flex-shrink-0 ${item.accent ? "text-accent-bright" : "text-text-muted"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
-            </svg>
-            {item.href ? (
-              <Link href={item.href} className={`text-sm no-underline transition-colors ${item.accent ? "text-accent-bright hover:text-accent-light font-medium" : "text-text-secondary hover:text-text-primary"}`}>
-                {item.text}
-              </Link>
-            ) : (
-              <span className={`text-sm ${item.accent ? "text-accent-bright font-medium" : "text-text-secondary"}`}>{item.text}</span>
-            )}
-          </div>
-        ))}
+      <div className="grid sm:grid-cols-2">
+        {items.map((item, i) => {
+          const inner = (
+            <>
+              <Icon name={item.icon} size={15} className="shrink-0" />
+              <span className="ws-trunc">{item.text}</span>
+            </>
+          );
+          const style: CSSProperties = {
+            color: item.accent ? "var(--ws-accent-ink)" : "var(--ws-ink-2)",
+            fontWeight: item.accent ? 500 : 400,
+            height: 38,
+          };
+          return item.href ? (
+            <Link key={i} href={item.href} className="ws-up-row ws-focus no-underline" style={style}>
+              {inner}
+            </Link>
+          ) : (
+            <div key={i} className="ws-up-row" style={{ ...style, cursor: "default" }}>
+              {inner}
+            </div>
+          );
+        })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -592,17 +582,15 @@ function JourneyTracker({
 }) {
   if (phases.length === 0) {
     return (
-      <div className="v2-surface p-5 sm:p-6 mb-6 overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-heading font-bold text-text-primary">Your Journey</h2>
-            <span className="text-xs text-text-muted">Waiting for plan</span>
-          </div>
-          <p className="text-sm text-text-secondary leading-relaxed">
-            Your journey tracker will appear once Marc assigns your business plan. When that happens, this section will show each phase of your roadmap and your progress through it.
-          </p>
+      <section className="ws-panel" aria-label="Your journey">
+        <div className="ws-panel-head">
+          <h2 className="ws-h2">Your journey</h2>
+          <span className="ws-caption">Waiting for plan</span>
         </div>
-      </div>
+        <p className="ws-meta px-[14px] py-3">
+          Your journey tracker will appear once Marc assigns your business plan. When that happens, this section will show each phase of your roadmap and your progress through it.
+        </p>
+      </section>
     );
   }
 
@@ -627,54 +615,44 @@ function JourneyTracker({
   const currentPhaseLabel = currentPhase ? cleanPhaseName(currentPhase.name) : cleanPhaseName(phases[phases.length - 1].name);
 
   return (
-    <div className="v2-surface p-5 sm:p-6 mb-6 overflow-hidden">
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-heading font-bold text-text-primary">Your Journey</h2>
-          <span className="text-xs text-text-muted">{completedPhaseCount} of {phases.length} phases complete</span>
-        </div>
-        <p className="text-sm text-text-secondary mb-4">
-          Current phase: <span className="text-text-primary font-medium">{currentPhaseLabel}</span>
+    <section className="ws-panel" aria-label="Your journey">
+      <div className="ws-panel-head">
+        <h2 className="ws-h2">Your journey</h2>
+        <span className="ws-caption">{completedPhaseCount} of {phases.length} phases complete</span>
+      </div>
+      <div className="px-[14px] pt-3 pb-4">
+        <p className="ws-meta mb-4">
+          Current phase: <span style={{ color: "var(--ws-ink)", fontWeight: 500 }}>{currentPhaseLabel}</span>
         </p>
 
         {/* Progress bar with milestones */}
-        <div className="relative mb-6">
-          <div className="h-2 bg-[rgba(255,255,255,0.04)] rounded-full">
-            <div className="h-2 rounded-full gradient-accent transition-all duration-700" style={{ width: `${progressPct}%` }} />
-          </div>
-          <div className="flex justify-between mt-4">
-            {milestones.map((m, i) => {
-              const reached = m.index < completedPhaseCount;
-              const active = m.index === completedPhaseCount && completedPhaseCount < phases.length;
-              const total = milestones.length;
-              const isFirst = i === 0;
-              const isLast = i === total - 1;
-              return (
-                <div key={m.index} className={`flex flex-col items-center flex-1 ${isFirst ? "items-start" : isLast ? "items-end" : "items-center"}`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${
-                    reached
-                      ? "bg-accent border-accent-bright"
-                      : active
-                      ? "bg-accent/10 border-accent-bright"
-                      : "bg-bg-card border-[rgba(255,255,255,0.1)]"
-                  }`}>
-                    {reached && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className={`text-[9px] mt-2 text-center max-w-[90px] leading-tight ${
-                    reached || active ? "text-text-primary font-medium" : "text-text-muted"
-                  }`}>{m.label}</span>
-                </div>
-              );
-            })}
-          </div>
+        <span className="ws-bar"><i style={{ width: `${progressPct}%` }} /></span>
+        <div className="flex justify-between mt-3">
+          {milestones.map((m, i) => {
+            const reached = m.index < completedPhaseCount;
+            const active = m.index === completedPhaseCount && completedPhaseCount < phases.length;
+            const total = milestones.length;
+            const isFirst = i === 0;
+            const isLast = i === total - 1;
+            return (
+              <div key={m.index} className={`flex flex-col flex-1 ${isFirst ? "items-start" : isLast ? "items-end" : "items-center"}`}>
+                <StatusIcon tone={reached ? "ok" : active ? "decide" : "open"} size={16} />
+                <span
+                  className="text-[11px] mt-1.5 max-w-[90px] leading-tight"
+                  style={{
+                    textAlign: isFirst ? "left" : isLast ? "right" : "center",
+                    color: reached || active ? "var(--ws-ink)" : "var(--ws-ink-3)",
+                    fontWeight: reached || active ? 500 : 400,
+                  }}
+                >
+                  {m.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
-
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -705,16 +683,15 @@ function NextEventCard() {
   if (loading) return null;
   if (!event || !nextDate) {
     return (
-      <div className="v2-surface flex min-h-[230px] items-center p-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[rgba(255,255,255,0.04)] flex items-center justify-center">
-            <svg className="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <span className="text-sm text-text-muted">No upcoming events</span>
+      <section className="ws-panel min-w-0" aria-label="Next event">
+        <div className="ws-panel-head">
+          <h2 className="ws-h2">Coming up</h2>
         </div>
-      </div>
+        <div className="ws-empty">
+          <span className="ws-empty-glyph"><Icon name="calendar" size={20} /></span>
+          <p className="ws-empty-h">No upcoming events</p>
+        </div>
+      </section>
     );
   }
 
@@ -726,32 +703,28 @@ function NextEventCard() {
   const recurrenceText: Record<string, string> = { weekly: `Every ${dayName}`, biweekly: `Every other ${dayName}`, monthly: "Monthly", none: nextDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) };
 
   return (
-    <div className="v2-surface flex min-h-[230px] p-5 sm:p-6">
-      <div className="relative flex w-full flex-col justify-between gap-5">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center group-hover:bg-accent/15 transition-colors duration-300">
-            <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted uppercase tracking-wider mb-0.5">Next Event</div>
-            <div className="text-base font-heading font-bold text-text-primary">{event.title}</div>
-            <div className="mt-1.5 flex flex-col gap-0.5">
-              <span className="text-sm text-text-secondary">{dayName}, {timeStr}</span>
-              <span className="text-xs text-text-muted">{recurrenceText[event.recurrence]}</span>
-            </div>
+    <section className="ws-panel min-w-0 flex flex-col" aria-label="Next event">
+      <div className="ws-panel-head">
+        <h2 className="ws-h2">Next event</h2>
+      </div>
+      <div className="flex flex-1 flex-col justify-between gap-5 p-[14px]">
+        <div className="flex items-start gap-3">
+          <span className="ws-avatar" aria-hidden="true" style={{ "--c": "var(--ws-accent)", width: 32, height: 32, borderRadius: 8 } as CSSProperties}>
+            <Icon name="calendar" size={15} />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14.5px] font-semibold" style={{ color: "var(--ws-ink)" }}>{event.title}</div>
+            <div className="ws-meta mt-0.5">{dayName}, {timeStr}</div>
+            <div className="ws-caption">{recurrenceText[event.recurrence]}</div>
           </div>
         </div>
         {event.link && (
-          <a href={event.link} target="_blank" rel="noopener noreferrer" className="v2-button-secondary w-full">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
+          <a href={event.link} target="_blank" rel="noopener noreferrer" className="ws-btn ws-focus w-full">
+            <Icon name="external" size={14} />
             {event.link_label || "Join"}
           </a>
         )}
       </div>
-    </div>
+    </section>
   );
 }

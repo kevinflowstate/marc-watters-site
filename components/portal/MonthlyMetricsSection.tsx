@@ -101,113 +101,95 @@ export default function MonthlyMetricsSection({
     }
   }
 
+  const monthLong = formatMetricsMonthLabel(selectedMonthStart, { month: "long" });
   return (
-    <div className="mb-8 space-y-6">
-      <div className="v2-surface p-5 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="v2-eyebrow">Monthly Scorecard</div>
-            <h2 className="mt-3 text-xl font-heading font-bold text-text-primary">Five Key Monthly Metrics</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary">
-              Choose the month these figures belong to. You can add last month’s numbers or update a previous scorecard at any time.
-            </p>
-          </div>
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            <div
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                isDue
-                  ? "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                  : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-              }`}
-            >
-              {isDue
-                ? `${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} metrics due`
-                : `${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} submitted`}
-            </div>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => setShowForm((prev) => !prev)}
-              className={showForm ? "v2-button-secondary min-h-0 px-3 py-2 text-xs" : "v2-button-primary min-h-0 px-3 py-2 text-xs"}
-            >
-              {showForm
-                ? "Hide scorecard"
-                : isDue
-                  ? `Add ${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} metrics`
-                  : `Update ${formatMetricsMonthLabel(selectedMonthStart, { month: "long" })} metrics`}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 max-w-sm">
-          <label htmlFor="metrics-month" className="block text-sm font-semibold text-text-primary">Reporting month</label>
-          <select
-            id="metrics-month"
-            value={selectedMonthStart}
+    <div className="space-y-5">
+      <section className="ws-panel" aria-label="Five key monthly metrics">
+        <div className="ws-panel-head">
+          <h2 className="ws-h2">
+            Five key monthly metrics <span className="ws-caption" style={{ fontWeight: 400 }}>· monthly scorecard</span>
+          </h2>
+          <span className={`ws-chip ${isDue ? "is-attn" : "is-ok"}`}>
+            {isDue ? `${monthLong} metrics due` : `${monthLong} submitted`}
+          </span>
+          <button
+            type="button"
             disabled={saving}
-            onChange={(event) => selectMonth(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-bg-card px-3 py-3 text-sm text-text-primary disabled:opacity-50"
+            onClick={() => setShowForm((prev) => !prev)}
+            className={`ws-btn ws-btn-sm ws-focus ${showForm ? "" : "ws-btn-primary"}`}
           >
-            {monthOptions.map((month) => (
-              <option key={month} value={month}>{formatMetricsMonthLabel(month, { month: "long", year: "numeric" })}</option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs text-text-muted">Each month is saved separately. Changing the month loads its saved figures.</p>
+            {showForm ? "Hide scorecard" : isDue ? `Add ${monthLong} metrics` : `Update ${monthLong} metrics`}
+          </button>
         </div>
 
-        {showForm && (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {monthlyMetricDefinitions.map((metric) => (
-                <label
-                  key={metric.key}
-                  className="rounded-2xl border border-[rgba(255,255,255,0.05)] bg-bg-primary/60 p-4"
-                >
-                  <div className="text-sm font-semibold text-text-primary">{metric.label}</div>
-                  {metric.description && (
-                    <div className="mt-1 text-xs leading-relaxed text-text-muted">{metric.description}</div>
-                  )}
-                  <div className="mt-4 flex items-center rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-card px-3">
-                    {metric.kind === "currency" && (
-                      <span className="text-sm text-text-muted">£</span>
-                    )}
-                    <input
-                      type="number"
-                      disabled={saving}
-                      inputMode="decimal"
-                      min={metric.min}
-                      max={metric.max}
-                      step={metric.step}
-                      value={formValues[metric.key]}
-                      onChange={(event) => setFieldValue(metric.key, event.target.value)}
-                      placeholder="0"
-                      className="w-full bg-transparent px-2 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                    />
-                    {metric.kind === "percentage" && (
-                      <span className="text-sm text-text-muted">%</span>
-                    )}
-                  </div>
-                </label>
+        <div className="px-[14px] py-4">
+          <p className="ws-meta max-w-3xl">
+            Choose the month these figures belong to. You can add last month’s numbers or update a previous scorecard at any time.
+          </p>
+          <div className="mt-4 max-w-xs">
+            <label htmlFor="metrics-month" className="ws-label">Reporting month</label>
+            <select
+              id="metrics-month"
+              value={selectedMonthStart}
+              disabled={saving}
+              onChange={(event) => selectMonth(event.target.value)}
+              className="ws-input"
+            >
+              {monthOptions.map((month) => (
+                <option key={month} value={month}>{formatMetricsMonthLabel(month, { month: "long", year: "numeric" })}</option>
               ))}
-            </div>
+            </select>
+            <p className="ws-caption mt-1.5">Each month is saved separately. Changing the month loads its saved figures.</p>
+          </div>
 
-            {error && <p className="text-sm text-red-300">{error}</p>}
+          {showForm && (
+            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                {monthlyMetricDefinitions.map((metric) => (
+                  <label
+                    key={metric.key}
+                    className="flex flex-col rounded-lg p-3"
+                    style={{ border: "1px solid var(--ws-line)", background: "var(--ws-panel-2)" }}
+                  >
+                    <span className="text-[13px] font-semibold" style={{ color: "var(--ws-ink)" }}>{metric.label}</span>
+                    {metric.description && <span className="ws-caption mt-0.5">{metric.description}</span>}
+                    <span className="ws-input mt-auto flex items-center gap-1" style={{ marginTop: 12 }}>
+                      {metric.kind === "currency" && <span className="ws-caption">£</span>}
+                      <input
+                        type="number"
+                        disabled={saving}
+                        inputMode="decimal"
+                        min={metric.min}
+                        max={metric.max}
+                        step={metric.step}
+                        value={formValues[metric.key]}
+                        onChange={(event) => setFieldValue(metric.key, event.target.value)}
+                        placeholder="0"
+                        className="w-full bg-transparent text-[13.5px] focus:outline-none"
+                        style={{ color: "var(--ws-ink)", border: 0, height: "100%" }}
+                      />
+                      {metric.kind === "percentage" && <span className="ws-caption">%</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-text-muted">
-                These numbers are stored against {formatMetricsMonthLabel(selectedMonthStart, { month: "long", year: "numeric" })}.
-              </p>
-              <button
-                type="submit"
-                disabled={saving}
-                className="v2-button-primary disabled:opacity-50"
-              >
-                {saving ? "Saving..." : isDue ? "Submit Monthly Metrics" : "Save Changes"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+              {error && (
+                <p className="ws-caption" style={{ color: "var(--ws-bad)" }}>{error}</p>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="ws-caption">
+                  These numbers are stored against {formatMetricsMonthLabel(selectedMonthStart, { month: "long", year: "numeric" })}.
+                </p>
+                <button type="submit" disabled={saving} className="ws-btn ws-btn-primary ws-focus">
+                  {saving ? "Saving..." : isDue ? "Submit monthly metrics" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </section>
 
       <MonthlyMetricsOverview
         history={history}
