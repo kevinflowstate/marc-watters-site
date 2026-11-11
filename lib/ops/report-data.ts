@@ -160,7 +160,10 @@ export async function gatherReportData(now = new Date()) {
   const active = clients.connected
     ? clients.rows.filter((c) => !c.archived_at)
     : [];
-  const periodData = (range: { from: string; to: string }) => {
+  // Clients submit check-ins on Thursdays (some on Friday). The "this week" period ends at
+  // Thursday 00:00, so it can never contain the week's round: reporting 0 of N there reads as a
+  // collapse. Only the previous full week carries a real check-in figure.
+  const periodData = (range: { from: string; to: string }, checkinRound: boolean) => {
     const within = (r: Record<string, unknown>) =>
       String(r.created_at) >= range.from && String(r.created_at) < range.to;
     const eligible = clients.connected
@@ -198,9 +201,15 @@ export async function gatherReportData(now = new Date()) {
               ),
             }
           : { connected: false, note: "not connected" },
-      checkins:
-        submitted && clients.connected
+      checkins: !checkinRound
+        ? {
+            connected: true,
+            not_due: true,
+            note: "Clients submit check-ins on Thursdays, after this period ends. Use previous.checkins for the latest round; never report this period as 0 submitted.",
+          }
+        : submitted && clients.connected
           ? {
+              round: "last week's Thursday check-ins (Monday to Sunday)",
               connected: true,
               submitted: eligible.filter((c) => submitted.has(c.id)).length,
               expected: clients.connected ? eligible.length : null,
@@ -221,8 +230,8 @@ export async function gatherReportData(now = new Date()) {
   return {
     generated_at: now.toISOString(),
     periods,
-    current: periodData(periods.current),
-    previous: periodData(periods.previous),
+    current: periodData(periods.current, false),
+    previous: periodData(periods.previous, true),
     outstanding: tasks.connected
       ? {
           connected: true,
