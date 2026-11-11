@@ -326,6 +326,38 @@ export function paymentCards(
   }));
 }
 
+/**
+ * When each done task was completed: the latest activity entry that moved it to done. Read from the
+ * activity history so no schema change is needed. Falls back to the last update if the history is
+ * unavailable, so a task never disappears from the lists.
+ */
+export async function attachCompletionTimes(
+  tasks: OpsTask[],
+  read: (ids: string[]) => Promise<{ task_id: string; created_at: string }[]> = readDoneEvents,
+) {
+  const done = tasks.filter((t) => t.status === "done");
+  if (!done.length) return;
+  const latest = new Map<string, string>();
+  try {
+    for (let i = 0; i < done.length; i += 200) {
+      for (const e of await read(done.slice(i, i + 200).map((t) => t.id)))
+        if (!latest.has(e.task_id) || e.created_at > latest.get(e.task_id)!) latest.set(e.task_id, e.created_at);
+    }
+  } catch {
+    // keep the fallback below
+  }
+  for (const t of done) t.completed_at = latest.get(t.id) ?? t.updated_at;
+}
+async function readDoneEvents(ids: string[]) {
+  const r = await createAdminClient()
+    .from("ops_events")
+    .select("task_id,created_at")
+    .in("task_id", ids)
+    .eq("data->>status", "done");
+  if (r.error) throw new Error("activity unavailable");
+  return (r.data || []) as { task_id: string; created_at: string }[];
+}
+
 export async function getWorkspace(): Promise<WorkspaceData> {
   const checked_at = new Date().toISOString();
   const checks: SourceCheck[] = [];
@@ -395,6 +427,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
       ),
     ),
   ]);
+  if (tasks) await attachCompletionTimes(tasks);
   const paymentTaskIds = new Set(
     (payments || []).map((p) => p.task_id).filter(Boolean),
   );

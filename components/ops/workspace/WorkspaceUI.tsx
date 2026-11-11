@@ -328,29 +328,70 @@ export function Row({
 const boilerplate = /^(Open the task|Review the linked work|Open the report|Open the saved version|Open the client)/;
 export const isBoilerplate = (text: string | null | undefined) => !text || boilerplate.test(text);
 
-export function CardRow({ card, onOpen }: { card: WorkspaceCard; onOpen: (card: WorkspaceCard) => void }) {
+export type RowToggle = { done: boolean; busy?: boolean; onToggle: () => void };
+
+export function CardRow({
+  card,
+  onOpen,
+  carried,
+  toggle,
+}: {
+  card: WorkspaceCard;
+  onOpen: (card: WorkspaceCard) => void;
+  /** Open since before this week began. */
+  carried?: boolean;
+  /** Tick to complete (or untick to reopen) without opening the drawer. */
+  toggle?: RowToggle;
+}) {
   const tone = card.history ? "closed" : cardTone(card);
   const sub = card.next && !boilerplate.test(card.next) ? card.next : undefined;
   const due = card.history ? null : dueLabel(card.due_at);
-  return (
+  const chip = carried ? "Carried over" : tone === "attn" ? card.state : undefined;
+  const row = (
     <Row
       tone={tone}
       title={card.title}
       sub={sub}
       area={areaLabels[card.area]}
       areaColour={areaColour[card.area]}
-      chip={tone === "attn" ? card.state : undefined}
-      chipTone={tone === "attn" ? "attn" : undefined}
+      chip={chip}
+      chipTone={carried ? undefined : tone === "attn" ? "attn" : undefined}
       time={due ? due.text : when(card.observed_at)}
       timeTone={due?.tone}
       onOpen={() => onOpen(card)}
     />
+  );
+  if (!toggle) return row;
+  return (
+    <div className={`ws-tickrow ${toggle.done ? "is-done" : ""}`}>
+      {row}
+      <button
+        type="button"
+        className="ws-tick ws-focus"
+        disabled={toggle.busy}
+        aria-pressed={toggle.done}
+        aria-label={toggle.done ? `Mark "${card.title}" as not done` : `Mark "${card.title}" as done`}
+        title={toggle.done ? "Mark as not done" : "Mark as done"}
+        onClick={(e) => {
+          e.stopPropagation();
+          toggle.onToggle();
+        }}
+      >
+        <StatusIcon tone={toggle.done ? "closed" : "open"} />
+        {!toggle.done && <span className="ws-tick-hint" aria-hidden="true"><Icon name="check" size={10} stroke={2.6} /></span>}
+      </button>
+    </div>
   );
 }
 
 /* ---------- Lane ---------- */
 
 type Group = { key: string; label: string; tone: string; cards: WorkspaceCard[] };
+
+export type LaneRowOptions = {
+  carried?: (card: WorkspaceCard) => boolean;
+  toggle?: (card: WorkspaceCard) => RowToggle | undefined;
+};
 
 function groupCards(cards: WorkspaceCard[], history: boolean): Group[] {
   if (history) return [{ key: "history", label: "Closed", tone: "var(--ws-ink-4)", cards }];
@@ -361,7 +402,17 @@ function groupCards(cards: WorkspaceCard[], history: boolean): Group[] {
   ].filter((g) => g.cards.length);
 }
 
-function GroupList({ group, onOpen, limit: initial }: { group: Group; onOpen: (card: WorkspaceCard) => void; limit: number }) {
+function GroupList({
+  group,
+  onOpen,
+  limit: initial,
+  rows,
+}: {
+  group: Group;
+  onOpen: (card: WorkspaceCard) => void;
+  limit: number;
+  rows?: LaneRowOptions;
+}) {
   const [limit, setLimit] = useState(initial);
   const shown = group.cards.slice(0, limit);
   return (
@@ -372,7 +423,7 @@ function GroupList({ group, onOpen, limit: initial }: { group: Group; onOpen: (c
         <span className="ws-cnt">{group.cards.length}</span>
       </div>
       {shown.map((c) => (
-        <CardRow key={c.id} card={c} onOpen={onOpen} />
+        <CardRow key={c.id} card={c} onOpen={onOpen} carried={rows?.carried?.(c)} toggle={rows?.toggle?.(c)} />
       ))}
       {group.cards.length > limit && (
         <button type="button" className="ws-more ws-focus" onClick={() => setLimit((n) => n + 10)}>
@@ -391,6 +442,8 @@ export function Lane({
   loading,
   onOpen,
   limit = 6,
+  completed = [],
+  rows,
 }: {
   title: string;
   owner: Owner;
@@ -399,10 +452,14 @@ export function Lane({
   loading: boolean;
   onOpen: (card: WorkspaceCard) => void;
   limit?: number;
+  /** Tasks completed this week: listed under "Completed" below the open work until Sunday night. */
+  completed?: WorkspaceCard[];
+  rows?: LaneRowOptions;
 }) {
   const decide = cards.filter((c) => !c.history && c.approval).length;
   const attn = cards.filter((c) => !c.history && !c.approval && c.attention).length;
   const groups = groupCards(cards, history);
+  const done: Group | null = !history && completed.length ? { key: "done", label: "Completed this week", tone: "var(--ws-ok)", cards: completed } : null;
   return (
     <section className="ws-panel min-w-0 overflow-hidden" aria-label={`${title}'s work`}>
       <header className="ws-panel-head">
@@ -410,16 +467,21 @@ export function Lane({
         <h2 className="ws-h2 min-w-0 flex-1 truncate">{title}</h2>
         {decide > 0 && <Chip tone="decide">{decide} to decide</Chip>}
         {attn > 0 && <Chip tone="attn">{attn} follow up</Chip>}
-        {!decide && !attn && !loading && cards.length > 0 && <span className="ws-caption">{cards.length}</span>}
+        {!decide && !attn && !loading && cards.length > 0 && <span className="ws-caption">{cards.length} open</span>}
       </header>
       {loading ? (
         <SkeletonRows count={4} />
-      ) : groups.length ? (
-        groups.map((g) => <GroupList key={`${g.key}-${history}`} group={g} onOpen={onOpen} limit={limit} />)
-      ) : history ? (
-        <Empty icon="history" title="Nothing closed yet" text="Finished work will be kept here." />
       ) : (
-        <Empty title="All clear" text={`Nothing is waiting on ${title}.`} />
+        <>
+          {groups.length ? (
+            groups.map((g) => <GroupList key={`${g.key}-${history}`} group={g} onOpen={onOpen} limit={limit} rows={rows} />)
+          ) : history ? (
+            <Empty icon="history" title="Nothing closed yet" text="Finished work will be kept here." />
+          ) : (
+            <Empty title="All clear" text={`Nothing is waiting on ${title}.`} />
+          )}
+          {done && <GroupList key="done" group={done} onOpen={onOpen} limit={limit} rows={rows} />}
+        </>
       )}
     </section>
   );

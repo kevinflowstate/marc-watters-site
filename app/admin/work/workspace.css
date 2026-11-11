@@ -559,3 +559,61 @@ details.ws-details[open] > summary::before { transform: rotate(45deg); }
 @media (prefers-reduced-motion: reduce) {
   .ws *, .ws-drawer, .ws-drawer *, .ws-modal { animation: none !important; transition: none !important; }
 }
+
+/* Tick to complete (weekly task lists, 11 Nov 2026). The tick sits exactly over the row's status glyph. */
+.ws-tickrow { position: relative; }
+.ws-tickrow .ws-row .ws-status-ic { visibility: hidden; }
+.ws-tick {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ws-ok);
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+.ws-tick:hover { background: var(--ws-active, var(--ws-hover)); }
+.ws-tick:disabled { opacity: 0.45; cursor: default; }
+.ws-tick .ws-status-ic { visibility: visible; }
+.ws-tick-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.ws-tick:hover .ws-tick-hint, .ws-tick:focus-visible .ws-tick-hint { opacity: 1; }
+.ws-tickrow.is-done .ws-row-title { color: var(--ws-ink-3); }
+
+/* Completed tasks archive: collapsed weeks, newest first. */
+.ws-archive > summary { list-style: none; }
+.ws-archive > summary::-webkit-details-marker { display: none; }
+.ws-archive-chev { transition: transform 120ms; color: var(--ws-ink-3); }
+details[open] > summary .ws-archive-chev { transform: rotate(90deg); }
+.ws-week > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-top: 1px solid var(--ws-line);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ws-ink-2);
+  cursor: pointer;
+  list-style: none;
+}
+.ws-week > summary::-webkit-details-marker { display: none; }
+.ws-week > summary:hover { background: var(--ws-hover); }
+.ws-archive-note { display: block; font-size: 12px; color: var(--ws-ink-3); white-space: normal; }
+@media (prefers-reduced-motion: reduce) {
+  .ws-tick, .ws-tick-hint, .ws-archive-chev { transition: none; }
+}
