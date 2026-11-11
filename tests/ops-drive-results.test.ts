@@ -93,6 +93,19 @@ describe("Drive results handoff", () => {
     ).rejects.toMatchObject({ status: 409 });
   });
 
+  it("routes a weekly lesson package to the lesson import, not the results store", async () => {
+    const submit = vi.fn();
+    const importLesson = vi.fn(async (_doc: unknown) => ({}));
+    const lesson = { kind: "lesson_package", lesson_date: "2026-11-10", lesson_package: { title: "X" } };
+    const out = await importDriveResults({
+      folderId: FOLDER, ownerEmails: [OWNER], now: NOW, connect, submit, importLesson,
+      fetch: fakeDrive([driveFile("lesson-file-123456")], { "lesson-file-123456": lesson }),
+    });
+    expect(importLesson).toHaveBeenCalledWith(lesson);
+    expect(submit).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ saved: 1, invalid: 0 });
+  });
+
   it("saves single results and arrays through the shared validator as one fixed actor", async () => {
     const submit = vi.fn(async (_doc: unknown, _actor: string) => ({ received_at: NOW.toISOString() }));
     const out = await importDriveResults({

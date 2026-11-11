@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { connectContentDrive, type DriveConnection } from "./drive-connection";
 import { ContentPackError, contentResponseBytes } from "./content-pack";
 import { submitWorkspaceResult } from "./workspace-results";
+import { importLessonPackage } from "./lesson-source";
 import { OpsError } from "./tasks";
 
 /**
@@ -52,6 +53,7 @@ type Options = {
   fetch?: typeof fetch;
   connect?: (options: { allowedFileIds: string[] }) => Promise<DriveConnection>;
   submit?: (input: unknown, actor: string) => Promise<{ received_at?: string }>;
+  importLesson?: (doc: unknown) => Promise<unknown>;
 };
 
 function readConfig(options: Options) {
@@ -231,6 +233,17 @@ export async function importDriveResults(
       continue;
     }
     for (const document of documents) {
+      // A weekly lesson handoff opens Eimear's review instead of saving a result.
+      if (document && typeof document === "object" && (document as Record<string, unknown>).kind === "lesson_package") {
+        try {
+          await (options.importLesson ?? importLessonPackage)(document);
+          outcome.saved += 1;
+        } catch (error) {
+          outcome.invalid += 1;
+          problem(`the lesson package was refused: ${error instanceof Error ? error.message : "unknown error"}`);
+        }
+        continue;
+      }
       try {
         const saved = await submit(document, DRIVE_RESULTS_ACTOR);
         const receivedAt = Date.parse(String(saved?.received_at ?? ""));
