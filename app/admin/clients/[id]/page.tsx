@@ -1,5 +1,5 @@
 "use client";
-import { lastPortalActivity } from "@/lib/portal-activity";
+import { initials } from "@/lib/initials";
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
@@ -20,9 +20,9 @@ const glowClass: Record<TrafficLight, string> = {
 };
 
 const statusConfig: Record<TrafficLight, { label: string; dotClass: string; bgClass: string; textClass: string; ringClass: string }> = {
-  red: { label: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400", ringClass: "ring-red-500" },
-  amber: { label: "Check In Due", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400", ringClass: "ring-amber-500" },
-  green: { label: "On Track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400", ringClass: "ring-emerald-500" },
+  red: { label: "Gone quiet", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400", ringClass: "ring-red-500" },
+  amber: { label: "Behind", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400", ringClass: "ring-amber-500" },
+  green: { label: "On track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400", ringClass: "ring-emerald-500" },
 };
 
 const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = {
@@ -363,12 +363,8 @@ export default function ClientDetailPage() {
 
   // Calculate alert context for red/amber clients
   const now = new Date();
-  const lastActivityDays = Math.floor((now.getTime() - new Date(lastPortalActivity(client.last_login, client.last_checkin)).getTime()) / (1000 * 60 * 60 * 24));
+  const lastActivityDays = Math.floor((now.getTime() - new Date((client.health?.last_active_at || client.last_login)).getTime()) / (1000 * 60 * 60 * 24));
   const lastCheckinDays = Math.floor((now.getTime() - new Date(client.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
-  const weeksSinceStart = Math.floor((now.getTime() - new Date(client.start_date).getTime()) / (1000 * 60 * 60 * 24 * 7));
-  const expectedCheckins = weeksSinceStart;
-  const actualCheckins = client.checkins.length;
-  const missedCheckins = Math.max(0, expectedCheckins - actualCheckins);
 
   return (
     <>
@@ -390,7 +386,7 @@ export default function ClientDetailPage() {
             <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
               client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
             }`}>
-              {client.name.split(" ").map((n) => n[0]).join("")}
+              {initials(client.name)}
             </div>
             <div className="min-w-0">
               <div className="v2-eyebrow mb-2">Client record</div>
@@ -404,7 +400,7 @@ export default function ClientDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
               <span className={`w-2 h-2 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
-              {isArchived ? "Archived" : sc.label}
+              {isArchived ? "Archived" : client.health?.label ?? sc.label}
             </span>
             <a
               href={`/api/admin/clients/${client.id}/export`}
@@ -662,13 +658,9 @@ export default function ClientDetailPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-red-400 mb-0.5">This client needs attention</div>
+              <div className="text-sm font-semibold text-red-400 mb-0.5">{client.health?.label ?? "Gone quiet"}</div>
               <div className="text-xs text-text-secondary leading-relaxed">
-                Last activity was <span className="text-red-400 font-medium">{lastActivityDays} days ago</span>
-                {missedCheckins > 0 && (
-                  <> and they have <span className="text-red-400 font-medium">missed {missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""}</span></>
-                )}
-                . Consider reaching out directly to re-engage.
+                {client.health?.reason ?? `Last activity was ${lastActivityDays} days ago.`} Consider reaching out directly to re-engage.
               </div>
             </div>
           </div>
@@ -693,13 +685,9 @@ export default function ClientDetailPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-amber-400 mb-0.5">Check-in overdue</div>
+              <div className="text-sm font-semibold text-amber-400 mb-0.5">{client.health?.label ?? "Missed check-in"}</div>
               <div className="text-xs text-text-secondary leading-relaxed">
-                Last check-in was <span className="text-amber-400 font-medium">{lastCheckinDays} days ago</span>
-                {missedCheckins > 0 && (
-                  <> - <span className="text-amber-400 font-medium">{missedCheckins} check-in{missedCheckins !== 1 ? "s" : ""} missed</span></>
-                )}
-                . A quick nudge might help keep momentum.
+                {client.health?.reason ?? `Last check-in was ${lastCheckinDays} days ago.`} A quick nudge might help keep momentum.
               </div>
             </div>
           </div>
@@ -734,12 +722,12 @@ export default function ClientDetailPage() {
         <div>
           <div className="text-xs font-medium text-text-muted">Last Active</div>
           <div className={`mt-2 font-heading text-2xl font-bold ${
-            new Date().getTime() - new Date(lastPortalActivity(client.last_login, client.last_checkin)).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
+            new Date().getTime() - new Date((client.health?.last_active_at || client.last_login)).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
           }`}>
-            {timeAgo(lastPortalActivity(client.last_login, client.last_checkin))}
+            {timeAgo((client.health?.last_active_at || client.last_login))}
           </div>
           <div className="mt-1 text-xs text-text-muted">
-            {new Date(lastPortalActivity(client.last_login, client.last_checkin)).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            {new Date((client.health?.last_active_at || client.last_login)).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
           </div>
         </div>
       </div>

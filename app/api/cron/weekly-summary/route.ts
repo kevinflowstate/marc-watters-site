@@ -1,4 +1,4 @@
-import { portalClientStatus } from "@/lib/portal-activity";
+import { clientHealth, loadCheckinDay, loadClientActivity } from "@/lib/client-health";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWeeklySummaryEmail } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
@@ -25,6 +25,11 @@ export async function GET(request: Request) {
   if (!profiles || profiles.length === 0) {
     return NextResponse.json({ sent: false, reason: "No clients" });
   }
+
+  const [activity, checkinDay] = await Promise.all([
+    loadClientActivity(admin, profiles as Array<{ id: string; user_id: string }>),
+    loadCheckinDay(admin),
+  ]);
 
   // Get check-ins from the past 7 days
   const weekAgo = new Date();
@@ -61,7 +66,12 @@ export async function GET(request: Request) {
     }
 
     // Mirror app status logic so weekly summary matches dashboard/client list.
-    if (portalClientStatus(p.last_login, p.last_checkin, p.created_at, now) === "red") {
+    const health = clientHealth(
+      { lastLogin: p.last_login, lastCheckin: p.last_checkin, createdAt: p.created_at, activity: activity.get(p.id) },
+      new Date(now),
+      checkinDay,
+    );
+    if (health.status === "red") {
       redClients.push(name);
     }
   }

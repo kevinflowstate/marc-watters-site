@@ -32,6 +32,12 @@ export async function GET() {
     .eq("user_id", userId)
     .single();
 
+  // Opening any portal page counts as activity, not only Home (Marc, 11 Nov 2026). Throttled to one write per 10 minutes.
+  const lastLogin = profile?.last_login ? Date.parse(profile.last_login) : NaN;
+  if (profile?.id && (userData?.role || "client") === "client" && !(Date.now() - lastLogin < 10 * 60_000)) {
+    await admin.from("client_profiles").update({ last_login: new Date().toISOString() }).eq("id", profile.id);
+  }
+
   return NextResponse.json({
     userId,
     fullName: userData?.full_name || "",

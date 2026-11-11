@@ -1,4 +1,4 @@
-import { portalClientStatus } from "./portal-activity";
+import { clientHealth, loadCheckinDay, loadClientActivity, type ClientHealth } from "./client-health";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   TrafficLight,
@@ -106,6 +106,8 @@ export interface AdminClient {
   goals: string;
   start_date: string;
   status: TrafficLight;
+  /** Why the status is what it is, plus last activity and any message waiting on Marc. */
+  health: ClientHealth;
   current_week: number;
   last_login: string;
   last_checkin: string;
@@ -156,10 +158,13 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
   if (error || !profiles || profiles.length === 0) return [];
   const profileIds = profiles.map((profile) => profile.id);
 
-  const [{ data: allCheckins }, { data: plans }] = await Promise.all([
+  const [{ data: allCheckins }, { data: plans }, activity, checkinDay] = await Promise.all([
     admin.from("checkins").select("*").in("client_id", profileIds).order("created_at", { ascending: false }),
     admin.from("business_plans").select("*").in("client_id", profileIds).order("created_at", { ascending: false }),
+    loadClientActivity(admin, profiles),
+    loadCheckinDay(admin),
   ]);
+  const now = new Date();
 
   const planIds = (plans || []).map((plan) => plan.id);
   const { data: phases } = planIds.length
@@ -236,6 +241,11 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
   // Assemble clients
   const clients: AdminClient[] = profiles.map((p) => {
     const user = Array.isArray(p.user) ? p.user[0] : p.user;
+    const health = clientHealth(
+      { lastLogin: p.last_login, lastCheckin: p.last_checkin, createdAt: p.created_at, activity: activity.get(p.id) },
+      now,
+      checkinDay,
+    );
     return {
       id: p.id,
       user_id: p.user_id,
@@ -246,7 +256,8 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
       business_type: p.business_type || "",
       goals: p.goals || "",
       start_date: p.start_date,
-      status: portalClientStatus(p.last_login, p.last_checkin, p.created_at),
+      status: health.status,
+      health,
       current_week: computeCurrentWeek(p.start_date),
       last_login: p.last_login || p.created_at,
       last_checkin: p.last_checkin || p.created_at,
@@ -260,7 +271,12 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
 
   // Sort by priority: red first, then amber, then green
   const priority: Record<TrafficLight, number> = { red: 0, amber: 1, green: 2 };
-  clients.sort((a, b) => priority[a.status] - priority[b.status]);
+  clients.sort(
+    (a, b) =>
+      priority[a.status] - priority[b.status] ||
+      (b.health.days_inactive ?? 0) - (a.health.days_inactive ?? 0) ||
+      a.name.localeCompare(b.name),
+  );
 
   return clients;
 }
@@ -396,6 +412,12 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
   }));
 
   const user = Array.isArray(p.user) ? p.user[0] : p.user;
+  const [activity, checkinDay] = await Promise.all([loadClientActivity(admin, [p]), loadCheckinDay(admin)]);
+  const health = clientHealth(
+    { lastLogin: p.last_login, lastCheckin: p.last_checkin, createdAt: p.created_at, activity: activity.get(p.id) },
+    new Date(),
+    checkinDay,
+  );
 
   return {
     id: p.id,
@@ -407,7 +429,8 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     business_type: p.business_type || "",
     goals: p.goals || "",
     start_date: p.start_date,
-    status: portalClientStatus(p.last_login, p.last_checkin, p.created_at),
+    status: health.status,
+    health,
     current_week: computeCurrentWeek(p.start_date),
     last_login: p.last_login || p.created_at,
     last_checkin: p.last_checkin || p.created_at,

@@ -80,3 +80,17 @@
 .ws-page .ws-grid2, .ws-page .ws-pair { align-items: start; }
 .ws-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 @media (min-width: 1024px) { .ws-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Dashboard "What needs you": one row per action, buttons right (wrap under on phones). */
+.ws-ny-group + .ws-ny-group { border-top: 1px solid var(--ws-line); }
+.ws-ny-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--ws-divider); }
+.ws-ny-group .ws-group + .ws-ny-row { border-top: 0; }
+.ws-ny-row > .min-w-0 { flex: 1; }
+.ws-ny-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ws-ny-acts { display: flex; gap: 6px; flex: none; }
+@media (max-width: 639px) {
+  .ws-ny-row { flex-wrap: wrap; }
+  .ws-ny-acts { width: 100%; }
+}
+.ws-avatar { overflow: hidden; white-space: nowrap; }
+.ws-ny-row .ws-row-sub { white-space: normal; overflow: visible; text-overflow: clip; }

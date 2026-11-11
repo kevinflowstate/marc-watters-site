@@ -1,5 +1,6 @@
 "use client";
 
+import { initials } from "@/lib/initials";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { BusinessPlan, TrafficLight } from "@/lib/types";
@@ -217,7 +218,7 @@ export default function BusinessPlansPage() {
                         ? "bg-accent/10 text-accent-bright border border-accent/20"
                         : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                     }`}>
-                      {plan.client_name.split(" ").map(n => n[0]).join("")}
+                      {initials(plan.client_name)}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
@@ -408,7 +409,7 @@ export default function BusinessPlansPage() {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-[rgba(255,255,255,0.04)] transition-colors cursor-pointer"
                 >
                   <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-xs font-bold text-accent-bright flex-shrink-0">
-                    {c.name.split(" ").map(n => n[0]).join("")}
+                    {initials(c.name)}
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm text-text-primary font-medium">{c.name}</div>

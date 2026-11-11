@@ -1,6 +1,7 @@
 "use client";
 import AttentionCard from "@/components/ops/AttentionCard";
-import { lastPortalActivity } from "@/lib/portal-activity";
+import { initials } from "@/lib/initials";
+import { roundStart } from "@/lib/client-health";
 
 import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
@@ -8,11 +9,11 @@ import { useToast } from "@/components/ui/Toast";
 import type { AdminClient } from "@/lib/admin-data";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import type { TrafficLight, CheckInMood, CheckIn, CheckinFormConfig } from "@/lib/types";
-import { Chip, Icon, SkeletonRows, StatusIcon } from "@/components/ops/workspace/WorkspaceUI";
+import { Chip, Empty, Icon, SkeletonRows, StatusIcon } from "@/components/ops/workspace/WorkspaceUI";
 
 const statusLabel: Record<TrafficLight, { text: string; tone: "bad" | "attn" | "ok"; colour: string }> = {
-  red: { text: "Needs attention", tone: "bad", colour: "var(--ws-bad)" },
-  amber: { text: "Check-in due", tone: "attn", colour: "var(--ws-attn)" },
+  red: { text: "Gone quiet", tone: "bad", colour: "var(--ws-bad)" },
+  amber: { text: "Behind", tone: "attn", colour: "var(--ws-attn)" },
   green: { text: "On track", tone: "ok", colour: "var(--ws-ok)" },
 };
 
@@ -77,13 +78,6 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2);
-}
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -92,6 +86,7 @@ export default function AdminDashboard() {
   const [checkinConfig, setCheckinConfig] = useState<CheckinFormConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+  const [showOnTrack, setShowOnTrack] = useState(false);
   const [adminName, setAdminName] = useState("");
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -168,10 +163,8 @@ export default function AdminDashboard() {
     );
   }
 
-  const greenCount = clients.filter((c) => c.status === "green").length;
   const amberCount = clients.filter((c) => c.status === "amber").length;
   const redCount = clients.filter((c) => c.status === "red").length;
-  const unreplied = recentCheckins.filter((c) => !c.admin_reply).length;
 
   async function sendBroadcast() {
     const trimmed = broadcastMessage.trim();
@@ -206,7 +199,22 @@ export default function AdminDashboard() {
     }
   }
 
-  const attention = amberCount + redCount;
+  const waitingOnYou =
+    clients.filter((c) => c.health?.awaiting_reply_since).length +
+    new Set(
+      recentCheckins
+        .filter((ck) => !ck.admin_reply || (ck.client_reply && ck.client_replied_at && ck.replied_at && Date.parse(ck.client_replied_at) > Date.parse(ck.replied_at)))
+        .map((ck) => ck.client_id),
+    ).size;
+  const checkedInThisRound = clients.filter((c) => c.health?.checked_in_this_round).length;
+  const roundOpened = roundStart(new Date(), checkinConfig?.checkin_day || "thursday").toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const onTrack = clients.filter((c) => c.status === "green");
+  const listed = showOnTrack ? clients : clients.filter((c) => c.status !== "green");
 
   return (
     <div className="ws ws-page">
@@ -250,31 +258,31 @@ export default function AdminDashboard() {
       {/* Stats */}
       <div className="ws-strip">
         <div className="ws-stat" style={{ cursor: "default" }}>
-          <span className="ws-stat-l"><Icon name="users" size={14} />Total clients</span>
-          <span className="ws-stat-n">{clients.length}</span>
-          <span className="ws-stat-s">in the portal</span>
+          <span className="ws-stat-l"><Icon name="reply" size={14} />Waiting on you</span>
+          <span className={`ws-stat-n ${waitingOnYou > 0 ? "is-on" : ""}`}>{waitingOnYou}</span>
+          <span className="ws-stat-s">{waitingOnYou > 0 ? "messages and check-ins" : "nothing waiting"}</span>
         </div>
         <div className="ws-stat" style={{ cursor: "default" }}>
-          <span className="ws-stat-l"><Icon name="checkCircle" size={14} />On track</span>
-          <span className="ws-stat-n">{greenCount}</span>
-          <span className="ws-stat-s is-ok">{clients.length ? Math.round((greenCount / clients.length) * 100) : 0}% of clients</span>
-        </div>
-        <div className="ws-stat" style={{ cursor: "default" }}>
-          <span className="ws-stat-l"><Icon name="alert" size={14} />Needs attention</span>
-          <span className={`ws-stat-n ${attention > 0 ? "is-on" : ""}`}>{attention}</span>
-          <span className={`ws-stat-s ${redCount > 0 ? "is-attn" : ""}`}>
-            {redCount > 0 ? `${redCount} behind schedule` : "nobody behind schedule"}
+          <span className="ws-stat-l"><Icon name="checkCircle" size={14} />Checked in this round</span>
+          <span className="ws-stat-n">
+            {checkedInThisRound}
+            <span className="ws-caption" style={{ fontSize: 13, fontWeight: 500 }}> / {clients.length}</span>
           </span>
+          <span className="ws-stat-s">since {roundOpened}</span>
         </div>
         <div className="ws-stat" style={{ cursor: "default" }}>
-          <span className="ws-stat-l"><Icon name="reply" size={14} />Unreplied check-ins</span>
-          <span className={`ws-stat-n ${unreplied > 0 ? "is-on" : ""}`}>{unreplied}</span>
-          <span className="ws-stat-s">{unreplied > 0 ? "waiting for a reply" : "all replied"}</span>
+          <span className="ws-stat-l"><Icon name="clock" size={14} />Behind on check-ins</span>
+          <span className={`ws-stat-n ${amberCount > 0 ? "is-on" : ""}`}>{amberCount}</span>
+          <span className={`ws-stat-s ${amberCount > 0 ? "is-attn" : ""}`}>{amberCount > 0 ? "still active, missed a round" : "nobody behind"}</span>
+        </div>
+        <div className="ws-stat" style={{ cursor: "default" }}>
+          <span className="ws-stat-l"><Icon name="alert" size={14} />Gone quiet</span>
+          <span className="ws-stat-n">{redCount}</span>
+          <span className="ws-stat-s">{redCount > 0 ? "no activity for 14+ days" : "nobody gone quiet"}</span>
         </div>
       </div>
 
-      {/* Blueprint AI Overview */}
-      <BlueprintOverview clients={clients} recentCheckins={recentCheckins} />
+      <NeedsYou clients={clients} recentCheckins={recentCheckins} />
 
       <div className="ws-grid2">
         {/* Compact client list with expandable detail */}
@@ -287,7 +295,7 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div>
-            {clients.map((client) => {
+            {listed.map((client) => {
               const sl = statusLabel[client.status];
               const isExpanded = expandedClient === client.id;
               const activePlans = client.business_plan.filter((p) => p.status === "active");
@@ -295,7 +303,7 @@ export default function AdminDashboard() {
               const planTotal = allItems.length;
               const planDone = allItems.filter((p) => p.completed).length;
               const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
-              const lateCheckin = new Date().getTime() - new Date(client.last_checkin).getTime() > 7 * 24 * 60 * 60 * 1000;
+              const lateCheckin = (client.health?.missed_rounds ?? 0) > 0;
 
               return (
                 <div key={client.id}>
@@ -306,15 +314,19 @@ export default function AdminDashboard() {
                     className="ws-row ws-focus"
                     style={{ gridTemplateColumns: "26px minmax(0,1fr) auto" }}
                   >
-                    <span className="ws-avatar is-md" aria-hidden="true" style={{ "--c": sl.colour } as CSSProperties}>
+                    <span className="ws-avatar is-md" aria-hidden="true">
                       {initials(client.name)}
                     </span>
                     <span className="min-w-0">
                       <span className="ws-row-title">{client.name}</span>
-                      {client.business_name && <span className="ws-row-sub">{client.business_name}</span>}
+                      <span className="ws-row-sub" title={client.health?.last_active_at ? fullDate(client.health.last_active_at) : undefined}>
+                        {client.health?.last_active_at
+                          ? `Active ${whenShort(client.health.last_active_at)}${client.health.last_active_kind ? ` - ${client.health.last_active_kind}` : ""}`
+                          : client.business_name}
+                      </span>
                     </span>
                     <span className="ws-row-meta">
-                      <Chip tone={sl.tone}>{sl.text}</Chip>
+                      <Chip tone={sl.tone}>{client.health?.label ?? sl.text}</Chip>
                       <Icon name="chevron" size={14} className={`ws-chev ${isExpanded ? "is-open" : ""}`} />
                     </span>
                   </button>
@@ -326,8 +338,9 @@ export default function AdminDashboard() {
                           <span className="ws-caption">
                             {client.business_name} - {client.business_type}
                           </span>
-                          <Chip tone={sl.tone}>{sl.text}</Chip>
+                          <Chip tone={sl.tone}>{client.health?.label ?? sl.text}</Chip>
                         </div>
+                        {client.health?.reason && <p className="ws-caption mb-3">{client.health.reason}</p>}
                         <dl className="ws-mini mb-3">
                           <div>
                             <dt>Week</dt>
@@ -358,6 +371,11 @@ export default function AdminDashboard() {
               );
             })}
             {clients.length === 0 && <p className="ws-up-none" style={{ padding: "14px" }}>No clients yet.</p>}
+            {onTrack.length > 0 && (
+              <button type="button" onClick={() => setShowOnTrack((v) => !v)} className="ws-more ws-focus">
+                {showOnTrack ? "Hide on-track clients" : `Show ${onTrack.length} on track`}
+              </button>
+            )}
           </div>
         </section>
 
@@ -575,110 +593,172 @@ export default function AdminDashboard() {
 
 // --- Blueprint AI Overview ---
 
-interface BriefingInsight {
+type NeedsYouAction =
+  | { type: "nudge"; clientName: string; userId: string; message: "checkin" | "quiet" }
+  | { type: "inbox"; clientId: string }
+  | { type: "reply"; clientId: string }
+  | { type: "view-plan"; clientId: string };
+
+interface NeedsYouItem {
   id: string;
-  icon: string;
+  clientName: string;
   text: string;
-  action?: { type: "nudge"; clientName: string; userId: string; clientId: string }
-    | { type: "reply"; clientId: string }
-    | { type: "view-plan"; clientId: string };
+  when?: string | null;
+  chip?: { text: string; tone: "bad" | "attn" | "decide" | "ok" };
+  action: NeedsYouAction;
 }
 
-function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]; recentCheckins: EnrichedCheckin[] }) {
+interface NeedsYouGroup {
+  key: string;
+  title: string;
+  hint: string;
+  colour: string;
+  items: NeedsYouItem[];
+}
+
+const GROUP_ROWS = 5;
+
+/** "2h ago", "Yesterday", "Thu", "18 Nov" - with the full date kept for the title attribute. */
+function whenShort(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const diff = Date.now() - t;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  const day = (d: Date) => d.toLocaleDateString("en-GB", { timeZone: "Europe/London" });
+  if (hours < 24 && day(new Date(t)) === day(new Date())) return `${hours}h ago`;
+  const yesterday = new Date(Date.now() - 86_400_000);
+  if (day(new Date(t)) === day(yesterday)) return "Yesterday";
+  if (diff < 6 * 86_400_000) return new Date(t).toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "short" });
+  return new Date(t).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short" });
+}
+
+function fullDate(iso: string | null | undefined) {
+  if (!iso) return undefined;
+  return new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+const NUDGE_TEXT = {
+  checkin: (first: string) => `Hey ${first}, your weekly check-in is due. Takes 2 minutes - let me know how things are going.`,
+  quiet: (first: string) => `Hey ${first}, just checking in - haven't seen you in the portal for a bit. Everything OK? Jump back in when you're ready, your plan is waiting.`,
+};
+
+function buildNeedsYou(clients: AdminClient[], recentCheckins: EnrichedCheckin[]): NeedsYouGroup[] {
+  const byId = new Map(clients.map((c) => [c.id, c]));
+
+  const messages: NeedsYouItem[] = clients
+    .filter((c) => c.health?.awaiting_reply_since)
+    .sort((a, b) => Date.parse(a.health.awaiting_reply_since!) - Date.parse(b.health.awaiting_reply_since!))
+    .map((c) => ({
+      id: `msg-${c.id}-${c.health.awaiting_reply_since}`,
+      clientName: c.name,
+      text: "Sent you a message",
+      when: c.health.awaiting_reply_since,
+      chip: c.health.awaiting_reply_unread ? { text: "Unread", tone: "decide" as const } : undefined,
+      action: { type: "inbox" as const, clientId: c.id },
+    }));
+
+  const checkinMap = new Map<string, EnrichedCheckin[]>();
+  for (const ck of recentCheckins) {
+    const followUp = Boolean(ck.client_reply && ck.client_replied_at && ck.replied_at && Date.parse(ck.client_replied_at) > Date.parse(ck.replied_at));
+    if (ck.admin_reply && !followUp) continue;
+    if (!checkinMap.has(ck.client_id)) checkinMap.set(ck.client_id, []);
+    checkinMap.get(ck.client_id)!.push(ck);
+  }
+  const checkins: NeedsYouItem[] = [...checkinMap.entries()].map(([clientId, cks]) => {
+    const struggling = cks.some((ck) => ck.mood === "struggling" || ck.mood === "awful");
+    const followUp = cks.some((ck) => ck.admin_reply);
+    return {
+      id: `reply-${clientId}-${cks[0].id}`,
+      clientName: cks[0].client_name,
+      text: followUp
+        ? "Replied to your check-in reply"
+        : cks.length > 1
+          ? `${cks.length} check-ins without a reply`
+          : "Check-in without a reply",
+      when: cks[0].client_replied_at || cks[0].created_at,
+      chip: struggling ? { text: "Struggling", tone: "bad" as const } : undefined,
+      action: { type: "reply" as const, clientId },
+    };
+  }).sort((a, b) => Number(b.chip?.tone === "bad") - Number(a.chip?.tone === "bad"));
+
+  const behind: NeedsYouItem[] = clients
+    .filter((c) => c.status === "amber")
+    .map((c) => ({
+      id: `behind-${c.id}-${c.health.missed_rounds}`,
+      clientName: c.name,
+      text: c.health.reason,
+      chip: { text: c.health.label, tone: "attn" as const },
+      action: { type: "nudge" as const, clientName: c.name, userId: c.user_id, message: c.health.missed_rounds > 0 ? ("checkin" as const) : ("quiet" as const) },
+    }));
+
+  const quiet: NeedsYouItem[] = clients
+    .filter((c) => c.status === "red")
+    .map((c) => ({
+      id: `quiet-${c.id}`,
+      clientName: c.name,
+      text: c.health.reason,
+      chip: { text: c.health.label, tone: "bad" as const },
+      action: { type: "nudge" as const, clientName: c.name, userId: c.user_id, message: "quiet" as const },
+    }));
+
+  const stalled: NeedsYouItem[] = clients.flatMap((c) => {
+    if (c.status === "red") return [];
+    const items = c.business_plan.filter((p) => p.status === "active").flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
+    if (items.length === 0 || c.current_week <= 4) return [];
+    const pct = Math.round((items.filter((i) => i.completed).length / items.length) * 100);
+    if (pct >= 30) return [];
+    return [{
+      id: `plan-${c.id}`,
+      clientName: byId.get(c.id)?.name ?? c.name,
+      text: `Plan ${pct}% done at week ${c.current_week}`,
+      action: { type: "view-plan" as const, clientId: c.id },
+    }];
+  });
+
+  return [
+    { key: "messages", title: "Messages waiting on you", hint: "The client spoke last in the last 14 days", colour: "var(--ws-accent)", items: messages },
+    { key: "checkins", title: "Check-ins to reply to", hint: "No reply yet, or they answered your reply", colour: "var(--ws-accent)", items: checkins },
+    { key: "behind", title: "Behind on check-ins", hint: "Still using the portal but missed a round", colour: "var(--ws-attn)", items: behind },
+    { key: "quiet", title: "Gone quiet", hint: "Missed 2+ rounds and nothing in the portal for 14+ days", colour: "var(--ws-bad)", items: quiet },
+    { key: "plans", title: "Plans stalled", hint: "Under 30% done after week 4", colour: "var(--ws-attn)", items: stalled },
+  ];
+}
+
+function NeedsYou({ clients, recentCheckins }: { clients: AdminClient[]; recentCheckins: EnrichedCheckin[] }) {
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissedBriefingIds);
-  const [showAll, setShowAll] = useState(false);
-  const [nudgeTarget, setNudgeTarget] = useState<{ name: string; userId: string } | null>(null);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const [nudgeTarget, setNudgeTarget] = useState<{ name: string; userId: string; itemId: string } | null>(null);
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [nudgeSending, setNudgeSending] = useState(false);
   const [nudgeSent, setNudgeSent] = useState(false);
 
-  function dismissInsight(insightId: string) {
-    setDismissed(prev => {
+  function dismissItem(id: string) {
+    setDismissed((prev) => {
       const next = new Set(prev);
-      next.add(insightId);
+      next.add(id);
       saveDismissedBriefingIds(next);
       return next;
     });
   }
 
-  const redClients = clients.filter(c => c.status === "red");
-  const amberClients = clients.filter(c => c.status === "amber");
-  const unrepliedCheckins = recentCheckins.filter(c => !c.admin_reply);
-  const stalledClients = clients.filter(c => {
-    const activePlans = c.business_plan.filter(p => p.status === "active");
-    if (activePlans.length === 0) return false;
-    const items = activePlans.flatMap((plan) => plan.phases.flatMap(ph => ph.items));
-    const total = items.length;
-    const done = items.filter(i => i.completed).length;
-    return total > 0 && (done / total) < 0.3 && c.current_week > 4;
-  });
+  const groups = buildNeedsYou(clients, recentCheckins)
+    .map((g) => ({ ...g, items: g.items.filter((i) => !dismissed.has(i.id)) }))
+    .filter((g) => g.items.length > 0);
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
 
-  const insights: BriefingInsight[] = [];
-
-  for (const c of redClients) {
-    const daysSinceActivity = Math.floor((Date.now() - new Date(lastPortalActivity(c.last_login, c.last_checkin)).getTime()) / (1000 * 60 * 60 * 24));
-    const daysSinceCheckin = Math.floor((Date.now() - new Date(c.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceActivity > 10) {
-      insights.push({ id: `login-${c.id}`, icon: "alert", text: `${c.name} hasn't been active for ${daysSinceActivity} days - consider reaching out`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
-    } else if (daysSinceCheckin > 14) {
-      insights.push({ id: `checkin-${c.id}`, icon: "alert", text: `${c.name} hasn't checked in for ${daysSinceCheckin} days`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
-    }
-  }
-
-  for (const c of amberClients) {
-    const daysSinceCheckin = Math.floor((Date.now() - new Date(c.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
-    insights.push({ id: `amber-${c.id}`, icon: "clock", text: `${c.name} is ${daysSinceCheckin} days since last check-in`, action: { type: "nudge", clientName: c.name, userId: c.user_id, clientId: c.id } });
-  }
-
-  if (unrepliedCheckins.length > 0) {
-    // Group by client for individual actions
-    const byClient = new Map<string, EnrichedCheckin[]>();
-    for (const ck of unrepliedCheckins) {
-      if (!byClient.has(ck.client_id)) byClient.set(ck.client_id, []);
-      byClient.get(ck.client_id)!.push(ck);
-    }
-    for (const [clientId, cks] of byClient) {
-      const name = cks[0].client_name;
-      insights.push({ id: `reply-${clientId}`, icon: "reply", text: `${cks.length} unreplied check-in${cks.length > 1 ? "s" : ""} from ${name}`, action: { type: "reply", clientId } });
-    }
-  }
-
-  for (const c of stalledClients) {
-    const items = c.business_plan
-      .filter((plan) => plan.status === "active")
-      .flatMap((plan) => plan.phases.flatMap(ph => ph.items));
-    const pct = Math.round((items.filter(i => i.completed).length / items.length) * 100);
-    insights.push({ id: `plan-${c.id}`, icon: "plan", text: `${c.name}'s plan is only ${pct}% complete at week ${c.current_week}`, action: { type: "view-plan", clientId: c.id } });
-  }
-
-  const visibleInsights = insights.filter(i => !dismissed.has(i.id));
-
-  if (visibleInsights.length === 0 && insights.length > 0) {
-    // All dismissed
-    visibleInsights.push({ id: "all-clear", icon: "check", text: "All caught up - no actions remaining" });
-  } else if (insights.length === 0) {
-    visibleInsights.push({ id: "on-track", icon: "check", text: "All clients are on track - no immediate actions needed" });
-  }
-
-  const shownInsights = showAll ? visibleInsights : visibleInsights.slice(0, 3);
-
-  const iconMap: Record<string, React.ReactNode> = {
-    alert: <StatusIcon tone="attn" />,
-    clock: <StatusIcon tone="attn" />,
-    reply: <StatusIcon tone="decide" />,
-    plan: <StatusIcon tone="attn" />,
-    check: <StatusIcon tone="ok" />,
-  };
-
-  function handleNudge(insight: BriefingInsight) {
-    if (insight.action?.type !== "nudge") return;
-    const firstName = insight.action.clientName.split(" ")[0];
-    setNudgeTarget({ name: insight.action.clientName, userId: insight.action.userId });
-    setNudgeMessage(`Hey ${firstName}, just checking in - haven't seen you in the portal for a bit. Everything OK? Jump back in when you're ready, your plan is waiting.`);
+  function openNudge(item: NeedsYouItem) {
+    if (item.action.type !== "nudge") return;
+    const first = item.action.clientName.split(" ")[0];
+    setNudgeTarget({ name: item.action.clientName, userId: item.action.userId, itemId: item.id });
+    setNudgeMessage(NUDGE_TEXT[item.action.message](first));
     setNudgeSent(false);
   }
 
-  async function sendNudge(insightId: string) {
+  async function sendNudge() {
     if (!nudgeTarget) return;
     setNudgeSending(true);
     try {
@@ -696,7 +776,7 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
       const result = await res.json().catch(() => ({}));
       if (res.ok && result.sent > 0) {
         setNudgeSent(true);
-        dismissInsight(insightId);
+        dismissItem(nudgeTarget.itemId);
         setTimeout(() => { setNudgeTarget(null); }, 1500);
       } else {
         alert("Push notification could not be delivered. Client may not have notifications enabled.");
@@ -708,57 +788,94 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
 
   return (
     <>
-      <section className="ws-panel" aria-label="Blueprint AI daily briefing">
+      <section className="ws-panel" aria-label="What needs you">
         <div className="ws-panel-head">
-          <span className="ws-avatar is-sm" aria-hidden="true">
-            <Icon name="sparkle" size={11} stroke={2.2} />
-          </span>
-          <h2 className="ws-h2">
-            Blueprint AI <span className="ws-caption" style={{ fontWeight: 400 }}>· your daily briefing</span>
-          </h2>
-          <span className="ws-caption">
-            {visibleInsights.length} item{visibleInsights.length === 1 ? "" : "s"}
-          </span>
+          <h2 className="ws-h2">What needs you</h2>
+          <span className="ws-caption">{total} item{total === 1 ? "" : "s"}</span>
         </div>
-        <div>
-          {shownInsights.map((insight) => (
-            <div key={insight.id} className="ws-line">
-              {iconMap[insight.icon]}
-              <div className="min-w-0">
-                <span className="text-[13.5px]" style={{ color: "var(--ws-ink)" }}>{insight.text}</span>
-                {insight.action && (
-                  <div className="ws-acts">
-                    {insight.action.type === "nudge" && (
-                      <button type="button" onClick={() => handleNudge(insight)} className="ws-btn ws-btn-sm ws-focus">
-                        <Icon name="bell" size={12} />
-                        Send nudge
+        {groups.length === 0 ? (
+          <Empty title="All clear" text="No messages or check-ins waiting, and every client is up to date." />
+        ) : (
+          groups.map((group) => {
+            const open = openGroups.has(group.key);
+            const shown = open ? group.items : group.items.slice(0, GROUP_ROWS);
+            return (
+              <div key={group.key} className="ws-ny-group">
+                <div className="ws-group" style={{ cursor: "default" }} title={group.hint}>
+                  <span className="ws-dot" style={{ color: group.colour }} />
+                  <span>{group.title}</span>
+                  <span className="ws-cnt">{group.items.length}</span>
+                </div>
+                {shown.map((item) => (
+                  <div key={item.id} className="ws-ny-row">
+                    <div className="min-w-0">
+                      <div className="ws-ny-title">
+                        <span className="ws-row-title">{item.clientName}</span>
+                        {item.chip && <Chip tone={item.chip.tone}>{item.chip.text}</Chip>}
+                      </div>
+                      <div className="ws-row-sub">
+                        {item.text}
+                        {item.when && (
+                          <span title={fullDate(item.when)}> · {whenShort(item.when)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ws-ny-acts">
+                      {item.action.type === "inbox" && (
+                        <Link href={`/admin/inbox?client=${item.action.clientId}`} className="ws-btn ws-btn-sm ws-focus">
+                          <Icon name="chat" size={12} />
+                          Open
+                        </Link>
+                      )}
+                      {item.action.type === "reply" && (
+                        <Link href={`/admin/clients/${item.action.clientId}`} className="ws-btn ws-btn-sm ws-focus">
+                          <Icon name="reply" size={12} />
+                          Reply
+                        </Link>
+                      )}
+                      {item.action.type === "view-plan" && (
+                        <Link href={`/admin/clients/${item.action.clientId}`} className="ws-btn ws-btn-sm ws-focus">
+                          <Icon name="plan" size={12} />
+                          View plan
+                        </Link>
+                      )}
+                      {item.action.type === "nudge" && (
+                        <button type="button" onClick={() => openNudge(item)} className="ws-btn ws-btn-sm ws-focus">
+                          <Icon name="bell" size={12} />
+                          Nudge
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => dismissItem(item.id)}
+                        className="ws-btn ws-btn-sm ws-btn-quiet ws-focus"
+                        aria-label={`Hide ${item.clientName} until tomorrow`}
+                        title="Hide until tomorrow"
+                      >
+                        Hide
                       </button>
-                    )}
-                    {insight.action.type === "reply" && (
-                      <Link href={`/admin/clients/${insight.action.clientId}`} className="ws-btn ws-btn-sm ws-focus">
-                        <Icon name="reply" size={12} />
-                        Reply now
-                      </Link>
-                    )}
-                    {insight.action.type === "view-plan" && (
-                      <Link href={`/admin/clients/${insight.action.clientId}`} className="ws-btn ws-btn-sm ws-focus">
-                        <Icon name="plan" size={12} />
-                        View plan
-                      </Link>
-                    )}
-                    <button type="button" onClick={() => dismissInsight(insight.id)} className="ws-btn ws-btn-sm ws-btn-quiet ws-focus">
-                      Dismiss
-                    </button>
+                    </div>
                   </div>
+                ))}
+                {group.items.length > GROUP_ROWS && (
+                  <button
+                    type="button"
+                    className="ws-more ws-focus"
+                    onClick={() =>
+                      setOpenGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(group.key)) next.delete(group.key);
+                        else next.add(group.key);
+                        return next;
+                      })
+                    }
+                  >
+                    {open ? "Show fewer" : `Show ${group.items.length - GROUP_ROWS} more`}
+                  </button>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-        {visibleInsights.length > 3 && (
-          <button type="button" onClick={() => setShowAll((current) => !current)} className="ws-more ws-focus">
-            {showAll ? "Show priority items only" : `Show all ${visibleInsights.length} briefing items`}
-          </button>
+            );
+          })
         )}
       </section>
 
@@ -798,10 +915,7 @@ function BlueprintOverview({ clients, recentCheckins }: { clients: AdminClient[]
                   <button
                     type="button"
                     disabled={!nudgeMessage.trim() || nudgeSending}
-                    onClick={() => {
-                      const insightId = insights.find(i => i.action?.type === "nudge" && (i.action as { userId: string }).userId === nudgeTarget.userId)?.id;
-                      if (insightId) sendNudge(insightId);
-                    }}
+                    onClick={sendNudge}
                     className="ws-btn ws-btn-primary ws-focus"
                   >
                     {nudgeSending ? (

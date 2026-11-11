@@ -1,5 +1,5 @@
 "use client";
-import { lastPortalActivity } from "@/lib/portal-activity";
+import { initials } from "@/lib/initials";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -8,9 +8,9 @@ import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight } from "@/lib/types";
 
 const statusConfig: Record<TrafficLight, { label: string; dotClass: string; bgClass: string; textClass: string }> = {
-  red: { label: "Needs Attention", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
-  amber: { label: "Check In Due", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
-  green: { label: "On Track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
+  red: { label: "Gone quiet", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
+  amber: { label: "Behind", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
+  green: { label: "On track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
 };
 
 function timeAgo(dateStr: string): string {
@@ -81,7 +81,7 @@ export default function ClientsPage() {
     })
     .sort((first, second) => {
       if (sort === "name") return first.name.localeCompare(second.name);
-      if (sort === "recent") return new Date(lastPortalActivity(second.last_login, second.last_checkin)).getTime() - new Date(lastPortalActivity(first.last_login, first.last_checkin)).getTime();
+      if (sort === "recent") return new Date((second.health?.last_active_at || second.last_login)).getTime() - new Date((first.health?.last_active_at || first.last_login)).getTime();
       const attentionRank: Record<TrafficLight, number> = { red: 0, amber: 1, green: 2 };
       return attentionRank[first.status] - attentionRank[second.status] || first.name.localeCompare(second.name);
     });
@@ -346,12 +346,12 @@ export default function ClientsPage() {
                     <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${isArchived ? "bg-white/5 text-text-muted border-white/10" : `${sc.bgClass} ${sc.textClass}`} border ${
                       client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
                     }`}>
-                      {client.name.split(" ").map((n) => n[0]).join("")}
+                      {initials(client.name)}
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-text-primary">{client.name}</div>
                       <div className="mt-1 truncate text-xs text-text-muted">{client.business_name}{client.business_type ? ` · ${client.business_type}` : ""}</div>
-                      {!isArchived && <div className={`mt-1 text-xs font-medium sm:hidden ${sc.textClass}`}>{sc.label}</div>}
+                      {!isArchived && <div className={`mt-1 text-xs font-medium sm:hidden ${sc.textClass}`}>{client.health?.label ?? sc.label}</div>}
                       {isArchived && client.archived_at && <div className="mt-1 text-xs text-text-muted">Archived {new Date(client.archived_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>}
                     </div>
                   </div>
@@ -385,16 +385,16 @@ export default function ClientsPage() {
                     {!isArchived && <div className="text-right hidden md:block">
                       <div className="text-xs text-text-muted">Last Active</div>
                       <div className={`text-xs font-medium mt-0.5 ${
-                        new Date().getTime() - new Date(lastPortalActivity(client.last_login, client.last_checkin)).getTime() > 7 * 24 * 60 * 60 * 1000
+                        new Date().getTime() - new Date((client.health?.last_active_at || client.last_login)).getTime() > 7 * 24 * 60 * 60 * 1000
                           ? "text-red-400" : "text-text-secondary"
                       }`}>
-                        {timeAgo(lastPortalActivity(client.last_login, client.last_checkin))}
+                        {timeAgo((client.health?.last_active_at || client.last_login))}
                       </div>
                     </div>}
 
                     <span className={`hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
-                      {isArchived ? "Archived" : sc.label}
+                      {isArchived ? "Archived" : client.health?.label ?? sc.label}
                     </span>
 
                     <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
