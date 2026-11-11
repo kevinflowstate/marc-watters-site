@@ -16,12 +16,15 @@ export type ExpectedJob = {
   kind: string;
   /** London time by which the result should be in the portal, as minutes after midnight. */
   dueBy: number;
+  /** Only these London weekdays (Mon..Fri). Omitted = every weekday. */
+  days?: string[];
 };
 
 /** Only the jobs that are switched on. Add a job here when it is activated. */
 export const ACTIVE_JOBS: ExpectedJob[] = [
   { key: "daily", name: "Daily attention brief (08:30)", kind: "daily_brief", dueBy: 9 * 60 + 40 },
   { key: "sales", name: "Sales-call reviews (17:30)", kind: "sales_review", dueBy: 18 * 60 + 40 },
+  { key: "thursday", name: "Thursday report commentary (09:00)", kind: "weekly_report", dueBy: 10 * 60 + 10, days: ["Thu"] },
 ];
 
 export function londonClock(now: Date) {
@@ -43,6 +46,7 @@ export function londonClock(now: Date) {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     minutes: Number(parts.hour) * 60 + Number(parts.minute),
     weekday: !["Sat", "Sun"].includes(parts.weekday),
+    day: parts.weekday as string,
   };
 }
 
@@ -82,6 +86,7 @@ export async function checkScheduledJobs(
   );
   const raiseTask = deps.raiseTask ?? createTask;
   for (const job of ACTIVE_JOBS) {
+    if (job.days && !job.days.includes(clock.day)) continue;
     const mine = rows.filter((r) => r.kind === job.kind);
     if (mine.some((r) => r.outcome === "failed")) {
       const ref = `job-health:failed:${job.key}:${clock.date}`;
