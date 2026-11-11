@@ -69,7 +69,7 @@ export async function buildPortalSnapshot(now = new Date()) {
   const since = (days: number) =>
     new Date(now.getTime() - days * 86_400_000).toISOString();
 
-  const [messages, checkins, training, report] = await Promise.all([
+  const [messages, checkins, training, report, calls] = await Promise.all([
     admin
       .from("inbox_messages")
       .select(
@@ -101,11 +101,20 @@ export async function buildPortalSnapshot(now = new Date()) {
       .select("id,week_start,status,data,generated_narrative_md,narrative_md,reviewed_at,sent_at,updated_at")
       .eq("week_start", reportWeekStart(now))
       .maybeSingle(),
+    admin
+      .from("calendar_events")
+      .select("id,title,event_date,event_time,attachments")
+      .eq("is_active", true)
+      .gte("event_date", since(21))
+      .lt("event_date", new Date(now.getTime() + 8 * 86_400_000).toISOString())
+      .order("event_date", { ascending: false })
+      .limit(50),
   ]);
   readOk(messages.error, "messages");
   readOk(checkins.error, "check-ins");
   readOk(training.error, "training progress");
   readOk(report.error, "report");
+  readOk(calls.error, "calendar");
 
   const messageMap = byClient((messages.data || []) as Row[]);
   const checkinMap = byClient((checkins.data || []) as Row[]);
@@ -161,6 +170,7 @@ export async function buildPortalSnapshot(now = new Date()) {
       checkins: `last ${CHECKIN_DAYS} days, latest ${CHECKINS_PER_CLIENT} per client`,
       training: "recorded module status only; not proof of watch time",
       report: "this week's Thursday report row, if the portal has created it",
+      lesson_calls: "evening calendar events from 21 days ago to 8 days ahead, with attachment names; the portal uses an attached PDF as the lesson workbook",
       reply_state:
         "needs_reply comes from message order and recorded replies, not read status; null means uncertain",
     },
@@ -173,6 +183,20 @@ export async function buildPortalSnapshot(now = new Date()) {
       ),
     },
     clients: people,
+    // Tuesday lesson calls in the portal calendar. Marc attaches the call's workbook here before the call.
+    lesson_calls: ((calls.data || []) as Record<string, unknown>[])
+      .filter((e) => /^(1[89]|20):/.test(String(e.event_time ?? "")))
+      .map((e) => {
+        const files = (Array.isArray(e.attachments) ? e.attachments : []) as Record<string, unknown>[];
+        return {
+          event_id: e.id,
+          date: String(e.event_date).slice(0, 10),
+          time: e.event_time,
+          title: clip(e.title, 200),
+          workbook_pdf_attached: files.some((f) => f.type === "pdf" || /\.pdf$/i.test(String(f.name ?? ""))),
+          attachments: files.map((f) => clip(f.name, 120)).slice(0, 6),
+        };
+      }),
     thursday_report: r
       ? {
           id: r.id,

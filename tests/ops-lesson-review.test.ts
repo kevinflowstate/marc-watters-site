@@ -61,6 +61,33 @@ describe("lesson package to lesson review", () => {
     expect(out.review_url).toBe("/admin/work?artifact=dddddddd-dddd-4ddd-8ddd-dddddddddddd");
   });
 
+  it("uses Marc's workbook from the portal calendar instead of drawing one", async () => {
+    const workbook = { title: "Start From The Source", sections: [{ title: "Map it out", blocks: [{ type: "write", question: "Where?" }] }] };
+    const marc = { storage_path: `workbooks/${"b".repeat(64)}.pdf`, sha256: "b".repeat(64), bytes: 40777, name: "CBB_From_Sold_to_Signed_Off_Workbook.pdf" };
+    const d = deps({
+      loadTask: vi.fn(async () => ({ id: TASK, status: "awaiting_approval", area: "lessons", payload: { lesson_package: { ...pack, workbook } } })),
+      calendarWorkbook: vi.fn(async () => marc),
+    }) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    const out = await startLessonReview({ task_id: TASK }, ADMIN, d as never);
+    expect(d.calendarWorkbook).toHaveBeenCalledWith("lesson:2026-11-03:start-from-the-source");
+    expect(d.workbookPdf).not.toHaveBeenCalled();
+    expect(d.submit.mock.calls[0][0].payload.workbook_pdf).toEqual(marc);
+    expect(out.workbook_source).toBe("calendar");
+  });
+
+  it("falls back to the drawn workbook when the calendar has none or cannot be read", async () => {
+    const workbook = { title: "Start From The Source", sections: [{ title: "Map it out", blocks: [{ type: "write", question: "Where?" }] }] };
+    for (const calendarWorkbook of [vi.fn(async () => null), vi.fn(async () => { throw new Error("down"); })]) {
+      const d = deps({
+        loadTask: vi.fn(async () => ({ id: TASK, status: "awaiting_approval", area: "lessons", payload: { lesson_package: { ...pack, workbook } } })),
+        calendarWorkbook,
+      }) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+      const out = await startLessonReview({ task_id: TASK }, ADMIN, d as never);
+      expect(d.workbookPdf).toHaveBeenCalled();
+      expect(out.workbook_source).toBe("generated");
+    }
+  });
+
   it("draws the workbook PDF and carries it in the reviewed manifest", async () => {
     const workbook = { title: "Start From The Source", sections: [{ title: "Map it out", blocks: [{ type: "write", question: "Where does your work come from?" }] }] };
     const d = deps({

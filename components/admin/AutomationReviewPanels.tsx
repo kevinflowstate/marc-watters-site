@@ -313,6 +313,13 @@ export function LessonReview({
               Open the workbook PDF
             </a>
             <p className="mt-1 text-xs text-text-muted">
+              {(() => {
+                const ref = payload.workbook_pdf;
+                const name = ref && typeof ref === "object" && !Array.isArray(ref) && typeof (ref as Record<string, unknown>).name === "string"
+                  ? String((ref as Record<string, unknown>).name)
+                  : "";
+                return name ? `${name} · ` : "";
+              })()}
               This PDF is attached to the lesson when it is added to Training.
             </p>
           </>
