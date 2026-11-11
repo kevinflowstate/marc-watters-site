@@ -103,7 +103,7 @@ export function validateWorkbookSpec(input: unknown): WorkbookSpec {
             const blank = k.blank_rows === undefined ? 0 : Number(k.blank_rows);
             if (!Number.isInteger(blank) || blank < 0 || blank > 10) throw new OpsError(`${where}: blank_rows must be 0-10`);
             const columns = list(k.columns, `${where} columns`, 6, 40);
-            return { type: "table", question: str(k.question, `${where} question`, 300, true), columns, rows: k.rows === undefined ? [] : list(k.rows, `${where} rows`, 14, 60), blank_rows: blank };
+            return { type: "table", question: str(k.question, `${where} question`, 300, true), columns, rows: k.rows === undefined || (Array.isArray(k.rows) && k.rows.length === 0) ? [] : list(k.rows, `${where} rows`, 14, 60), blank_rows: blank };
           }
           if (k.type === "text") return { type: "text", text: str(k.text, `${where} text`, 1200)! };
           throw new OpsError(`${where}: unknown block type`);
