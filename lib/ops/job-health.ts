@@ -48,7 +48,7 @@ export function londonClock(now: Date) {
 
 async function raise(raiseTask: Raise, ref: string, title: string, detail: string, priority = 2) {
   await raiseTask(
-    { kind: "task", area: "other", assignee: "flowstate", source: "automation", priority, external_ref: ref, title, detail },
+    { kind: "task", area: "other", assignee: "flowstate", source: "system", priority, external_ref: ref, title, detail },
     "system",
   );
 }
