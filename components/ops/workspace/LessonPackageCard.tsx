@@ -9,6 +9,7 @@ type Pack = {
   summary_md?: unknown;
   workbook_md?: unknown;
   mode?: unknown;
+  workbook?: unknown;
 };
 
 export function lessonPackage(payload: unknown): Pack | null {
@@ -35,7 +36,11 @@ export function LessonPackageCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const summary = typeof pack.summary_md === "string" ? pack.summary_md.trim() : "";
-  const hasWorkbook = typeof pack.workbook_md === "string" && pack.workbook_md.trim().length > 0;
+  // The workbook arrives as an outline and is drawn as a PDF when the review opens (or Marc's own
+  // PDF from the portal calendar is used), so the card must not imply there is none.
+  const hasWorkbook =
+    (typeof pack.workbook_md === "string" && pack.workbook_md.trim().length > 0) ||
+    (!!pack.workbook && typeof pack.workbook === "object");
   const where = destination || (pack.mode === "append" ? "Call Replays" : "Training");
 
   async function open() {
@@ -68,7 +73,7 @@ export function LessonPackageCard({
 
       <ol className="mt-4 space-y-2 text-[13.5px] leading-relaxed" style={{ color: "var(--ws-ink-2)" }}>
         <li><b style={{ color: "var(--ws-ink)" }}>1. Check the video file.</b> Confirms the stored video is exactly the edited version. Takes about a minute.</li>
-        <li><b style={{ color: "var(--ws-ink)" }}>2. Watch and read.</b> The video, summary{hasWorkbook ? " and workbook" : ""} open here, no Drive needed.</li>
+        <li><b style={{ color: "var(--ws-ink)" }}>2. Watch and read.</b> The video, summary{hasWorkbook ? " and workbook PDF" : ""} open here, no Drive needed. If Marc attached a workbook to this call in the portal calendar, his PDF is used.</li>
         <li><b style={{ color: "var(--ws-ink)" }}>3. Approve or request changes.</b> Approving adds it to {where} only when lesson publishing is switched on.</li>
       </ol>
 
