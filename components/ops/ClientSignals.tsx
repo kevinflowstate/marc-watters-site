@@ -54,21 +54,22 @@ export default function ClientSignals({ id }: { id: string }) {
     }
   }
   return (
-    <section className="v2-surface p-5 my-6">
-      <h2 className="font-heading text-lg font-bold">
-        Payments and onboarding
-      </h2>
+    <section className="ws-panel min-w-0" aria-label="Payments and onboarding">
+      <div className="ws-panel-head">
+        <h2 className="ws-h2">Payments and onboarding</h2>
+      </div>
+      <div className="ws-pad">
       {error && (
-        <p role="alert" className="text-amber-600 my-3">
+        <p role="alert" className="ws-note is-attn mb-3">
           {error}
         </p>
       )}
       {s && (
-        <div className="grid sm:grid-cols-2 gap-5 mt-4">
-          <label>
+        <div className="ws-signals">
+          <label className="ws-label">
             Payment status
             <select
-              className="block w-full p-3 rounded-lg border border-current/15 bg-bg-secondary mt-2"
+              className="ws-input mt-1.5"
               value={s.payment_status}
               disabled={busy}
               onChange={(e) => void save({ payment_status: e.target.value })}
@@ -79,17 +80,17 @@ export default function ClientSignals({ id }: { id: string }) {
                 ),
               )}
             </select>
-            <span className="text-sm text-text-secondary block mt-2">
+            <span className="ws-caption block mt-1.5" style={{ fontWeight: 400 }}>
               {s.payment_chase_count} reminders · Last paid{" "}
               {s.last_payment_at
                 ? new Date(s.last_payment_at).toLocaleDateString("en-GB")
                 : "not recorded"}
             </span>
           </label>
-          <label>
+          <label className="ws-label">
             Onboarding
             <select
-              className="block w-full p-3 rounded-lg border border-current/15 bg-bg-secondary mt-2"
+              className="ws-input mt-1.5"
               value={s.onboarding_stage}
               disabled={busy}
               onChange={(e) => void save({ stage: e.target.value })}
@@ -104,7 +105,7 @@ export default function ClientSignals({ id }: { id: string }) {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-text-secondary block mt-2">
+            <span className="ws-caption block mt-1.5" style={{ fontWeight: 400 }}>
               Due{" "}
               {s.onboarding_due_at
                 ? new Date(s.onboarding_due_at).toLocaleDateString("en-GB")
@@ -112,7 +113,7 @@ export default function ClientSignals({ id }: { id: string }) {
             </span>
           </label>
           <form
-            className="sm:col-span-2 flex flex-wrap gap-3"
+            className="ws-signals-form"
             onSubmit={(e) => {
               e.preventDefault();
               const data = new FormData(e.currentTarget);
@@ -124,26 +125,26 @@ export default function ClientSignals({ id }: { id: string }) {
               });
             }}
           >
-            <label className="flex-1 min-w-40">
+            <label className="ws-label flex-1 min-w-40">
               Next action
               <input
                 key={s.next_action}
                 name="next_action"
-                className="block w-full p-3 bg-bg-secondary border border-current/15 rounded-lg mt-2"
+                className="ws-input mt-1.5"
                 defaultValue={s.next_action || ""}
               />
             </label>
-            <label>
+            <label className="ws-label">
               Due
               <input
                 name="due"
                 type="date"
-                className="block p-3 bg-bg-secondary border border-current/15 rounded-lg mt-2"
+                className="ws-input mt-1.5"
                 defaultValue={s.next_action_due?.slice(0, 10) || ""}
               />
             </label>
             <button
-              className="bg-accent text-white px-4 py-3 rounded-lg self-end"
+              className="ws-btn ws-btn-primary ws-focus self-end"
               disabled={busy}
             >
               Save action
@@ -151,6 +152,7 @@ export default function ClientSignals({ id }: { id: string }) {
           </form>
         </div>
       )}
+      </div>
     </section>
   );
 }
