@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InboxThread from "@/components/inbox/InboxThread";
-import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
+import { Empty, Icon, SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 import { useToast } from "@/components/ui/Toast";
 import type { Attachment, InboxConversation, InboxMessage } from "@/lib/types";
 
@@ -364,31 +364,33 @@ export default function AdminInboxClient() {
   }
 
   const conversationList = (
-    <div className="v2-surface overflow-hidden">
-      <div className="space-y-4 border-b border-white/[0.06] px-4 py-4 sm:px-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="v2-section-title">Conversations</h2>
-          <div className="text-xs tabular-nums text-text-muted">{conversations.length}</div>
-        </div>
+    <section className="ws-panel ib-list" aria-label="Conversations">
+      <div className="ws-panel-head">
+        <h2 className="ws-h2">Conversations</h2>
+        <span className="ws-caption">{conversations.length}</span>
+      </div>
+      <div className="ib-search">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search conversations..."
-          className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/55 px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/45 focus:ring-2 focus:ring-accent/10"
+          aria-label="Search conversations"
+          className="ws-input"
         />
       </div>
-      <div className="max-h-[42rem] overflow-y-auto">
+      <div className="ib-convos">
         {loadingList ? (
-          <div className="px-4 py-5"><PageSkeleton rows={4} /></div>
+          <SkeletonRows count={4} />
         ) : filteredConversations.length === 0 ? (
-          <EmptyState
-            compact
+          <Empty
+            icon="inbox"
             title={query ? "No matching conversations" : "No conversations yet"}
-            description={query ? "Try a client name, business or email address." : "Client messages will appear here when a conversation starts."}
+            text={query ? "Try a client name, business or email address." : "Client messages will appear here when a conversation starts."}
           />
         ) : (
           filteredConversations.map((conversation) => {
             const selected = conversation.client_id === selectedClientId;
+            const unread = conversation.unread_count > 0;
             const previewPrefix =
               conversation.latest_sender_role === "admin"
                 ? "You: "
@@ -399,57 +401,46 @@ export default function AdminInboxClient() {
               <button
                 key={conversation.client_id}
                 onClick={() => handleSelectConversation(conversation.client_id)}
-                className={`relative w-full border-b border-white/[0.05] px-4 py-4 text-left transition-colors cursor-pointer sm:px-5 ${
-                  selected
-                    ? "bg-accent/10 before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-bright"
-                    : conversation.unread_count > 0
-                      ? "bg-[rgba(255,255,255,0.015)] hover:bg-[rgba(255,255,255,0.04)]"
-                      : "hover:bg-[rgba(255,255,255,0.03)]"
-                }`}
+                aria-current={selected ? "true" : undefined}
+                className={`ib-convo ws-focus${selected ? " is-on" : ""}${unread ? " is-unread" : ""}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.035] text-xs font-bold text-text-primary">
-                        {conversation.client_name
-                          .split(" ")
-                          .map((part) => part[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-semibold text-text-primary truncate">{conversation.client_name}</div>
-                          <div className="text-[11px] text-text-muted whitespace-nowrap">
-                            {formatRelativeTime(conversation.latest_message_at)}
-                          </div>
-                        </div>
-                        <div className="text-xs text-text-muted truncate">{conversation.client_email}</div>
-                      </div>
-                    </div>
-                    <div className={`text-xs mt-3 line-clamp-2 ${conversation.unread_count > 0 ? "text-text-primary" : "text-text-secondary"}`}>
-                      <span className="text-text-muted">{previewPrefix}</span>
-                      {conversation.latest_message || "No messages yet"}
-                    </div>
-                  </div>
-                  {conversation.unread_count > 0 && (
-                    <span className="mt-0.5 bg-accent-bright text-white text-[10px] font-bold min-w-5 h-5 rounded-full px-1.5 flex items-center justify-center">
-                      {conversation.unread_count > 9 ? "9+" : conversation.unread_count}
-                    </span>
-                  )}
-                </div>
+                <span className="ws-avatar is-md" aria-hidden="true">
+                  {conversation.client_name
+                    .split(" ")
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </span>
+                <span className="ib-convo-m">
+                  <span className="ib-convo-top">
+                    <span className="ib-convo-n">{conversation.client_name}</span>
+                    <span className="ib-convo-w">{formatRelativeTime(conversation.latest_message_at)}</span>
+                  </span>
+                  <span className="ib-convo-e">{conversation.client_email}</span>
+                  <span className="ib-convo-s">
+                    <span className="ib-convo-p">{previewPrefix}</span>
+                    {conversation.latest_message || "No messages yet"}
+                  </span>
+                </span>
+                {unread ? (
+                  <span className="ib-convo-ct">
+                    {conversation.unread_count > 9 ? "9+" : conversation.unread_count}
+                  </span>
+                ) : (
+                  <span className="ib-convo-ct is-none" aria-hidden="true" />
+                )}
               </button>
             );
           })
         )}
       </div>
-    </div>
+    </section>
   );
 
   const threadPane = selectedClientId ? (
     loadingThread && !thread ? (
-      <PageSkeleton rows={5} />
+      <SkeletonRows count={5} />
     ) : (
       <InboxThread
         messages={thread?.messages ?? []}
@@ -472,19 +463,31 @@ export default function AdminInboxClient() {
       />
     )
   ) : (
-    <div className="v2-surface"><EmptyState title="Choose a conversation" description="Select a client to read their messages and reply." /></div>
+    <div className="ib-pick">
+      <Empty icon="inbox" title="Choose a conversation" text="Select a client to read their messages and reply." />
+    </div>
   );
 
   const conversationHeader = (
-    <div className="v2-surface flex items-center justify-between gap-4 px-4 py-4 sm:px-5">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-text-primary">
+    <div className="ib-conv-head">
+      <span className="ws-avatar is-md" aria-hidden="true">
+        {selectedConversation
+          ? selectedConversation.client_name
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()
+          : <Icon name="inbox" size={13} />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="ws-h2 ib-trunc">
           {selectedConversation?.client_name || "Select a conversation"}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
-          <span className="truncate">{selectedConversation?.client_email || "Choose a client to view the thread."}</span>
+        <div className="ib-conv-meta">
+          <span className="ib-trunc">{selectedConversation?.client_email || "Choose a client to view the thread."}</span>
           {selectedConversation?.latest_message_at && (
-            <span>Last activity {formatRelativeTime(selectedConversation.latest_message_at)}</span>
+            <span className="ib-nowrap">Last activity {formatRelativeTime(selectedConversation.latest_message_at)}</span>
           )}
         </div>
       </div>
@@ -493,58 +496,60 @@ export default function AdminInboxClient() {
           type="button"
           onClick={() => void handleMarkUnread()}
           disabled={markingUnread || !thread?.messages.some((message) => message.sender_role === "client")}
-          className="v2-button-secondary min-h-10 shrink-0 cursor-pointer px-3 text-xs disabled:cursor-not-allowed disabled:opacity-45"
+          className="ws-btn ws-focus shrink-0"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-1 10H4a1 1 0 01-1-1V7a1 1 0 011-1h16a1 1 0 011 1v10a1 1 0 01-1 1z" />
-          </svg>
+          <Icon name="inbox" size={14} />
           {markingUnread ? "Marking..." : "Mark as unread"}
         </button>
       )}
     </div>
   );
 
+  const conversationCard = (
+    <section className="ws-panel ib-conv" aria-label="Conversation">
+      {conversationHeader}
+      {threadPane}
+    </section>
+  );
+
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="v2-eyebrow mb-3">Client communication</div>
-        <h1 className="v2-page-title">Inbox</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          Manage client conversations from one place.
-        </p>
+    <div className={`ws ws-page ib-page${mobileThreadOpen ? " is-thread-open" : ""}`}>
+      <div className="ws-ph ib-title">
+        <div className="min-w-0">
+          <h1 className="ws-title">Inbox</h1>
+          <p className="ws-meta mt-1">Manage client conversations from one place.</p>
+        </div>
       </div>
 
-      {error && !selectedClientId && <InlineNotice tone="error">{error}</InlineNotice>}
+      {error && !selectedClientId && (
+        <div className="ws-note is-bad" role="alert">
+          <Icon name="alert" size={15} />
+          <div className="min-w-0">{error}</div>
+        </div>
+      )}
 
-      <div className="xl:hidden space-y-4">
+      <div className="xl:hidden ib-stack">
         {mobileThreadOpen ? (
           <>
-            <div className="flex items-center gap-3">
+            <div>
               <button
                 onClick={() => setMobileThreadOpen(false)}
-                className="v2-button-secondary min-h-11 cursor-pointer"
+                className="ws-btn ws-btn-quiet ws-focus ib-back"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <Icon name="chevron" size={14} className="ib-back-ic" />
                 Back to conversations
               </button>
             </div>
-            {conversationHeader}
-            {threadPane}
+            {conversationCard}
           </>
         ) : (
           conversationList
         )}
       </div>
 
-      <div className="hidden gap-5 xl:grid xl:grid-cols-[23rem_minmax(0,1fr)]">
+      <div className="hidden xl:grid ib-grid">
         {conversationList}
-
-        <div className="space-y-4">
-          {conversationHeader}
-          {threadPane}
-        </div>
+        {conversationCard}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { EmptyState, InlineNotice } from "@/components/ui/PortalState";
+import { Empty, Icon } from "@/components/ops/workspace/WorkspaceUI";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
 interface SendPayload {
@@ -144,13 +144,7 @@ function VoiceNotePlayer({ attachment, isOwn }: { attachment: Attachment; isOwn:
   }
 
   return (
-    <div
-      className={`min-w-[15rem] rounded-2xl border px-3 py-3 ${
-        isOwn
-          ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.07)]"
-          : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]"
-      }`}
-    >
+    <div className={`ib-voice${isOwn ? " is-own" : ""}`}>
       <audio
         ref={audioRef}
         preload="metadata"
@@ -165,36 +159,35 @@ function VoiceNotePlayer({ attachment, isOwn }: { attachment: Attachment; isOwn:
           setCurrentTime(duration);
         }}
       />
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => void togglePlayback()}
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors cursor-pointer ${
-            isOwn
-              ? "bg-accent-bright/25 text-accent-light hover:bg-accent-bright/35"
-              : "bg-accent-bright/20 text-accent-bright hover:bg-accent-bright/30"
-          }`}
-          aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
-          title={isPlaying ? "Pause voice note" : "Play voice note"}
-        >
-          {isPlaying ? (
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 5h4v14H7V5zm6 0h4v14h-4V5z" />
-            </svg>
-          ) : (
-            <svg className="ml-0.5 h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 5v14l11-7L8 5z" />
-            </svg>
-          )}
-        </button>
+      <button
+        type="button"
+        onClick={() => void togglePlayback()}
+        className="ib-voice-play ws-focus"
+        aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
+        title={isPlaying ? "Pause voice note" : "Play voice note"}
+      >
+        {isPlaying ? (
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 5h4v14H7V5zm6 0h4v14h-4V5z" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" style={{ marginLeft: 2 }}>
+            <path d="M8 5v14l11-7L8 5z" />
+          </svg>
+        )}
+      </button>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="truncate text-sm font-medium text-text-primary">Voice note</span>
-            <span className={`shrink-0 text-[11px] tabular-nums ${isOwn ? "text-accent-light/75" : "text-text-muted"}`}>
-              {formatAudioTime(currentTime)} / {duration > 0 ? formatAudioTime(duration) : "--:--"}
-            </span>
-          </div>
+      <div className="min-w-0 flex-1">
+        <div className="ib-voice-top">
+          <span className="ib-voice-l">Voice note</span>
+          <span className="ib-voice-t">
+            {formatAudioTime(currentTime)} / {duration > 0 ? formatAudioTime(duration) : "--:--"}
+          </span>
+        </div>
+        <div className="ib-range">
+          <span className="ib-range-track" aria-hidden="true">
+            <i style={{ width: `${progress}%` }} />
+          </span>
           <input
             type="range"
             min={0}
@@ -204,10 +197,7 @@ function VoiceNotePlayer({ attachment, isOwn }: { attachment: Attachment; isOwn:
             onChange={handleSeek}
             disabled={!duration}
             aria-label="Voice note progress"
-            className="h-1.5 w-full cursor-pointer appearance-none rounded-full disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(34,114,222,0.25)] [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
-            style={{
-              background: `linear-gradient(90deg, rgba(34,114,222,0.95) ${progress}%, rgba(255,255,255,0.18) ${progress}%)`,
-            }}
+            className="ib-range-input"
           />
         </div>
       </div>
@@ -518,37 +508,32 @@ export default function InboxThread({
   const composerError = attachmentError || voiceNoteError || messageActionError || error;
   const showPaperclip = allowAttachments && Boolean(onUploadAttachments);
   const showVoiceButton = allowVoiceNotes && Boolean(onUploadAttachments);
-  const composerPadding = showPaperclip && showVoiceButton ? "pl-24" : showPaperclip || showVoiceButton ? "pl-14" : "pl-4";
+  const composerPadding = showPaperclip && showVoiceButton ? "has-2" : showPaperclip || showVoiceButton ? "has-1" : "";
   const viewportHeight = !scrollPageToLatest
     ? "min-h-[32rem]"
     : currentRole === "admin"
-      ? "h-[calc(100svh-29rem)] min-h-[22rem] lg:h-[calc(100svh-22rem)] lg:min-h-[28rem]"
-      : "h-[calc(100svh-20rem)] min-h-[26rem] lg:h-[calc(100svh-17rem)] lg:min-h-[30rem]";
+      ? "h-[calc(100svh-18rem)] min-h-[22rem] lg:h-[calc(100svh-16rem)] lg:min-h-[28rem] xl:h-[calc(100svh-17.5rem)]"
+      : "h-[calc(100svh-15rem)] min-h-[26rem] lg:h-[calc(100svh-14rem)] lg:min-h-[30rem]";
 
   return (
     <div
-      className={`portal-v2-inbox-thread v2-surface flex flex-col overflow-hidden ${viewportHeight}`}
+      className={`portal-v2-inbox-thread ib-thread ${viewportHeight}`}
     >
       {(threadLabel || threadMeta) && (
-        <div className="border-b border-white/[0.06] bg-white/[0.015] px-4 py-4 sm:px-5">
-          {threadLabel && <div className="text-sm font-semibold text-text-primary">{threadLabel}</div>}
-          {threadMeta && <div className="text-xs text-text-muted mt-1">{threadMeta}</div>}
+        <div className="ib-thread-label">
+          {threadLabel && <div className="ws-h2">{threadLabel}</div>}
+          {threadMeta && <div className="ws-caption mt-0.5">{threadMeta}</div>}
         </div>
       )}
 
       <div
         ref={scrollAreaRef}
-        className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-black/[0.08] p-3 sm:p-5"
+        className="ib-scroll"
       >
         {groupedMessages.length === 0 ? (
-          <EmptyState
-            className="h-full"
-            icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4v-4z" />
-              </svg>}
-            title={emptyTitle}
-            description={emptyDescription}
-          />
+          <div className="ib-thread-empty">
+            <Empty icon="chat" title={emptyTitle} text={emptyDescription} />
+          </div>
         ) : (
           groupedMessages.map((message) => {
             const isOwn = message.sender_role === currentRole;
@@ -572,61 +557,49 @@ export default function InboxThread({
               });
 
             return (
-              <div key={message.id} className="space-y-4">
+              <div key={message.id} className="ib-item">
                 {message.showDayDivider && (
-                  <div className="flex items-center gap-3 py-2">
-                    <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
-                    <div className="text-xs font-medium text-text-muted">{message.dayLabel}</div>
-                    <div className="h-px flex-1 bg-[rgba(255,255,255,0.06)]" />
+                  <div className="ib-day">
+                    <span>{message.dayLabel}</span>
                   </div>
                 )}
 
-                <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                  <div className={`group/message flex max-w-[94%] items-end gap-1.5 sm:max-w-[82%] sm:gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-                    <div className={`min-w-0 flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
-                      <div
-                        className={`max-w-full rounded-2xl px-4 py-3 ${
-                          isOwn
-                            ? "rounded-br-md border border-accent/25 bg-accent/16 text-text-primary"
-                            : "rounded-bl-md border border-white/[0.07] bg-white/[0.035] text-text-secondary"
-                        }`}
-                      >
-                        <div className={`text-[11px] font-semibold ${isOwn ? "text-accent-light/80" : "text-text-muted"}`}>
+                <div className={`ib-msg${isOwn ? " is-own" : ""}`}>
+                  <div className="ib-msg-inner">
+                    <div className="ib-msg-col">
+                      <div className="ib-bubble">
+                        <div className="ib-sender">
                           {isOwn ? "You" : otherPartyLabel}
                         </div>
                         {message.reply_context && (
                           <a
                             href={message.reply_context.href || "#"}
-                            className={`mt-3 block rounded-lg px-3 py-2 no-underline ${
-                              isOwn
-                                ? "bg-[rgba(255,255,255,0.08)]"
-                                : "bg-[rgba(34,114,222,0.08)]"
-                            }`}
+                            className="ib-reply ws-focus"
                           >
-                            <div className="text-xs font-semibold text-accent-bright">
+                            <div className="ib-reply-t">
                               {message.reply_context.title}
                             </div>
-                            <div className="mt-1 line-clamp-3 text-sm leading-relaxed text-text-secondary">
+                            <div className="ib-reply-b">
                               {message.reply_context.body}
                             </div>
                           </a>
                         )}
                         {editingMessageId === message.id ? (
-                          <div className="mt-3 space-y-2">
+                          <div className="ib-edit">
                             <textarea
                               value={editingDraft}
                               onChange={(event) => setEditingDraft(event.target.value)}
                               rows={3}
-                              className="w-full resize-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-bg-primary/70 px-3 py-2 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:outline-none focus:border-[rgba(34,114,222,0.35)]"
+                              className="ws-input ib-edit-input"
                             />
-                            <div className="flex flex-wrap justify-end gap-2">
+                            <div className="ib-edit-acts">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setEditingMessageId(null);
                                   setEditingDraft("");
                                 }}
-                                className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-primary"
+                                className="ws-btn ws-btn-quiet ws-btn-sm ws-focus"
                               >
                                 Cancel
                               </button>
@@ -634,7 +607,7 @@ export default function InboxThread({
                                 type="button"
                                 onClick={() => void submitEdit(message)}
                                 disabled={messageActionId === message.id || (!editingDraft.trim() && (!message.attachments || message.attachments.length === 0))}
-                                className="rounded-lg bg-accent-bright/20 px-3 py-1.5 text-xs font-semibold text-accent-bright transition-colors hover:bg-accent-bright/30 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="ws-btn ws-btn-primary ws-btn-sm ws-focus"
                               >
                                 {messageActionId === message.id ? "Saving..." : "Save"}
                               </button>
@@ -642,11 +615,11 @@ export default function InboxThread({
                           </div>
                         ) : (
                           message.message.trim() && (
-                            <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.message}</div>
+                            <div className="ib-text">{message.message}</div>
                           )
                         )}
                         {message.attachments && message.attachments.length > 0 && (
-                          <div className="mt-3 space-y-2">
+                          <div className="ib-atts">
                             {message.attachments.map((attachment) => (
                               attachment.type === "audio" ? (
                                 <VoiceNotePlayer key={attachment.id} attachment={attachment} isOwn={isOwn} />
@@ -656,20 +629,16 @@ export default function InboxThread({
                                   href={attachment.url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-colors ${
-                                    isOwn
-                                      ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)]"
-                                      : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:bg-[rgba(255,255,255,0.05)]"
-                                  }`}
+                                  className="ib-att ws-focus"
                                 >
                                   <div className="min-w-0">
-                                    <div className="truncate text-sm font-medium text-text-primary">{attachment.name}</div>
-                                    <div className={`text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                                    <div className="ib-att-n">{attachment.name}</div>
+                                    <div className="ib-att-m">
                                       {attachment.type.toUpperCase()}
                                       {attachment.size ? ` • ${attachment.size}` : ""}
                                     </div>
                                   </div>
-                                  <span className={`shrink-0 text-[11px] font-semibold ${isOwn ? "text-accent-light" : "text-accent-bright"}`}>
+                                  <span className="ib-att-dl">
                                     Download
                                   </span>
                                 </a>
@@ -677,16 +646,16 @@ export default function InboxThread({
                             ))}
                           </div>
                         )}
-                        <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] ${isOwn ? "text-accent-light/70" : "text-text-muted"}`}>
+                        <div className="ib-foot">
                           <span>{formatTime(message.created_at)}</span>
                           {isOwn && editingMessageId !== message.id && (onEditMessage || onDeleteMessage) && (
-                            <span className="flex items-center gap-2">
+                            <span className="ib-foot-acts">
                               {onEditMessage && (
                                 <button
                                   type="button"
                                   onClick={() => startEditing(message)}
                                   disabled={messageActionId === message.id}
-                                  className="font-medium transition-colors hover:text-text-primary disabled:opacity-50"
+                                  className="ib-textbtn ws-focus"
                                 >
                                   Edit
                                 </button>
@@ -696,7 +665,7 @@ export default function InboxThread({
                                   type="button"
                                   onClick={() => void handleDelete(message.id)}
                                   disabled={messageActionId === message.id}
-                                  className="font-medium transition-colors hover:text-red-300 disabled:opacity-50"
+                                  className="ib-textbtn is-bad ws-focus"
                                 >
                                   {messageActionId === message.id ? "Removing..." : "Unsend"}
                                 </button>
@@ -706,7 +675,7 @@ export default function InboxThread({
                         </div>
                       </div>
                       {reactionGroups.length > 0 && (
-                        <div className={`-mt-1 flex flex-wrap gap-1.5 px-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+                        <div className="ib-reacts">
                           {reactionGroups.map(({ emoji, reactions, reacted }) => {
                             const actionKey = `${message.id}:${emoji}`;
                             const label = reactions.map((reaction) => reaction.user_name || "Someone").join(", ");
@@ -718,11 +687,7 @@ export default function InboxThread({
                                 onClick={() => void handleToggleReaction(message.id, emoji)}
                                 disabled={!onToggleReaction || reactionActionKey === actionKey}
                                 title={label}
-                                className={`inline-flex h-6 min-w-6 items-center justify-center gap-1 rounded-full border px-2 text-[11px] shadow-[0_8px_20px_rgba(0,0,0,0.18)] transition-colors disabled:cursor-default disabled:opacity-70 ${
-                                  reacted
-                                    ? "border-accent/30 bg-accent/25 text-text-primary"
-                                    : "border-[rgba(255,255,255,0.1)] bg-bg-secondary text-text-secondary hover:text-text-primary"
-                                }`}
+                                className={`ib-react ws-focus${reacted ? " is-on" : ""}`}
                                 aria-label={`${reacted ? "Remove" : "Add"} ${emoji} reaction`}
                               >
                                 <span aria-hidden="true">{emoji}</span>
@@ -736,14 +701,10 @@ export default function InboxThread({
                     {onToggleReaction && (
                       <div
                         data-reaction-picker-root
-                        className="relative mb-1 flex h-10 w-10 shrink-0 items-center justify-center"
+                        className="ib-react-root"
                       >
                         {openReactionPickerMessageId === message.id && (
-                          <div
-                            className={`absolute bottom-11 z-30 flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.12)] bg-bg-secondary/95 px-2 py-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur ${
-                              isOwn ? "right-0" : "left-0"
-                            }`}
-                          >
+                          <div className="ib-picker">
                             {reactionOptions.map((emoji) => {
                               const actionKey = `${message.id}:${emoji}`;
 
@@ -753,7 +714,7 @@ export default function InboxThread({
                                   type="button"
                                   onClick={() => void handlePickReaction(message.id, emoji)}
                                   disabled={reactionActionKey === actionKey}
-                                  className="flex h-9 w-9 items-center justify-center rounded-full text-xl leading-none transition-transform hover:scale-110 hover:bg-[rgba(255,255,255,0.08)] disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="ib-pick-btn ws-focus"
                                   aria-label={`React ${emoji}`}
                                 >
                                   <span aria-hidden="true">{emoji}</span>
@@ -767,16 +728,12 @@ export default function InboxThread({
                           onClick={() =>
                             setOpenReactionPickerMessageId((current) => (current === message.id ? null : message.id))
                           }
-                          className={`flex h-9 w-9 items-center justify-center rounded-full border text-text-secondary shadow-[0_10px_26px_rgba(0,0,0,0.25)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
-                            openReactionPickerMessageId === message.id
-                              ? "border-accent/45 bg-accent/20 text-text-primary"
-                              : "border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.12)] hover:border-accent/35 hover:bg-[rgba(255,255,255,0.18)] hover:text-text-primary"
-                          }`}
+                          className={`ib-react-btn ws-focus${openReactionPickerMessageId === message.id ? " is-open" : ""}`}
                           aria-expanded={openReactionPickerMessageId === message.id}
                           aria-label="React to message"
                           title="React"
                         >
-                          <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 10h.01M15 10h.01M8.5 14.5a5 5 0 007 0" />
                           </svg>
@@ -792,22 +749,25 @@ export default function InboxThread({
         <div ref={bottomRef} aria-hidden="true" />
       </div>
 
-      <div className="space-y-3 border-t border-white/[0.06] bg-bg-primary/70 p-3 backdrop-blur-xl sm:p-4">
+      <div className="ib-composer">
         {composerError && (
-          <InlineNotice tone="error">{composerError}</InlineNotice>
+          <div className="ws-note is-bad" role="alert">
+            <Icon name="alert" size={15} />
+            <div className="min-w-0">{composerError}</div>
+          </div>
         )}
         {showPaperclip && (
-          <div className="space-y-3">
+          <div>
             {pendingAttachments.length > 0 && (
-              <div className="space-y-2">
+              <div className="ib-pending-list">
                 {pendingAttachments.map((attachment) => (
                   <div
                     key={attachment.id}
-                    className="flex items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] px-4 py-3"
+                    className="ib-pending"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-text-primary">{attachment.name}</div>
-                      <div className="text-xs text-text-muted">
+                      <div className="ib-att-n">{attachment.name}</div>
+                      <div className="ib-att-m">
                         {attachment.type.toUpperCase()}
                         {attachment.size ? ` • ${attachment.size}` : ""}
                       </div>
@@ -818,7 +778,7 @@ export default function InboxThread({
                         setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
                         setAttachmentError(null);
                       }}
-                      className="text-xs text-text-muted transition-colors hover:text-red-400 cursor-pointer"
+                      className="ib-textbtn is-bad ws-focus"
                     >
                       Remove
                     </button>
@@ -829,12 +789,12 @@ export default function InboxThread({
           </div>
         )}
         {(uploadingAttachments || recordingVoiceNote) && (
-          <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
-            {recordingVoiceNote && <span className="text-red-200">Recording voice note...</span>}
+          <div className="ib-status">
+            {recordingVoiceNote && <span className="is-rec">Recording voice note...</span>}
             {uploadingAttachments && !recordingVoiceNote && <span>Preparing upload...</span>}
           </div>
         )}
-        <div className="relative">
+        <div className="ib-input-wrap">
           {showPaperclip && (
             <input
               ref={fileInputRef}
@@ -847,17 +807,17 @@ export default function InboxThread({
             />
           )}
           {(showPaperclip || showVoiceButton) && (
-            <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1.5">
+            <div className="ib-tools">
               {showPaperclip && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingAttachments || recordingVoiceNote}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl text-base text-text-muted transition-colors hover:bg-[rgba(255,255,255,0.06)] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  className="ib-tool ws-focus"
                   aria-label="Attach file"
                   title={attachmentHelpText || "Attach file"}
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="m20.5 11.5-8.3 8.3a5.3 5.3 0 0 1-7.5-7.5l8.3-8.3a3.5 3.5 0 0 1 5 5l-8.3 8.3a1.8 1.8 0 0 1-2.5-2.5l7.6-7.6" />
                   </svg>
                 </button>
@@ -867,18 +827,14 @@ export default function InboxThread({
                   type="button"
                   onClick={() => (recordingVoiceNote ? stopVoiceRecording() : void startVoiceRecording())}
                   disabled={uploadingAttachments && !recordingVoiceNote}
-                  className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
-                    recordingVoiceNote
-                      ? "bg-red-500/15 text-red-200"
-                      : "text-text-muted hover:bg-[rgba(255,255,255,0.06)] hover:text-text-primary"
-                  }`}
+                  className={`ib-tool ws-focus${recordingVoiceNote ? " is-rec" : ""}`}
                   aria-label={recordingVoiceNote ? "Stop recording voice note" : "Record voice note"}
                   title={recordingVoiceNote ? "Stop recording" : "Record voice note"}
                 >
                   {recordingVoiceNote ? (
-                    <span className="h-3 w-3 rounded-sm bg-red-300" aria-hidden="true" />
+                    <span className="ib-rec-stop" aria-hidden="true" />
                   ) : (
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 11a7 7 0 01-14 0M12 18v3m-4 0h8" />
                     </svg>
@@ -893,19 +849,18 @@ export default function InboxThread({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={composerPlaceholder}
-            className={`w-full resize-none rounded-[var(--cbb-radius-md)] border border-white/[0.1] bg-white/[0.025] py-4 pr-14 ${composerPadding} text-sm leading-5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/45 focus:ring-2 focus:ring-accent/10 transition-colors`}
-            style={{ minHeight: "52px", maxHeight: "140px" }}
+            aria-label={composerPlaceholder}
+            className={`ib-textarea ${composerPadding}`}
+            style={{ minHeight: "46px", maxHeight: "140px" }}
           />
           <button
             onClick={() => void handleSubmit()}
             disabled={sending || uploadingAttachments || recordingVoiceNote || (!draft.trim() && pendingAttachments.length === 0)}
-            className="absolute right-2.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-accent text-white shadow-[0_8px_20px_rgba(34,114,222,0.2)] transition-colors hover:bg-accent-light disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-text-muted disabled:shadow-none cursor-pointer"
+            className="ib-send ws-focus"
             aria-label="Send message"
             title="Send"
           >
-            <svg className="w-4 h-4 -translate-y-px" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-9.193-5.106A1 1 0 004 6.94v10.12a1 1 0 001.559.832l9.193-6.126a1 1 0 000-1.664z" />
-            </svg>
+            <Icon name="send" size={15} />
           </button>
         </div>
       </div>

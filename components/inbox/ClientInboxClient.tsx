@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import InboxThread from "@/components/inbox/InboxThread";
-import { PageSkeleton } from "@/components/ui/PortalState";
+import { SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 import { useToast } from "@/components/ui/Toast";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
@@ -172,17 +172,18 @@ export default function ClientInboxClient() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-6 sm:mb-8">
-        <div className="v2-eyebrow mb-3">Direct support</div>
-        <h1 className="v2-page-title">Inbox</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          Message Marc directly from the portal.
-        </p>
+    <div className="ws ws-page ib-client">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Inbox</h1>
+          <p className="ws-meta mt-1">Message Marc directly from the portal.</p>
+        </div>
       </div>
 
       {loading ? (
-        <PageSkeleton rows={5} />
+        <section className="ws-panel" aria-label="Conversation">
+          <SkeletonRows count={5} />
+        </section>
       ) : (
         <div>
           <InboxThread
