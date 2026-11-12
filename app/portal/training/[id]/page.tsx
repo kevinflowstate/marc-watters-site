@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import BusinessHealthChecklistCard from "@/components/portal/BusinessHealthChecklistCard";
 import ModuleCover from "@/components/training/ModuleCover";
-import { EmptyState, InlineNotice } from "@/components/ui/PortalState";
+import { Empty, Icon, SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 import { lessonIdFromTrainingHash, trainingLessonAnchorId } from "@/lib/portal-training-links";
 import type { ContentType, ModuleContent, TrainingModule } from "@/lib/types";
 
@@ -61,40 +61,22 @@ const contentTypeLabels: Record<ContentType, { label: string; icon: string; tone
 
 function ModuleSkeleton() {
   return (
-    <div className="space-y-6" aria-label="Loading training module" role="status">
-      <div className="skeleton h-4 w-36 rounded" />
-      <div className="v2-surface overflow-hidden">
-        <div className="grid md:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-4 p-6 sm:p-8">
-            <div className="skeleton h-3 w-24 rounded" />
-            <div className="skeleton h-8 w-3/4 rounded" />
-            <div className="skeleton h-4 w-full rounded" />
-            <div className="skeleton h-4 w-2/3 rounded" />
-          </div>
-          <div className="skeleton h-44 md:h-full" />
+    <div className="ws ws-page" aria-label="Loading training module" role="status">
+      <span className="ws-skel" style={{ width: 140, height: 12 }} />
+      <div className="ws-tr-head">
+        <div className="ws-tr-head-b">
+          <span className="ws-skel" style={{ width: 96, height: 10 }} />
+          <span className="ws-skel" style={{ width: "70%", height: 22 }} />
+          <span className="ws-skel" style={{ width: "100%", height: 12 }} />
+          <span className="ws-skel" style={{ width: "60%", height: 12 }} />
         </div>
+        <div className="ws-skel ws-tr-skel-banner" />
       </div>
-      <div className="v2-surface overflow-hidden">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="flex items-center gap-4 border-b border-white/[0.06] p-5 last:border-0">
-            <div className="skeleton h-10 w-10 shrink-0 rounded-xl" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="skeleton h-4 w-1/2 rounded" />
-              <div className="skeleton h-3 w-24 rounded" />
-            </div>
-          </div>
-        ))}
+      <div className="ws-panel">
+        <SkeletonRows count={4} />
       </div>
       <span className="sr-only">Loading training module</span>
     </div>
-  );
-}
-
-function BookIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
   );
 }
 
@@ -187,40 +169,35 @@ export default function ModuleView() {
 
   if (error) {
     return (
-      <div className="space-y-5">
-        <Link href="/portal/training" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-text-secondary no-underline transition-colors hover:text-text-primary">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m15 19-7-7 7-7" />
-          </svg>
+      <div className="ws ws-page">
+        <Link href="/portal/training" className="ws-back ws-focus">
+          <Icon name="chevron" size={14} className="ws-back-ic" />
           Back to Training
         </Link>
-        <InlineNotice
-          tone="error"
-          action={
-            <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="text-xs font-bold text-red-100 underline underline-offset-4">
-              Try again
-            </button>
-          }
-        >
-          {error}
-        </InlineNotice>
+        <div className="ws-note is-bad ws-tr-note" role="alert">
+          <Icon name="alert" size={15} />
+          <span className="ws-tr-note-t">{error}</span>
+          <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="ws-btn ws-btn-sm ws-focus">
+            Try again
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!module) {
     return (
-      <div className="v2-surface">
-        <EmptyState
-          icon={<BookIcon />}
-          title="Module unavailable"
-          description="This module may no longer be assigned to you, or it may not be available yet."
-          action={
-            <Link href="/portal/training" className="v2-button-secondary">
+      <div className="ws ws-page">
+        <div className="ws-panel">
+          <div className="ws-empty">
+            <span className="ws-empty-glyph"><Icon name="book" size={20} /></span>
+            <p className="ws-empty-h">Module unavailable</p>
+            <p>This module may no longer be assigned to you, or it may not be available yet.</p>
+            <Link href="/portal/training" className="ws-btn ws-focus mt-3">
               Return to Training
             </Link>
-          }
-        />
+          </div>
+        </div>
       </div>
     );
   }
@@ -230,72 +207,53 @@ export default function ModuleView() {
   const isOnboardingModule = module.title === "Welcome & Onboarding";
 
   return (
-    <>
-      <Link href="/portal/training" className="mb-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-text-secondary no-underline transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/70">
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m15 19-7-7 7-7" />
-        </svg>
+    <div className="ws ws-page">
+      <Link href="/portal/training" className="ws-back ws-focus">
+        <Icon name="chevron" size={14} className="ws-back-ic" />
         Back to Training
       </Link>
 
-      <header className="v2-surface-strong mb-7 overflow-hidden">
-        <div className="grid md:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-col justify-center p-6 sm:p-8">
-            <div className="v2-eyebrow">Training module</div>
-            <h1 className="mt-3 font-heading text-2xl font-bold leading-tight tracking-[-0.03em] text-text-primary sm:text-3xl">
-              {module.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-secondary">
-              {module.description || "Work through the lessons and supporting resources in this module."}
-            </p>
+      <header className="ws-tr-head">
+        <div className="ws-tr-head-b">
+          <span className="ws-caption">Training module</span>
+          <h1 className="ws-title">{module.title}</h1>
+          <p className="ws-meta">
+            {module.description || "Work through the lessons and supporting resources in this module."}
+          </p>
 
-            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-muted">
-              <span className="inline-flex items-center gap-2">
-                <svg className="h-4 w-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M14.752 11.168 11.555 9.036A1 1 0 0 0 10 9.87v4.263a1 1 0 0 0 1.555.832l3.197-2.132a1 1 0 0 0 0-1.664Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
+          <div className="ws-tr-mmeta">
+            <span>
+              <Icon name="lessons" size={14} />
+              {lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}
+            </span>
+            {totalDuration > 0 && (
+              <span>
+                <Icon name="clock" size={14} />
+                {totalDuration} min total
               </span>
-              {totalDuration > 0 && (
-                <span className="inline-flex items-center gap-2">
-                  <svg className="h-4 w-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  {totalDuration} min total
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="order-first border-b border-white/[0.07] md:order-none md:border-b-0 md:border-l">
-            <ModuleCover title={module.title} variant="banner" imageUrl={module.thumbnail_url} />
+            )}
           </div>
         </div>
+
+        <ModuleCover title={module.title} variant="banner" imageUrl={module.thumbnail_url} />
       </header>
 
-      <section aria-labelledby="module-lessons-title">
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <div className="v2-eyebrow">Module content</div>
-            <h2 id="module-lessons-title" className="mt-2 v2-section-title">Lessons and resources</h2>
-          </div>
+      <section className="ws-panel" aria-labelledby="module-lessons-title">
+        <div className="ws-panel-head">
+          <h2 id="module-lessons-title" className="ws-h2">Lessons and resources</h2>
           {lessons.length > 0 && (
-            <span className="text-xs text-text-muted">Select a lesson to open it</span>
+            <span className="ws-caption">Select a lesson to open it</span>
           )}
         </div>
 
         {lessons.length === 0 ? (
-          <div className="v2-surface">
-            <EmptyState
-              compact
-              icon={<BookIcon />}
-              title="Lessons are being prepared"
-              description="Content for this module will appear here when it is ready."
-            />
-          </div>
+          <Empty
+            icon="book"
+            title="Lessons are being prepared"
+            text="Content for this module will appear here when it is ready."
+          />
         ) : (
-          <div className="v2-surface overflow-hidden">
+          <div>
             {lessons.map((lesson, index) => {
               const contentType = contentTypeLabels[lesson.content_type];
               const isExpanded = expandedLesson === lesson.id;
@@ -305,27 +263,27 @@ export default function ModuleView() {
                 <article
                   key={lesson.id}
                   id={trainingLessonAnchorId(lesson.id)}
-                  className="scroll-mt-6 border-b border-white/[0.06] last:border-0"
+                  className={`ws-tr-lesson${isExpanded ? " is-open" : ""}`}
                 >
                   <button
                     type="button"
                     onClick={() => setExpandedLesson(isExpanded ? null : lesson.id)}
                     aria-expanded={isExpanded}
                     aria-controls={panelId}
-                    className="group flex min-h-[76px] w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-bright/70 sm:gap-4 sm:px-5"
+                    className="ws-tr-lesson-h ws-focus"
                   >
-                    <span className="w-6 shrink-0 text-center font-mono text-xs tabular-nums text-text-muted">
+                    <span className="ws-tr-lesson-n">
                       {String(index + 1).padStart(2, "0")}
                     </span>
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${contentType.tone}`}>
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={contentType.icon} />
+                    <span className={`ws-tr-lesson-ic is-${lesson.content_type}`}>
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={contentType.icon} />
                       </svg>
                     </span>
 
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold leading-snug text-text-primary">{lesson.title}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+                    <span className="min-w-0">
+                      <span className="ws-tr-lesson-t">{lesson.title}</span>
+                      <span className="ws-tr-lesson-s">
                         <span>{contentType.label}</span>
                         {lesson.duration_minutes ? <span>{lesson.duration_minutes} min</span> : null}
                         {lesson.attachments?.length ? (
@@ -334,72 +292,66 @@ export default function ModuleView() {
                       </span>
                     </span>
 
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.025] text-text-muted transition-colors group-hover:border-accent/25 group-hover:text-text-primary">
-                      <svg className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m19 9-7 7-7-7" />
-                      </svg>
-                    </span>
+                    <Icon name="chevron" size={14} className={`ws-chev${isExpanded ? " is-open" : ""}`} />
                   </button>
 
                   {isExpanded && (
-                    <div id={panelId} className="border-t border-white/[0.06] bg-black/10 px-4 py-5 sm:px-5 sm:py-6">
-                      <div className="ml-0 space-y-4 sm:ml-[4.5rem]">
-                        {lesson.content_type === "video" && lesson.content_url && (
-                          <div className="overflow-hidden rounded-[var(--cbb-radius-md)] border border-white/[0.08] bg-black shadow-[0_18px_45px_rgba(0,0,0,0.28)]">
-                            <div className="relative aspect-video w-full">
-                              {isNativeLessonVideo(lesson.content_url) ? <video controls preload="metadata" src={nativeLessonVideoUrl(lesson.content_url)} className="absolute inset-0 w-full h-full" aria-label={lesson.title} /> : (<iframe
-                                src={getVideoEmbedUrl(lesson.content_url)}
-                                className="absolute inset-0 h-full w-full"
-                                allow="encrypted-media *; fullscreen *"
-                                allowFullScreen
-                                scrolling="no"
-                                title={lesson.title}
-                              />)}
-                            </div>
-                          </div>
-                        )}
+                    <div id={panelId} className="ws-tr-lesson-body">
+                      {lesson.content_type === "video" && lesson.content_url && (
+                        <div className="ws-tr-video">
+                          {isNativeLessonVideo(lesson.content_url) ? <video controls preload="metadata" src={nativeLessonVideoUrl(lesson.content_url)} className="absolute inset-0 w-full h-full" aria-label={lesson.title} /> : (<iframe
+                            src={getVideoEmbedUrl(lesson.content_url)}
+                            className="absolute inset-0 h-full w-full"
+                            allow="encrypted-media *; fullscreen *"
+                            allowFullScreen
+                            scrolling="no"
+                            title={lesson.title}
+                          />)}
+                        </div>
+                      )}
 
-                        {lesson.content_type === "pdf" && lesson.content_url && (
-                          <a href={lesson.content_url} target="_blank" rel="noopener noreferrer" className="v2-button-secondary">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      {lesson.content_type === "pdf" && lesson.content_url && (
+                        <div>
+                          <a href={lesson.content_url} target="_blank" rel="noopener noreferrer" className="ws-btn ws-focus">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4-4 4m0 0-4-4m4 4V4" />
                             </svg>
                             Open document
                           </a>
-                        )}
+                        </div>
+                      )}
 
-                        {lesson.content_text && (
-                          <div className="rounded-[var(--cbb-radius-md)] border border-white/[0.07] bg-white/[0.025] p-4 sm:p-5">
-                            <div className="whitespace-pre-line text-sm leading-7 text-text-secondary">{lesson.content_text}</div>
-                          </div>
-                        )}
+                      {lesson.content_text && (
+                        <div className="ws-prose ws-tr-text">{lesson.content_text}</div>
+                      )}
 
-                        {lesson.attachments && lesson.attachments.length > 0 && (
-                          <div>
-                            <h3 className="mb-2 text-xs font-bold text-text-secondary">Attachments</h3>
-                            <div className="divide-y divide-white/[0.06] overflow-hidden rounded-[var(--cbb-radius-md)] border border-white/[0.07]">
-                              {lesson.attachments.map((attachment) => (
-                                <a
-                                  key={attachment.id}
-                                  href={attachment.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex min-h-14 items-center gap-3 bg-white/[0.02] px-4 py-3 no-underline transition-colors hover:bg-white/[0.045]"
-                                >
-                                  <svg className="h-4 w-4 shrink-0 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      {lesson.attachments && lesson.attachments.length > 0 && (
+                        <div>
+                          <h3 className="ws-field-l">Attachments</h3>
+                          <div className="ws-tr-files">
+                            {lesson.attachments.map((attachment) => (
+                              <a
+                                key={attachment.id}
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ws-tr-file is-link ws-focus"
+                              >
+                                <span className="ws-tr-file-ic">
+                                  <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="m15.172 7-6.586 6.586a2 2 0 1 0 2.828 2.828l6.414-6.586a4 4 0 0 0-5.656-5.656l-6.415 6.585a6 6 0 1 0 8.486 8.486L20.5 13" />
                                   </svg>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-medium text-text-primary">{attachment.name}</span>
-                                    {attachment.size && <span className="mt-0.5 block text-xs text-text-muted">{attachment.size}</span>}
-                                  </span>
-                                  <span className="text-xs font-semibold text-text-secondary">Open</span>
-                                </a>
-                              ))}
-                            </div>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="ws-tr-file-n">{attachment.name}</span>
+                                  {attachment.size && <span className="ws-tr-file-m">{attachment.size}</span>}
+                                </span>
+                                <span className="ws-tr-file-act">Open</span>
+                              </a>
+                            ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </article>
@@ -410,6 +362,6 @@ export default function ModuleView() {
       </section>
 
       {isOnboardingModule && <BusinessHealthChecklistCard isUnlocked />}
-    </>
+    </div>
   );
 }

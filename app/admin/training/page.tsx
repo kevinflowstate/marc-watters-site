@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import ModuleCover from "@/components/training/ModuleCover";
+import { Icon } from "@/components/ops/workspace/WorkspaceUI";
 import type { TrainingModule } from "@/lib/types";
 
 interface ClientOption {
@@ -207,37 +208,39 @@ export default function TrainingManagerPage() {
 
   if (loading) {
     return (
-      <>
-        <div className="mb-8">
-          <div className="skeleton rounded-lg h-8 w-48 mb-2" />
-          <div className="skeleton rounded-lg h-4 w-64" />
+      <div className="ws ws-page">
+        <div className="ws-ph">
+          <div>
+            <span className="ws-skel" style={{ width: 160, height: 22 }} />
+            <span className="ws-skel mt-2" style={{ width: 260, height: 12 }} />
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="ws-tr-grid">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-              <div className="h-36 skeleton" />
-              <div className="p-5 space-y-3">
-                <div className="skeleton rounded-lg h-5 w-3/4" />
-                <div className="skeleton rounded-lg h-3 w-full" />
-                <div className="skeleton rounded-lg h-3 w-1/2" />
+            <div key={i} className="ws-tr-card">
+              <div className="ws-skel ws-tr-skel-cover" />
+              <div className="ws-tr-card-b">
+                <span className="ws-skel" style={{ width: "70%", height: 14 }} />
+                <span className="ws-skel" style={{ width: "100%", height: 10 }} />
+                <span className="ws-skel" style={{ width: "50%", height: 10 }} />
               </div>
             </div>
           ))}
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">Training Modules</h1>
-          <p className="text-text-secondary mt-1">
-            {modules.length} modules - {totalLessons} lessons - {publishedCount} published - Drag and drop cards to reorder
+    <div className="ws ws-page">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Training modules</h1>
+          <p className="ws-meta mt-1">
+            {modules.length} modules · {totalLessons} lessons · {publishedCount} published · Drag and drop cards to reorder
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="ws-ph-acts">
           <button
             onClick={() => {
               if (bulkMode) {
@@ -247,63 +250,57 @@ export default function TrainingManagerPage() {
                 setBulkMode(true);
               }
             }}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-              bulkMode
-                ? "bg-accent/10 text-accent-bright border border-accent/30"
-                : "bg-bg-card/80 border border-[rgba(255,255,255,0.06)] text-text-secondary hover:text-text-primary hover:border-accent/30"
-            }`}
+            className={`ws-btn ws-focus${bulkMode ? " ws-tr-on" : ""}`}
           >
-            {bulkMode ? `${selectedModules.size} Selected` : "Bulk Assign"}
+            {bulkMode ? `${selectedModules.size} selected` : "Bulk assign"}
           </button>
           {bulkMode && selectedModules.size > 0 && (
             <button
               onClick={() => { loadClients(); setShowAssignModal(true); }}
-              className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold cursor-pointer inline-flex items-center gap-2"
+              className="ws-btn ws-btn-primary ws-focus"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Assign to Clients
+              <Icon name="users" size={14} />
+              Assign to clients
             </button>
           )}
           <button
             onClick={() => setShowAdd(true)}
-            className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
+            className="ws-btn ws-btn-primary ws-focus"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Module
+            <Icon name="plus" size={14} />
+            Add module
           </button>
         </div>
       </div>
 
       {/* Add modal */}
       {showAdd && (
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 mb-6">
-          <h3 className="text-lg font-heading font-bold text-text-primary mb-4">New Module</h3>
-          <div className="space-y-4">
+        <section className="ws-panel">
+          <div className="ws-panel-head">
+            <h3 className="ws-h2">New module</h3>
+          </div>
+          <div className="ws-tr-form">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Title</label>
+              <label className="ws-label">Title</label>
               <input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="e.g. Advanced Pricing Strategies"
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                className="ws-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Description</label>
+              <label className="ws-label">Description</label>
               <textarea
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 rows={2}
                 placeholder="Brief description of what this module covers"
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none"
+                className="ws-input"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="ws-tr-acts">
               <button
                 onClick={async () => {
                   if (!newTitle.trim()) return;
@@ -329,18 +326,18 @@ export default function TrainingManagerPage() {
                     toast("Failed to create module", "error");
                   }
                 }}
-                className="px-5 py-2 gradient-accent text-white rounded-xl text-sm font-medium cursor-pointer"
+                className="ws-btn ws-btn-primary ws-focus"
               >
                 Create
               </button>
-              <button onClick={() => setShowAdd(false)} className="px-5 py-2 text-text-muted text-sm hover:text-text-secondary cursor-pointer">Cancel</button>
+              <button onClick={() => setShowAdd(false)} className="ws-btn ws-btn-quiet ws-focus">Cancel</button>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Module grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="ws-tr-grid">
         {modules.map((mod, i) => {
           const lessonCount = mod.content?.length || 0;
           const totalDuration = mod.content?.reduce((sum, c) => sum + (c.duration_minutes || 0), 0) || 0;
@@ -355,121 +352,93 @@ export default function TrainingManagerPage() {
 
           const CardContent = (
             <>
-              {/* Bento dot pattern */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
-              <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-              {/* Cover - auto-generated from title */}
-              <div className="relative">
-                <ModuleCover title={mod.title} />
+              {/* Cover - the module's cover image, or the CBB mark and title */}
+              <div className="ws-tr-cover-wrap">
+                <ModuleCover title={mod.title} imageUrl={mod.thumbnail_url} />
 
                 {/* Module number / checkbox */}
-                <div className="absolute top-4 left-4">
+                <div className="ws-tr-cover-tl">
                   {bulkMode ? (
-                    <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all ${
-                      isSelected ? "bg-accent border-accent-bright" : "bg-black/30 backdrop-blur-sm border-white/10"
-                    }`}>
-                      {isSelected && (
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
+                    <div className={`ws-tr-box is-lg${isSelected ? " is-on" : ""}`}>
+                      {isSelected && <Icon name="check" size={16} stroke={2.4} />}
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-xl bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white font-bold text-sm">
+                    <div className="ws-tr-badge">
                       {i + 1}
                     </div>
                   )}
+
+                  {!bulkMode && (
+                    <>
+                      {!isFirst && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            moveModule(mod.id, "up");
+                          }}
+                          disabled={reordering}
+                          className="ws-tr-badge is-btn ws-focus"
+                          title="Move up"
+                          aria-label={`Move ${mod.title} up`}
+                        >
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                      )}
+                      {!isLast && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            moveModule(mod.id, "down");
+                          }}
+                          disabled={reordering}
+                          className="ws-tr-badge is-btn ws-focus"
+                          title="Move down"
+                          aria-label={`Move ${mod.title} down`}
+                        >
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                {!bulkMode && (
-                  <div className="absolute top-4 left-16 flex items-center gap-1 z-20">
-                    {!isFirst && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          moveModule(mod.id, "up");
-                        }}
-                        disabled={reordering}
-                        className="p-1.5 rounded-lg bg-black/30 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                        title="Move up"
-                        aria-label={`Move ${mod.title} up`}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                      </button>
-                    )}
-                    {!isLast && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          moveModule(mod.id, "down");
-                        }}
-                        disabled={reordering}
-                        className="p-1.5 rounded-lg bg-black/30 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                        title="Move down"
-                        aria-label={`Move ${mod.title} down`}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Published badge */}
-                <div className="absolute top-4 right-4">
-                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold ${
-                    mod.is_published
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "bg-white/10 text-white/60 border border-white/10"
-                  }`}>
-                    {mod.is_published ? "Published" : "Draft"}
-                  </span>
-                </div>
                 {isMoving && (
-                  <div className="absolute inset-0 bg-black/35 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Reordering...</span>
+                  <div className="ws-tr-moving">
+                    <span>Reordering...</span>
                   </div>
                 )}
               </div>
 
               {/* Content */}
-              <div className="p-5">
-                <h3 className="font-heading font-bold text-text-primary text-[0.95rem] mb-2 group-hover:text-accent-bright transition-colors">
+              <div className="ws-tr-card-b">
+                <h3 className="ws-tr-card-t">
                   {mod.title}
                 </h3>
-                <p className="text-xs text-text-secondary leading-relaxed line-clamp-2 mb-4">
+                <p className="ws-tr-card-d">
                   {mod.description}
                 </p>
 
                 {/* Stats row */}
-                <div className="flex items-center gap-4 text-[10px] text-text-muted uppercase tracking-wider">
-                  <div className="flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    </svg>
-                    {lessonCount} lessons
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {totalDuration} min
-                  </div>
-                  {attachmentCount > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      {attachmentCount} files
-                    </div>
-                  )}
+                <div className="ws-tr-card-f">
+                  <span className="ws-tr-stats">
+                    <span><Icon name="lessons" size={12} />{lessonCount} lessons</span>
+                    <span><Icon name="clock" size={12} />{totalDuration} min</span>
+                    {attachmentCount > 0 && (
+                      <span><Icon name="link" size={12} />{attachmentCount} files</span>
+                    )}
+                  </span>
+                  {/* Published badge */}
+                  <span className={`ws-chip${mod.is_published ? " is-ok" : ""}`}>
+                    {mod.is_published ? "Published" : "Draft"}
+                  </span>
                 </div>
               </div>
             </>
@@ -480,9 +449,7 @@ export default function TrainingManagerPage() {
               <button
                 key={mod.id}
                 onClick={() => toggleModule(mod.id)}
-                className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-300 text-left cursor-pointer will-change-transform hover:-translate-y-1 ${
-                  isSelected ? "border-accent/40 shadow-[0_0_20px_rgba(34,114,222,0.1)]" : "border-[rgba(255,255,255,0.04)] hover:border-[rgba(34,114,222,0.2)]"
-                }`}
+                className={`ws-tr-card is-link ws-focus${isSelected ? " is-selected" : ""}`}
               >
                 {CardContent}
               </button>
@@ -510,10 +477,10 @@ export default function TrainingManagerPage() {
                   router.push(`/admin/training/${mod.id}`);
                 }
               }}
-              className={`group relative block bg-bg-card/80 backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[rgba(34,114,222,0.2)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.3),0_0_40px_rgba(34,114,222,0.06)] cursor-pointer will-change-transform ${
-                isDragSource ? "opacity-60" : ""
-              } ${
-                isDropTarget ? "ring-2 ring-accent/40 border-accent/40" : "border-[rgba(255,255,255,0.04)]"
+              className={`ws-tr-card is-link ws-focus${
+                isDragSource ? " is-dragging" : ""
+              }${
+                isDropTarget ? " is-drop" : ""
               }`}
               aria-label={`Open ${mod.title}`}
             >
@@ -525,81 +492,76 @@ export default function TrainingManagerPage() {
 
       {/* Bulk Assign Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAssignModal(false)}>
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-heading font-bold text-text-primary mb-1">Assign to Clients</h3>
-            <p className="text-xs text-text-muted mb-4">
-              {selectedModules.size} module{selectedModules.size > 1 ? "s" : ""} selected. Choose which clients to assign them to.
-            </p>
-
-            {clients.length === 0 ? (
-              <div className="py-8 text-center text-text-muted text-sm">Loading clients...</div>
-            ) : (
-              <div className="space-y-1 max-h-64 overflow-y-auto mb-4">
-                <button
-                  onClick={() => {
-                    if (selectedClients.size === clients.length) {
-                      setSelectedClients(new Set());
-                    } else {
-                      setSelectedClients(new Set(clients.map((c) => c.id)));
-                    }
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[rgba(255,255,255,0.03)] transition-colors cursor-pointer text-left"
-                >
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                    selectedClients.size === clients.length ? "bg-accent border-accent-bright" : "border-[rgba(255,255,255,0.15)]"
-                  }`}>
-                    {selectedClients.size === clients.length && (
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-sm font-medium text-text-primary">Select All</span>
-                </button>
-
-                {clients.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => toggleClient(c.id)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[rgba(255,255,255,0.03)] transition-colors cursor-pointer text-left"
-                  >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                      selectedClients.has(c.id) ? "bg-accent border-accent-bright" : "border-[rgba(255,255,255,0.15)]"
-                    }`}>
-                      {selectedClients.has(c.id) && (
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-sm text-text-primary">{c.name}</div>
-                      <div className="text-[10px] text-text-muted">{c.business_name}</div>
-                    </div>
-                  </button>
-                ))}
+        <div className="ws-overlay" onClick={() => setShowAssignModal(false)}>
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Assign to clients" onClick={(e) => e.stopPropagation()}>
+            <div className="ws-dialog-head">
+              <div>
+                <h3 className="ws-dialog-title">Assign to clients</h3>
+                <p className="ws-caption mt-0.5">
+                  {selectedModules.size} module{selectedModules.size > 1 ? "s" : ""} selected. Choose which clients to assign them to.
+                </p>
               </div>
-            )}
+            </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleBulkAssign}
-                disabled={selectedClients.size === 0 || assigning}
-                className="flex-1 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-opacity"
-              >
-                {assigning ? "Assigning..." : `Assign to ${selectedClients.size} Client${selectedClients.size !== 1 ? "s" : ""}`}
-              </button>
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="px-5 py-3 text-text-muted text-sm hover:text-text-secondary cursor-pointer"
-              >
-                Cancel
-              </button>
+            <div className="ws-dialog-body">
+              {clients.length === 0 ? (
+                <div className="ws-caption" style={{ padding: "24px 0", textAlign: "center" }}>Loading clients...</div>
+              ) : (
+                <div className="ws-tr-picks">
+                  <button
+                    onClick={() => {
+                      if (selectedClients.size === clients.length) {
+                        setSelectedClients(new Set());
+                      } else {
+                        setSelectedClients(new Set(clients.map((c) => c.id)));
+                      }
+                    }}
+                    className="ws-tr-pick ws-focus"
+                  >
+                    <div className={`ws-tr-box${selectedClients.size === clients.length ? " is-on" : ""}`}>
+                      {selectedClients.size === clients.length && <Icon name="check" size={12} stroke={3} />}
+                    </div>
+                    <span className="ws-tr-pick-n" style={{ fontWeight: 500 }}>Select all</span>
+                  </button>
+
+                  {clients.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => toggleClient(c.id)}
+                      className="ws-tr-pick ws-focus"
+                    >
+                      <div className={`ws-tr-box${selectedClients.has(c.id) ? " is-on" : ""}`}>
+                        {selectedClients.has(c.id) && <Icon name="check" size={12} stroke={3} />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="ws-tr-pick-n">{c.name}</div>
+                        <div className="ws-caption">{c.business_name}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="ws-dialog-foot">
+                <button
+                  onClick={() => setShowAssignModal(false)}
+                  className="ws-btn ws-btn-quiet ws-focus"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkAssign}
+                  disabled={selectedClients.size === 0 || assigning}
+                  className="ws-btn ws-btn-primary ws-focus"
+                >
+                  {assigning ? "Assigning..." : `Assign to ${selectedClients.size} client${selectedClients.size !== 1 ? "s" : ""}`}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
