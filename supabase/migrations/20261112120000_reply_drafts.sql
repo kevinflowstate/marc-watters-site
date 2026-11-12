@@ -182,14 +182,17 @@ GRANT EXECUTE ON FUNCTION public.claim_due_reply_drafts(INTEGER) TO service_role
 -- 6. Few-shot examples: Marc's real past replies to similar client messages ----------------------------
 -- Postgres full-text search (english), OR-matched over the lexemes of the new client message.
 -- Approved drafts (sent unchanged or edited) rank above raw history.
+-- PRIVACY: the other client's message is used only for the similarity search inside this function and is
+-- never returned, so it can never reach a prompt. Marc's reply text is redacted in the app before use.
 
-CREATE OR REPLACE FUNCTION public.reply_draft_examples(
+DROP FUNCTION IF EXISTS public.reply_draft_examples(TEXT, UUID, UUID, INTEGER);
+CREATE FUNCTION public.reply_draft_examples(
   p_query TEXT,
   p_marc_user_id UUID,
   p_exclude_client_id UUID DEFAULT NULL,
   p_limit INTEGER DEFAULT 8
 )
-RETURNS TABLE (source TEXT, client_text TEXT, reply_text TEXT, rank REAL, replied_at TIMESTAMPTZ)
+RETURNS TABLE (source TEXT, reply_text TEXT, rank REAL, replied_at TIMESTAMPTZ)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
@@ -264,7 +267,7 @@ AS $$
     WHERE a.client_text IS NOT NULL AND a.reply_text IS NOT NULL
     ORDER BY a.reply_text, CASE WHEN a.source = 'approved' THEN 0 ELSE 1 END
   )
-  SELECT source, left(client_text, 1500), left(reply_text, 1500), rank, replied_at
+  SELECT source, left(reply_text, 1500), rank, replied_at
   FROM ranked
   ORDER BY rank DESC, replied_at DESC NULLS LAST
   LIMIT greatest(1, least(p_limit, 12));

@@ -9,6 +9,7 @@ import { DRAFT_OUTPUT_SCHEMA, inboxDraftDecision, outcomeFromModel, parseModelDr
 import { loadThread } from "./store";
 import { notifyAdminsOfDraft } from "./notify";
 import { staffReactedMessageIds } from "@/lib/inbox-reactions";
+import { guardDraft, loadKnownClients, redactText, type KnownClient } from "./privacy";
 
 type DraftRow = {
   id: string;
@@ -44,9 +45,14 @@ async function loadStyleGuide(admin: SupabaseClient) {
   return data?.approved_at && data.content ? (data.content as string) : null;
 }
 
-async function loadExamples(admin: SupabaseClient, query: string, clientId: string): Promise<Example[]> {
+/**
+ * Marc's past replies to similar messages from other clients. The RPC returns his reply only (never the
+ * other client's message); here it is redacted before it can reach a prompt. The unredacted text is kept
+ * server-side for the copy guard.
+ */
+async function loadExamples(admin: SupabaseClient, query: string, clientId: string, clients: KnownClient[]): Promise<{ prompt: Example[]; originals: string[] }> {
   const voice = voiceUserId();
-  if (!voice || !query.trim()) return [];
+  if (!voice || !query.trim()) return { prompt: [], originals: [] };
   const { data, error } = await admin.rpc("reply_draft_examples", {
     p_query: query,
     p_marc_user_id: voice,
@@ -55,9 +61,13 @@ async function loadExamples(admin: SupabaseClient, query: string, clientId: stri
   });
   if (error) {
     console.error("reply_drafts_examples_failed", error.message);
-    return [];
+    return { prompt: [], originals: [] };
   }
-  return ((data || []) as Example[]).filter((e) => e.client_text && e.reply_text);
+  const rows = ((data || []) as Array<{ source: string; reply_text: string | null }>).filter((e) => e.reply_text);
+  return {
+    prompt: rows.map((e) => ({ source: e.source, reply_text: redactText(e.reply_text as string, clients) })),
+    originals: rows.map((e) => e.reply_text as string),
+  };
 }
 
 /** Generate one claimed draft. Writes the result only if the draft is still the same pending draft. */
@@ -81,22 +91,60 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
   let result: ClaudeResult | null = null;
   try {
     const ctx = await gatherDraftContext(admin, draft, voiceUserId(), now);
-    const examples = await loadExamples(admin, exampleQuery(draft.kind, ctx), draft.client_id);
-    result = await callClaude({
-      system: systemPrompt(guide),
-      user: userPrompt(draft.kind, ctx, examples, now),
-      maxTokens: 16000,
-      effort: "medium",
-      jsonSchema: DRAFT_OUTPUT_SCHEMA as unknown as Record<string, unknown>,
-      fetchImpl: deps.fetchImpl,
-    });
+    const clients = await loadKnownClients(admin);
+    const examples = await loadExamples(admin, exampleQuery(draft.kind, ctx), draft.client_id, clients);
+    const guardExamples = [...examples.originals, ...examples.prompt.map((e) => e.reply_text)];
 
-    const outcome =
-      result.stopReason === "refusal"
-        ? { status: "skipped" as const, draftText: null, reason: "Reply yourself" }
-        : outcomeFromModel(parseModelDraft(result.text));
+    let outcome: ReturnType<typeof outcomeFromModel> | null = null;
+    let rejection: string | null = null;
+    const totals = { input: 0, output: 0, pence: 0 };
+    // One retry if the leak guard rejects the first draft.
+    for (let attempt = 0; attempt < 2 && !outcome; attempt += 1) {
+      result = await callClaude({
+        system: systemPrompt(guide),
+        user: userPrompt(draft.kind, ctx, examples.prompt, now, rejection ?? undefined),
+        maxTokens: 16000,
+        effort: "medium",
+        jsonSchema: DRAFT_OUTPUT_SCHEMA as unknown as Record<string, unknown>,
+        fetchImpl: deps.fetchImpl,
+      });
+      await logAiCall(admin, { purpose: "draft", draftId: draft.id, result, ok: true });
+      totals.input += result.inputTokens;
+      totals.output += result.outputTokens;
+      totals.pence += result.costPence;
+      const candidate =
+        result.stopReason === "refusal"
+          ? { status: "skipped" as const, draftText: null, reason: "Reply yourself" }
+          : outcomeFromModel(parseModelDraft(result.text));
+      const shown = [candidate.draftText, candidate.reason].filter(Boolean).join("\n");
+      rejection = shown ? guardDraft(shown, { currentClientId: draft.client_id, clients, exampleReplies: guardExamples }) : null;
+      if (rejection) {
+        console.error("reply_drafts_guard_rejected", { draftId: draft.id, attempt: attempt + 1, reason: rejection });
+      } else {
+        outcome = candidate;
+      }
+    }
 
-    await logAiCall(admin, { purpose: "draft", draftId: draft.id, result, ok: true });
+    if (!outcome) {
+      // Both attempts failed the guard: nothing is shown, the reason is kept for Kevin.
+      await admin
+        .from("reply_drafts")
+        .update({
+          status: "failed",
+          error_message: `guard: ${rejection}`,
+          model: result?.model ?? null,
+          input_tokens: totals.input,
+          output_tokens: totals.output,
+          cost_pence: totals.pence,
+          claimed_at: null,
+          generated_at: new Date().toISOString(),
+        })
+        .eq("id", draft.id)
+        .eq("status", "pending")
+        .eq("ref_id", draft.ref_id);
+      return { status: "failed" as const, reason: rejection ?? "guard" };
+    }
+    if (!result) throw new Error("no_model_result");
 
     const { data: updated } = await admin
       .from("reply_drafts")
@@ -105,9 +153,9 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
         draft_text: outcome.draftText,
         needs_reason: outcome.reason,
         model: result.model,
-        input_tokens: result.inputTokens,
-        output_tokens: result.outputTokens,
-        cost_pence: result.costPence,
+        input_tokens: totals.input,
+        output_tokens: totals.output,
+        cost_pence: totals.pence,
         generated_at: new Date().toISOString(),
         claimed_at: null,
         error_message: null,
@@ -126,7 +174,8 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("reply_drafts_generate_failed", { draftId: draft.id, error: message.slice(0, 300) });
-    await logAiCall(admin, { purpose: "draft", draftId: draft.id, result, ok: false });
+    // Successful calls are already logged; record the failure itself with no tokens.
+    await logAiCall(admin, { purpose: "draft", draftId: draft.id, result: null, ok: false });
     await admin
       .from("reply_drafts")
       .update({ status: "failed", error_message: message.slice(0, 500), claimed_at: null })
