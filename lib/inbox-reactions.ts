@@ -13,7 +13,7 @@ export async function staffReactedMessageIds(admin: SupabaseClient, messageIds: 
       .from("inbox_message_reactions")
       .select("message_id,user:users!inner(role)")
       .in("message_id", ids.slice(i, i + 100))
-      .neq("user.role", "client");
+      .eq("user.role", "admin");
     if (error) continue;
     for (const r of (data || []) as Array<{ message_id: string }>) out.add(r.message_id);
   }
