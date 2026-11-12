@@ -21,8 +21,8 @@ function QuestionField({
 }) {
   if (question.type === "single_choice") {
     return (
-      <div className="space-y-3">
-        <div className="grid gap-2">
+      <div className="ws-tr-q">
+        <div className="ws-tr-opts">
           {question.options?.map((option) => {
             const selected = value === option.value;
             return (
@@ -30,11 +30,7 @@ function QuestionField({
                 key={option.value}
                 type="button"
                 onClick={() => onChange(question.id, option.value)}
-                className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition-colors cursor-pointer ${
-                  selected
-                    ? "border-accent/40 bg-accent/10 text-accent-bright"
-                    : "border-[rgba(255,255,255,0.06)] bg-bg-card text-text-secondary hover:border-[rgba(255,255,255,0.12)]"
-                }`}
+                className={`ws-tr-opt ws-focus${selected ? " is-on" : ""}`}
               >
                 {option.label}
               </button>
@@ -48,7 +44,7 @@ function QuestionField({
             value={otherValue}
             onChange={(e) => onChange(`${question.id}__other`, e.target.value)}
             placeholder="Add your answer"
-            className="w-full rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-card px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+            className="ws-input"
           />
         )}
       </div>
@@ -61,12 +57,12 @@ function QuestionField({
     const values = Array.from({ length: max - min + 1 }, (_, index) => String(min + index));
 
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-text-muted">
+      <div className="ws-tr-q">
+        <div className="ws-tr-scale-l">
           <span>{question.min_label || min}</span>
           <span>{question.max_label || max}</span>
         </div>
-        <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+        <div className="ws-tr-scale">
           {values.map((item) => {
             const selected = value === item;
             return (
@@ -74,11 +70,7 @@ function QuestionField({
                 key={item}
                 type="button"
                 onClick={() => onChange(question.id, item)}
-                className={`rounded-xl border px-0 py-3 text-sm font-semibold transition-colors cursor-pointer ${
-                  selected
-                    ? "border-accent/40 bg-accent/10 text-accent-bright"
-                    : "border-[rgba(255,255,255,0.06)] bg-bg-card text-text-secondary hover:border-[rgba(255,255,255,0.12)]"
-                }`}
+                className={`ws-tr-opt is-num ws-focus${selected ? " is-on" : ""}`}
               >
                 {item}
               </button>
@@ -96,7 +88,7 @@ function QuestionField({
         value={value}
         onChange={(e) => onChange(question.id, e.target.value)}
         placeholder={question.placeholder}
-        className="w-full rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-card px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors"
+        className="ws-input"
       />
     );
   }
@@ -107,7 +99,7 @@ function QuestionField({
       onChange={(e) => onChange(question.id, e.target.value)}
       rows={4}
       placeholder={question.placeholder}
-      className="w-full rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-card px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-y"
+      className="ws-input"
     />
   );
 }
@@ -206,30 +198,28 @@ export default function BusinessHealthChecklistCard({
 
   if (loading) {
     return (
-      <div className="mt-8 rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-card/80 p-6">
-        <div className="animate-pulse space-y-3">
-          <div className="h-6 w-64 rounded-lg bg-[rgba(255,255,255,0.06)]" />
-          <div className="h-4 w-full rounded-lg bg-[rgba(255,255,255,0.04)]" />
-          <div className="h-20 w-full rounded-xl bg-[rgba(255,255,255,0.04)]" />
+      <div className="ws-panel ws-tr-check">
+        <div className="ws-tr-check-b">
+          <span className="ws-skel" style={{ width: 240, height: 16 }} />
+          <span className="ws-skel" style={{ width: "100%", height: 12 }} />
+          <span className="ws-skel" style={{ width: "100%", height: 64 }} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mt-8 rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-card/80 p-6 sm:p-7">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="mb-2 inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent-bright">
-            Final Step
-          </div>
-          <h2 className="text-2xl font-heading font-bold text-text-primary">{config.title}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary">
+    <div className="ws-panel ws-tr-check">
+      <div className="ws-tr-check-head">
+        <div className="min-w-0">
+          <span className="ws-chip is-decide">Final step</span>
+          <h2 className="ws-tr-check-t">{config.title}</h2>
+          <p className="ws-meta mt-1">
             {config.description}
           </p>
         </div>
         {submission && (
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-300">
+          <div className="ws-chip is-ok">
             Saved {new Date(submission.updated_at || submission.submitted_at).toLocaleDateString("en-GB", {
               day: "numeric",
               month: "short",
@@ -240,29 +230,26 @@ export default function BusinessHealthChecklistCard({
       </div>
 
       {!isUnlocked && !submission ? (
-        <div className="rounded-2xl border border-[rgba(255,255,255,0.06)] bg-bg-primary/70 p-5">
-          <p className="text-sm font-medium text-text-primary">This checklist is locked for now.</p>
-          <p className="mt-1 text-sm text-text-muted">
+        <div className="ws-tr-check-b">
+          <p className="ws-h2">This checklist is locked for now.</p>
+          <p className="ws-caption mt-1">
             Marc will let you know when this final onboarding step is ready.
           </p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="ws-tr-check-b ws-tr-form-gap">
           {groupedQuestions.map((group) => (
-            <section key={group.section} className="space-y-5">
-              <div>
-                <h3 className="text-lg font-heading font-bold text-text-primary">{group.section}</h3>
-                <div className="mt-2 h-px w-full bg-[linear-gradient(90deg,rgba(34,114,222,0.5),rgba(255,255,255,0.04),transparent)]" />
-              </div>
+            <section key={group.section} className="ws-tr-check-sec">
+              <h3 className="ws-tr-check-h">{group.section}</h3>
 
               {group.questions.map((question) => (
-                <div key={question.id} className="space-y-2">
-                  <label className="block text-sm font-medium text-text-primary">
+                <div key={question.id} className="ws-tr-q">
+                  <label className="ws-label" style={{ marginBottom: 0 }}>
                     {question.label}
-                    {question.required ? <span className="ml-1 text-accent-bright">*</span> : null}
+                    {question.required ? <span className="ml-1" style={{ color: "var(--ws-accent-ink)" }}>*</span> : null}
                   </label>
                   {question.help_text && (
-                    <p className="text-xs leading-relaxed text-text-muted">{question.help_text}</p>
+                    <p className="ws-caption">{question.help_text}</p>
                   )}
                   <QuestionField
                     question={question}
@@ -275,15 +262,15 @@ export default function BusinessHealthChecklistCard({
             </section>
           ))}
 
-          <div className="space-y-3">
+          <div className="ws-tr-q">
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-xl gradient-accent px-5 py-4 text-sm font-semibold text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className="ws-btn ws-btn-primary ws-focus ws-tr-submit"
             >
               {saving ? "Saving..." : submission ? "Save Updates" : (config.submit_label || "Submit")}
             </button>
-            {error && <p className="text-center text-sm text-red-400">{error}</p>}
+            {error && <p className="ws-caption" style={{ color: "var(--ws-bad)", textAlign: "center" }}>{error}</p>}
           </div>
         </form>
       )}

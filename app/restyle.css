@@ -465,3 +465,197 @@
  * "backwards" keeps the same entrance and drops the transform once it ends.
  */
 .admin-shell .adm-page > * { animation-fill-mode: backwards; }
+
+/* ===================================================================
+ * Batch 4: Training (12 Nov 2026). Admin Training list and module editor, client
+ * Training library and module page, ModuleCover and the onboarding checklist card.
+ * Visual only. Skool-style flat cover cards; lessons expand in place.
+ * Every rule is scoped under .ws and reads the .ws tokens.
+ * =================================================================== */
+
+/* Cover (approved mock): solid tone, large faint line icon right, "Module N" kicker and title bottom-left.
+ * An uploaded cover image replaces it on the client pages. */
+.ws .ws-cover { position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 100%; overflow: hidden; background: var(--cv-bg, #2b3d47); color: #fff; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px 16px; }
+.ws .ws-cover.has-img { background: var(--ws-panel-3); }
+.ws .ws-cover-img { object-fit: cover; }
+.ws .ws-cover svg.ws-cover-art { position: absolute; right: -6%; top: 50%; transform: translateY(-50%); width: 46%; height: auto; color: rgba(255, 255, 255, 0.16); }
+.ws .ws-cover-k { position: relative; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; opacity: 0.75; }
+.ws .ws-cover-t { position: relative; max-width: 72%; font-size: 19px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+.ws .ws-cover.is-lg { aspect-ratio: auto; min-height: 190px; }
+.ws .ws-cover.is-lg .ws-cover-t { font-size: 24px; }
+
+/* Library grid and cards */
+.ws .ws-tr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+@media (max-width: 639px) { .ws .ws-tr-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
+.ws .ws-tr-card { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 0; background: var(--ws-panel); border: 1px solid var(--ws-line); border-radius: var(--ws-radius); overflow: hidden; color: inherit; font: inherit; text-align: left; text-decoration: none; transition: border-color 120ms ease, opacity 120ms ease; }
+.ws .ws-tr-card.is-link { cursor: pointer; }
+.ws .ws-tr-card.is-link:hover { border-color: var(--ws-line-2); }
+.ws .ws-tr-card.is-link:hover .ws-tr-card-t { text-decoration: underline; text-decoration-color: var(--ws-line-2); text-underline-offset: 3px; }
+.ws .ws-tr-card.is-selected { border-color: var(--ws-accent); box-shadow: inset 0 0 0 1px var(--ws-accent); }
+.ws .ws-tr-card.is-dragging { opacity: 0.6; }
+.ws .ws-tr-card.is-drop { border-color: var(--ws-accent); box-shadow: inset 0 0 0 1px var(--ws-accent); }
+.ws .ws-tr-card-b { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; min-width: 0; }
+.ws .ws-tr-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ws-ink-3); }
+.ws .ws-tr-card-t { margin: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; color: var(--ws-ink); overflow-wrap: anywhere; }
+.ws .ws-tr-card-d { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ws-ink-2); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ws .ws-tr-card-f { margin-top: auto; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ws .ws-tr-go { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; font-weight: 500; color: var(--ws-accent-ink); white-space: nowrap; }
+.ws .ws-tr-stats { display: inline-flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; font-size: 12px; color: var(--ws-ink-3); }
+.ws .ws-tr-stats > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ws .ws-tr-skel-cover { aspect-ratio: 16 / 9; width: 100%; border-radius: 0; }
+.ws .ws-tr-skel-banner { min-height: 190px; border-radius: 0; }
+
+/* Admin card overlays: number, reorder buttons, bulk checkbox, reordering state */
+.ws .ws-tr-cover-wrap { position: relative; }
+.ws .ws-tr-cover-tl { position: absolute; top: 10px; right: 10px; z-index: 2; display: flex; align-items: center; gap: 4px; }
+.ws .ws-tr-badge { display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 7px; border-radius: 6px; border: 0; background: rgba(0, 0, 0, 0.5); color: #fff; font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ws .ws-tr-badge.is-btn { padding: 0; width: 26px; cursor: pointer; transition: background 120ms ease; }
+.ws .ws-tr-badge.is-btn:hover { background: rgba(0, 0, 0, 0.72); }
+.ws .ws-tr-badge.is-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ws .ws-tr-box { display: grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--ws-line-2); background: var(--ws-panel); color: #fff; transition: background 120ms ease, border-color 120ms ease; }
+.ws .ws-tr-box.is-lg { width: 26px; height: 26px; border-radius: 6px; border-color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.45); }
+.ws .ws-tr-box.is-on { background: var(--ws-accent); border-color: var(--ws-accent); }
+.ws .ws-tr-moving { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; background: rgba(0, 0, 0, 0.45); pointer-events: none; }
+.ws .ws-tr-moving span { font-size: 12px; font-weight: 500; color: #fff; }
+.ws .ws-btn.ws-tr-on { background: var(--ws-accent-soft); border-color: color-mix(in srgb, var(--ws-accent) 40%, transparent); color: var(--ws-accent-ink); box-shadow: none; }
+
+/* Stat strip with two or three cells */
+.ws .ws-tr-strip .ws-stat { cursor: default; }
+.ws .ws-tr-strip .ws-stat:hover { background: transparent; }
+@media (min-width: 640px) {
+  .ws .ws-tr-strip.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws .ws-tr-strip.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 639px) {
+  .ws .ws-tr-strip.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ws .ws-tr-strip.is-3 .ws-stat { border-top: 0; border-left: 1px solid var(--ws-line); padding: 12px; }
+  .ws .ws-tr-strip.is-3 .ws-stat:first-child { border-left: 0; }
+}
+
+/* Toolbar and search */
+.ws .ws-tr-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-bottom: -6px; }
+.ws .ws-tr-h2 { font-size: 14.5px; }
+.ws .ws-tr-search { position: relative; display: block; width: 260px; max-width: 100%; }
+.ws .ws-tr-search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--ws-ink-3); pointer-events: none; }
+.ws .ws-tr-search .ws-input { padding-left: 28px; font-size: 12.5px; }
+@media (max-width: 639px) { .ws .ws-tr-search { width: 100%; } }
+.ws .ws-tr-note { align-items: center; flex-wrap: wrap; }
+.ws .ws-tr-note-t { flex: 1 1 200px; min-width: 0; }
+
+/* Module header: text left, cover right (cover on top on phones) */
+.ws .ws-tr-head { display: grid; grid-template-columns: minmax(0, 1fr) 340px; background: var(--ws-panel); border: 1px solid var(--ws-line); border-radius: var(--ws-radius); overflow: hidden; }
+.ws .ws-tr-head-b { display: flex; flex-direction: column; justify-content: center; gap: 8px; min-width: 0; padding: 20px; }
+.ws .ws-tr-head .ws-title { overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .ws .ws-tr-head { grid-template-columns: minmax(0, 1fr); }
+  .ws .ws-tr-head > .ws-cover, .ws .ws-tr-head > .ws-tr-skel-banner { order: -1; aspect-ratio: 16 / 9; height: auto; min-height: 0; }
+  .ws .ws-tr-head-b { padding: 16px; }
+}
+.ws .ws-tr-head-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ws .ws-tr-mmeta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ws-ink-3); }
+.ws .ws-tr-mmeta > span { display: inline-flex; align-items: center; gap: 6px; }
+.ws .ws-tr-pub { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--ws-line-2); background: var(--ws-panel); color: var(--ws-ink-2); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 120ms ease, color 120ms ease; }
+.ws .ws-tr-pub .ws-dot { color: var(--ws-ink-4); }
+.ws .ws-tr-pub:hover { background: var(--ws-panel-2); color: var(--ws-ink); }
+.ws .ws-tr-pub.is-on { border-color: transparent; color: var(--ws-ok); background: color-mix(in srgb, var(--ws-ok) 12%, transparent); }
+.ws .ws-tr-pub.is-on .ws-dot { color: var(--ws-ok); }
+.ws .ws-tr-editable { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ws .ws-tr-editable.is-desc { align-items: flex-start; }
+.ws .ws-tr-editable .ws-btn-icon.ws-btn-sm { width: 26px; }
+.ws .ws-tr-reveal { opacity: 0; transition: opacity 120ms ease, background 120ms ease, color 120ms ease; }
+.ws .ws-tr-editable:hover .ws-tr-reveal, .ws .ws-tr-lesson:hover .ws-tr-reveal, .ws .ws-tr-reveal:focus-visible { opacity: 1; }
+@media (hover: none) { .ws .ws-tr-reveal { opacity: 1; } }
+.ws .ws-tr-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ws .ws-tr-title-input { flex: 1 1 220px; width: auto; height: 36px; font-size: 17px; font-weight: 600; }
+
+/* Lessons that expand in place */
+.ws .ws-tr-lesson { border-top: 1px solid var(--ws-divider); scroll-margin-top: 1.5rem; }
+.ws .ws-tr-lesson:first-child { border-top: 0; }
+.ws .ws-tr-lesson-h { display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) 14px; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 120ms ease; }
+.ws .ws-tr-lesson-h.is-admin { grid-template-columns: 22px 30px minmax(0, 1fr) auto; }
+.ws .ws-tr-lesson-h:hover { background: var(--ws-hover); }
+.ws .ws-tr-lesson.is-open > .ws-tr-lesson-h { background: color-mix(in srgb, var(--ws-panel-2) 60%, transparent); }
+.ws .ws-tr-lesson-n { font-size: 12px; color: var(--ws-ink-3); text-align: center; font-variant-numeric: tabular-nums; }
+.ws .ws-tr-lesson-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; background: var(--ws-panel-2); color: var(--ws-ink-2); }
+.ws .ws-tr-lesson-ic.is-video { background: var(--ws-accent-soft); color: var(--ws-accent-ink); }
+.ws .ws-tr-lesson-t { display: block; font-size: 13.5px; font-weight: 500; line-height: 1.4; color: var(--ws-ink); overflow-wrap: anywhere; }
+.ws .ws-tr-lesson-s { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 1px; font-size: 12px; color: var(--ws-ink-3); }
+.ws .ws-tr-lesson-acts { display: inline-flex; align-items: center; gap: 2px; }
+.ws .ws-tr-mini { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--ws-ink-3); cursor: pointer; }
+.ws .ws-tr-mini:hover { background: var(--ws-panel-3); color: var(--ws-ink); }
+.ws .ws-tr-lesson-body { display: flex; flex-direction: column; gap: 14px; padding: 6px 14px 16px 76px; }
+@media (max-width: 639px) {
+  .ws .ws-tr-lesson-body { padding-left: 14px; }
+  .ws .ws-tr-lesson-h { grid-template-columns: 18px 30px minmax(0, 1fr) 14px; gap: 8px; }
+  .ws .ws-tr-lesson-h.is-admin { grid-template-columns: 18px 30px minmax(0, 1fr) auto; }
+}
+.ws .ws-tr-video { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; border: 1px solid var(--ws-line); background: #000; }
+.ws .ws-tr-text { font-size: 13.5px; line-height: 1.7; white-space: pre-line; }
+.ws .ws-tr-subhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ws .ws-tr-subhead .ws-field-l { margin-bottom: 0; }
+.ws .ws-tr-url { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--ws-line); background: var(--ws-panel-2); color: var(--ws-ink-3); }
+.ws .ws-tr-url svg { flex: none; }
+.ws .ws-tr-url-t { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws .ws-tr-textbtn { flex: none; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 500; color: var(--ws-accent-ink); text-decoration: none; cursor: pointer; }
+.ws .ws-tr-textbtn:hover { text-decoration: underline; }
+.ws .ws-tr-textbtn.is-bad { color: var(--ws-ink-3); }
+.ws .ws-tr-textbtn.is-bad:hover { color: var(--ws-bad); }
+.ws .ws-tr-lesson-foot { display: flex; align-items: center; gap: 6px; padding-top: 10px; border-top: 1px solid var(--ws-divider); }
+.ws .ws-btn.ws-tr-del { color: var(--ws-ink-3); }
+.ws .ws-btn.ws-tr-del:hover { color: var(--ws-bad); background: color-mix(in srgb, var(--ws-bad) 10%, transparent); }
+
+/* Files: lesson attachments, workbooks and downloads */
+.ws .ws-tr-files { display: flex; flex-direction: column; border: 1px solid var(--ws-line); border-radius: 8px; overflow: hidden; }
+.ws .ws-tr-file { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 12px; border-top: 1px solid var(--ws-divider); color: inherit; text-decoration: none; transition: background 120ms ease; }
+.ws .ws-tr-file:first-child { border-top: 0; }
+.ws .ws-tr-file.is-link:hover { background: var(--ws-hover); }
+.ws .ws-tr-file-ic { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 6px; background: var(--ws-panel-2); color: var(--ws-accent-ink); }
+.ws .ws-tr-file-ic.is-pdf { color: var(--ws-bad); }
+.ws .ws-tr-file-ic.is-sheet { color: var(--ws-ok); }
+.ws .ws-tr-file-ic.is-other { color: var(--ws-ink-3); }
+.ws .ws-tr-file-link { flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+.ws .ws-tr-file-n { display: block; font-size: 13px; font-weight: 500; color: var(--ws-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws .ws-tr-file-m { display: block; font-size: 11.5px; color: var(--ws-ink-3); }
+.ws .ws-tr-file-act { flex: none; font-size: 12px; font-weight: 500; color: var(--ws-accent-ink); }
+
+/* Forms: new module, new lesson, lesson edit */
+.ws .ws-tr-form { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.ws .ws-tr-addform { padding: 14px; border-bottom: 1px solid var(--ws-line); background: color-mix(in srgb, var(--ws-panel-2) 45%, transparent); }
+.ws .ws-tr-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 640px) { .ws .ws-tr-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws .ws-tr-span2 { grid-column: 1 / -1; } }
+.ws .ws-tr-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ws .ws-tr-stack.is-lg { gap: 14px; }
+.ws .ws-tr-acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ws .ws-input.ws-tr-fileinput { height: auto; padding: 5px; font-size: 12.5px; color: var(--ws-ink-2); }
+.ws .ws-tr-fileinput::file-selector-button { margin-right: 10px; height: 24px; padding: 0 10px; border: 1px solid var(--ws-line-2); border-radius: 5px; background: var(--ws-panel-2); color: var(--ws-ink); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+.ws .ws-tr-fileinput::file-selector-button:hover { background: var(--ws-panel-3); }
+.ws .ws-tr-danger { padding-top: 14px; border-top: 1px solid var(--ws-line); }
+
+/* Bulk assign picker */
+.ws .ws-tr-picks { display: flex; flex-direction: column; max-height: 16rem; overflow-y: auto; margin: 0 -8px; }
+.ws .ws-tr-pick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 120ms ease; }
+.ws .ws-tr-pick:hover { background: var(--ws-hover); }
+.ws .ws-tr-pick-n { font-size: 13px; color: var(--ws-ink); }
+
+/* Onboarding checklist card (Welcome & Onboarding module) */
+.ws .ws-tr-check-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding: 16px 16px 0; }
+.ws .ws-tr-check-t { margin: 8px 0 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--ws-ink); }
+.ws .ws-tr-check-b { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.ws .ws-tr-form-gap { gap: 24px; }
+.ws .ws-tr-check-sec { display: flex; flex-direction: column; gap: 16px; }
+.ws .ws-tr-check-h { margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--ws-line); font-size: 14px; font-weight: 600; color: var(--ws-ink); }
+.ws .ws-tr-q { display: flex; flex-direction: column; gap: 8px; }
+.ws .ws-tr-opts { display: grid; gap: 6px; }
+.ws .ws-tr-opt { width: 100%; min-height: 38px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--ws-line-2); background: var(--ws-panel); color: var(--ws-ink-2); font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, color 120ms ease; }
+.ws .ws-tr-opt:hover { background: var(--ws-panel-2); color: var(--ws-ink); }
+.ws .ws-tr-opt.is-on { background: var(--ws-accent-soft); border-color: var(--ws-accent); color: var(--ws-ink); }
+.ws .ws-tr-opt.is-num { padding: 0; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ws .ws-tr-scale-l { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ws-ink-3); }
+.ws .ws-tr-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 640px) { .ws .ws-tr-scale { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
+.ws .ws-tr-submit { width: 100%; height: 38px; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ws .ws-tr-card, .ws .ws-tr-lesson-h, .ws .ws-tr-reveal, .ws .ws-tr-opt, .ws .ws-tr-pick, .ws .ws-tr-file, .ws .ws-tr-pub, .ws .ws-chev { transition: none; }
+}
+/* ===== End Batch 4: Training ===== */

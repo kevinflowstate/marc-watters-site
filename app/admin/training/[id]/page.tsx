@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import { formatFileSize, guessAttachmentType } from "@/lib/attachments";
 import type { TrainingModule, ModuleContent, Attachment, ContentType } from "@/lib/types";
 import ModuleCover from "@/components/training/ModuleCover";
+import { Empty, Icon, SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 
 const attachmentIcons: Record<string, { icon: string; color: string }> = {
   pdf: { icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", color: "text-red-400 bg-red-500/10" },
@@ -237,38 +238,33 @@ export default function ModuleEditorPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="skeleton rounded-lg h-4 w-32 mb-6" />
-        <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-          <div className="h-40 skeleton" />
-          <div className="p-6 space-y-3">
-            <div className="skeleton rounded-lg h-6 w-2/3" />
-            <div className="skeleton rounded-lg h-4 w-full" />
-            <div className="skeleton rounded-lg h-3 w-1/3" />
+      <div className="ws ws-page">
+        <span className="ws-skel" style={{ width: 120, height: 12 }} />
+        <div className="ws-tr-head">
+          <div className="ws-tr-head-b">
+            <span className="ws-skel" style={{ width: "60%", height: 22 }} />
+            <span className="ws-skel" style={{ width: "100%", height: 12 }} />
+            <span className="ws-skel" style={{ width: "35%", height: 10 }} />
           </div>
+          <div className="ws-skel ws-tr-skel-banner" />
         </div>
-        <div className="skeleton rounded-lg h-5 w-20 mt-4" />
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-4 flex items-center gap-4">
-            <div className="skeleton rounded-lg w-6 h-4" />
-            <div className="skeleton rounded-lg w-8 h-8" />
-            <div className="flex-1 space-y-2">
-              <div className="skeleton rounded-lg h-4 w-3/4" />
-              <div className="skeleton rounded-lg h-3 w-1/4" />
-            </div>
-          </div>
-        ))}
+        <div className="ws-panel">
+          <SkeletonRows count={3} />
+        </div>
       </div>
     );
   }
 
   if (!module) {
     return (
-      <div className="text-text-muted">
-        <Link href="/admin/training" className="text-accent-bright hover:text-accent-light transition-colors no-underline text-sm">
-          Back to Modules
+      <div className="ws ws-page">
+        <Link href="/admin/training" className="ws-back ws-focus">
+          <Icon name="chevron" size={14} className="ws-back-ic" />
+          Back to modules
         </Link>
-        <p className="mt-4">Module not found.</p>
+        <div className="ws-panel">
+          <Empty icon="book" title="Module not found." />
+        </div>
       </div>
     );
   }
@@ -278,60 +274,52 @@ export default function ModuleEditorPage() {
   const totalAttachments = lessons.reduce((sum, c) => sum + (c.attachments?.length || 0), 0);
 
   return (
-    <>
+    <div className="ws ws-page">
       <Link
         href="/admin/training"
-        className="text-text-muted text-sm hover:text-text-secondary transition-colors no-underline inline-flex items-center gap-1 mb-6"
+        className="ws-back ws-focus"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to Modules
+        <Icon name="chevron" size={14} className="ws-back-ic" />
+        Back to modules
       </Link>
 
-      {/* Module header card */}
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden mb-6">
-        {/* Cover area - auto-generated from title */}
-        <div className="relative">
-          <ModuleCover title={moduleTitle} variant="banner" />
-
-          {/* Published toggle */}
-          <div className="absolute top-4 right-4">
+      {/* Module header */}
+      <header className="ws-tr-head">
+        <div className="ws-tr-head-b">
+          <div className="ws-tr-head-top">
+            <span className="ws-caption">Training module</span>
+            {/* Published toggle */}
             <button
               onClick={() => { const next = !isPublished; setIsPublished(next); saveModule({ is_published: next }); }}
-              className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
-                isPublished
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
-                  : "bg-white/10 text-white/60 border border-white/10 hover:border-white/20"
-              }`}
+              className={`ws-tr-pub ws-focus${isPublished ? " is-on" : ""}`}
             >
-              {isPublished ? "Published" : "Draft - Click to Publish"}
+              <span className="ws-dot" />
+              {isPublished ? "Published" : "Draft · click to publish"}
             </button>
           </div>
-        </div>
 
-        {/* Title + Description */}
-        <div className="p-6">
+          {/* Title + Description */}
           {editingTitle ? (
-            <div className="flex items-center gap-3 mb-3">
+            <div className="ws-tr-edit">
               <input
                 type="text"
                 value={moduleTitle}
                 onChange={(e) => setModuleTitle(e.target.value)}
-                className="flex-1 bg-bg-primary border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-xl font-heading font-bold text-text-primary focus:outline-none focus:border-accent/40"
+                className="ws-input ws-tr-title-input"
                 autoFocus
               />
-              <button onClick={() => { saveModule({ title: moduleTitle }); setEditingTitle(false); }} disabled={saving} className="px-4 py-2 gradient-accent text-white rounded-xl text-sm font-medium disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
-              <button onClick={() => { setModuleTitle(module.title); setEditingTitle(false); }} className="px-4 py-2 text-text-muted text-sm">Cancel</button>
+              <button onClick={() => { saveModule({ title: moduleTitle }); setEditingTitle(false); }} disabled={saving} className="ws-btn ws-btn-primary ws-focus">{saving ? "Saving..." : "Save"}</button>
+              <button onClick={() => { setModuleTitle(module.title); setEditingTitle(false); }} className="ws-btn ws-btn-quiet ws-focus">Cancel</button>
             </div>
           ) : (
-            <div className="flex items-center gap-3 mb-3 group">
-              <h1 className="text-2xl font-heading font-bold text-text-primary">{moduleTitle}</h1>
+            <div className="ws-tr-editable">
+              <h1 className="ws-title">{moduleTitle}</h1>
               <button
                 onClick={() => setEditingTitle(true)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-muted hover:text-accent-bright"
+                className="ws-btn ws-btn-quiet ws-btn-icon ws-tr-reveal ws-focus"
+                aria-label="Edit title"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -339,27 +327,28 @@ export default function ModuleEditorPage() {
           )}
 
           {editingDesc ? (
-            <div className="mb-4">
+            <div>
               <textarea
                 value={moduleDesc}
                 onChange={(e) => setModuleDesc(e.target.value)}
                 rows={3}
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-sm text-text-secondary focus:outline-none focus:border-accent/40 resize-none"
+                className="ws-input"
                 autoFocus
               />
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => { saveModule({ description: moduleDesc }); setEditingDesc(false); }} disabled={saving} className="px-3 py-1.5 gradient-accent text-white rounded-lg text-xs font-medium disabled:opacity-50">{saving ? "..." : "Save"}</button>
-                <button onClick={() => { setModuleDesc(module.description); setEditingDesc(false); }} className="px-3 py-1.5 text-text-muted text-xs">Cancel</button>
+              <div className="ws-tr-acts mt-2">
+                <button onClick={() => { saveModule({ description: moduleDesc }); setEditingDesc(false); }} disabled={saving} className="ws-btn ws-btn-primary ws-btn-sm ws-focus">{saving ? "..." : "Save"}</button>
+                <button onClick={() => { setModuleDesc(module.description); setEditingDesc(false); }} className="ws-btn ws-btn-quiet ws-btn-sm ws-focus">Cancel</button>
               </div>
             </div>
           ) : (
-            <div className="group flex items-start gap-2 mb-4">
-              <p className="text-sm text-text-secondary leading-relaxed">{moduleDesc}</p>
+            <div className="ws-tr-editable is-desc">
+              <p className="ws-meta">{moduleDesc}</p>
               <button
                 onClick={() => setEditingDesc(true)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-muted hover:text-accent-bright flex-shrink-0 mt-0.5"
+                className="ws-btn ws-btn-quiet ws-btn-icon ws-btn-sm ws-tr-reveal ws-focus"
+                aria-label="Edit description"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -367,228 +356,223 @@ export default function ModuleEditorPage() {
           )}
 
           {/* Stats */}
-          <div className="flex items-center gap-5 text-xs text-text-muted">
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              </svg>
+          <div className="ws-tr-mmeta">
+            <span>
+              <Icon name="lessons" size={14} />
               {lessons.length} lessons
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            </span>
+            <span>
+              <Icon name="clock" size={14} />
               {totalDuration} min total
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
+            </span>
+            <span>
+              <Icon name="link" size={14} />
               {totalAttachments} attachments
-            </div>
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Lessons header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-heading font-bold text-text-primary">Lessons</h2>
-        <button
-          onClick={() => setShowAddLesson(!showAddLesson)}
-          className="px-4 py-2 gradient-accent text-white rounded-xl text-sm font-medium inline-flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Lesson
-        </button>
-      </div>
+        {/* Cover - generated from the title */}
+        <ModuleCover title={moduleTitle} variant="banner" number={modules.findIndex((m) => m.id === module.id) + 1 || undefined} />
+      </header>
 
-      {/* Add lesson form */}
-      {showAddLesson && (
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-accent/20 rounded-2xl p-6 mb-4">
-          <h3 className="text-sm font-heading font-bold text-text-primary mb-4">New Lesson</h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Title</label>
-              <input
-                type="text"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Lesson title"
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Type</label>
-              <select
-                value={newType}
-                onChange={(e) => setNewType(e.target.value as ContentType)}
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-accent/40"
-              >
-                <option value="video">Video</option>
-                <option value="pdf">PDF / Document</option>
-                <option value="text">Text / Article</option>
-                <option value="checklist">Checklist</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                {newType === "video" ? "Video URL (YouTube, Vimeo, or Fathom)" : newType === "pdf" ? "Upload File or Paste URL" : "URL (optional)"}
-              </label>
-              {newType === "pdf" ? (
-                <div className="space-y-2">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.pptx,.zip"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const fd = new FormData();
-                      fd.append("file", file);
-                      fd.append("bucket", "training-resources");
-                      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setNewUrl(data.url);
-                      } else {
-                        alert("Upload failed");
-                      }
-                    }}
-                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
-                  />
-                  {newUrl && <p className="text-xs text-emerald-400">File uploaded</p>}
+      <section className="ws-panel">
+        {/* Lessons header */}
+        <div className="ws-panel-head">
+          <h2 className="ws-h2">Lessons</h2>
+          <button
+            onClick={() => setShowAddLesson(!showAddLesson)}
+            className="ws-btn ws-btn-primary ws-focus"
+          >
+            <Icon name="plus" size={14} />
+            Add lesson
+          </button>
+        </div>
+
+        {/* Add lesson form */}
+        {showAddLesson && (
+          <div className="ws-tr-addform">
+            <h3 className="ws-h3">New lesson</h3>
+            <div className="ws-tr-fields">
+              <div>
+                <label className="ws-label">Title</label>
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Lesson title"
+                  className="ws-input"
+                />
+              </div>
+              <div>
+                <label className="ws-label">Type</label>
+                <select
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value as ContentType)}
+                  className="ws-input"
+                >
+                  <option value="video">Video</option>
+                  <option value="pdf">PDF / Document</option>
+                  <option value="text">Text / Article</option>
+                  <option value="checklist">Checklist</option>
+                </select>
+              </div>
+              <div>
+                <label className="ws-label">
+                  {newType === "video" ? "Video URL (YouTube, Vimeo, or Fathom)" : newType === "pdf" ? "Upload File or Paste URL" : "URL (optional)"}
+                </label>
+                {newType === "pdf" ? (
+                  <div className="ws-tr-stack">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.pptx,.zip"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        fd.append("bucket", "training-resources");
+                        const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setNewUrl(data.url);
+                        } else {
+                          alert("Upload failed");
+                        }
+                      }}
+                      className="ws-input ws-tr-fileinput"
+                    />
+                    {newUrl && <p className="ws-caption" style={{ color: "var(--ws-ok)" }}>File uploaded</p>}
+                    <input
+                      type="text"
+                      value={newUrl}
+                      onChange={(e) => setNewUrl(e.target.value)}
+                      placeholder="Or paste a URL directly"
+                      className="ws-input"
+                    />
+                  </div>
+                ) : (
                   <input
                     type="text"
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
-                    placeholder="Or paste a URL directly"
-                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                    placeholder={newType === "video" ? "https://fathom.video/share/... or YouTube/Vimeo URL" : "https://..."}
+                    className="ws-input"
                   />
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  placeholder={newType === "video" ? "https://fathom.video/share/... or YouTube/Vimeo URL" : "https://..."}
-                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-                />
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration (minutes)</label>
-              <input
-                type="number"
-                value={newDuration}
-                onChange={(e) => setNewDuration(e.target.value)}
-                placeholder="e.g. 15"
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Description / Notes</label>
-              <textarea
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                rows={4}
-                placeholder="Add lesson description, key takeaways, or any supporting copy..."
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Supporting Files (optional)</label>
-              <div className="space-y-3">
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
-                  onChange={async (e) => {
-                    const files = e.target.files;
-                    if (!files?.length) return;
-                    setUploadingNewAttachments(true);
-                    try {
-                      const uploaded = await uploadAttachments(files);
-                      setNewAttachments((prev) => [...prev, ...uploaded]);
-                      toast(uploaded.length === 1 ? "File attached" : `${uploaded.length} files attached`);
-                    } catch {
-                      toast("Failed to upload file", "error");
-                    } finally {
-                      setUploadingNewAttachments(false);
-                      e.target.value = "";
-                    }
-                  }}
-                  className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
-                />
-                {uploadingNewAttachments && <p className="text-xs text-text-muted">Uploading...</p>}
-                {newAttachments.length > 0 && (
-                  <div className="space-y-2">
-                    {newAttachments.map((attachment) => (
-                      <AttachmentRow
-                        key={attachment.id}
-                        attachment={attachment}
-                        onRemove={() => setNewAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
-                      />
-                    ))}
-                  </div>
                 )}
               </div>
+              <div>
+                <label className="ws-label">Duration (minutes)</label>
+                <input
+                  type="number"
+                  value={newDuration}
+                  onChange={(e) => setNewDuration(e.target.value)}
+                  placeholder="e.g. 15"
+                  className="ws-input"
+                />
+              </div>
+              <div className="ws-tr-span2">
+                <label className="ws-label">Description / Notes</label>
+                <textarea
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Add lesson description, key takeaways, or any supporting copy..."
+                  className="ws-input"
+                />
+              </div>
+              <div className="ws-tr-span2">
+                <label className="ws-label">Supporting files <span>(optional)</span></label>
+                <div className="ws-tr-stack">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files?.length) return;
+                      setUploadingNewAttachments(true);
+                      try {
+                        const uploaded = await uploadAttachments(files);
+                        setNewAttachments((prev) => [...prev, ...uploaded]);
+                        toast(uploaded.length === 1 ? "File attached" : `${uploaded.length} files attached`);
+                      } catch {
+                        toast("Failed to upload file", "error");
+                      } finally {
+                        setUploadingNewAttachments(false);
+                        e.target.value = "";
+                      }
+                    }}
+                    className="ws-input ws-tr-fileinput"
+                  />
+                  {uploadingNewAttachments && <p className="ws-caption">Uploading...</p>}
+                  {newAttachments.length > 0 && (
+                    <div className="ws-tr-files">
+                      {newAttachments.map((attachment) => (
+                        <AttachmentRow
+                          key={attachment.id}
+                          attachment={attachment}
+                          onRemove={() => setNewAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="ws-tr-acts mt-4">
+              <button onClick={addLesson} className="ws-btn ws-btn-primary ws-focus">Add lesson</button>
+              <button onClick={() => setShowAddLesson(false)} className="ws-btn ws-btn-quiet ws-focus">Cancel</button>
             </div>
           </div>
-          <div className="flex gap-3 mt-4">
-            <button onClick={addLesson} className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium cursor-pointer">Add Lesson</button>
-            <button onClick={() => setShowAddLesson(false)} className="px-5 py-2.5 text-text-muted text-sm hover:text-text-secondary cursor-pointer">Cancel</button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Lessons list */}
-      <div className="space-y-2">
-        {lessons.map((lesson, i) => (
-          <LessonCard
-            key={lesson.id}
-            lesson={lesson}
-            index={i}
-            isFirst={i === 0}
-            isLast={i === lessons.length - 1}
-            isExpanded={expandedLesson === lesson.id}
-            onToggle={() => setExpandedLesson(expandedLesson === lesson.id ? null : lesson.id)}
-            onDelete={() => deleteLesson(lesson.id)}
-            onMoveUp={() => moveLesson(i, "up")}
-            onMoveDown={() => moveLesson(i, "down")}
-            modules={modules}
-            onSave={async (updates) => {
-              const res = await fetch("/api/admin/training/lessons", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: lesson.id, ...updates }),
-              });
-              if (res.ok) { toast("Lesson updated"); await loadModule(); }
-              else { toast("Failed to update lesson", "error"); }
-            }}
-          />
-        ))}
-      </div>
-
-      {lessons.length === 0 && (
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
-          <p className="text-text-muted text-sm">No lessons yet. Add your first one above.</p>
+        {/* Lessons list */}
+        <div>
+          {lessons.map((lesson, i) => (
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
+              index={i}
+              isFirst={i === 0}
+              isLast={i === lessons.length - 1}
+              isExpanded={expandedLesson === lesson.id}
+              onToggle={() => setExpandedLesson(expandedLesson === lesson.id ? null : lesson.id)}
+              onDelete={() => deleteLesson(lesson.id)}
+              onMoveUp={() => moveLesson(i, "up")}
+              onMoveDown={() => moveLesson(i, "down")}
+              modules={modules}
+              onSave={async (updates) => {
+                const res = await fetch("/api/admin/training/lessons", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: lesson.id, ...updates }),
+                });
+                if (res.ok) { toast("Lesson updated"); await loadModule(); }
+                else { toast("Failed to update lesson", "error"); }
+              }}
+            />
+          ))}
         </div>
-      )}
+
+        {lessons.length === 0 && (
+          <Empty icon="book" title="No lessons yet" text="Add your first one above." />
+        )}
+      </section>
 
       {/* Danger zone */}
-      <div className="mt-12 pt-6 border-t border-[rgba(255,255,255,0.04)]">
+      <div className="ws-tr-danger">
         <button
           onClick={deleteModule}
-          className="text-xs text-text-muted hover:text-red-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+          className="ws-btn ws-btn-quiet ws-btn-sm ws-tr-del ws-focus"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
-          Delete Module
+          Delete module
         </button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -654,41 +638,39 @@ function LessonCard({
   const ct = contentTypeLabels[lesson.content_type];
 
   return (
-    <div className="group/lesson relative bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(34,114,222,0.15)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.2),0_0_30px_rgba(34,114,222,0.04)] will-change-transform">
-      <div className="absolute inset-0 opacity-0 group-hover/lesson:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:4px_4px] z-10 pointer-events-none" />
-      <div className="absolute inset-0 -z-10 rounded-2xl p-px bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover/lesson:opacity-100 transition-opacity duration-300 pointer-events-none" />
+    <div className={`ws-tr-lesson${isExpanded ? " is-open" : ""}`}>
       {/* Collapsed row */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-4 p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
+        className="ws-tr-lesson-h is-admin ws-focus"
       >
-        <div className="text-text-muted text-sm font-mono w-6 text-center flex-shrink-0">{index + 1}</div>
+        <span className="ws-tr-lesson-n">{index + 1}</span>
 
-        <div className={`w-8 h-8 rounded-lg ${ct.color} flex items-center justify-center flex-shrink-0`}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={ct.icon} />
+        <span className={`ws-tr-lesson-ic is-${lesson.content_type}`}>
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={ct.icon} />
           </svg>
-        </div>
+        </span>
 
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-text-primary">{lesson.title}</div>
-          <div className="flex items-center gap-3 text-xs text-text-muted mt-0.5">
+        <span className="min-w-0">
+          <span className="ws-tr-lesson-t">{lesson.title}</span>
+          <span className="ws-tr-lesson-s">
             <span>{ct.label}</span>
             {lesson.duration_minutes && <span>{lesson.duration_minutes} min</span>}
             {lesson.attachments && lesson.attachments.length > 0 && (
               <span>{lesson.attachments.length} file{lesson.attachments.length !== 1 ? "s" : ""}</span>
             )}
-          </div>
-        </div>
+          </span>
+        </span>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <span className="ws-tr-lesson-acts">
           {!isFirst && (
             <button
               onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
-              className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover/lesson:opacity-100 cursor-pointer"
+              className="ws-tr-mini ws-tr-reveal"
               title="Move up"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
               </svg>
             </button>
@@ -696,42 +678,37 @@ function LessonCard({
           {!isLast && (
             <button
               onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
-              className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover/lesson:opacity-100 cursor-pointer"
+              className="ws-tr-mini ws-tr-reveal"
               title="Move down"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
           )}
-          <button className="p-1.5 text-text-muted hover:text-accent-bright transition-colors opacity-0 group-hover/lesson:opacity-100">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button className="ws-tr-mini ws-tr-reveal">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
-          <svg
-            className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
+          <Icon name="chevron" size={14} className={`ws-chev${isExpanded ? " is-open" : ""}`} />
+        </span>
       </button>
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="border-t border-[rgba(255,255,255,0.04)] p-5 space-y-5">
+        <div className="ws-tr-lesson-body">
           {editing ? (
             /* Edit mode */
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="ws-tr-stack is-lg">
+              <div className="ws-tr-fields">
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Title</label>
-                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-accent/40" />
+                  <label className="ws-label">Title</label>
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="ws-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Type</label>
-                  <select value={editType} onChange={(e) => setEditType(e.target.value as ContentType)} className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-accent/40">
+                  <label className="ws-label">Type</label>
+                  <select value={editType} onChange={(e) => setEditType(e.target.value as ContentType)} className="ws-input">
                     <option value="video">Video</option>
                     <option value="text">Article</option>
                     <option value="pdf">Document</option>
@@ -739,19 +716,19 @@ function LessonCard({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">URL</label>
-                  <input type="text" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder="https://..." className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40" />
+                  <label className="ws-label">URL</label>
+                  <input type="text" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder="https://..." className="ws-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration (minutes)</label>
-                  <input type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} placeholder="e.g. 15" className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40" />
+                  <label className="ws-label">Duration (minutes)</label>
+                  <input type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} placeholder="e.g. 15" className="ws-input" />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Move to module</label>
+                <div className="ws-tr-span2">
+                  <label className="ws-label">Move to module</label>
                   <select
                     value={editModuleId}
                     onChange={(e) => setEditModuleId(e.target.value)}
-                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-accent/40"
+                    className="ws-input"
                   >
                     {modules.map((mod) => (
                       <option key={mod.id} value={mod.id}>
@@ -760,18 +737,18 @@ function LessonCard({
                     ))}
                   </select>
                   {editModuleId !== lesson.module_id && (
-                    <p className="mt-1.5 text-xs text-amber-300">
+                    <p className="ws-caption mt-1.5" style={{ color: "var(--ws-attn)" }}>
                       Saving will move this lesson out of the current module.
                     </p>
                   )}
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Description / Notes</label>
-                  <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} placeholder="Lesson description..." className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none" />
+                <div className="ws-tr-span2">
+                  <label className="ws-label">Description / Notes</label>
+                  <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} placeholder="Lesson description..." className="ws-input" />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Supporting Files</label>
-                  <div className="space-y-3">
+                <div className="ws-tr-span2">
+                  <label className="ws-label">Supporting files</label>
+                  <div className="ws-tr-stack">
                     <input
                       type="file"
                       multiple
@@ -805,11 +782,11 @@ function LessonCard({
                           e.target.value = "";
                         }
                       }}
-                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent-bright hover:file:bg-accent/20"
+                      className="ws-input ws-tr-fileinput"
                     />
-                    {uploadingAttachments && <p className="text-xs text-text-muted">Uploading...</p>}
+                    {uploadingAttachments && <p className="ws-caption">Uploading...</p>}
                     {editAttachments.length > 0 && (
-                      <div className="space-y-2">
+                      <div className="ws-tr-files">
                         {editAttachments.map((attachment) => (
                           <AttachmentRow
                             key={attachment.id}
@@ -822,7 +799,7 @@ function LessonCard({
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="ws-tr-acts">
                 <button
                   disabled={savingLesson || !editTitle.trim()}
                   onClick={async () => {
@@ -839,9 +816,9 @@ function LessonCard({
                     setSavingLesson(false);
                     setEditing(false);
                   }}
-                  className="px-5 py-2.5 gradient-accent text-white rounded-xl text-sm font-medium cursor-pointer disabled:opacity-50"
+                  className="ws-btn ws-btn-primary ws-focus"
                 >
-                  {savingLesson ? "Saving..." : "Save Changes"}
+                  {savingLesson ? "Saving..." : "Save changes"}
                 </button>
                 <button
                   onClick={() => {
@@ -854,7 +831,7 @@ function LessonCard({
                     setEditAttachments(lesson.attachments || []);
                     setEditing(false);
                   }}
-                  className="px-5 py-2.5 text-text-muted text-sm hover:text-text-secondary cursor-pointer"
+                  className="ws-btn ws-btn-quiet ws-focus"
                 >
                   Cancel
                 </button>
@@ -865,52 +842,46 @@ function LessonCard({
             <>
               {/* Video embed */}
               {lesson.content_type === "video" && lesson.content_url && (
-                <div className="rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)] shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
-                  <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                    {isNativeLessonVideo(lesson.content_url) ? <video controls preload="metadata" src={nativeLessonVideoUrl(lesson.content_url)} className="absolute inset-0 w-full h-full" aria-label={lesson.title} /> : (<iframe
-                      src={getVideoEmbed(lesson.content_url).embedUrl}
-                      className="absolute top-0 left-0 w-full h-full"
-                      allow="encrypted-media *; fullscreen *"
-                      allowFullScreen
-                      scrolling="no"
-                      title={lesson.title}
-                      style={{ border: 0 }}
-                    />)}
-                  </div>
+                <div className="ws-tr-video">
+                  {isNativeLessonVideo(lesson.content_url) ? <video controls preload="metadata" src={nativeLessonVideoUrl(lesson.content_url)} className="absolute inset-0 w-full h-full" aria-label={lesson.title} /> : (<iframe
+                    src={getVideoEmbed(lesson.content_url).embedUrl}
+                    className="absolute top-0 left-0 w-full h-full"
+                    allow="encrypted-media *; fullscreen *"
+                    allowFullScreen
+                    scrolling="no"
+                    title={lesson.title}
+                    style={{ border: 0 }}
+                  />)}
                 </div>
               )}
 
               {/* Video URL display */}
               {lesson.content_url && (
-                <div className="flex items-center gap-2 bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl px-4 py-3">
-                  <svg className="w-4 h-4 text-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <span className="text-xs text-text-muted truncate flex-1">{lesson.content_url}</span>
-                  <button onClick={() => setEditing(true)} className="text-xs text-accent-bright hover:text-accent-light transition-colors flex-shrink-0 cursor-pointer">Edit URL</button>
+                <div className="ws-tr-url">
+                  <Icon name="link" size={14} />
+                  <span className="ws-tr-url-t">{lesson.content_url}</span>
+                  <button onClick={() => setEditing(true)} className="ws-tr-textbtn">Edit URL</button>
                 </div>
               )}
 
               {/* Description */}
               {lesson.content_text && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Description</span>
-                    <button onClick={() => setEditing(true)} className="text-xs text-accent-bright hover:text-accent-light transition-colors cursor-pointer">Edit</button>
+                  <div className="ws-tr-subhead">
+                    <span className="ws-field-l">Description</span>
+                    <button onClick={() => setEditing(true)} className="ws-tr-textbtn">Edit</button>
                   </div>
-                  <div className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl p-4">
-                    <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{lesson.content_text}</div>
-                  </div>
+                  <div className="ws-prose ws-tr-text">{lesson.content_text}</div>
                 </div>
               )}
 
               {lesson.attachments && lesson.attachments.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Attachments</span>
-                    <button onClick={() => setEditing(true)} className="text-xs text-accent-bright hover:text-accent-light transition-colors cursor-pointer">Manage</button>
+                  <div className="ws-tr-subhead">
+                    <span className="ws-field-l">Attachments</span>
+                    <button onClick={() => setEditing(true)} className="ws-tr-textbtn">Manage</button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="ws-tr-files">
                     {lesson.attachments.map((attachment) => (
                       <AttachmentRow key={attachment.id} attachment={attachment} />
                     ))}
@@ -919,16 +890,16 @@ function LessonCard({
               )}
 
               {/* Action row */}
-              <div className="flex items-center gap-2 pt-2 border-t border-[rgba(255,255,255,0.03)]">
-                <button onClick={() => setEditing(true)} className="text-xs text-text-muted hover:text-text-secondary transition-colors inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.03)] cursor-pointer">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="ws-tr-lesson-foot">
+                <button onClick={() => setEditing(true)} className="ws-btn ws-btn-sm ws-focus">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
-                  Edit Lesson
+                  Edit lesson
                 </button>
                 <div className="flex-1" />
-                <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-xs text-text-muted hover:text-red-400 transition-colors inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-500/5 cursor-pointer">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="ws-btn ws-btn-quiet ws-btn-sm ws-tr-del ws-focus">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                   Remove
@@ -952,26 +923,26 @@ function AttachmentRow({
   const meta = attachmentIcons[attachment.type] || attachmentIcons.other;
 
   return (
-    <div className="flex items-center gap-3 bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl px-4 py-3">
-      <div className={`w-9 h-9 rounded-lg ${meta.color} flex items-center justify-center flex-shrink-0`}>
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="ws-tr-file">
+      <span className={`ws-tr-file-ic is-${attachment.type in attachmentIcons ? attachment.type : "other"}`}>
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={meta.icon} />
         </svg>
-      </div>
-      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 no-underline">
-        <div className="text-sm text-text-primary truncate">{attachment.name}</div>
-        {attachment.size && <div className="text-[10px] text-text-muted">{attachment.size}</div>}
+      </span>
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="ws-tr-file-link">
+        <span className="ws-tr-file-n">{attachment.name}</span>
+        {attachment.size && <span className="ws-tr-file-m">{attachment.size}</span>}
       </a>
       {onRemove ? (
         <button
           type="button"
           onClick={onRemove}
-          className="text-xs text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+          className="ws-tr-textbtn is-bad"
         >
           Remove
         </button>
       ) : (
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent-bright hover:text-accent-light transition-colors no-underline">
+        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="ws-tr-textbtn">
           Download
         </a>
       )}
