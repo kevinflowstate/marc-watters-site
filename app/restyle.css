@@ -457,3 +457,11 @@
 .ws .ws-mm-svg { margin-top: 12px; overflow-x: auto; }
 .ws .ws-mm-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12px; color: var(--ws-ink-3); }
 @media (max-width: 639px) { .ws .ws-mm-latest { text-align: left; } }
+
+/*
+ * Hotfix (12 Nov 2026): the shell's entrance animation used fill-mode "both", leaving a transform on
+ * .ws-page after it finished. A transform makes position:fixed children (every modal, the plan
+ * builder, the nudge dialog) size to the page instead of the screen, so they opened off-screen.
+ * "backwards" keeps the same entrance and drops the transform once it ends.
+ */
+.admin-shell .adm-page > * { animation-fill-mode: backwards; }
