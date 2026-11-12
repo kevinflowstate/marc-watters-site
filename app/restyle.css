@@ -659,7 +659,6 @@
   .ws .ws-tr-card, .ws .ws-tr-lesson-h, .ws .ws-tr-reveal, .ws .ws-tr-opt, .ws .ws-tr-pick, .ws .ws-tr-file, .ws .ws-tr-pub, .ws .ws-chev { transition: none; }
 }
 /* ===== End Batch 4: Training ===== */
-=======
 /* ===================================================================
  * Batch 5a: admin pages (12 Nov 2026). Business plans and the plan
  * builder, Thursday reports, calendar and event editor, Blueprint AI,
@@ -983,7 +982,6 @@
 .ws .ws-st-none { padding: 8px 0; border-top: 1px solid var(--ws-divider); }
 .ws .ws-st-props { padding: 12px 14px; grid-template-columns: 128px minmax(0, 1fr); }
 /* ===== End batch 5a ===== */
-=======
 /* ===================================================================
  * Batch 5b: portal pages and Growth Engine (12 Nov 2026).
  * Client Plan, Check-in, check-in reply, Calendar, Blueprint AI, Settings,
