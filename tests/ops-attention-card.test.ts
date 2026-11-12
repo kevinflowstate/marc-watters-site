@@ -3,13 +3,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { OpsTask } from "../lib/ops/types";
 
-const fixture = vi.hoisted(() => ({ tasks: null as OpsTask[] | null }));
+const fixture = vi.hoisted(() => ({ tasks: null as OpsTask[] | null, failed: false }));
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
   return {
     ...actual,
     useEffect: () => undefined,
-    useState: () => [fixture.tasks, () => undefined],
+    // tasks starts null, failed starts false: tell them apart by the initial value.
+    useState: (initial: unknown) => [typeof initial === "boolean" ? fixture.failed : fixture.tasks, () => undefined],
   };
 });
 
@@ -24,7 +25,7 @@ const render = () =>
     .replace(/\s+/g, " ");
 
 describe("dashboard work counts", () => {
-  beforeEach(() => { fixture.tasks = null; });
+  beforeEach(() => { fixture.tasks = null; fixture.failed = false; });
 
   it("keeps requested changes open without claiming another approval is needed", () => {
     fixture.tasks = [task("rejected")];
@@ -39,8 +40,12 @@ describe("dashboard work counts", () => {
     expect(render()).toContain("4 open 1 approval 1 flag");
   });
 
-  it("distinguishes an empty checked queue from unavailable work", () => {
+  it("distinguishes loading, an empty checked queue and unavailable work", () => {
+    expect(render()).toContain("Loading...");
+    expect(render()).not.toContain("Work queue unavailable");
+    fixture.failed = true;
     expect(render()).toContain("Work queue unavailable");
+    fixture.failed = false;
     fixture.tasks = [];
     expect(render()).toContain("0 open 0 approvals 0 flags");
   });
