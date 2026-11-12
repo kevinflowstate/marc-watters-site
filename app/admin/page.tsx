@@ -636,6 +636,10 @@ function whenShort(iso: string | null | undefined): string {
   return new Date(t).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short" });
 }
 
+function dayDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short" });
+}
+
 function fullDate(iso: string | null | undefined) {
   if (!iso) return undefined;
   return new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -705,18 +709,37 @@ function buildNeedsYou(clients: AdminClient[], recentCheckins: EnrichedCheckin[]
       action: { type: "nudge" as const, clientName: c.name, userId: c.user_id, message: "quiet" as const },
     }));
 
-  const stalled: NeedsYouItem[] = clients.flatMap((c) => {
-    if (c.status === "red") return [];
-    const items = c.business_plan.filter((p) => p.status === "active").flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
-    if (items.length === 0 || c.current_week <= 4) return [];
-    const pct = Math.round((items.filter((i) => i.completed).length / items.length) * 100);
-    if (pct >= 30) return [];
-    return [{
-      id: `plan-${c.id}`,
-      clientName: byId.get(c.id)?.name ?? c.name,
-      text: `Plan ${pct}% done at week ${c.current_week}`,
-      action: { type: "view-plan" as const, clientId: c.id },
-    }];
+  // Plans Marc can act on: finished (every item ticked) or none set. Marc, 12 Nov 2026: replaces "Plans stalled",
+  // which listed most clients because few tick their items.
+  const plansToSet: NeedsYouItem[] = clients.flatMap((c): NeedsYouItem[] => {
+    const active = c.business_plan.filter((p) => p.status === "active");
+    const name = byId.get(c.id)?.name ?? c.name;
+    const action = { type: "view-plan" as const, clientId: c.id };
+    if (active.length === 0) {
+      const last = c.business_plan.find((p) => p.status === "completed");
+      return [{
+        id: `plan-none-${c.id}`,
+        clientName: name,
+        text: last?.completed_at ? `No active plan since ${dayDate(last.completed_at)}` : "No plan set yet",
+        chip: { text: "No plan", tone: "attn" as const },
+        action,
+      }];
+    }
+    const items = active.flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
+    if (items.length === 0) {
+      return [{ id: `plan-empty-${c.id}`, clientName: name, text: "Plan has no action items yet", chip: { text: "Empty plan", tone: "attn" as const }, action }];
+    }
+    if (items.every((i) => i.completed)) {
+      const done = items.map((i) => i.completed_at).filter(Boolean).sort().pop();
+      return [{
+        id: `plan-done-${c.id}-${done ?? ""}`,
+        clientName: name,
+        text: done ? `Finished every item, last ticked ${dayDate(done)}. Set the next plan.` : "Finished every item. Set the next plan.",
+        chip: { text: "Plan finished", tone: "ok" as const },
+        action,
+      }];
+    }
+    return [];
   });
 
   return [
@@ -724,7 +747,7 @@ function buildNeedsYou(clients: AdminClient[], recentCheckins: EnrichedCheckin[]
     { key: "checkins", title: "Check-ins to reply to", hint: "No reply yet, or they answered your reply", colour: "var(--ws-accent)", items: checkins },
     { key: "behind", title: "Behind on check-ins", hint: "Still using the portal but missed a round", colour: "var(--ws-attn)", items: behind },
     { key: "quiet", title: "Gone quiet", hint: "Missed 2+ rounds and nothing in the portal for 14+ days", colour: "var(--ws-bad)", items: quiet },
-    { key: "plans", title: "Plans stalled", hint: "Under 30% done after week 4", colour: "var(--ws-attn)", items: stalled },
+    { key: "plans", title: "Plans to set up", hint: "Plan finished, or no plan in place", colour: "var(--ws-accent)", items: plansToSet },
   ];
 }
 
@@ -834,9 +857,9 @@ function NeedsYou({ clients, recentCheckins }: { clients: AdminClient[]; recentC
                         </Link>
                       )}
                       {item.action.type === "view-plan" && (
-                        <Link href={`/admin/clients/${item.action.clientId}`} className="ws-btn ws-btn-sm ws-focus">
+                        <Link href={`/admin/clients/${item.action.clientId}#plan`} className="ws-btn ws-btn-sm ws-focus">
                           <Icon name="plan" size={12} />
-                          View plan
+                          Set up plan
                         </Link>
                       )}
                       {item.action.type === "nudge" && (

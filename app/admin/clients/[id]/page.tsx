@@ -144,6 +144,10 @@ export default function ClientDetailPage() {
   }, [id]);
 
   useEffect(() => { loadClient(); }, [loadClient]);
+  // The Dashboard's "Plans to set up" links here with #plan; jump to the plan once it has loaded.
+  useEffect(() => {
+    if (!loading && window.location.hash === "#plan") document.getElementById("plan")?.scrollIntoView({ block: "start" });
+  }, [loading]);
 
   async function handleReply(checkinId: string) {
     if (client?.archived_at) return;
@@ -862,7 +866,7 @@ export default function ClientDetailPage() {
 
       <div className="grid lg:grid-cols-[1.3fr_1fr] gap-6">
         {/* Business Plan */}
-        <div>
+        <div id="plan" className="scroll-mt-20">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-heading font-bold text-text-primary">
