@@ -58,34 +58,27 @@ function MetricTrendChart({
   const latest = history[history.length - 1];
 
   return (
-    <div className="rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-primary/60 p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h4 className="text-base font-heading font-bold text-text-primary">{definition.label} Trend</h4>
-          <p className="mt-1 text-sm text-text-secondary">
+    <div className="ws-mm-chart">
+      <div className="ws-mm-chart-head">
+        <div className="min-w-0">
+          <h4 className="ws-h2">{definition.label} trend</h4>
+          <p className="ws-caption mt-0.5">
             Tracking {definition.short_label.toLowerCase()} month by month.
           </p>
         </div>
-        <div className="text-left sm:text-right">
-          <div className="text-[11px] uppercase tracking-wider text-text-muted">
+        <div className="ws-mm-latest">
+          <div className="ws-caption">
             Latest {formatMetricsMonthLabel(latest.month_start)}
           </div>
-          <div className="mt-1 text-xl font-heading font-bold text-text-primary">
+          <div className="ws-mm-latest-n">
             {formatMonthlyMetricValue(definition.key, getMetricValue(latest, definition.key))}
           </div>
         </div>
       </div>
 
-      <div className="mt-5 overflow-x-auto">
+      <div className="ws-mm-svg">
         <div className="min-w-[560px]">
           <svg viewBox={`0 0 ${width} ${height}`} className="h-56 w-full">
-            <defs>
-              <linearGradient id={`metric-gradient-${definition.key}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(34,114,222,0.28)" />
-                <stop offset="100%" stopColor="rgba(34,114,222,0)" />
-              </linearGradient>
-            </defs>
-
             {[0, 1, 2, 3].map((line) => {
               const y = padding + ((height - padding * 2) / 3) * line;
               return (
@@ -95,7 +88,7 @@ function MetricTrendChart({
                   x2={width - padding}
                   y1={y}
                   y2={y}
-                  stroke="rgba(255,255,255,0.06)"
+                  style={{ stroke: "var(--ws-line)" }}
                   strokeDasharray="4 8"
                 />
               );
@@ -104,8 +97,7 @@ function MetricTrendChart({
             {areaPath && (
               <path
                 d={areaPath}
-                fill={`url(#metric-gradient-${definition.key})`}
-                opacity="1"
+                style={{ fill: "var(--ws-accent)", fillOpacity: 0.08 }}
               />
             )}
 
@@ -113,8 +105,8 @@ function MetricTrendChart({
               <path
                 d={path}
                 fill="none"
-                stroke="rgba(56,149,255,0.95)"
-                strokeWidth="3"
+                style={{ stroke: "var(--ws-accent-ink)" }}
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -129,13 +121,13 @@ function MetricTrendChart({
 
               return (
                 <g key={entry.id}>
-                  <circle cx={x} cy={y} r="5" fill="#061224" stroke="rgba(56,149,255,0.95)" strokeWidth="3" />
+                  <circle cx={x} cy={y} r="4" style={{ fill: "var(--ws-panel)", stroke: "var(--ws-accent-ink)" }} strokeWidth="2" />
                   <text
                     x={x}
                     y={height - 2}
                     textAnchor="middle"
                     fontSize="11"
-                    fill="rgba(163,171,192,0.8)"
+                    style={{ fill: "var(--ws-ink-3)" }}
                   >
                     {formatMetricsMonthLabel(entry.month_start, { month: "short" })}
                   </text>
@@ -146,7 +138,7 @@ function MetricTrendChart({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-muted">
+      <div className="ws-mm-foot">
         <span>Low: {formatMonthlyMetricValue(definition.key, min)}</span>
         <span>High: {formatMonthlyMetricValue(definition.key, max)}</span>
         <span>{history.length} month{history.length !== 1 ? "s" : ""} tracked</span>
@@ -160,24 +152,41 @@ export default function MonthlyMetricsOverview({
   title = "Five Key Monthly Metrics",
   subtitle = "Track progress month by month across the numbers that matter most.",
   emptyMessage = "No monthly metrics have been submitted yet.",
+  framed = true,
 }: {
   history: ClientMonthlyMetric[];
   title?: string;
   subtitle?: string;
   emptyMessage?: string;
+  /** Draw its own panel. Pass false when the caller already puts it inside a panel (no nested cards). */
+  framed?: boolean;
 }) {
   const sortedHistory = sortMonthlyMetrics(history);
   const [expandedMetric, setExpandedMetric] = useState<MonthlyMetricKey>(
     monthlyMetricDefinitions[0].key,
   );
+  const Frame = framed ? "section" : "div";
+  const frameClass = framed ? "ws-panel ws-mm" : "ws-mm";
 
   if (sortedHistory.length === 0) {
     return (
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-card/80 p-6">
-        {title && <h3 className="text-xl font-heading font-bold text-text-primary">{title}</h3>}
-        {subtitle && <p className="mt-2 text-sm text-text-secondary">{subtitle}</p>}
-        <p className="mt-5 text-sm text-text-muted">{emptyMessage}</p>
-      </div>
+      <Frame className={frameClass}>
+        {(title || subtitle) && (
+          <div className="ws-panel-head">
+            <div className="min-w-0 mr-auto">
+              {title && <h3 className="ws-h2">{title}</h3>}
+              {subtitle && <p className="ws-caption">{subtitle}</p>}
+            </div>
+          </div>
+        )}
+        <div className="ws-empty">
+          <span className="ws-empty-glyph">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M5 20V10M12 20V4M19 20v-7" /></svg>
+          </span>
+          <p className="ws-empty-h">No metrics yet</p>
+          <p>{emptyMessage}</p>
+        </div>
+      </Frame>
     );
   }
 
@@ -188,90 +197,64 @@ export default function MonthlyMetricsOverview({
     monthlyMetricDefinitions[0];
 
   return (
-    <div className="rounded-2xl border border-[rgba(255,255,255,0.04)] bg-bg-card/80 p-6 sm:p-7">
+    <Frame className={frameClass}>
       {(title || subtitle) && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            {title && <h3 className="text-xl font-heading font-bold text-text-primary">{title}</h3>}
-            {subtitle && <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary">{subtitle}</p>}
+        <div className="ws-panel-head">
+          <div className="min-w-0 mr-auto">
+            {title && <h3 className="ws-h2">{title}</h3>}
+            {subtitle && <p className="ws-caption max-w-3xl">{subtitle}</p>}
           </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-bg-primary/60 px-4 py-3 text-left sm:text-right">
-            <div className="text-[11px] uppercase tracking-wider text-text-muted">Latest Snapshot</div>
-            <div className="mt-1 text-sm font-medium text-text-primary">
-              {formatMetricsMonthLabel(latest.month_start, { month: "long", year: "numeric" })}
-            </div>
-          </div>
+          <span className="ws-chip">
+            Latest snapshot · {formatMetricsMonthLabel(latest.month_start, { month: "long", year: "numeric" })}
+          </span>
         </div>
       )}
 
-      <div className={`${title || subtitle ? "mt-6 " : ""}grid gap-4 md:grid-cols-2 xl:grid-cols-5`}>
-        {monthlyMetricDefinitions.map((metric) => {
-          const currentValue = getMetricValue(latest, metric.key);
-          const previousValue = previous ? getMetricValue(previous, metric.key) : null;
-          const delta = getMonthlyMetricDelta(metric.key, currentValue, previousValue);
-          const isExpanded = expandedMetric === metric.key;
+      <div className="ws-mm-grid-wrap">
+        <div className="ws-mm-grid">
+          {monthlyMetricDefinitions.map((metric) => {
+            const currentValue = getMetricValue(latest, metric.key);
+            const previousValue = previous ? getMetricValue(previous, metric.key) : null;
+            const delta = getMonthlyMetricDelta(metric.key, currentValue, previousValue);
+            const isExpanded = expandedMetric === metric.key;
 
-          return (
-            <button
-              key={metric.key}
-              type="button"
-              onClick={() => setExpandedMetric(metric.key)}
-              className={`group rounded-2xl border p-5 text-left transition-all duration-200 cursor-pointer ${
-                isExpanded
-                  ? "border-accent/30 bg-accent/10 shadow-[0_8px_24px_rgba(34,114,222,0.08)]"
-                  : "border-[rgba(255,255,255,0.05)] bg-bg-primary/60 hover:border-[rgba(255,255,255,0.12)]"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider text-text-muted">{metric.label}</div>
-                  <div className="mt-3 text-2xl font-heading font-bold text-text-primary">
-                    {formatMonthlyMetricValue(metric.key, currentValue)}
-                  </div>
-                </div>
-                <svg
-                  className={`mt-1 h-4 w-4 text-text-muted transition-transform ${isExpanded ? "rotate-180 text-accent-bright" : "group-hover:text-text-primary"}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-
-              {delta ? (
-                <div
-                  className={`mt-4 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                    delta.tone === "positive"
-                      ? "bg-emerald-500/10 text-emerald-300"
-                      : delta.tone === "negative"
-                      ? "bg-red-500/10 text-red-300"
-                      : "bg-[rgba(255,255,255,0.06)] text-text-muted"
-                  }`}
-                >
-                  {delta.label}
-                </div>
-              ) : (
-                <div className="mt-4 inline-flex rounded-full bg-[rgba(255,255,255,0.06)] px-2.5 py-1 text-[11px] font-semibold text-text-muted">
-                  First month recorded
-                </div>
-              )}
-
-              <div className="mt-3 text-xs text-text-muted">
-                {previous
-                  ? `Compared with ${formatMetricsMonthLabel(previous.month_start)}`
-                  : `Recorded for ${formatMetricsMonthLabel(latest.month_start)}`}
-              </div>
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={metric.key}
+                type="button"
+                onClick={() => setExpandedMetric(metric.key)}
+                aria-pressed={isExpanded}
+                className="ws-mm-cell ws-focus"
+              >
+                <span className="ws-mm-l">{metric.label}</span>
+                <span className="ws-mm-n">
+                  {formatMonthlyMetricValue(metric.key, currentValue)}
+                </span>
+                {delta ? (
+                  <span
+                    className={`ws-chip ${
+                      delta.tone === "positive" ? "is-ok" : delta.tone === "negative" ? "is-bad" : ""
+                    }`}
+                  >
+                    {delta.label}
+                  </span>
+                ) : (
+                  <span className="ws-chip">First month recorded</span>
+                )}
+                <span className="ws-mm-s">
+                  {previous
+                    ? `Compared with ${formatMetricsMonthLabel(previous.month_start)}`
+                    : `Recorded for ${formatMetricsMonthLabel(latest.month_start)}`}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {expandedDefinition && (
-        <div className="mt-6">
-          <MetricTrendChart definition={expandedDefinition} history={sortedHistory} />
-        </div>
+        <MetricTrendChart definition={expandedDefinition} history={sortedHistory} />
       )}
-    </div>
+    </Frame>
   );
 }

@@ -1,17 +1,19 @@
 "use client";
 import { initials } from "@/lib/initials";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
-import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
+import { Chip, Empty, Icon, SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight } from "@/lib/types";
 
-const statusConfig: Record<TrafficLight, { label: string; dotClass: string; bgClass: string; textClass: string }> = {
-  red: { label: "Gone quiet", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400" },
-  amber: { label: "Behind", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
-  green: { label: "On track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
+const statusConfig: Record<TrafficLight, { label: string; tone: "bad" | "attn" | "ok"; colour: string; note: string }> = {
+  red: { label: "Gone quiet", tone: "bad", colour: "var(--ws-bad)", note: "no activity for 14+ days" },
+  amber: { label: "Behind", tone: "attn", colour: "var(--ws-attn)", note: "still active, missed a round" },
+  green: { label: "On track", tone: "ok", colour: "var(--ws-ok)", note: "checked in and active" },
 };
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function timeAgo(dateStr: string): string {
   const now = new Date();
@@ -60,7 +62,23 @@ export default function ClientsPage() {
   useEffect(() => { loadClients(); }, []);
 
   if (loading) {
-    return <PageSkeleton rows={6} />;
+    return (
+      <div className="ws ws-page">
+        <div>
+          <span className="ws-skel" style={{ width: 140, height: 22 }} />
+          <span className="ws-skel mt-2" style={{ width: 180, height: 12 }} />
+        </div>
+        <div className="ws-strip">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="ws-stat" style={{ cursor: "default" }}>
+              <span className="ws-skel" style={{ width: 80, height: 10 }} />
+              <span className="ws-skel" style={{ width: 36, height: 20 }} />
+            </div>
+          ))}
+        </div>
+        <div className="ws-panel"><SkeletonRows count={6} /></div>
+      </div>
+    );
   }
 
   const activeClients = allClients.filter((client) => !client.archived_at);
@@ -87,47 +105,41 @@ export default function ClientsPage() {
     });
 
   return (
-    <>
-      <div className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="v2-eyebrow mb-3">Client workspace</div>
-          <h1 className="v2-page-title">Clients</h1>
-          <p className="mt-2 text-sm text-text-secondary">{activeClients.length} active · {archivedClients.length} archived</p>
+    <div className="ws ws-page">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Clients</h1>
+          <p className="ws-meta mt-1">{activeClients.length} active · {archivedClients.length} archived</p>
         </div>
-        <button
-          onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
-          className="v2-button-primary min-h-11 w-full cursor-pointer sm:w-auto"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Client
-        </button>
+        <div className="ws-ph-acts">
+          <button
+            type="button"
+            onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
+            className="ws-btn ws-btn-primary ws-focus"
+          >
+            <Icon name="plus" size={14} />
+            Add client
+          </button>
+        </div>
       </div>
 
       {/* Add Client Modal */}
       {inviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-heading font-bold text-text-primary">Add Client</h3>
-                <p className="text-xs text-text-muted">They&apos;ll receive an activation email for their portal account</p>
+        <div className="ws-overlay">
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Add client">
+            <div className="ws-dialog-head">
+              <div className="min-w-0">
+                <h3 className="ws-dialog-title">Add client</h3>
+                <p className="ws-caption mt-0.5">They&apos;ll receive an activation email for their portal account</p>
               </div>
             </div>
 
             {inviteResult?.success ? (
-              <>
-                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
-                  <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm text-emerald-400 font-medium">
+              <div className="ws-dialog-body">
+                <div className="ws-note is-ok" role="status">
+                  <Icon name="checkCircle" size={15} />
+                  <span>
                     {inviteResult.passwordSet
                       ? "Client added - password set, ready to log in"
                       : inviteResult.alreadyExisted
@@ -140,70 +152,72 @@ export default function ClientsPage() {
                   </span>
                 </div>
                 {!inviteResult.passwordSet && !inviteResult.emailSent && inviteResult.setupUrl && (
-                  <div className="mb-4">
-                    <p className="text-xs text-amber-400 mb-2">Email couldn&apos;t be sent. Share this {inviteResult.alreadyExisted ? "reset" : "activation"} link manually:</p>
-                    <div className="bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2">
-                      <p className="text-[10px] text-text-muted break-all select-all">{inviteResult.setupUrl}</p>
-                    </div>
+                  <div>
+                    <p className="ws-caption mb-2" style={{ color: "var(--ws-attn)" }}>Email couldn&apos;t be sent. Share this {inviteResult.alreadyExisted ? "reset" : "activation"} link manually:</p>
+                    <p className="ws-original select-all" style={{ maxHeight: 120 }}>{inviteResult.setupUrl}</p>
                   </div>
                 )}
-                <button
-                  onClick={() => { setInviteOpen(false); loadClients(); }}
-                  className="w-full px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl cursor-pointer"
-                >
-                  Done
-                </button>
-              </>
-            ) : (
-              <>
-                {inviteResult?.error && (
-                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4">
-                    <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
-                    </svg>
-                    <span className="text-sm text-red-400">{inviteResult.error}</span>
-                  </div>
-                )}
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Full Name</label>
-                    <input
-                      type="text"
-                      value={inviteName}
-                      onChange={(e) => setInviteName(e.target.value)}
-                      placeholder="e.g. James McConnell"
-                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Email Address</label>
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="e.g. james@example.com"
-                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Set Password <span className="text-text-muted font-normal">(optional - or they set via email)</span></label>
-                    <input
-                      type="password"
-                      value={invitePassword}
-                      onChange={(e) => setInvitePassword(e.target.value)}
-                      placeholder="Min 8 characters"
-                      className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-3">
+                <div className="ws-dialog-foot">
                   <button
+                    type="button"
+                    onClick={() => { setInviteOpen(false); loadClients(); }}
+                    className="ws-btn ws-btn-primary ws-focus"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="ws-dialog-body">
+                {inviteResult?.error && (
+                  <div className="ws-note is-bad" role="alert">
+                    <Icon name="alert" size={15} />
+                    <span>{inviteResult.error}</span>
+                  </div>
+                )}
+                <div>
+                  <label className="ws-label" htmlFor="invite-name">Full name</label>
+                  <input
+                    id="invite-name"
+                    type="text"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    placeholder="e.g. James McConnell"
+                    className="ws-input"
+                  />
+                </div>
+                <div>
+                  <label className="ws-label" htmlFor="invite-email">Email address</label>
+                  <input
+                    id="invite-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="e.g. james@example.com"
+                    className="ws-input"
+                  />
+                </div>
+                <div>
+                  <label className="ws-label" htmlFor="invite-password">Set password <span>(optional - or they set via email)</span></label>
+                  <input
+                    id="invite-password"
+                    type="password"
+                    value={invitePassword}
+                    onChange={(e) => setInvitePassword(e.target.value)}
+                    placeholder="Min 8 characters"
+                    className="ws-input"
+                  />
+                </div>
+                <div className="ws-dialog-foot">
+                  <button
+                    type="button"
                     onClick={() => setInviteOpen(false)}
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                    className="ws-btn ws-btn-quiet ws-focus"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     disabled={!inviteName.trim() || !inviteEmail.trim() || inviteSending}
                     onClick={async () => {
                       setInviteSending(true);
@@ -226,187 +240,174 @@ export default function ClientsPage() {
                         setInviteSending(false);
                       }
                     }}
-                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 cursor-pointer"
+                    className="ws-btn ws-btn-primary ws-focus"
                   >
                     {inviteSending ? (
                       <>
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                        <Icon name="refresh" size={14} className="ws-spin" />
                         Adding...
                       </>
-                    ) : "Add Client"}
+                    ) : "Add client"}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
       )}
 
       {loadError && (
-        <InlineNotice
-          tone="error"
-          className="mb-6"
-          action={<button type="button" onClick={() => void loadClients()} className="font-semibold underline underline-offset-4">Retry</button>}
-        >
-          {loadError}
-        </InlineNotice>
+        <div className="ws-note is-bad" role="alert">
+          <Icon name="alert" size={15} />
+          <span className="flex-1">{loadError}</span>
+          <button type="button" onClick={() => void loadClients()} className="ws-link">Retry</button>
+        </div>
       )}
 
-      <div className="mb-4 grid w-full grid-cols-2 gap-1 rounded-[var(--cbb-radius-sm)] border border-white/[0.08] bg-white/[0.02] p-1 sm:w-fit">
-        {(["active", "archived"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setLifecycle(value)}
-            className={`min-h-10 rounded-lg px-4 py-2 text-sm font-semibold capitalize transition-colors ${
-              lifecycle === value ? "bg-accent/15 text-accent-bright" : "text-text-muted hover:text-text-secondary"
-            }`}
-          >
-            {value} ({value === "active" ? activeClients.length : archivedClients.length})
-          </button>
-        ))}
-      </div>
+      {/* Status filters (active clients only): each cell filters the list below. */}
+      {lifecycle === "active" && (
+        <div className="ws-strip" aria-label="Filter clients by status">
+          {(["all", "red", "amber", "green"] as const).map((f) => {
+            const count = f === "all" ? activeClients.length : activeClients.filter((c) => c.status === f).length;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                aria-pressed={filter === f}
+                className="ws-stat ws-cl-stat ws-focus"
+              >
+                <span className="ws-stat-l">
+                  {f === "all" ? <Icon name="users" size={14} /> : <span className="ws-dot" style={{ color: statusConfig[f].colour }} />}
+                  {f === "all" ? "All" : statusConfig[f].label}
+                </span>
+                <span className="ws-stat-n">{count}</span>
+                <span className="ws-stat-s">{f === "all" ? "active clients" : statusConfig[f].note}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="v2-surface mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
-        <label className="relative min-w-0 flex-1">
+      <div className="ws-cl-toolbar">
+        <label className="ws-cl-search">
           <span className="sr-only">Search clients</span>
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="m21 21-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z" /></svg>
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m21 21-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z" /></svg>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search name, business or email"
-            className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/55 py-2.5 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/45 focus:ring-2 focus:ring-accent/10"
+            className="ws-input"
           />
         </label>
-        <label className="flex items-center gap-2 text-xs text-text-muted">
-          <span className="shrink-0">Sort by</span>
+        <label className="ws-cl-sort">
+          <span className="ws-caption shrink-0">Sort by</span>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as typeof sort)}
-            className="min-h-11 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary px-3 text-sm text-text-primary focus:outline-none focus:border-accent/45 sm:w-auto"
+            className="ws-input"
           >
             <option value="attention">Needs attention</option>
             <option value="recent">Recent login</option>
             <option value="name">Client name</option>
           </select>
         </label>
+        <span className="ws-cl-grow" />
+        <div role="group" aria-label="Active or archived clients" className="ws-seg">
+          {(["active", "archived"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setLifecycle(value)}
+              aria-pressed={lifecycle === value}
+              className="ws-seg-btn ws-focus"
+            >
+              {value === "active" ? "Active" : "Archived"}
+              <span className="ws-seg-count">{value === "active" ? activeClients.length : archivedClients.length}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Filters */}
-      {lifecycle === "active" && <div className="flex gap-2 mb-6 overflow-x-auto pb-1" aria-label="Filter clients by status">
-        {(["all", "red", "amber", "green"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`min-h-10 shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
-              filter === f
-                ? "bg-[rgba(34,114,222,0.1)] text-accent-bright border border-[rgba(34,114,222,0.2)]"
-                : "text-text-muted hover:text-text-secondary border border-[rgba(255,255,255,0.06)]"
-            }`}
-          >
-            {f === "all"
-              ? `All (${activeClients.length})`
-              : `${statusConfig[f].label} (${activeClients.filter((c) => c.status === f).length})`}
-          </button>
-        ))}
-      </div>}
-
-      {/* Client cards */}
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <div className="v2-surface">
-            <EmptyState
-              compact
+      {/* Client rows */}
+      <section className="ws-panel min-w-0" aria-label="Clients">
+        <div className="ws-panel-head">
+          <h2 className="ws-h2">{lifecycle === "active" ? "Active clients" : "Archived clients"}</h2>
+          <span className="ws-caption">{filtered.length}</span>
+        </div>
+        <div>
+          {filtered.length === 0 ? (
+            <Empty
+              icon="users"
               title={normalizedQuery ? "No matching clients" : lifecycle === "archived" ? "No archived clients" : "No clients in this view"}
-              description={normalizedQuery ? "Try a different name, business or email address." : lifecycle === "archived" ? "Clients you archive will remain available here for viewing and export." : "Change the status filter to see the rest of your clients."}
+              text={normalizedQuery ? "Try a different name, business or email address." : lifecycle === "archived" ? "Clients you archive will remain available here for viewing and export." : "Change the status filter to see the rest of your clients."}
             />
-          </div>
-        ) : (
-          filtered.map((client) => {
-            const isArchived = Boolean(client.archived_at);
-            const sc = statusConfig[client.status];
-            const activePlans = client.business_plan.filter((p) => p.status === "active");
-            const allItems = activePlans.flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
-            const planTotal = allItems.length;
-            const planDone = allItems.filter((p) => p.completed).length;
-            const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
+          ) : (
+            filtered.map((client) => {
+              const isArchived = Boolean(client.archived_at);
+              const sc = statusConfig[client.status];
+              const activePlans = client.business_plan.filter((p) => p.status === "active");
+              const allItems = activePlans.flatMap((plan) => plan.phases.flatMap((ph) => ph.items));
+              const planTotal = allItems.length;
+              const planDone = allItems.filter((p) => p.completed).length;
+              const planPct = planTotal > 0 ? Math.round((planDone / planTotal) * 100) : 0;
+              const lastActive = client.health?.last_active_at || client.last_login;
 
-            return (
-              <Link
-                key={client.id}
-                href={`/admin/clients/${client.id}`}
-                className="group relative block overflow-hidden rounded-[var(--cbb-radius-md)] border border-white/[0.08] bg-[var(--cbb-surface-1)] p-4 no-underline transition-colors hover:border-white/[0.16] sm:p-5"
-              >
-                <div className={`absolute inset-y-0 left-0 w-0.5 ${isArchived ? "bg-text-muted/50" : sc.dotClass}`} />
-                <div className="relative flex items-start justify-between gap-4 sm:items-center">
-                  <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${isArchived ? "bg-white/5 text-text-muted border-white/10" : `${sc.bgClass} ${sc.textClass}`} border ${
-                      client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
-                    }`}>
-                      {initials(client.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-text-primary">{client.name}</div>
-                      <div className="mt-1 truncate text-xs text-text-muted">{client.business_name}{client.business_type ? ` · ${client.business_type}` : ""}</div>
-                      {!isArchived && <div className={`mt-1 text-xs font-medium sm:hidden ${sc.textClass}`}>{client.health?.label ?? sc.label}</div>}
-                      {isArchived && client.archived_at && <div className="mt-1 text-xs text-text-muted">Archived {new Date(client.archived_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>}
-                    </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-4 lg:gap-6">
-                    {!isArchived && <div className="text-right hidden sm:block">
-                      <div className="text-xs text-text-muted">Week {client.current_week}/12</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="h-1.5 w-20 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              client.status === "red" ? "bg-red-500/60" : client.status === "amber" ? "bg-amber-500/60" : "bg-emerald-500/60"
-                            }`}
-                            style={{ width: `${planPct}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-text-muted">{planPct}%</span>
-                      </div>
-                    </div>}
-
-                    {!isArchived && <div className="text-right hidden md:block">
-                      <div className="text-xs text-text-muted">Last Check-In</div>
-                      <div className={`text-xs font-medium mt-0.5 ${
-                        new Date().getTime() - new Date(client.last_checkin).getTime() > 7 * 24 * 60 * 60 * 1000
-                          ? "text-red-400" : "text-text-secondary"
-                      }`}>
-                        {timeAgo(client.last_checkin)}
-                      </div>
-                    </div>}
-
-                    {!isArchived && <div className="text-right hidden md:block">
-                      <div className="text-xs text-text-muted">Last Active</div>
-                      <div className={`text-xs font-medium mt-0.5 ${
-                        new Date().getTime() - new Date((client.health?.last_active_at || client.last_login)).getTime() > 7 * 24 * 60 * 60 * 1000
-                          ? "text-red-400" : "text-text-secondary"
-                      }`}>
-                        {timeAgo((client.health?.last_active_at || client.last_login))}
-                      </div>
-                    </div>}
-
-                    <span className={`hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
-                      {isArchived ? "Archived" : client.health?.label ?? sc.label}
+              return (
+                <Link
+                  key={client.id}
+                  href={`/admin/clients/${client.id}`}
+                  className="ws-row ws-cl-row ws-focus"
+                >
+                  <span className="ws-avatar is-md" aria-hidden="true">
+                    {initials(client.name)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="ws-row-title">{client.name}</span>
+                    <span className="ws-row-sub">
+                      {client.business_name}{client.business_type ? ` · ${client.business_type}` : ""}
+                      {isArchived && client.archived_at ? `${client.business_name || client.business_type ? " · " : ""}Archived ${new Date(client.archived_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
                     </span>
-
-                    <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
-            );
-          })
-        )}
-      </div>
-    </>
+                  </span>
+                  <span className="ws-row-meta">
+                    {!isArchived && (
+                      <span className="ws-cl-col is-sm">
+                        <span>Week {client.current_week}/12</span>
+                        <span className="ws-cl-prog">
+                          <span className="ws-bar" style={{ "--c": sc.colour } as CSSProperties}>
+                            <i style={{ width: `${planPct}%` }} />
+                          </span>
+                          <span className="ws-pct">{planPct}%</span>
+                        </span>
+                      </span>
+                    )}
+                    {!isArchived && (
+                      <span className="ws-cl-col is-md">
+                        <span>Last check-in</span>
+                        <b className={new Date().getTime() - new Date(client.last_checkin).getTime() > WEEK_MS ? "is-bad" : ""}>
+                          {timeAgo(client.last_checkin)}
+                        </b>
+                      </span>
+                    )}
+                    {!isArchived && (
+                      <span className="ws-cl-col is-md">
+                        <span>Last active</span>
+                        <b className={new Date().getTime() - new Date(lastActive).getTime() > WEEK_MS ? "is-bad" : ""}>
+                          {timeAgo(lastActive)}
+                        </b>
+                      </span>
+                    )}
+                    <span className="ws-cl-status">
+                      {isArchived ? <Chip>Archived</Chip> : <Chip tone={sc.tone}>{client.health?.label ?? sc.label}</Chip>}
+                    </span>
+                    <Icon name="chevron" size={14} className="ws-chev" />
+                  </span>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import { initials } from "@/lib/initials";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ClientSignals from "@/components/ops/ClientSignals";
@@ -10,44 +10,74 @@ import type { AdminClient } from "@/lib/admin-data";
 import type { TrafficLight, CheckInMood, BusinessPlan, BusinessPlanPhase, CheckinFormConfig, FormQuestion, QuestionnaireFormConfig } from "@/lib/types";
 import { formatMetricsMonthLabel, getCurrentMetricsMonthStart } from "@/lib/monthly-metrics";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
-import { EmptyState, InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
 import { getQuestionAnswerLabel } from "@/lib/questionnaires";
+import { Chip, Empty, Icon, SkeletonRows, StatusIcon, type Tone } from "@/components/ops/workspace/WorkspaceUI";
 
-const glowClass: Record<TrafficLight, string> = {
-  green: "glow-green",
-  amber: "glow-amber",
-  red: "glow-red",
+const statusConfig: Record<TrafficLight, { label: string; tone: "bad" | "attn" | "ok"; colour: string }> = {
+  red: { label: "Gone quiet", tone: "bad", colour: "var(--ws-bad)" },
+  amber: { label: "Behind", tone: "attn", colour: "var(--ws-attn)" },
+  green: { label: "On track", tone: "ok", colour: "var(--ws-ok)" },
 };
 
-const statusConfig: Record<TrafficLight, { label: string; dotClass: string; bgClass: string; textClass: string; ringClass: string }> = {
-  red: { label: "Gone quiet", dotClass: "bg-red-500", bgClass: "bg-red-500/10", textClass: "text-red-400", ringClass: "ring-red-500" },
-  amber: { label: "Behind", dotClass: "bg-amber-500", bgClass: "bg-amber-500/10", textClass: "text-amber-400", ringClass: "ring-amber-500" },
-  green: { label: "On track", dotClass: "bg-emerald-500", bgClass: "bg-emerald-500/10", textClass: "text-emerald-400", ringClass: "ring-emerald-500" },
+const moodConfig: Record<CheckInMood, { tone?: "ok" | "attn" | "bad" | "decide" }> = {
+  great: { tone: "ok" },
+  good: { tone: "decide" },
+  okay: { tone: "attn" },
+  struggling: { tone: "bad" },
+  awful: { tone: "bad" },
 };
 
-const moodConfig: Record<CheckInMood, { bgClass: string; textClass: string }> = {
-  great: { bgClass: "bg-emerald-500/10", textClass: "text-emerald-400" },
-  good: { bgClass: "bg-blue-500/10", textClass: "text-blue-400" },
-  okay: { bgClass: "bg-amber-500/10", textClass: "text-amber-400" },
-  struggling: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
-  awful: { bgClass: "bg-red-500/10", textClass: "text-red-400" },
-};
+const moodText = (mood: string) => (mood ? mood[0].toUpperCase() + mood.slice(1) : mood);
 
-const categoryIcons: Record<string, string> = {
-  "Financial Foundation": "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  "Pipeline & Sales": "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
-  "Team & People": "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
-  "Systems & Operations": "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
-  "Standards & Quality": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-};
+const shortDate = (value: string) => new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const longDate = (value: string) => new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-function getPhaseIcon(phaseName: string): string {
-  const lower = phaseName.toLowerCase();
-  if (lower.includes("financial") || lower.includes("pricing") || lower.includes("revenue")) return categoryIcons["Financial Foundation"];
-  if (lower.includes("pipeline") || lower.includes("sales") || lower.includes("visibility") || lower.includes("growth")) return categoryIcons["Pipeline & Sales"];
-  if (lower.includes("team") || lower.includes("hire") || lower.includes("people")) return categoryIcons["Team & People"];
-  if (lower.includes("system") || lower.includes("operation") || lower.includes("quality") || lower.includes("standard")) return categoryIcons["Systems & Operations"];
-  return categoryIcons["Standards & Quality"];
+/** Glyph for a share of work done: hollow, half, or ticked. */
+function progressTone(done: number, total: number): Tone {
+  if (total > 0 && done >= total) return "ok";
+  if (done > 0) return "running";
+  return "open";
+}
+
+function Bar({ pct, colour, width = 64 }: { pct: number; colour?: string; width?: number }) {
+  return (
+    <span className="ws-cd-prog">
+      <span className="ws-bar" style={{ width, ...(colour ? { "--c": colour } : {}) } as CSSProperties}>
+        <i style={{ width: `${pct}%` }} />
+      </span>
+      <span className="ws-pct">{pct}%</span>
+    </span>
+  );
+}
+
+function Spinner() {
+  return <Icon name="refresh" size={14} className="ws-spin" />;
+}
+
+/** A panel whose head opens and closes its body. */
+function TogglePanel({
+  open,
+  onToggle,
+  title,
+  meta,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  title: string;
+  meta?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="ws-panel min-w-0" aria-label={title}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className="ws-panel-head ws-cd-toggle ws-focus">
+        <h2 className="ws-h2">{title}</h2>
+        {meta}
+        <Icon name="chevron" size={14} className={`ws-chev ml-auto ${open ? "is-open" : ""}`} />
+      </button>
+      {open && children}
+    </section>
+  );
 }
 
 function timeAgo(dateStr: string): string {
@@ -183,20 +213,41 @@ export default function ClientDetailPage() {
   }
 
   if (loading) {
-    return <PageSkeleton rows={6} />;
+    return (
+      <div className="ws ws-page">
+        <div className="ws-cd-head">
+          <span className="ws-skel" style={{ width: 40, height: 40, borderRadius: "50%" }} />
+          <div>
+            <span className="ws-skel" style={{ width: 200, height: 20 }} />
+            <span className="ws-skel mt-2" style={{ width: 160, height: 12 }} />
+          </div>
+        </div>
+        <div className="ws-strip">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="ws-stat" style={{ cursor: "default" }}>
+              <span className="ws-skel" style={{ width: 80, height: 10 }} />
+              <span className="ws-skel" style={{ width: 36, height: 20 }} />
+            </div>
+          ))}
+        </div>
+        <div className="ws-panel"><SkeletonRows count={6} /></div>
+      </div>
+    );
   }
 
   if (!client) {
     return (
-      <div className="v2-surface">
-        <EmptyState
-          title="Client not found"
-          description="This client may have been removed or you may not have access to the record."
-          action={<Link href="/admin/clients" className="v2-button-secondary">Back to Clients</Link>}
-        />
+      <div className="ws ws-page">
+        <section className="ws-panel">
+          <Empty icon="users" title="Client not found" text="This client may have been removed or you may not have access to the record." />
+          <div className="flex justify-center pb-6">
+            <Link href="/admin/clients" className="ws-btn ws-focus">Back to clients</Link>
+          </div>
+        </section>
       </div>
     );
   }
+
 
   const activePlans = plans.filter((p) => p.status === "active");
   const isArchived = Boolean(client.archived_at);
@@ -376,193 +427,192 @@ export default function ClientDetailPage() {
   const lastCheckinDays = Math.floor((now.getTime() - new Date(client.last_checkin).getTime()) / (1000 * 60 * 60 * 24));
 
   return (
-    <>
-      <ClientSignals id={client.id} />
-      <Link
-        href="/admin/clients"
-        className="mb-5 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-text-muted no-underline transition-colors hover:text-text-secondary"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to Clients
+    <div className="ws ws-page">
+      <Link href="/admin/clients" className="ws-back ws-focus">
+        <Icon name="chevron" size={14} className="ws-back-ic" />
+        Clients
       </Link>
 
-      <div className={`v2-surface relative mb-6 overflow-visible p-5 sm:p-6 ${isArchived ? "border-white/10" : glowClass[client.status]}`}>
-        <div className={`absolute inset-y-0 left-0 w-0.5 rounded-full ${isArchived ? "bg-text-muted/50" : sc.dotClass}`} />
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${sc.bgClass} ${sc.textClass} border ${
-              client.status === "red" ? "border-red-500/30" : client.status === "amber" ? "border-amber-500/30" : "border-emerald-500/30"
-            }`}>
-              {initials(client.name)}
-            </div>
-            <div className="min-w-0">
-              <div className="v2-eyebrow mb-2">Client record</div>
-              <h1 className="truncate font-heading text-2xl font-bold tracking-[-0.025em] text-text-primary">{client.name}</h1>
-              <p className="mt-1 break-words text-sm text-text-secondary">{client.email}{client.phone ? ` · ${client.phone}` : ""}</p>
-              {(client.business_name || client.business_type) && (
-                <p className="mt-1 text-xs text-text-muted">{[client.business_name, client.business_type].filter(Boolean).join(" · ")}</p>
-              )}
-            </div>
+      <div className="ws-ph">
+        <div className="ws-cd-head">
+          <span className="ws-avatar is-lg" aria-hidden="true">
+            {initials(client.name)}
+          </span>
+          <div className="min-w-0">
+            <h1 className="ws-title ws-cd-title">{client.name}</h1>
+            <p className="ws-meta ws-cd-meta">{client.email}{client.phone ? ` · ${client.phone}` : ""}</p>
+            {(client.business_name || client.business_type) && (
+              <p className="ws-caption">{[client.business_name, client.business_type].filter(Boolean).join(" · ")}</p>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${isArchived ? "bg-white/5 text-text-muted" : `${sc.bgClass} ${sc.textClass}`}`}>
-              <span className={`w-2 h-2 rounded-full ${isArchived ? "bg-text-muted" : sc.dotClass}`} />
-              {isArchived ? "Archived" : client.health?.label ?? sc.label}
-            </span>
-            <a
-              href={`/api/admin/clients/${client.id}/export`}
-              className="v2-button-secondary min-h-9 px-3 py-1.5 text-xs"
+        </div>
+        <div className="ws-ph-acts">
+          {isArchived ? <Chip>Archived</Chip> : <Chip tone={sc.tone}>{client.health?.label ?? sc.label}</Chip>}
+          <a
+            href={`/api/admin/clients/${client.id}/export`}
+            className="ws-btn ws-focus"
+          >
+            Export record
+          </a>
+          {isArchived && (
+            <button
+              type="button"
+              disabled={restoreSaving}
+              onClick={async () => {
+                setRestoreSaving(true);
+                setLifecycleError(null);
+                try {
+                  const res = await fetch(`/api/admin/clients/${client.id}/restore`, { method: "POST" });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(data.error || "Failed to restore client");
+                  await loadClient();
+                } catch (error) {
+                  setLifecycleError(error instanceof Error ? error.message : "Failed to restore client");
+                } finally {
+                  setRestoreSaving(false);
+                }
+              }}
+              className="ws-btn ws-btn-primary ws-focus"
             >
-              Export record
-            </a>
-            {isArchived && (
-              <button
-                type="button"
-                disabled={restoreSaving}
-                onClick={async () => {
-                  setRestoreSaving(true);
-                  setLifecycleError(null);
-                  try {
-                    const res = await fetch(`/api/admin/clients/${client.id}/restore`, { method: "POST" });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(data.error || "Failed to restore client");
-                    await loadClient();
-                  } catch (error) {
-                    setLifecycleError(error instanceof Error ? error.message : "Failed to restore client");
-                  } finally {
-                    setRestoreSaving(false);
-                  }
-                }}
-                className="inline-flex min-h-9 items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {restoreSaving ? "Restoring…" : "Restore access"}
-              </button>
-            )}
-            {!isArchived && (
-            <div className="relative">
-              <button
-                onClick={() => setSettingsOpen(!settingsOpen)}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.08] text-text-muted transition-colors hover:bg-white/5 hover:text-text-secondary"
-                aria-label="Client settings"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              {settingsOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-xl shadow-xl py-1 min-w-[180px]">
-                    <button
-                      onClick={() => { setSettingsOpen(false); setPasswordModalOpen(true); setNewClientPassword(""); setPasswordResult(null); }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-white/5 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                      </svg>
-                      Set Password
-                    </button>
-                    <button
-                      onClick={() => { setSettingsOpen(false); setArchiveModalOpen(true); setArchiveReason(""); setLifecycleError(null); }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                      Archive Client
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+              {restoreSaving ? "Restoring…" : "Restore access"}
+            </button>
+          )}
+          {!isArchived && (
+          <div className="ws-menu-wrap">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className="ws-btn ws-btn-icon ws-focus"
+              aria-label="Client settings"
+              aria-expanded={settingsOpen}
+            >
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+            {settingsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
+                <div className="ws-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setSettingsOpen(false); setPasswordModalOpen(true); setNewClientPassword(""); setPasswordResult(null); }}
+                    className="ws-menu-item"
+                  >
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Set password
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setSettingsOpen(false); setArchiveModalOpen(true); setArchiveReason(""); setLifecycleError(null); }}
+                    className="ws-menu-item is-bad"
+                  >
+                    <Icon name="alert" size={14} />
+                    Archive client
+                  </button>
+                </div>
+              </>
             )}
           </div>
+          )}
         </div>
       </div>
 
       {isArchived && (
-        <InlineNotice tone="warning" className="mb-6">
-          <strong className="font-semibold">Read-only archive.</strong> Portal access is blocked and this client is excluded from reminders, broadcasts and active-client reporting. All historical records remain viewable and exportable.
-          {client.archived_at && <span className="mt-1 block text-xs text-amber-200/70">Archived {new Date(client.archived_at).toLocaleString()}{client.archive_reason ? ` — ${client.archive_reason}` : ""}</span>}
-        </InlineNotice>
+        <div className="ws-note is-attn" role="status">
+          <Icon name="info" size={15} />
+          <span>
+            <b>Read-only archive.</b> Portal access is blocked and this client is excluded from reminders, broadcasts and active-client reporting. All historical records remain viewable and exportable.
+            {client.archived_at && <span className="ws-caption block mt-1">Archived {new Date(client.archived_at).toLocaleString()}{client.archive_reason ? ` — ${client.archive_reason}` : ""}</span>}
+          </span>
+        </div>
       )}
 
       {lifecycleError && (
-        <InlineNotice tone="error" className="mb-6">{lifecycleError}</InlineNotice>
+        <div className="ws-note is-bad" role="alert">
+          <Icon name="alert" size={15} />
+          <span>{lifecycleError}</span>
+        </div>
       )}
 
       {planSaveNotice && (
-        <InlineNotice tone="success" className="mb-6" action={<button type="button" onClick={() => setPlanSaveNotice(null)} className="text-emerald-100/80 hover:text-emerald-50">
+        <div className="ws-note is-ok" role="status">
+          <Icon name="checkCircle" size={15} />
+          <span className="flex-1">{planSaveNotice}</span>
+          <button type="button" onClick={() => setPlanSaveNotice(null)} className="ws-link">
             Dismiss
-          </button>}>
-          {planSaveNotice}
-        </InlineNotice>
+          </button>
+        </div>
       )}
 
       {/* Archive Client Modal */}
       {archiveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="v2-surface mx-4 w-full max-w-md p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10">
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-heading font-bold text-text-primary">Archive Client</h3>
+        <div className="ws-overlay">
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Archive client">
+            <div className="ws-dialog-head">
+              <h3 className="ws-dialog-title">Archive client</h3>
             </div>
-            <p className="text-sm text-text-secondary mb-4 leading-relaxed">
-              This blocks <span className="text-text-primary font-semibold">{client.name}</span> from signing in and removes them from active-client workflows. Their plans, activity and history will be retained for viewing or export, and access can be restored later.
-            </p>
-            <label className="mb-1.5 block text-xs font-medium text-text-secondary" htmlFor="archive-reason">Reason for archive</label>
-            <textarea
-              id="archive-reason"
-              value={archiveReason}
-              onChange={(e) => setArchiveReason(e.target.value)}
-              maxLength={500}
-              rows={3}
-              placeholder="e.g. Client agreement ended"
-              className="mb-4 w-full resize-none rounded-xl border border-[rgba(255,255,255,0.08)] bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-red-500/50"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setArchiveModalOpen(false); setArchiveReason(""); }}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!archiveReason.trim() || archiveSaving}
-                onClick={async () => {
-                  setArchiveSaving(true);
-                  setLifecycleError(null);
-                  try {
-                    const res = await fetch(`/api/admin/clients/${id}/archive`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ reason: archiveReason }),
-                    });
-                    if (res.ok) {
-                      setArchiveModalOpen(false);
-                      setArchiveReason("");
-                      await loadClient();
-                    } else {
-                      const data = await res.json().catch(() => ({}));
-                      throw new Error(data.error || "Failed to archive client");
+            <div className="ws-dialog-body">
+              <p className="ws-meta">
+                This blocks <b className="font-semibold" style={{ color: "var(--ws-ink)" }}>{client.name}</b> from signing in and removes them from active-client workflows. Their plans, activity and history will be retained for viewing or export, and access can be restored later.
+              </p>
+              <div>
+                <label className="ws-label" htmlFor="archive-reason">Reason for archive</label>
+                <textarea
+                  id="archive-reason"
+                  value={archiveReason}
+                  onChange={(e) => setArchiveReason(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="e.g. Client agreement ended"
+                  className="ws-input"
+                />
+              </div>
+              <div className="ws-dialog-foot">
+                <button
+                  type="button"
+                  onClick={() => { setArchiveModalOpen(false); setArchiveReason(""); }}
+                  className="ws-btn ws-btn-quiet ws-focus"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!archiveReason.trim() || archiveSaving}
+                  onClick={async () => {
+                    setArchiveSaving(true);
+                    setLifecycleError(null);
+                    try {
+                      const res = await fetch(`/api/admin/clients/${id}/archive`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ reason: archiveReason }),
+                      });
+                      if (res.ok) {
+                        setArchiveModalOpen(false);
+                        setArchiveReason("");
+                        await loadClient();
+                      } else {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || "Failed to archive client");
+                      }
+                    } catch (error) {
+                      setLifecycleError(error instanceof Error ? error.message : "Failed to archive client");
+                    } finally {
+                      setArchiveSaving(false);
                     }
-                  } catch (error) {
-                    setLifecycleError(error instanceof Error ? error.message : "Failed to archive client");
-                  } finally {
-                    setArchiveSaving(false);
-                  }
-                }}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {archiveSaving ? "Archiving…" : "Archive Client"}
-              </button>
+                  }}
+                  className="ws-btn ws-btn-danger ws-focus"
+                >
+                  {archiveSaving ? "Archiving…" : "Archive client"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -570,60 +620,61 @@ export default function ClientDetailPage() {
 
       {/* Set Password Modal */}
       {passwordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-heading font-bold text-text-primary">Set Password</h3>
-                <p className="text-xs text-text-muted">Set login password for {client.name}</p>
+        <div className="ws-overlay">
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Set password">
+            <div className="ws-dialog-head">
+              <div className="min-w-0">
+                <h3 className="ws-dialog-title">Set password</h3>
+                <p className="ws-caption mt-0.5">Set login password for {client.name}</p>
               </div>
             </div>
 
             {passwordResult?.type === "success" ? (
-              <>
-                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
-                  <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm text-emerald-400 font-medium">Password set - client can log in now</span>
+              <div className="ws-dialog-body">
+                <div className="ws-note is-ok" role="status">
+                  <Icon name="checkCircle" size={15} />
+                  <span>Password set - client can log in now</span>
                 </div>
-                <button
-                  onClick={() => setPasswordModalOpen(false)}
-                  className="w-full px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl cursor-pointer"
-                >
-                  Done
-                </button>
-              </>
+                <div className="ws-dialog-foot">
+                  <button
+                    type="button"
+                    onClick={() => setPasswordModalOpen(false)}
+                    className="ws-btn ws-btn-primary ws-focus"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
             ) : (
-              <>
+              <div className="ws-dialog-body">
                 {passwordResult?.type === "error" && (
-                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4">
-                    <span className="text-sm text-red-400">{passwordResult.text}</span>
+                  <div className="ws-note is-bad" role="alert">
+                    <Icon name="alert" size={15} />
+                    <span>{passwordResult.text}</span>
                   </div>
                 )}
-                <div className="mb-4">
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">New Password</label>
+                <div>
+                  <label className="ws-label" htmlFor="client-new-password">New password</label>
                   <input
+                    id="client-new-password"
                     type="password"
                     value={newClientPassword}
                     onChange={(e) => setNewClientPassword(e.target.value)}
                     placeholder="Min 8 characters"
-                    className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
+                    className="ws-input"
                   />
                 </div>
-                <div className="flex gap-3">
+                <div className="ws-dialog-foot">
                   <button
+                    type="button"
                     onClick={() => setPasswordModalOpen(false)}
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                    className="ws-btn ws-btn-quiet ws-focus"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     disabled={newClientPassword.length < 8 || passwordSaving}
                     onClick={async () => {
                       setPasswordSaving(true);
@@ -646,12 +697,12 @@ export default function ClientDetailPage() {
                         setPasswordSaving(false);
                       }
                     }}
-                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="ws-btn ws-btn-primary ws-focus"
                   >
-                    {passwordSaving ? "Setting..." : "Set Password"}
+                    {passwordSaving ? "Setting..." : "Set password"}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -659,97 +710,81 @@ export default function ClientDetailPage() {
 
       {/* Status alert banner */}
       {!isArchived && client.status === "red" && (
-        <div className="bg-red-500/[0.06] border border-red-500/20 rounded-2xl px-5 py-4 mb-6">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-semibold text-red-400 mb-0.5">{client.health?.label ?? "Gone quiet"}</div>
-              <div className="text-xs text-text-secondary leading-relaxed">
-                {client.health?.reason ?? `Last activity was ${lastActivityDays} days ago.`} Consider reaching out directly to re-engage.
-              </div>
-            </div>
-          </div>
+        <div className="ws-note is-bad ws-cd-alert">
+          <Icon name="alert" size={15} />
+          <span className="ws-cd-alert-text">
+            <b>{client.health?.label ?? "Gone quiet"}.</b>{" "}
+            {client.health?.reason ?? `Last activity was ${lastActivityDays} days ago.`} Consider reaching out directly to re-engage.
+          </span>
           <button
+            type="button"
             onClick={() => { setNudgeOpen(true); setNudgeSent(false); setNudgeMessage(`Hey ${client.name.split(" ")[0]}, just checking in - haven't seen you in the portal for a bit. Everything OK? Jump back in when you're ready, your plan is waiting.`); }}
-            className="mt-3 ml-11 px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+            className="ws-btn ws-btn-sm ws-focus"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            Send Nudge
+            <Icon name="bell" size={13} />
+            Send nudge
           </button>
         </div>
       )}
 
       {!isArchived && client.status === "amber" && (
-        <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl px-5 py-4 mb-6">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-semibold text-amber-400 mb-0.5">{client.health?.label ?? "Missed check-in"}</div>
-              <div className="text-xs text-text-secondary leading-relaxed">
-                {client.health?.reason ?? `Last check-in was ${lastCheckinDays} days ago.`} A quick nudge might help keep momentum.
-              </div>
-            </div>
-          </div>
+        <div className="ws-note is-attn ws-cd-alert">
+          <Icon name="info" size={15} />
+          <span className="ws-cd-alert-text">
+            <b>{client.health?.label ?? "Missed check-in"}.</b>{" "}
+            {client.health?.reason ?? `Last check-in was ${lastCheckinDays} days ago.`} A quick nudge might help keep momentum.
+          </span>
           <button
+            type="button"
             onClick={() => { setNudgeOpen(true); setNudgeSent(false); setNudgeMessage(`Hey ${client.name.split(" ")[0]}, your weekly check-in is due. Takes 2 minutes - let me know how things are going.`); }}
-            className="mt-3 ml-11 px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+            className="ws-btn ws-btn-sm ws-focus"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            Send Nudge
+            <Icon name="bell" size={13} />
+            Send nudge
           </button>
         </div>
       )}
 
-      <div className="v2-stat-strip mb-6">
-        <div>
-          <div className="text-xs font-medium text-text-muted">Current Week</div>
-          <div className="mt-2 font-heading text-2xl font-bold text-text-primary">{currentWeek}</div>
-          <div className="mt-1 text-xs text-text-muted">of {totalWeeks} weeks</div>
+      <div className="ws-strip">
+        <div className="ws-stat" style={{ cursor: "default" }}>
+          <span className="ws-stat-l"><Icon name="calendar" size={14} />Current week</span>
+          <span className="ws-stat-n">{currentWeek}</span>
+          <span className="ws-stat-s">of {totalWeeks} weeks</span>
         </div>
-        <div>
-          <div className="text-xs font-medium text-text-muted">Plan Progress</div>
-          <div className="mt-2 font-heading text-2xl font-bold text-text-primary">{planDone}/{planTotal}</div>
-          <div className="mt-1 text-xs text-text-muted">{planPct}% complete</div>
+        <div className="ws-stat" style={{ cursor: "default" }}>
+          <span className="ws-stat-l"><Icon name="plan" size={14} />Plan progress</span>
+          <span className="ws-stat-n">{planDone}/{planTotal}</span>
+          <span className="ws-stat-s">{planPct}% complete</span>
         </div>
-        <div>
-          <div className="text-xs font-medium text-text-muted">Check-Ins</div>
-          <div className="mt-2 font-heading text-2xl font-bold text-text-primary">{client.checkins.length}</div>
-          <div className="mt-1 text-xs text-text-muted">Last: {timeAgo(client.last_checkin)}</div>
+        <div className="ws-stat" style={{ cursor: "default" }}>
+          <span className="ws-stat-l"><Icon name="checkCircle" size={14} />Check-ins</span>
+          <span className="ws-stat-n">{client.checkins.length}</span>
+          <span className="ws-stat-s">Last: {timeAgo(client.last_checkin)}</span>
         </div>
-        <div>
-          <div className="text-xs font-medium text-text-muted">Last Active</div>
-          <div className={`mt-2 font-heading text-2xl font-bold ${
-            new Date().getTime() - new Date((client.health?.last_active_at || client.last_login)).getTime() > 7 * 24 * 60 * 60 * 1000 ? "text-red-400" : "text-text-primary"
+        <div className="ws-stat" style={{ cursor: "default" }}>
+          <span className="ws-stat-l"><Icon name="clock" size={14} />Last active</span>
+          <span className={`ws-stat-n ${
+            new Date().getTime() - new Date((client.health?.last_active_at || client.last_login)).getTime() > 7 * 24 * 60 * 60 * 1000 ? "is-bad" : ""
           }`}>
             {timeAgo((client.health?.last_active_at || client.last_login))}
-          </div>
-          <div className="mt-1 text-xs text-text-muted">
+          </span>
+          <span className="ws-stat-s">
             {new Date((client.health?.last_active_at || client.last_login)).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-          </div>
+          </span>
         </div>
       </div>
 
+      <ClientSignals id={client.id} />
+
       {/* Week timeline */}
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-heading font-bold text-text-primary">Programme Timeline</h2>
-          <span className="text-xs text-text-muted">
+      <section className="ws-panel min-w-0" aria-label="Programme timeline">
+        <div className="ws-panel-head">
+          <h2 className="ws-h2">Programme timeline</h2>
+          <span className="ws-caption">
             Started {new Date(client.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
           </span>
         </div>
-        <div className="flex gap-1.5">
+        <div className="ws-wk">
           {Array.from({ length: totalWeeks }).map((_, i) => {
             const weekNum = i + 1;
             const isCurrent = weekNum === currentWeek;
@@ -757,589 +792,334 @@ export default function ClientDetailPage() {
             return (
               <div
                 key={i}
-                className={`flex-1 h-8 rounded-lg flex items-center justify-center text-[10px] font-semibold transition-all relative ${
-                  isCurrent
-                    ? "bg-accent/20 text-accent-bright border border-accent/40"
-                    : isComplete
-                    ? "bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/10"
-                    : "bg-[rgba(255,255,255,0.02)] text-text-muted border border-[rgba(255,255,255,0.03)]"
-                }`}
+                className={`ws-wk-cell ${isCurrent ? "is-now" : isComplete ? "is-done" : ""}`}
+                aria-current={isCurrent ? "step" : undefined}
               >
                 {weekNum}
-                {isCurrent && (
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-accent-bright" />
-                )}
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Goals */}
       {client.goals && (
-        <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
-          <h2 className="text-sm font-heading font-bold text-text-primary mb-2">Goals</h2>
-          <p className="text-text-secondary text-sm leading-relaxed">{client.goals}</p>
-        </div>
+        <section className="ws-panel min-w-0" aria-label="Goals">
+          <div className="ws-panel-head">
+            <h2 className="ws-h2">Goals</h2>
+          </div>
+          <p className="ws-prose ws-pad">{client.goals}</p>
+        </section>
       )}
 
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mb-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-heading font-bold text-text-primary">Five Key Monthly Metrics</h2>
-            <p className="text-xs text-text-muted mt-1">
+      <section className="ws-panel min-w-0" aria-label="Five key monthly metrics">
+        <div className="ws-panel-head">
+          <div className="min-w-0 mr-auto">
+            <h2 className="ws-h2">Five key monthly metrics</h2>
+            <p className="ws-caption">
               Submitted monthly by the client and charted over time so Marc can spot momentum or slippage quickly.
             </p>
           </div>
-          <span
-            className={`text-[11px] rounded-full px-3 py-1 ${
-              hasCurrentMonthMetrics
-                ? "text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
-                : "text-amber-300 bg-amber-500/10 border border-amber-500/20"
-            }`}
-          >
+          <Chip tone={hasCurrentMonthMetrics ? "ok" : "attn"}>
             {hasCurrentMonthMetrics
               ? `${formatMetricsMonthLabel(currentMetricsMonthStart, { month: "long" })} submitted`
               : `${formatMetricsMonthLabel(currentMetricsMonthStart, { month: "long" })} pending`}
-          </span>
+          </Chip>
         </div>
 
-        <div className="mt-5">
-          <MonthlyMetricsOverview
-            history={client.monthly_metrics || []}
-            title=""
-            subtitle=""
-            emptyMessage="This client has not submitted any monthly metrics yet."
-          />
-        </div>
-      </div>
+        <MonthlyMetricsOverview
+          history={client.monthly_metrics || []}
+          title=""
+          subtitle=""
+          emptyMessage="This client has not submitted any monthly metrics yet."
+          framed={false}
+        />
+      </section>
 
       {/* Activity Timeline */}
       <ActivityTimeline client={client} />
 
       {/* Internal Notes */}
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl mb-6 overflow-hidden">
-        <button
-          onClick={() => setNotesOpen(!notesOpen)}
-          className="w-full flex items-center justify-between p-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <h2 className="text-sm font-heading font-bold text-text-primary">Internal Notes</h2>
-              <p className="text-[10px] text-text-muted">Private - never visible to the client</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+      <TogglePanel
+        open={notesOpen}
+        onToggle={() => setNotesOpen(!notesOpen)}
+        title="Internal notes"
+        meta={
+          <>
+            <span className="ws-caption">Private - never visible to the client</span>
             {internalNotes.trim() && !notesOpen && (
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span className="ws-dot" style={{ color: "var(--ws-attn)" }} aria-label="Has notes" />
             )}
-            <svg
-              className={`w-4 h-4 text-text-muted transition-transform duration-200 ${notesOpen ? "rotate-180" : ""}`}
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          </>
+        }
+      >
+        <div className="ws-pad">
+          <textarea
+            value={internalNotes}
+            onChange={(e) => setInternalNotes(e.target.value)}
+            readOnly={isArchived}
+            rows={4}
+            placeholder="Add private notes about this client... e.g. follow-up items, context for next session, personal circumstances"
+            className="ws-input"
+          />
+          <div className="flex items-center gap-2 mt-2">
+            {!isArchived && <button
+              type="button"
+              onClick={saveNotes}
+              disabled={notesSaving}
+              className="ws-btn ws-btn-sm ws-focus"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+              {notesSaving ? "Saving..." : "Save notes"}
+            </button>}
           </div>
-        </button>
-        {notesOpen && (
-          <div className="px-5 pb-5 border-t border-[rgba(255,255,255,0.03)]">
-            <textarea
-              value={internalNotes}
-              onChange={(e) => setInternalNotes(e.target.value)}
-              readOnly={isArchived}
-              rows={4}
-              placeholder="Add private notes about this client... e.g. follow-up items, context for next session, personal circumstances"
-              className="w-full mt-3 bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-y"
-            />
-            <div className="flex items-center gap-2 mt-1.5">
-              {!isArchived && <button
-                onClick={saveNotes}
-                disabled={notesSaving}
-                className="text-[10px] font-medium text-accent-bright hover:text-accent-light transition-colors disabled:opacity-50"
-              >
-                {notesSaving ? "Saving..." : "Save Notes"}
-              </button>}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      </TogglePanel>
 
-      <div className="grid lg:grid-cols-[1.3fr_1fr] gap-6">
+      <div className="ws-cd-cols">
         {/* Business Plan */}
-        <div id="plan" className="scroll-mt-20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-heading font-bold text-text-primary">
-                Business Plan{activePlans.length !== 1 ? "s" : ""}
+        <div id="plan" className="scroll-mt-20 ws-stack">
+          <div className="ws-cd-colhead">
+            <div className="min-w-0">
+              <h2 className="ws-cd-h">
+                Business plan{activePlans.length !== 1 ? "s" : ""}
               </h2>
               {activePlans.length > 1 && (
-                <p className="text-xs text-text-muted mt-1">
+                <p className="ws-caption">
                   {activePlans.length} active plans remain live until Marc marks one complete.
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleNewPlan}
-                disabled={isArchived}
-                className={`${isArchived ? "hidden" : "inline-flex"} px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg items-center gap-1.5`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                {activePlans.length > 0 ? "New Plan" : "Create Business Plan"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleNewPlan}
+              disabled={isArchived}
+              style={isArchived ? { display: "none" } : undefined}
+              className="ws-btn ws-btn-primary ws-btn-sm ws-focus"
+            >
+              <Icon name="plus" size={13} />
+              {activePlans.length > 0 ? "New plan" : "Create business plan"}
+            </button>
           </div>
 
           {activePlans.length > 0 ? (
             <>
-              <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-4 mb-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-text-primary text-sm font-semibold">
-                      {activePlans.length} active plan{activePlans.length !== 1 ? "s" : ""} in progress
-                    </p>
-                    <p className="text-text-muted text-xs mt-1">
-                      New plans now stay active alongside existing ones until one is marked complete.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-24 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                      <div
-                        className="h-full gradient-accent rounded-full transition-all duration-500"
-                        style={{ width: `${planPct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-accent-bright font-semibold">{planPct}%</span>
-                    <span className="text-[10px] text-text-muted">({planDone}/{planTotal} items)</span>
-                  </div>
+              <div className="ws-cd-summary">
+                <div className="min-w-0">
+                  <p className="ws-cd-summary-t">
+                    {activePlans.length} active plan{activePlans.length !== 1 ? "s" : ""} in progress
+                  </p>
+                  <p className="ws-caption">
+                    New plans now stay active alongside existing ones until one is marked complete.
+                  </p>
                 </div>
+                <span className="ws-cd-summary-n">
+                  <Bar pct={planPct} width={88} />
+                  <span className="ws-caption">({planDone}/{planTotal} items)</span>
+                </span>
               </div>
 
-              <div className="space-y-3">
-                {activePlans.map((plan, index) => {
-                  const planItems = plan.phases.flatMap((phase) => phase.items);
-                  const currentPlanDone = planItems.filter((item) => item.completed).length;
-                  const currentPlanTotal = planItems.length;
-                  const currentPlanPct = currentPlanTotal > 0 ? Math.round((currentPlanDone / currentPlanTotal) * 100) : 0;
+              {activePlans.map((plan, index) => {
+                const planItems = plan.phases.flatMap((phase) => phase.items);
+                const currentPlanDone = planItems.filter((item) => item.completed).length;
+                const currentPlanTotal = planItems.length;
+                const currentPlanPct = currentPlanTotal > 0 ? Math.round((currentPlanDone / currentPlanTotal) * 100) : 0;
 
-                  return (
-                    <div key={plan.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-                      <div className="p-4 border-b border-[rgba(255,255,255,0.03)]">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-semibold text-text-primary">
-                                Active Plan{activePlans.length > 1 ? ` ${index + 1}` : ""}
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 bg-accent/10 text-accent-bright rounded-full font-semibold border border-accent/20">
-                                Active
-                              </span>
-                              <span className="text-[10px] text-text-muted">
-                                Created {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                              </span>
-                            </div>
-                            <p className="text-text-secondary text-sm leading-relaxed mt-2 whitespace-pre-line">{plan.summary}</p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                            <div className="flex items-center gap-2 mr-1">
-                              <div className="h-1.5 w-16 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-300 ${currentPlanPct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
-                                  style={{ width: `${currentPlanPct}%` }}
-                                />
-                              </div>
-                              <span className="text-[10px] text-text-muted">{currentPlanDone}/{currentPlanTotal}</span>
-                            </div>
-                            <button
-                              onClick={() => handleEditPlan(plan.id)}
-                              disabled={isArchived}
-                              className={`${isArchived ? "hidden" : "inline-flex"} px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors items-center gap-1.5`}
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit Plan
-                            </button>
-                            <button
-                              onClick={() => handleCompletePlan(plan.id)}
-                              disabled={isArchived}
-                              className={`${isArchived ? "hidden" : "inline-flex"} px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-lg transition-colors items-center gap-1.5`}
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Mark Complete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 p-4">
-                        {plan.phases.map((phase) => {
-                          const isExpanded = expandedPhases.has(phase.id);
-                          const phaseDone = phase.items.filter((i) => i.completed).length;
-                          const phaseTotal = phase.items.length;
-                          const phasePct = phaseTotal > 0 ? Math.round((phaseDone / phaseTotal) * 100) : 0;
-                          const iconPath = getPhaseIcon(phase.name);
-
-                          return (
-                            <div key={phase.id} className="bg-bg-primary/40 border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-                              <button
-                                onClick={() => togglePhase(phase.id)}
-                                className="w-full flex items-center justify-between p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                                    <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={iconPath} />
-                                    </svg>
-                                  </div>
-                                  <div className="text-left">
-                                    <div className="text-sm font-semibold text-text-primary">{phase.name}</div>
-                                    <div className="text-xs text-text-muted">{phaseDone}/{phaseTotal} completed</div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className="h-1.5 w-16 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full transition-all duration-300 ${phasePct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
-                                        style={{ width: `${phasePct}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-[10px] text-text-muted w-8 text-right">{phasePct}%</span>
-                                  </div>
-                                  <svg
-                                    className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </div>
-                              </button>
-
-                              {isExpanded && (
-                                <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-3">
-                                  {phase.notes && (
-                                    <div className="py-3 border-b border-[rgba(255,255,255,0.03)] mb-1">
-                                      <p className="text-xs text-text-muted leading-relaxed italic whitespace-pre-line">{phase.notes}</p>
-                                    </div>
-                                  )}
-
-                                  {phase.items.map((item) => (
-                                    <button
-                                      key={item.id}
-                                      onClick={() => toggleItem(phase.id, item.id)}
-                                      disabled={isArchived}
-                                      className="w-full flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left group"
-                                    >
-                                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                                        item.completed
-                                          ? "bg-emerald-500 border-emerald-500"
-                                          : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
-                                      }`}>
-                                        {item.completed && (
-                                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        )}
-                                      </div>
-                                      <span className={`text-sm transition-all duration-200 ${
-                                        item.completed ? "text-text-muted line-through" : "text-text-secondary group-hover:text-text-primary"
-                                      }`}>
-                                        {item.title}
-                                      </span>
-                                      {item.completed && item.completed_at && (
-                                        <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">
-                                          {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                                        </span>
-                                      )}
-                                    </button>
-                                  ))}
-
-                                  {phase.linked_trainings.length > 0 && (
-                                    <div className="mt-2 pt-2 border-t border-[rgba(255,255,255,0.03)]">
-                                      <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2 px-2">Linked Training</div>
-                                      <div className="space-y-1">
-                                        {phase.linked_trainings.map((contentId) => {
-                                          const info = contentLookup.get(contentId);
-                                          if (!info) return null;
-                                          return (
-                                            <Link
-                                              key={contentId}
-                                              href={`/admin/training/${info.moduleId}`}
-                                              className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-accent/5 transition-colors no-underline group"
-                                            >
-                                              <div className="w-5 h-5 rounded bg-accent/10 flex items-center justify-center flex-shrink-0">
-                                                <svg className="w-3 h-3 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                              </div>
-                                              <div className="min-w-0">
-                                                <div className="text-xs text-text-secondary group-hover:text-text-primary transition-colors truncate">{info.title}</div>
-                                                <div className="text-[10px] text-text-muted">{info.moduleName}{info.duration ? ` - ${info.duration}m` : ""}</div>
-                                              </div>
-                                            </Link>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                return (
+                  <section key={plan.id} className="ws-panel min-w-0" aria-label={`Active plan${activePlans.length > 1 ? ` ${index + 1}` : ""}`}>
+                    <div className="ws-panel-head ws-cd-plan-head">
+                      <h3 className="ws-h2">
+                        Active plan{activePlans.length > 1 ? ` ${index + 1}` : ""}
+                      </h3>
+                      <Chip tone="decide">Active</Chip>
+                      <span className="ws-caption">
+                        Created {longDate(plan.created_at)}
+                      </span>
+                      <span className="ws-cd-spacer" />
+                      <span className="ws-cd-plan-acts">
+                        <span className="ws-cd-prog">
+                          <span className="ws-bar" style={{ width: 56, ...(currentPlanPct === 100 ? { "--c": "var(--ws-ok)" } : {}) } as CSSProperties}>
+                            <i style={{ width: `${currentPlanPct}%` }} />
+                          </span>
+                          <span className="ws-pct">{currentPlanDone}/{currentPlanTotal}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleEditPlan(plan.id)}
+                          disabled={isArchived}
+                          style={isArchived ? { display: "none" } : undefined}
+                          className="ws-btn ws-btn-sm ws-focus"
+                        >
+                          Edit plan
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCompletePlan(plan.id)}
+                          disabled={isArchived}
+                          style={isArchived ? { display: "none" } : undefined}
+                          className="ws-btn ws-btn-sm ws-focus"
+                        >
+                          <Icon name="check" size={13} />
+                          Mark complete
+                        </button>
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    {plan.summary && <p className="ws-prose ws-pad">{plan.summary}</p>}
 
-              {completedPlans.length > 0 && (
-                <div className="mt-4">
-                  <button
-                    onClick={() => setShowHistory(!showHistory)}
-                    className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors mb-2"
-                  >
-                    <svg
-                      className={`w-3.5 h-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                    Previous Plans ({completedPlans.length})
-                  </button>
-
-                  {showHistory && (
-                    <div className="space-y-3">
-                      {completedPlans.map((plan) => {
-                        const prevItems = plan.phases.flatMap((ph) => ph.items);
-                        const prevDone = prevItems.filter((i) => i.completed).length;
-                        const prevTotal = prevItems.length;
-                        const isOpen = expandedHistoryPlan === plan.id;
+                    <div>
+                      {plan.phases.map((phase) => {
+                        const isExpanded = expandedPhases.has(phase.id);
+                        const phaseDone = phase.items.filter((i) => i.completed).length;
+                        const phaseTotal = phase.items.length;
+                        const phasePct = phaseTotal > 0 ? Math.round((phaseDone / phaseTotal) * 100) : 0;
 
                         return (
-                          <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl overflow-hidden">
+                          <div key={phase.id}>
                             <button
-                              onClick={() => setExpandedHistoryPlan(isOpen ? null : plan.id)}
-                              className="w-full p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                              type="button"
+                              onClick={() => togglePhase(phase.id)}
+                              aria-expanded={isExpanded}
+                              className="ws-row ws-cd-phase ws-focus"
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-text-muted">
-                                  {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
-                                    Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
-                                  </span>
-                                  <svg
-                                    className={`w-3.5 h-3.5 text-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
-                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </div>
-                              </div>
-                              <p className="text-xs text-text-muted leading-relaxed mb-1 whitespace-pre-line">{plan.summary}</p>
-                              <div className="text-[10px] text-text-muted">
-                                {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
-                              </div>
+                              <StatusIcon tone={progressTone(phaseDone, phaseTotal)} />
+                              <span className="min-w-0">
+                                <span className="ws-row-title">{phase.name}</span>
+                                <span className="ws-row-sub">{phaseDone}/{phaseTotal} completed</span>
+                              </span>
+                              <span className="ws-row-meta">
+                                <Bar pct={phasePct} colour={phasePct === 100 ? "var(--ws-ok)" : undefined} width={56} />
+                                <Icon name="chevron" size={14} className={`ws-chev ${isExpanded ? "is-open" : ""}`} />
+                              </span>
                             </button>
-                            {isOpen && (
-                              <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-4 space-y-3 pt-3">
-                                {plan.phases.map((phase) => {
-                                  const phDone = phase.items.filter((i) => i.completed).length;
-                                  const phTotal = phase.items.length;
 
-                                  return (
-                                    <div key={phase.id}>
-                                      <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-xs font-semibold text-text-secondary">{phase.name}</span>
-                                        <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
-                                      </div>
-                                      {phase.notes && (
-                                        <p className="text-[11px] text-text-muted italic mb-1.5 whitespace-pre-line">{phase.notes}</p>
-                                      )}
-                                      {phase.items.map((item) => (
-                                        <div key={item.id} className="flex items-center gap-2 py-1 px-1">
-                                          <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
-                                            item.completed ? "bg-emerald-500/20" : "border border-[rgba(255,255,255,0.1)]"
-                                          }`}>
-                                            {item.completed && (
-                                              <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                              </svg>
-                                            )}
-                                          </div>
-                                          <span className={`text-xs ${item.completed ? "text-text-muted line-through" : "text-text-secondary"}`}>
-                                            {item.title}
+                            {isExpanded && (
+                              <div className="ws-cd-phase-body">
+                                {phase.notes && (
+                                  <p className="ws-cd-phase-note">{phase.notes}</p>
+                                )}
+
+                                {phase.items.map((item) => (
+                                  <button
+                                    type="button"
+                                    key={item.id}
+                                    onClick={() => toggleItem(phase.id, item.id)}
+                                    disabled={isArchived}
+                                    aria-pressed={item.completed}
+                                    className={`ws-row ws-cd-item ws-focus ${item.completed ? "is-done" : ""}`}
+                                  >
+                                    <StatusIcon tone={item.completed ? "ok" : "open"} />
+                                    <span className="ws-row-title">{item.title}</span>
+                                    <span className="ws-row-time">
+                                      {item.completed && item.completed_at ? shortDate(item.completed_at) : ""}
+                                    </span>
+                                  </button>
+                                ))}
+
+                                {phase.linked_trainings.length > 0 && (
+                                  <div className="ws-cd-train-wrap">
+                                    <div className="ws-cd-sub">Linked training</div>
+                                    {phase.linked_trainings.map((contentId) => {
+                                      const info = contentLookup.get(contentId);
+                                      if (!info) return null;
+                                      return (
+                                        <Link
+                                          key={contentId}
+                                          href={`/admin/training/${info.moduleId}`}
+                                          className="ws-cd-train ws-focus"
+                                        >
+                                          <Icon name="play" size={12} />
+                                          <span className="min-w-0">
+                                            <span className="ws-row-title">{info.title}</span>
+                                            <span className="ws-row-sub">{info.moduleName}{info.duration ? ` - ${info.duration}m` : ""}</span>
                                           </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  );
-                                })}
+                                        </Link>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </div>
+                  </section>
+                );
+              })}
+
+              {completedPlans.length > 0 && (
+                <PreviousPlans
+                  plans={completedPlans}
+                  showHistory={showHistory}
+                  onToggleHistory={() => setShowHistory(!showHistory)}
+                  openPlanId={expandedHistoryPlan}
+                  onTogglePlan={(planId) => setExpandedHistoryPlan(expandedHistoryPlan === planId ? null : planId)}
+                />
               )}
             </>
           ) : (
-            <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-sm text-text-muted mb-4">No active business plan for this client.</p>
-              <button
-                onClick={handleNewPlan}
-                disabled={isArchived}
-                className={`${isArchived ? "hidden" : "inline-flex"} px-4 py-2 text-xs font-semibold text-white gradient-accent rounded-lg items-center gap-1.5`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Create Business Plan
-              </button>
+            <>
+              <section className="ws-panel min-w-0" aria-label="No active business plan">
+                <div className="ws-empty">
+                  <span className="ws-empty-glyph"><Icon name="plan" size={20} /></span>
+                  <p className="ws-empty-h">No active business plan</p>
+                  <p>No active business plan for this client.</p>
+                  <button
+                    type="button"
+                    onClick={handleNewPlan}
+                    disabled={isArchived}
+                    style={isArchived ? { display: "none" } : undefined}
+                    className="ws-btn ws-btn-primary ws-btn-sm ws-focus mt-3"
+                  >
+                    <Icon name="plus" size={13} />
+                    Create business plan
+                  </button>
+                </div>
+              </section>
 
               {/* Show history even when no active plan */}
               {completedPlans.length > 0 && (
-                <div className="mt-6 text-left">
-                  <button
-                    onClick={() => setShowHistory(!showHistory)}
-                    className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors mb-2"
-                  >
-                    <svg
-                      className={`w-3.5 h-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                    Previous Plans ({completedPlans.length})
-                  </button>
-                  {showHistory && completedPlans.map((plan) => {
-                    const prevItems = plan.phases.flatMap((ph) => ph.items);
-                    const prevDone = prevItems.filter((i) => i.completed).length;
-                    const prevTotal = prevItems.length;
-                    const isOpen = expandedHistoryPlan === plan.id;
-                    return (
-                      <div key={plan.id} className="bg-bg-card/40 border border-[rgba(255,255,255,0.03)] rounded-2xl overflow-hidden mt-2">
-                        <button
-                          onClick={() => setExpandedHistoryPlan(isOpen ? null : plan.id)}
-                          className="w-full p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-text-muted">
-                              {new Date(plan.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-semibold">
-                                Completed {plan.completed_at ? new Date(plan.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
-                              </span>
-                              <svg
-                                className={`w-3.5 h-3.5 text-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
-                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </div>
-                          </div>
-                          <p className="text-xs text-text-muted leading-relaxed mb-1 whitespace-pre-line">{plan.summary}</p>
-                          <div className="text-[10px] text-text-muted">
-                            {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
-                          </div>
-                        </button>
-                        {isOpen && (
-                          <div className="border-t border-[rgba(255,255,255,0.03)] px-4 pb-4 space-y-3 pt-3">
-                            {plan.phases.map((phase) => {
-                              const phDone = phase.items.filter((i) => i.completed).length;
-                              const phTotal = phase.items.length;
-                              return (
-                                <div key={phase.id}>
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-semibold text-text-secondary">{phase.name}</span>
-                                    <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
-                                  </div>
-                                  {phase.notes && (
-                                    <p className="text-[11px] text-text-muted italic mb-1.5 whitespace-pre-line">{phase.notes}</p>
-                                  )}
-                                  {phase.items.map((item) => (
-                                    <div key={item.id} className="flex items-center gap-2 py-1 px-1">
-                                      <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
-                                        item.completed ? "bg-emerald-500/20" : "border border-[rgba(255,255,255,0.1)]"
-                                      }`}>
-                                        {item.completed && (
-                                          <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        )}
-                                      </div>
-                                      <span className={`text-xs ${item.completed ? "text-text-muted line-through" : "text-text-secondary"}`}>
-                                        {item.title}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                <PreviousPlans
+                  plans={completedPlans}
+                  showHistory={showHistory}
+                  onToggleHistory={() => setShowHistory(!showHistory)}
+                  openPlanId={expandedHistoryPlan}
+                  onTogglePlan={(planId) => setExpandedHistoryPlan(expandedHistoryPlan === planId ? null : planId)}
+                />
               )}
-            </div>
+            </>
           )}
         </div>
 
         {/* Check-in History */}
-        <div>
-          <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Check-In History</h2>
+        <div className="ws-stack">
+          <div className="ws-cd-colhead">
+            <h2 className="ws-cd-h">Check-in history</h2>
+          </div>
           {client.checkins.length === 0 ? (
-            <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-              <p className="text-text-muted text-sm">No check-ins submitted yet.</p>
-            </div>
+            <section className="ws-panel">
+              <Empty icon="checkCircle" title="No check-ins yet" text="No check-ins submitted yet." />
+            </section>
           ) : (
-            <div className="space-y-3">
-              {client.checkins.map((c) => {
-                const mc = moodConfig[c.mood] || moodConfig.struggling;
-                return (
-                  <div key={c.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-text-primary">Week {c.week_number}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${mc.bgClass} ${mc.textClass}`}>
-                          {c.mood}
-                        </span>
-                      </div>
-                      <span className="text-xs text-text-muted">{timeAgo(c.created_at)}</span>
-                    </div>
+            client.checkins.map((c) => {
+              const mc = moodConfig[c.mood] || moodConfig.struggling;
+              return (
+                <section key={c.id} className="ws-panel min-w-0" aria-label={`Week ${c.week_number} check-in`}>
+                  <div className="ws-panel-head ws-cd-ck-head">
+                    <h3 className="ws-h2">Week {c.week_number}</h3>
+                    <Chip tone={mc.tone}>{moodText(c.mood)}</Chip>
+                    <span className="ws-caption ml-auto">{timeAgo(c.created_at)}</span>
+                  </div>
 
+                  <div className="ws-pad ws-cd-ck">
                     {c.responses && checkinConfig ? (
                       /* Dynamic responses - render using config labels */
                       checkinConfig.questions.map((q: FormQuestion) => {
                         const answer = getQuestionAnswerLabel(q, c.responses);
                         if (!answer) return null;
                         return (
-                          <div key={q.id} className="mb-2">
-                            <span className="text-[10px] text-text-muted font-semibold uppercase tracking-wider">{q.label}</span>
-                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed whitespace-pre-line">{answer}</p>
+                          <div key={q.id}>
+                            <div className="ws-field-l">{q.label}</div>
+                            <p className="ws-prose">{answer}</p>
                           </div>
                         );
                       })
@@ -1347,68 +1127,65 @@ export default function ClientDetailPage() {
                       /* Legacy format - backward compatibility */
                       <>
                         {c.wins && (
-                          <div className="mb-2">
-                            <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Wins</span>
-                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.wins}</p>
+                          <div>
+                            <div className="ws-field-l">Wins</div>
+                            <p className="ws-prose">{c.wins}</p>
                           </div>
                         )}
                         {c.challenges && (
-                          <div className="mb-2">
-                            <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Challenges</span>
-                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.challenges}</p>
+                          <div>
+                            <div className="ws-field-l">Challenges</div>
+                            <p className="ws-prose">{c.challenges}</p>
                           </div>
                         )}
                         {c.questions && (
-                          <div className="mb-2">
-                            <span className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider">Questions</span>
-                            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{c.questions}</p>
+                          <div>
+                            <div className="ws-field-l">Questions</div>
+                            <p className="ws-prose">{c.questions}</p>
                           </div>
                         )}
                       </>
                     )}
 
                     {c.admin_reply || sentReplies[c.id] ? (
-                      <div className="mt-3 pl-3 border-l-2 border-accent/30 bg-accent/5 rounded-r-lg py-2 pr-3">
-                        <div className="text-[10px] text-accent-bright font-semibold uppercase tracking-wider mb-1">
-                          Marc&apos;s Reply
-                          {sentReplies[c.id] && !c.admin_reply && <span className="text-emerald-400/60 ml-2">Just sent</span>}
+                      <div className="ws-quote" style={{ "--c": "var(--ws-accent-ink)" } as CSSProperties}>
+                        <div className="ws-quote-h">
+                          Marc&apos;s reply
+                          {sentReplies[c.id] && !c.admin_reply && <Chip tone="ok">Just sent</Chip>}
                         </div>
-                        <p className="text-xs text-text-secondary leading-relaxed">{sentReplies[c.id] || c.admin_reply}</p>
+                        <p className="ws-prose">{sentReplies[c.id] || c.admin_reply}</p>
                       </div>
                     ) : !isArchived ? (
-                      <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)]">
-                        <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">Reply to this check-in</div>
+                      <div className="ws-cd-reply">
+                        <label className="ws-field-l" htmlFor={`reply-${c.id}`}>Reply to this check-in</label>
                         <textarea
+                          id={`reply-${c.id}`}
                           value={replyTexts[c.id] || ""}
                           onChange={(e) => setReplyTexts((prev) => ({ ...prev, [c.id]: e.target.value }))}
                           rows={3}
                           placeholder="Type your reply..."
                           disabled={sendingReply === c.id}
-                          className="w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40 transition-colors resize-none disabled:opacity-50"
+                          className="ws-input"
                         />
                         {replyError && sendingReply === null && (
-                          <div className="text-xs text-red-400 mt-1">{replyError}</div>
+                          <div className="ws-caption mt-1" style={{ color: "var(--ws-bad)" }}>{replyError}</div>
                         )}
                         <div className="flex justify-end mt-2">
                           <button
+                            type="button"
                             onClick={() => handleReply(c.id)}
                             disabled={!replyTexts[c.id]?.trim() || sendingReply === c.id}
-                            className="px-4 py-2 gradient-accent text-white rounded-lg text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition-opacity inline-flex items-center gap-1.5"
+                            className="ws-btn ws-btn-primary ws-btn-sm ws-focus"
                           >
                             {sendingReply === c.id ? (
                               <>
-                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
+                                <Spinner />
                                 Sending...
                               </>
                             ) : (
                               <>
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                </svg>
-                                Send Reply
+                                <Icon name="send" size={13} />
+                                Send reply
                               </>
                             )}
                           </button>
@@ -1416,152 +1193,146 @@ export default function ClientDetailPage() {
                       </div>
                     ) : null}
                     {c.client_reply && (
-                      <div className="mt-3 pl-3 border-l-2 border-emerald-500/30 bg-emerald-500/5 rounded-r-lg py-2 pr-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
-                            Client Reply
-                          </div>
+                      <div className="ws-quote" style={{ "--c": "var(--ws-ok)" } as CSSProperties}>
+                        <div className="ws-quote-h">
+                          Client reply
                           {c.client_replied_at && (
-                            <span className="text-[10px] text-text-muted">
-                              {new Date(c.client_replied_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            <span className="ws-caption" style={{ fontWeight: 400 }}>
+                              {shortDate(c.client_replied_at)}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">{c.client_reply}</p>
+                        <p className="ws-prose">{c.client_reply}</p>
                       </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
+                </section>
+              );
+            })
           )}
         </div>
       </div>
 
-      <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl p-5 mt-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-heading font-bold text-text-primary">Business & Personal Health Checklist</h2>
-            <p className="text-xs text-text-muted mt-1">
+      <section className="ws-panel min-w-0" aria-label="Business and personal health checklist">
+        <div className="ws-panel-head">
+          <div className="min-w-0 mr-auto">
+            <h2 className="ws-h2">Business and personal health checklist</h2>
+            <p className="ws-caption">
               Initial onboarding questionnaire completed inside the portal.
             </p>
           </div>
           {client.business_health_checklist?.submitted_at ? (
-            <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+            <Chip tone="ok">
               Submitted {new Date(client.business_health_checklist.submitted_at).toLocaleDateString("en-GB", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
               })}
-            </span>
+            </Chip>
           ) : (
-            <span className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
+            <Chip tone="attn">
               Not submitted yet
-            </span>
+            </Chip>
           )}
         </div>
 
         {client.business_health_checklist && businessHealthConfig ? (
-          <div className="mt-5 space-y-5">
+          <div>
             {businessHealthConfig.questions.map((question) => {
               const answer = getQuestionAnswerLabel(question, client.business_health_checklist?.responses);
               if (!answer) return null;
 
               return (
-                <div key={question.id} className="rounded-xl border border-[rgba(255,255,255,0.04)] bg-bg-primary/60 px-4 py-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{question.label}</div>
-                  <p className="mt-1 text-sm leading-relaxed text-text-secondary whitespace-pre-line">{answer}</p>
+                <div key={question.id} className="ws-cd-qa">
+                  <div className="ws-field-l">{question.label}</div>
+                  <p className="ws-prose">{answer}</p>
                 </div>
               );
             })}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-text-secondary">
+          <p className="ws-meta ws-pad">
             The client has not completed this onboarding questionnaire yet.
           </p>
         )}
-      </div>
+      </section>
 
       {/* Nudge Modal */}
       {nudgeOpen && !isArchived && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-heading font-bold text-text-primary">Nudge {client.name.split(" ")[0]}</h3>
-                <p className="text-xs text-text-muted">Send a push notification to their device</p>
+        <div className="ws-overlay">
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label={`Nudge ${client.name.split(" ")[0]}`}>
+            <div className="ws-dialog-head">
+              <div className="min-w-0">
+                <h3 className="ws-dialog-title">Nudge {client.name.split(" ")[0]}</h3>
+                <p className="ws-caption mt-0.5">Send a push notification to their device</p>
               </div>
             </div>
 
-            {nudgeSent ? (
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-4">
-                <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-sm text-emerald-400 font-medium">Nudge sent</span>
-              </div>
-            ) : (
-              <textarea
-                value={nudgeMessage}
-                onChange={(e) => setNudgeMessage(e.target.value)}
-                rows={4}
-                placeholder="Type your message..."
-                className="w-full bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50 mb-4 resize-none"
-              />
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setNudgeOpen(false)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
-              >
-                {nudgeSent ? "Done" : "Cancel"}
-              </button>
-              {!nudgeSent && (
-                <button
-                  disabled={!nudgeMessage.trim() || nudgeSending}
-                  onClick={async () => {
-                    setNudgeSending(true);
-                    try {
-                      const res = await fetch("/api/push/send", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          userId: client.user_id,
-                          title: "Marc Watters",
-                          body: nudgeMessage,
-                          url: "/portal",
-                          tag: "nudge",
-                        }),
-                      });
-                      const result = await res.json().catch(() => ({}));
-                      if (res.ok && result.sent > 0) {
-                        setNudgeSent(true);
-                      } else {
-                        alert("Push notification could not be delivered. Client may not have notifications enabled.");
-                      }
-                    } finally {
-                      setNudgeSending(false);
-                    }
-                  }}
-                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {nudgeSending ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Sending...
-                    </>
-                  ) : "Send Nudge"}
-                </button>
+            <div className="ws-dialog-body">
+              {nudgeSent ? (
+                <div className="ws-note is-ok" role="status">
+                  <Icon name="checkCircle" size={15} />
+                  <span>Nudge sent</span>
+                </div>
+              ) : (
+                <textarea
+                  value={nudgeMessage}
+                  onChange={(e) => setNudgeMessage(e.target.value)}
+                  rows={4}
+                  placeholder="Type your message..."
+                  aria-label="Nudge message"
+                  className="ws-input"
+                />
               )}
+
+              <div className="ws-dialog-foot">
+                <button
+                  type="button"
+                  onClick={() => setNudgeOpen(false)}
+                  className="ws-btn ws-btn-quiet ws-focus"
+                >
+                  {nudgeSent ? "Done" : "Cancel"}
+                </button>
+                {!nudgeSent && (
+                  <button
+                    type="button"
+                    disabled={!nudgeMessage.trim() || nudgeSending}
+                    onClick={async () => {
+                      setNudgeSending(true);
+                      try {
+                        const res = await fetch("/api/push/send", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            userId: client.user_id,
+                            title: "Marc Watters",
+                            body: nudgeMessage,
+                            url: "/portal",
+                            tag: "nudge",
+                          }),
+                        });
+                        const result = await res.json().catch(() => ({}));
+                        if (res.ok && result.sent > 0) {
+                          setNudgeSent(true);
+                        } else {
+                          alert("Push notification could not be delivered. Client may not have notifications enabled.");
+                        }
+                      } finally {
+                        setNudgeSending(false);
+                      }
+                    }}
+                    className="ws-btn ws-btn-primary ws-focus"
+                  >
+                    {nudgeSending ? (
+                      <>
+                        <Spinner />
+                        Sending...
+                      </>
+                    ) : "Send nudge"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1583,7 +1354,94 @@ export default function ClientDetailPage() {
           error={planSaveError}
         />
       )}
-    </>
+    </div>
+  );
+}
+
+function PreviousPlans({
+  plans,
+  showHistory,
+  onToggleHistory,
+  openPlanId,
+  onTogglePlan,
+}: {
+  plans: BusinessPlan[];
+  showHistory: boolean;
+  onToggleHistory: () => void;
+  openPlanId: string | null;
+  onTogglePlan: (planId: string) => void;
+}) {
+  return (
+    <TogglePanel
+      open={showHistory}
+      onToggle={onToggleHistory}
+      title="Previous plans"
+      meta={<span className="ws-caption">{plans.length}</span>}
+    >
+      <div>
+        {plans.map((plan) => {
+          const prevItems = plan.phases.flatMap((ph) => ph.items);
+          const prevDone = prevItems.filter((i) => i.completed).length;
+          const prevTotal = prevItems.length;
+          const isOpen = openPlanId === plan.id;
+
+          return (
+            <div key={plan.id}>
+              <button
+                type="button"
+                onClick={() => onTogglePlan(plan.id)}
+                aria-expanded={isOpen}
+                className="ws-row ws-focus"
+              >
+                <StatusIcon tone="closed" />
+                <span className="min-w-0">
+                  <span className="ws-row-title">{longDate(plan.created_at)}</span>
+                  <span className="ws-row-sub">
+                    {prevDone}/{prevTotal} items completed across {plan.phases.length} phases
+                    {plan.summary ? ` · ${plan.summary}` : ""}
+                  </span>
+                </span>
+                <span className="ws-row-meta">
+                  <Chip tone="ok">
+                    Completed {plan.completed_at ? shortDate(plan.completed_at) : ""}
+                  </Chip>
+                  <Icon name="chevron" size={14} className={`ws-chev ${isOpen ? "is-open" : ""}`} />
+                </span>
+              </button>
+              {isOpen && (
+                <div className="ws-expand">
+                  <div className="ws-expand-box ws-cd-prev">
+                    {plan.summary && <p className="ws-caption" style={{ whiteSpace: "pre-line" }}>{plan.summary}</p>}
+                    {plan.phases.map((phase) => {
+                      const phDone = phase.items.filter((i) => i.completed).length;
+                      const phTotal = phase.items.length;
+
+                      return (
+                        <div key={phase.id}>
+                          <div className="ws-cd-prev-h">
+                            <span>{phase.name}</span>
+                            <span className="ws-caption">{phDone}/{phTotal}</span>
+                          </div>
+                          {phase.notes && (
+                            <p className="ws-caption" style={{ whiteSpace: "pre-line" }}>{phase.notes}</p>
+                          )}
+                          {phase.items.map((item) => (
+                            <div key={item.id} className={`ws-cd-prev-item ${item.completed ? "is-done" : ""}`}>
+                              <StatusIcon tone={item.completed ? "ok" : "open"} size={12} />
+                              <span>{item.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </TogglePanel>
   );
 }
 
@@ -1609,7 +1467,7 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
       date: c.created_at,
       title: `Submitted Week ${c.week_number} check-in`,
       detail: c.mood ? `Mood: ${c.mood}` : undefined,
-      color: "text-blue-400",
+      color: "var(--ws-ink-2)",
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
     });
     if (c.admin_reply && c.replied_at) {
@@ -1617,7 +1475,7 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
         type: "reply",
         date: c.replied_at,
         title: `Marc replied to Week ${c.week_number} check-in`,
-        color: "text-accent-bright",
+        color: "var(--ws-accent-ink)",
         icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
       });
     }
@@ -1627,7 +1485,7 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
         date: c.client_replied_at,
         title: `Client replied to Week ${c.week_number} check-in`,
         detail: c.client_reply,
-        color: "text-emerald-400",
+        color: "var(--ws-ok)",
         icon: "M8 10h8M8 14h5m-9 5l3.5-3.5H18a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v12z",
       });
     }
@@ -1638,7 +1496,7 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
       type: "checkin",
       date: client.business_health_checklist.submitted_at,
       title: "Submitted Business & Personal Health Checklist",
-      color: "text-accent-bright",
+      color: "var(--ws-accent-ink)",
       icon: "M7 8h10M7 12h6m-6 8h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z",
     });
   }
@@ -1654,7 +1512,7 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
             date: item.completed_at,
             title: `Completed: ${item.title}`,
             detail: phase.name,
-            color: "text-emerald-400",
+            color: "var(--ws-ok)",
             icon: "M5 13l4 4L19 7",
           });
         }
@@ -1668,62 +1526,33 @@ function ActivityTimeline({ client }: { client: AdminClient }) {
   if (events.length === 0) return null;
 
   return (
-    <div className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl mb-6 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-            <svg className="w-4 h-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+    <TogglePanel
+      open={expanded}
+      onToggle={() => setExpanded(!expanded)}
+      title="Activity timeline"
+      meta={<span className="ws-caption">{events.length} events</span>}
+    >
+      <div className="ws-cd-acts">
+        {events.slice(0, 15).map((event, i) => (
+          <div key={i} className="ws-act">
+            <span className="ws-act-ic" style={{ color: event.color }}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={event.icon} />
+              </svg>
+            </span>
+            <span className="ws-cd-act-t">
+              <b>{event.title}</b>
+              {event.detail && <span className="ws-cd-act-d">{event.detail}</span>}
+            </span>
+            <time dateTime={event.date}>{shortDate(event.date)}</time>
           </div>
-          <div className="text-left">
-            <h2 className="text-sm font-heading font-bold text-text-primary">Activity Timeline</h2>
-            <p className="text-[10px] text-text-muted">{events.length} events</p>
+        ))}
+        {events.length > 15 && (
+          <div className="ws-caption ws-cd-act-more">
+            + {events.length - 15} more events
           </div>
-        </div>
-        <svg className={`w-4 h-4 text-text-muted transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {expanded && (
-        <div className="px-5 pb-5">
-          <div className="relative border-l border-[rgba(255,255,255,0.06)] ml-4 space-y-0">
-            {events.slice(0, 15).map((event, i) => (
-              <div key={i} className="relative pl-6 pb-4 last:pb-0">
-                <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-bg-card ${
-                  event.type === "checkin" ? "bg-blue-400" :
-                  event.type === "reply" ? "bg-accent" :
-                  event.type === "plan_item" ? "bg-emerald-400" :
-                  "bg-purple-400"
-                }`} />
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <svg className={`w-3.5 h-3.5 flex-shrink-0 ${event.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={event.icon} />
-                    </svg>
-                    <div className="min-w-0">
-                      <span className="text-xs text-text-primary">{event.title}</span>
-                      {event.detail && <span className="text-[10px] text-text-muted ml-2">{event.detail}</span>}
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-text-muted whitespace-nowrap flex-shrink-0">
-                    {new Date(event.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </span>
-                </div>
-              </div>
-            ))}
-            {events.length > 15 && (
-              <div className="pl-6 pt-2 text-[10px] text-text-muted">
-                + {events.length - 15} more events
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </TogglePanel>
   );
 }
