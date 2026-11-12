@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { EmptyState } from "@/components/ui/PortalState";
+import { WsEmpty as EmptyState } from "@/components/portal/WsState";
 import { useToast } from "@/components/ui/Toast";
 import type { GrowthAssetSummary } from "@/lib/growth-engine-admin";
 
@@ -75,35 +75,35 @@ export default function GrowthEngineFiles({
   }
 
   return (
-    <section className="v2-surface overflow-hidden">
-      <header className="flex flex-col gap-4 border-b border-white/[0.07] px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-7">
-        <div>
-          <h2 className="v2-section-title">Files and assets</h2>
-          <p className="mt-1 text-xs text-text-muted">Private storage with explicit client visibility.</p>
+    <section className="ws-panel">
+      <header className="ws-panel-head">
+        <div className="min-w-0 ws-ge-head-t">
+          <h2 className="ws-h2">Files and assets</h2>
+          <p className="ws-caption">Private storage with explicit client visibility.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-text-secondary">
-            <input type="checkbox" checked={clientVisible} onChange={(event) => setClientVisible(event.target.checked)} className="h-4 w-4 accent-[var(--cbb-accent)]" />
+        <div className="ws-ge-acts">
+          <label className="ws-check ws-ge-vis">
+            <input type="checkbox" checked={clientVisible} onChange={(event) => setClientVisible(event.target.checked)} className="" />
             Visible to client
           </label>
-          <label className="v2-button-primary cursor-pointer">
+          <label className="ws-btn ws-btn-primary ws-btn-sm">
             {busy ? "Working…" : "Upload file"}
             <input ref={inputRef} type="file" disabled={busy} onChange={(event) => void upload(event.target.files?.[0])} className="sr-only" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" />
           </label>
         </div>
       </header>
       {assets.length ? (
-        <div className="divide-y divide-white/[0.06]">
+        <div>
           {assets.map((asset) => (
-            <div key={asset.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <div key={asset.id} className="ws-ge-file">
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-text-primary">{asset.title}</p>
-                <p className="mt-1 text-xs text-text-muted">{fileSize(asset.size_bytes)} · {visibilityLabel(asset.availability)} · Added {new Date(asset.created_at).toLocaleDateString("en-GB")}</p>
+                <p className="ws-row-title">{asset.title}</p>
+                <p className="ws-row-sub">{fileSize(asset.size_bytes)} · {visibilityLabel(asset.availability)} · Added {new Date(asset.created_at).toLocaleDateString("en-GB")}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <a href={`/api/admin/growth-engine/assets/${asset.id}/download`} className="v2-button-secondary no-underline">Download</a>
-                <button type="button" disabled={busy} onClick={() => void update(asset.id, asset.visibility !== "client")} className="v2-button-secondary">{asset.visibility === "client" ? "Make private" : "Share with client"}</button>
-                <button type="button" disabled={busy} onClick={() => void remove(asset.id)} className="min-h-10 rounded-xl px-3 text-xs font-bold text-red-300 hover:bg-red-500/10">Remove</button>
+              <div className="ws-ge-acts">
+                <a href={`/api/admin/growth-engine/assets/${asset.id}/download`} className="ws-btn ws-btn-sm ws-focus">Download</a>
+                <button type="button" disabled={busy} onClick={() => void update(asset.id, asset.visibility !== "client")} className="ws-btn ws-btn-sm ws-focus">{asset.visibility === "client" ? "Make private" : "Share with client"}</button>
+                <button type="button" disabled={busy} onClick={() => void remove(asset.id)} className="ws-btn ws-btn-quiet ws-btn-sm ws-focus ws-ge-del">Remove</button>
               </div>
             </div>
           ))}

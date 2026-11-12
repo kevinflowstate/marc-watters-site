@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { memo, useEffect, useRef, useState } from "react";
-import { InlineNotice } from "@/components/ui/PortalState";
+import { WsNotice as InlineNotice } from "@/components/portal/WsState";
+import { Icon } from "@/components/ops/workspace/WorkspaceUI";
 
 interface Message {
   role: "user" | "assistant";
@@ -35,14 +36,12 @@ const suggestedPrompts = [
 function BlueprintIcon({ compact = false }: { compact?: boolean }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center border border-accent/25 bg-accent/10 text-accent-bright ${
-        compact ? "h-8 w-8 rounded-lg" : "h-12 w-12 rounded-[var(--cbb-radius-md)]"
+      className={`ws-ai-mark ${
+        compact ? "is-sm" : ""
       }`}
       aria-hidden
     >
-      <svg className={compact ? "h-4 w-4" : "h-6 w-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547Z" />
-      </svg>
+      <Icon name="bulb" size={compact ? 14 : 18} />
     </span>
   );
 }
@@ -58,7 +57,7 @@ function renderMarkdown(text: string) {
       <Link
         key={index}
         href={linkMatch[2]}
-        className="font-semibold text-accent-bright underline decoration-accent/30 underline-offset-4 hover:decoration-accent-bright"
+        className="ws-ai-a"
       >
         {linkMatch[1]}
       </Link>
@@ -70,7 +69,7 @@ function renderContentLine(line: string) {
   return line.split(/(\*\*.*?\*\*)/g).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={index} className="font-semibold text-text-primary">
+        <strong key={index} className="ws-ai-strong">
           {part.slice(2, -2)}
         </strong>
       );
@@ -99,9 +98,9 @@ function renderContent(text: string) {
         index += 1;
       }
       blocks.push(
-        <ul key={`list-${items[0].lineIndex}`} className="space-y-1.5 pl-5">
+        <ul key={`list-${items[0].lineIndex}`} className="ws-ai-ul">
           {items.map((item) => (
-            <li key={item.lineIndex} className="list-disc pl-1 marker:text-accent-bright">
+            <li key={item.lineIndex} className="ws-ai-li">
               {renderContentLine(item.content)}
             </li>
           ))}
@@ -112,7 +111,7 @@ function renderContent(text: string) {
 
     if (line.startsWith("**") && line.endsWith("**")) {
       blocks.push(
-        <h3 key={index} className="font-semibold text-text-primary">
+        <h3 key={index} className="ws-ai-h">
           {line.slice(2, -2)}
         </h3>,
       );
@@ -147,11 +146,11 @@ const AssistantMessage = memo(function AssistantMessage({
   messageRef?: React.Ref<HTMLDivElement>;
 }) {
   return (
-    <div ref={messageRef} className="flex items-start gap-3">
+    <div ref={messageRef} className="ws-ai-msg">
       <BlueprintIcon compact />
-      <div className="min-w-0 flex-1 pt-0.5">
-        <div className="mb-2 text-xs font-bold text-accent-bright">Blueprint AI</div>
-        <div className="space-y-2 text-sm leading-7 text-text-secondary">{renderContent(content)}</div>
+      <div className="min-w-0 flex-1">
+        <div className="ws-ai-who">Blueprint AI</div>
+        <div className="ws-ai-body">{renderContent(content)}</div>
       </div>
     </div>
   );
@@ -371,41 +370,38 @@ export default function BlueprintAIPage() {
   return (
     <div
       ref={pageRef}
-      className="mx-auto flex h-[calc(100dvh-7.5rem)] min-h-0 max-w-5xl flex-col overflow-hidden"
+      className="ws ws-ai mx-auto flex h-[calc(100dvh-7.5rem)] min-h-0 max-w-5xl flex-col overflow-hidden"
       style={{ height: "max(240px, calc(100dvh - var(--blueprint-ai-top, 7.5rem) - var(--blueprint-ai-bottom, 0px)))" }}
       data-blueprint-ai-shell
     >
       <header
-        className={`flex flex-wrap justify-between gap-4 ${
-          hasConversation ? "mb-3 items-center sm:mb-5 sm:items-end" : "mb-5 items-end"
+        className={`ws-ph ws-ai-head ${
+          hasConversation ? "has-chat" : ""
         }`}
       >
-        <div>
-          <div className={`v2-eyebrow mb-3 ${hasConversation ? "hidden sm:block" : ""}`}>Coaching support</div>
-          <h1 className="v2-page-title">Blueprint AI</h1>
-          <p className={`mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary ${hasConversation ? "hidden sm:block" : ""}`}>
+        <div className="min-w-0">
+          <h1 className="ws-title">Blueprint AI</h1>
+          <p className={`ws-meta mt-1 max-w-2xl ${hasConversation ? "hidden sm:block" : ""}`}>
             Ask practical questions about your Business Plan, assigned training and next steps.
           </p>
         </div>
 
         {hasConversation && (
-          <button type="button" onClick={clearConversation} className="v2-button-secondary shrink-0" aria-label="New conversation">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 5v14m7-7H5" />
-            </svg>
+          <button type="button" onClick={clearConversation} className="ws-btn ws-focus shrink-0" aria-label="New conversation">
+            <Icon name="plus" size={14} />
             <span className="sm:hidden">New chat</span>
             <span className="hidden sm:inline">New conversation</span>
           </button>
         )}
       </header>
 
-      <section className="v2-surface flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Blueprint AI conversation">
-        <div className="flex min-h-14 items-center gap-4 border-b border-white/[0.065] px-4 py-3 sm:px-5">
+      <section className="ws-panel ws-ai-panel" aria-label="Blueprint AI conversation">
+        <div className="ws-panel-head ws-ai-bar">
           <div className="flex min-w-0 items-center gap-3">
             <BlueprintIcon compact />
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-text-primary">Blueprint AI</div>
-              <div className="text-xs text-text-muted">
+              <div className="ws-h2">Blueprint AI</div>
+              <div className="ws-caption">
                 <span className="sm:hidden">Uses your plan and training</span>
                 <span className="hidden sm:inline">Your plan and assigned training provide context</span>
               </div>
@@ -416,40 +412,40 @@ export default function BlueprintAIPage() {
         <div
           ref={scrollAreaRef}
           onScroll={handleConversationScroll}
-          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-auto"
+          className="ws-ai-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-auto"
           style={{ WebkitOverflowScrolling: "touch" }}
           data-blueprint-ai-scroll
           aria-live="polite"
         >
           {!hasConversation && !loading ? (
-            <div className="flex min-h-full items-center justify-center px-4 py-8 sm:px-8">
+            <div className="ws-ai-start">
               <div className="w-full max-w-2xl">
-                <div className="flex flex-col items-center text-center">
+                <div className="ws-ai-start-head">
                   <BlueprintIcon />
-                  <h2 className="mt-4 font-heading text-xl font-bold tracking-[-0.02em] text-text-primary">
+                  <h2 className="ws-cd-h">
                     What would help you move forward?
                   </h2>
-                  <p className="mt-2 max-w-lg text-sm leading-relaxed text-text-secondary">
+                  <p className="ws-meta">
                     Ask a direct question, work through a decision or get clarity on the next action in your plan.
                   </p>
                 </div>
 
-                <div className="mt-7 grid gap-2 sm:grid-cols-2">
+                <div className="ws-ai-prompts">
                   {suggestedPrompts.map((suggestion) => (
                     <button
                       key={suggestion.prompt}
                       type="button"
                       onClick={() => handleSend(suggestion.prompt)}
-                      className="group flex min-h-16 items-center gap-3 rounded-[var(--cbb-radius-md)] border border-white/[0.075] bg-white/[0.02] px-4 py-3 text-left transition-[border-color,background-color] duration-200 hover:border-accent/30 hover:bg-accent/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/70 motion-reduce:transition-none"
+                      className="ws-ai-prompt ws-focus"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.025] text-text-muted transition-colors group-hover:border-accent/20 group-hover:text-accent-bright">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <span className="ws-ai-prompt-ic">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={suggestion.icon} />
                         </svg>
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-xs font-semibold text-accent-bright">{suggestion.label}</span>
-                        <span className="mt-0.5 block text-sm leading-snug text-text-primary">{suggestion.prompt}</span>
+                        <span className="ws-ai-prompt-l">{suggestion.label}</span>
+                        <span className="ws-ai-prompt-t">{suggestion.prompt}</span>
                       </span>
                     </button>
                   ))}
@@ -457,11 +453,11 @@ export default function BlueprintAIPage() {
               </div>
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+            <div className="ws-ai-thread">
               {messages.map((message, index) =>
                 message.role === "user" ? (
-                  <div key={index} className="flex justify-end">
-                    <div className="max-w-[88%] rounded-[var(--cbb-radius-md)] rounded-br-sm border border-accent/20 bg-accent/12 px-4 py-3 text-sm leading-6 text-text-primary sm:max-w-[76%]">
+                  <div key={index} className="ws-ai-user">
+                    <div className="ws-ai-bubble">
                       {message.content}
                     </div>
                   </div>
@@ -475,16 +471,16 @@ export default function BlueprintAIPage() {
               )}
 
               {loading && (
-                <div className="flex items-start gap-3" role="status">
+                <div className="ws-ai-msg" role="status">
                   <BlueprintIcon compact />
-                  <div className="pt-1">
-                    <div className="mb-2 text-xs font-bold text-accent-bright">Blueprint AI</div>
-                    <div className="flex items-center gap-2 text-sm text-text-muted">
-                      <span className="flex items-center gap-1.5" aria-hidden>
+                  <div className="min-w-0">
+                    <div className="ws-ai-who">Blueprint AI</div>
+                    <div className="ws-ai-thinking">
+                      <span className="ws-ai-dots" aria-hidden>
                         {[0, 160, 320].map((delay) => (
                           <span
                             key={delay}
-                            className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-bright/65"
+                            className="ws-ai-dot"
                             style={{ animationDelay: `${delay}ms` }}
                           />
                         ))}
@@ -499,7 +495,7 @@ export default function BlueprintAIPage() {
                 <InlineNotice
                   tone="error"
                   action={
-                    <button type="button" onClick={handleRetry} disabled={loading} className="text-xs font-bold text-red-100 underline underline-offset-4 disabled:opacity-50">
+                    <button type="button" onClick={handleRetry} disabled={loading} className="ws-btn ws-btn-sm ws-focus">
                       Try again
                     </button>
                   }
@@ -511,9 +507,9 @@ export default function BlueprintAIPage() {
           )}
         </div>
 
-        <div className="border-t border-white/[0.065] bg-black/10 p-3 sm:p-4">
+        <div className="ws-ai-foot">
           <div className="mx-auto max-w-3xl">
-            <div className="relative rounded-[var(--cbb-radius-md)] border border-white/[0.1] bg-white/[0.035] p-1.5 transition-colors focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/10">
+            <div className="ws-ai-box">
               <label htmlFor="blueprint-ai-message" className="sr-only">Ask Blueprint AI</label>
               <textarea
                 id="blueprint-ai-message"
@@ -524,21 +520,19 @@ export default function BlueprintAIPage() {
                 placeholder="Ask Blueprint AI…"
                 rows={1}
                 disabled={loading}
-                className="block min-h-12 max-h-32 w-full resize-none bg-transparent py-3 pl-3 pr-14 text-sm leading-6 text-text-primary outline-none placeholder:text-text-muted disabled:opacity-60"
+                className="ws-ai-input"
               />
               <button
                 type="button"
                 onClick={() => handleSend()}
                 disabled={!input.trim() || loading}
                 aria-label="Send message"
-                className="absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-[var(--cbb-radius-sm)] border border-accent/25 bg-accent text-white shadow-[0_6px_18px_rgba(34,114,222,0.2)] transition-[background-color,opacity] hover:bg-accent-light disabled:cursor-not-allowed disabled:border-white/[0.07] disabled:bg-white/[0.04] disabled:text-text-muted disabled:shadow-none"
+                className="ws-ai-send ws-focus"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 0-7 7m7-7 7 7" />
-                </svg>
+                <Icon name="send" size={15} />
               </button>
             </div>
-            <p className="mt-2 text-center text-[11px] leading-relaxed text-text-muted">
+            <p className="ws-caption ws-ai-note">
               Blueprint AI can support your thinking. Check important business decisions with Marc.
             </p>
           </div>

@@ -5,6 +5,7 @@ import { getQuestionAnswerLabel } from "@/lib/questionnaires";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { CheckIn, CheckinFormConfig, FormQuestion } from "@/lib/types";
+import { Chip, Icon } from "@/components/ops/workspace/WorkspaceUI";
 
 function formatCheckinDate(timestamp: string) {
   return new Date(timestamp).toLocaleDateString("en-GB", {
@@ -74,60 +75,58 @@ export default async function PortalCheckinReplyPage({
     : [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="ws ws-page ws-cr-page">
+      <div className="ws-cr-nav">
         <Link
           href="/portal"
-          className="inline-flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-2 text-sm text-text-primary no-underline transition-colors hover:bg-[rgba(255,255,255,0.05)]"
+          className="ws-back ws-focus"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
+          <Icon name="chevron" size={14} className="ws-back-ic" />
+          Back to dashboard
         </Link>
         <Link
           href="/portal/inbox"
-          className="inline-flex items-center gap-2 rounded-xl border border-[rgba(34,114,222,0.18)] bg-[rgba(34,114,222,0.08)] px-4 py-2 text-sm text-accent-bright no-underline transition-colors hover:bg-[rgba(34,114,222,0.12)]"
+          className="ws-btn ws-btn-sm ws-focus"
         >
           Message Marc
         </Link>
       </div>
 
-      <div className="rounded-3xl border border-[rgba(34,114,222,0.16)] bg-[linear-gradient(180deg,rgba(34,114,222,0.08),rgba(255,255,255,0.02))] p-6">
-        <div className="inline-flex rounded-full border border-[rgba(34,114,222,0.18)] bg-[rgba(34,114,222,0.1)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-bright">
-          Check-In Reply
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <div className="ws-caption">Check-in reply</div>
+          <h1 className="ws-title mt-1">
+            Marc replied to your Week {checkin.week_number} check-in
+          </h1>
+          <p className="ws-meta mt-1">
+            Your original check-in and Marc&apos;s reply are below in one place, so you do not need to
+            hunt between the dashboard and inbox.
+          </p>
         </div>
-        <h1 className="mt-4 text-3xl font-heading font-bold text-text-primary">
-          Marc replied to your Week {checkin.week_number} check-in
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-          Your original check-in and Marc&apos;s reply are below in one place, so you do not need to
-          hunt between the dashboard and inbox.
-        </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <section className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-text-primary">Your Check-In</div>
-              <div className="text-xs text-text-muted mt-1">
+      <div className="ws-cr-grid">
+        <section className="ws-panel min-w-0">
+          <div className="ws-panel-head">
+            <div className="min-w-0 ws-cr-head-t">
+              <h2 className="ws-h2">Your check-in</h2>
+              <div className="ws-caption">
                 Submitted {formatCheckinDate(checkin.created_at)}
               </div>
             </div>
-            <span className="rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-1 text-xs font-medium text-text-secondary">
+            <Chip>
               Week {checkin.week_number}
-            </span>
+            </Chip>
           </div>
 
-          <div className="mt-6 space-y-5">
+          <div className="ws-cr-answers">
             {answeredQuestions.length > 0 ? (
               answeredQuestions.map(({ question, answer }) => (
-                <div key={question.id}>
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-text-muted mb-1.5">
+                <div key={question.id} className="ws-cd-qa">
+                  <div className="ws-field-l">
                     {question.label}
                   </div>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-text-secondary">
+                  <p className="ws-prose">
                     {answer}
                   </p>
                 </div>
@@ -135,21 +134,21 @@ export default async function PortalCheckinReplyPage({
             ) : (
               <>
                 {checkin.wins && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-text-muted mb-1.5">Wins</div>
-                    <p className="text-sm leading-relaxed text-text-secondary">{checkin.wins}</p>
+                  <div className="ws-cd-qa">
+                    <div className="ws-field-l">Wins</div>
+                    <p className="ws-prose">{checkin.wins}</p>
                   </div>
                 )}
                 {checkin.challenges && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-text-muted mb-1.5">Challenges</div>
-                    <p className="text-sm leading-relaxed text-text-secondary">{checkin.challenges}</p>
+                  <div className="ws-cd-qa">
+                    <div className="ws-field-l">Challenges</div>
+                    <p className="ws-prose">{checkin.challenges}</p>
                   </div>
                 )}
                 {checkin.questions && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-text-muted mb-1.5">Questions</div>
-                    <p className="text-sm leading-relaxed text-text-secondary">{checkin.questions}</p>
+                  <div className="ws-cd-qa">
+                    <div className="ws-field-l">Questions</div>
+                    <p className="ws-prose">{checkin.questions}</p>
                   </div>
                 )}
               </>
@@ -157,58 +156,62 @@ export default async function PortalCheckinReplyPage({
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <div className="rounded-3xl border border-[rgba(34,114,222,0.18)] bg-[rgba(34,114,222,0.08)] p-6">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-bright">
-              Marc&apos;s Reply
+        <aside className="ws-stack">
+          <div className="ws-panel">
+            <div className="ws-panel-head">
+              <span className="ws-dot" style={{ color: "var(--ws-accent-ink)" }} />
+              <h2 className="ws-h2">Marc&apos;s reply</h2>
             </div>
+            <div className="ws-pad">
             {checkin.admin_reply ? (
               <>
-                <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-text-primary">
+                <p className="ws-prose ws-cr-reply">
                   {checkin.admin_reply}
                 </p>
                 {checkin.replied_at && (
-                  <div className="mt-4 text-xs text-text-muted">
+                  <div className="ws-caption mt-3">
                     Replied {formatCheckinDate(checkin.replied_at)}
                   </div>
                 )}
               </>
             ) : (
-              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+              <p className="ws-meta">
                 Marc has not replied to this check-in yet.
               </p>
             )}
+            </div>
           </div>
 
           {checkin.client_reply && (
-            <div className="rounded-3xl border border-[rgba(34,197,94,0.18)] bg-[rgba(34,197,94,0.08)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
-                Your Previous Reply
+            <div className="ws-panel">
+              <div className="ws-panel-head">
+                <span className="ws-dot" style={{ color: "var(--ws-ok)" }} />
+                <h2 className="ws-h2">Your previous reply</h2>
               </div>
-              <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-text-primary">
+              <div className="ws-pad">
+              <p className="ws-prose ws-cr-reply">
                 {checkin.client_reply}
               </p>
               {checkin.client_replied_at && (
-                <div className="mt-4 text-xs text-text-muted">
+                <div className="ws-caption mt-3">
                   Sent {formatCheckinDate(checkin.client_replied_at)}
                 </div>
               )}
+              </div>
             </div>
           )}
 
-          <div className="rounded-3xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] p-5">
-            <div className="text-sm font-semibold text-text-primary">Reply in Inbox</div>
-            <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+          <div className="ws-panel ws-pad">
+            <h2 className="ws-h2">Reply in inbox</h2>
+            <p className="ws-meta mt-1">
               Marc&apos;s reply also appears in your inbox with this check-in attached for context, so follow-up messages stay in one conversation.
             </p>
             <Link
               href="/portal/inbox"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent-bright no-underline hover:text-accent-light"
+              className="ws-link ws-cr-open"
             >
-              Open Inbox
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              Open inbox
+              <Icon name="chevron" size={14} />
             </Link>
           </div>
         </aside>

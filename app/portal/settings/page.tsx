@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { InlineNotice, PageSkeleton } from "@/components/ui/PortalState";
+import { WsNotice as InlineNotice, WsPageSkeleton as PageSkeleton } from "@/components/portal/WsState";
 import { createClient } from "@/lib/supabase/client";
 import { usePush, type PushSupportStatus } from "@/lib/use-push";
 import { useToast } from "@/components/ui/Toast";
@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 type Message = { type: "success" | "error"; text: string };
 
 const inputClass =
-  "w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.08] bg-black/20 px-4 py-3 text-sm text-text-primary outline-none transition-[border-color,box-shadow] placeholder:text-text-muted focus:border-accent/55 focus:ring-2 focus:ring-accent/15";
+  "ws-input ws-st-input";
 
 const sectionIcons = {
   profile: "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.118a7.5 7.5 0 0 1 15 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.5-1.632Z",
@@ -23,8 +23,8 @@ const sectionIcons = {
 
 function SectionIcon({ path }: { path: string }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent/[0.07] text-accent-bright">
-      <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <span className="ws-st-ic">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={path} />
       </svg>
     </span>
@@ -43,11 +43,11 @@ function SectionHeading({
   description: string;
 }) {
   return (
-    <div className="flex gap-3 lg:max-w-[13rem]">
+    <div className="ws-st-heading">
       <SectionIcon path={icon} />
-      <div>
-        <h2 id={id} className="v2-section-title">{title}</h2>
-        <p className="mt-1 text-xs leading-relaxed text-text-muted">{description}</p>
+      <div className="min-w-0">
+        <h2 id={id} className="ws-h2">{title}</h2>
+        <p className="ws-caption mt-0.5">{description}</p>
       </div>
     </div>
   );
@@ -100,7 +100,7 @@ function getNotificationState({
 
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-text-secondary">
+    <label htmlFor={htmlFor} className="ws-label">
       {children}
     </label>
   );
@@ -116,7 +116,7 @@ export default function SettingsPage() {
 
 function SettingsLoading() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="ws-st-page">
       <PageSkeleton rows={5} />
     </div>
   );
@@ -331,16 +331,15 @@ function SettingsContent() {
 
   if (loadError) {
     return (
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-7">
-          <div className="v2-eyebrow mb-3">Account preferences</div>
-          <h1 className="v2-page-title">Settings</h1>
+      <div className="ws ws-page ws-st-page">
+        <header className="ws-ph">
+          <h1 className="ws-title">Settings</h1>
         </header>
-        <div className="v2-surface p-5 sm:p-6">
+        <div className="ws-panel ws-pad">
           <InlineNotice
             tone="error"
             action={
-              <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)} className="v2-button-secondary min-h-9 px-3 py-2">
+              <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)} className="ws-btn ws-btn-sm ws-focus">
                 Try again
               </button>
             }
@@ -363,27 +362,28 @@ function SettingsContent() {
   const passwordReady = newPassword.length >= 8 && passwordsMatch;
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <header className="mb-7">
-        <div className="v2-eyebrow mb-3">Account preferences</div>
-        <h1 className="v2-page-title">Settings</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
-          Keep your account, business details and device preferences up to date.
-        </p>
+    <div className="ws ws-page ws-st-page">
+      <header className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Settings</h1>
+          <p className="ws-meta mt-1 max-w-2xl">
+            Keep your account, business details and device preferences up to date.
+          </p>
+        </div>
       </header>
 
       {isSetup && (
-        <InlineNotice tone="info" className="mb-5">
+        <InlineNotice tone="info" className="">
           <div>
-            <div className="font-semibold text-text-primary">Finish securing your account</div>
-            <div className="mt-0.5 text-xs text-text-secondary">Choose a password below before continuing to use the portal.</div>
+            <div className="ws-st-strong">Finish securing your account</div>
+            <div className="ws-caption mt-0.5">Choose a password below before continuing to use the portal.</div>
           </div>
         </InlineNotice>
       )}
 
-      <section className="v2-surface-strong mb-5 overflow-hidden p-5 sm:p-6" aria-label="Account summary">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
+      <section className="ws-panel ws-st-summary" aria-label="Account summary">
+        <div className="ws-st-summary-in">
+          <div className="ws-st-who">
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
@@ -391,41 +391,41 @@ function SettingsContent() {
                 width={64}
                 height={64}
                 unoptimized
-                className="h-16 w-16 shrink-0 rounded-[var(--cbb-radius-md)] border border-white/10 object-cover"
+                className="ws-st-av"
               />
             ) : (
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[var(--cbb-radius-md)] border border-accent/25 bg-accent/10 font-heading text-xl font-bold text-accent-bright">
+              <div className="ws-st-av is-initial">
                 {fullName ? fullName.charAt(0).toUpperCase() : "?"}
               </div>
             )}
             <div className="min-w-0">
-              <div className="v2-eyebrow">Your account</div>
-              <div className="mt-1 truncate font-heading text-xl font-bold text-text-primary">{fullName || "Client profile"}</div>
-              <div className="mt-0.5 truncate text-sm text-text-secondary">{businessName || "Add your business details below"}</div>
+              <div className="ws-caption">Your account</div>
+              <div className="ws-st-name">{fullName || "Client profile"}</div>
+              <div className="ws-st-biz">{businessName || "Add your business details below"}</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--cbb-radius-sm)] border border-white/[0.07] bg-white/[0.07] sm:min-w-[17rem]">
-            <div className="bg-black/25 px-3 py-2.5">
-              <div className="text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-text-muted">Profile</div>
-              <div className="mt-0.5 text-xs font-semibold text-text-primary">Editable</div>
+          <dl className="ws-st-facts">
+            <div>
+              <dt>Profile</dt>
+              <dd>Editable</dd>
             </div>
-            <div className="bg-black/25 px-3 py-2.5">
-              <div className="text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-text-muted">Security</div>
-              <div className="mt-0.5 text-xs font-semibold text-text-primary">Password protected</div>
+            <div>
+              <dt>Security</dt>
+              <dd>Password protected</dd>
             </div>
-          </div>
+          </dl>
         </div>
       </section>
 
-      <form onSubmit={handleSave} className="v2-surface mb-5 overflow-hidden">
-        <section className="grid gap-6 border-b border-white/[0.06] p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10" aria-labelledby="profile-settings-title">
+      <form onSubmit={handleSave} className="ws-panel">
+        <section className="ws-st-sec" aria-labelledby="profile-settings-title">
           <div>
             <SectionHeading id="profile-settings-title" icon={sectionIcons.profile} title="Profile" description="Your name, contact number and profile photo." />
           </div>
 
-          <div className="min-w-0 space-y-5">
-            <div className="flex flex-col gap-4 rounded-[var(--cbb-radius-md)] border border-white/[0.07] bg-white/[0.018] p-4 sm:flex-row sm:items-center">
+          <div className="ws-st-fields">
+            <div className="ws-st-box ws-st-photo">
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
@@ -433,10 +433,10 @@ function SettingsContent() {
                   width={64}
                   height={64}
                   unoptimized
-                  className="h-16 w-16 rounded-full border border-white/10 object-cover"
+                  className="ws-st-av is-round"
                 />
               ) : (
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-accent/20 bg-accent/10 font-heading text-lg font-bold text-accent-bright">
+                <div className="ws-st-av is-round is-initial">
                   {fullName ? fullName.charAt(0).toUpperCase() : "?"}
                 </div>
               )}
@@ -446,15 +446,15 @@ function SettingsContent() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingAvatar}
-                  className="v2-button-secondary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  className="ws-btn ws-focus"
                 >
                   {uploadingAvatar ? "Uploading…" : avatarUrl ? "Change photo" : "Add photo"}
                 </button>
-                <p className="mt-2 text-xs text-text-muted">JPG or PNG, up to 2MB.</p>
+                <p className="ws-caption mt-2">JPG or PNG, up to 2MB.</p>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="ws-st-2">
               <div>
                 <FieldLabel htmlFor="full-name">Full name</FieldLabel>
                 <input
@@ -488,13 +488,13 @@ function SettingsContent() {
           </div>
         </section>
 
-        <section className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10" aria-labelledby="business-settings-title">
+        <section className="ws-st-sec" aria-labelledby="business-settings-title">
           <div>
             <SectionHeading id="business-settings-title" icon={sectionIcons.business} title="Business details" description="Context Marc and Blueprint AI use to support you." />
           </div>
 
-          <div className="min-w-0 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="ws-st-fields">
+            <div className="ws-st-2">
               <div>
                 <FieldLabel htmlFor="business-name">Business name</FieldLabel>
                 <input
@@ -537,38 +537,38 @@ function SettingsContent() {
                 placeholder="What are you looking to achieve?"
                 className={`${inputClass} resize-y`}
               />
-              <p className="mt-2 text-xs leading-relaxed text-text-muted">Keep this current so guidance remains relevant to the business you are building.</p>
+              <p className="ws-caption mt-2">Keep this current so guidance remains relevant to the business you are building.</p>
             </div>
           </div>
         </section>
 
-        <div className="border-t border-white/[0.06] bg-white/[0.018] px-5 py-4 sm:px-6">
+        <div className="ws-st-foot">
           {profileMessage && (
-            <InlineNotice tone={profileMessage.type} className="mb-4">
+            <InlineNotice tone={profileMessage.type} className="">
               {profileMessage.text}
             </InlineNotice>
           )}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-            <p className="text-xs text-text-muted sm:mr-auto">Changes apply across your client portal.</p>
-            <button type="submit" disabled={saving} className="v2-button-primary w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+          <div className="ws-st-foot-row">
+            <p className="ws-caption ws-st-foot-note">Changes apply across your client portal.</p>
+            <button type="submit" disabled={saving} className="ws-btn ws-btn-primary ws-focus ws-st-btn">
               {saving ? "Saving changes…" : "Save profile changes"}
             </button>
           </div>
         </div>
       </form>
 
-      <section className="v2-surface mb-5 grid gap-6 p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10" aria-labelledby="notification-settings-title">
+      <section className="ws-panel ws-st-sec" aria-labelledby="notification-settings-title">
         <div>
           <SectionHeading id="notification-settings-title" icon={sectionIcons.notifications} title="Notifications" description="Reminders and updates for this device." />
         </div>
 
-        <div className="min-w-0">
-          <div className="flex flex-col gap-4 rounded-[var(--cbb-radius-md)] border border-white/[0.07] bg-white/[0.018] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${notificationState.tone}`} />
-              <div>
-                <div className="text-sm font-semibold text-text-primary">{notificationState.label}</div>
-                <p className="mt-1 text-xs leading-relaxed text-text-secondary">{notificationState.detail}</p>
+        <div className="ws-st-fields">
+          <div className="ws-st-box ws-st-row">
+            <div className="ws-st-state">
+              <span className={`ws-st-dot ${notificationState.tone}`} />
+              <div className="min-w-0">
+                <div className="ws-st-strong">{notificationState.label}</div>
+                <p className="ws-caption mt-0.5">{notificationState.detail}</p>
               </div>
             </div>
             {pushSupport === "supported" && !subscribed && (
@@ -576,21 +576,21 @@ function SettingsContent() {
                 type="button"
                 onClick={handleEnableNotifications}
                 disabled={pushChecking || pushSaving}
-                className="v2-button-primary w-full shrink-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="ws-btn ws-btn-primary ws-focus ws-st-btn"
               >
                 {pushSaving ? "Enabling…" : "Enable notifications"}
               </button>
             )}
           </div>
           {pushMessage && (
-            <InlineNotice tone={pushMessage.type} className="mt-4">
+            <InlineNotice tone={pushMessage.type} className="">
               {pushMessage.text}
             </InlineNotice>
           )}
         </div>
       </section>
 
-      <form aria-labelledby="security-settings-title" onSubmit={handlePasswordSave} className="v2-surface mb-5 grid gap-6 p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10">
+      <form aria-labelledby="security-settings-title" onSubmit={handlePasswordSave} className="ws-panel ws-st-sec">
         <div>
           <SectionHeading
             id="security-settings-title"
@@ -600,8 +600,8 @@ function SettingsContent() {
           />
         </div>
 
-        <div className="min-w-0 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="ws-st-fields">
+          <div className="ws-st-2">
             <div>
               <FieldLabel htmlFor="new-password">New password</FieldLabel>
               <input
@@ -638,27 +638,27 @@ function SettingsContent() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-text-secondary">
+          <div className="ws-st-row">
+            <label className="ws-check">
               <input
                 type="checkbox"
                 checked={showPasswords}
                 onChange={(event) => setShowPasswords(event.target.checked)}
-                className="h-4 w-4 rounded border-white/20 bg-black/20 accent-[var(--color-accent)]"
+                className=""
               />
               Show password
             </label>
-            {confirmPassword && !passwordsMatch && <span className="text-xs text-red-300">Passwords do not match.</span>}
-            {passwordsMatch && newPassword.length < 8 && <span className="text-xs text-amber-300">Use at least 8 characters.</span>}
+            {confirmPassword && !passwordsMatch && <span className="ws-st-hint is-bad">Passwords do not match.</span>}
+            {passwordsMatch && newPassword.length < 8 && <span className="ws-st-hint is-attn">Use at least 8 characters.</span>}
           </div>
 
           {passwordMessage && <InlineNotice tone={passwordMessage.type}>{passwordMessage.text}</InlineNotice>}
 
-          <div className="flex justify-end">
+          <div className="ws-st-end">
             <button
               type="submit"
               disabled={!passwordReady || passwordSaving}
-              className="v2-button-primary w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+              className="ws-btn ws-btn-primary ws-focus ws-st-btn"
             >
               {passwordSaving ? "Updating password…" : isSetup ? "Set password" : "Update password"}
             </button>
@@ -666,20 +666,20 @@ function SettingsContent() {
         </div>
       </form>
 
-      <section className="v2-surface grid gap-6 p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10" aria-labelledby="access-settings-title">
+      <section className="ws-panel ws-st-sec" aria-labelledby="access-settings-title">
         <div>
           <SectionHeading id="access-settings-title" icon={sectionIcons.access} title="Account access" description="End your current session on this device." />
         </div>
-        <div className="flex min-w-0 flex-col gap-4 rounded-[var(--cbb-radius-md)] border border-white/[0.07] bg-white/[0.018] p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-text-primary">Sign out of the portal</div>
-            <p className="mt-1 text-xs leading-relaxed text-text-secondary">You will need your email address and password to sign back in.</p>
+        <div className="ws-st-box ws-st-row">
+          <div className="min-w-0">
+            <div className="ws-st-strong">Sign out of the portal</div>
+            <p className="ws-caption mt-0.5">You will need your email address and password to sign back in.</p>
           </div>
           <button
             type="button"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="v2-button-secondary w-full shrink-0 cursor-pointer border-red-400/20 text-red-300 hover:border-red-400/35 hover:bg-red-500/[0.06] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="ws-btn ws-btn-danger ws-focus ws-st-btn"
           >
             {signingOut ? "Signing out…" : "Sign out"}
           </button>
