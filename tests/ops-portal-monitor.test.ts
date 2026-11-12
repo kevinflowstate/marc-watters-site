@@ -103,9 +103,13 @@ function harness() {
       return query;
     },
   };
+  const staffReactions = new Set<string>();
   const api = load("../lib/ops/portal-monitor.ts", {
     "@/lib/supabase/admin": { createAdminClient: () => db },
     "./tasks": helpers,
+    "@/lib/inbox-reactions": {
+      staffReactedMessageIds: async (_admin: unknown, ids: string[]) => new Set(ids.filter((id) => staffReactions.has(id))),
+    },
   });
   const tokens = { portal: "portal-read-test-token-12345678901234567890", task: "tasks-read-test-token-123456789012345678900", legacy: "legacy-admin-test-token-1234567890123456789" };
   const scopeConfig = JSON.stringify([
@@ -132,7 +136,7 @@ function harness() {
   const request = (token?: keyof typeof tokens, query = "") => new Request(`https://portal.example.invalid/api/ops/portal-clients${query}`, {
     headers: token ? { authorization: `Bearer ${tokens[token]}` } : {},
   });
-  return { api, calls, tables, failTables, route, detailRoute, request };
+  return { api, calls, tables, failTables, route, detailRoute, request, staffReactions };
 }
 type Page = { clients: Row[]; items: Row[]; client: Row; conversation: { needs_reply: boolean | null }; coverage: { next_cursor: string | null; collection_complete_in_this_response: boolean; end_of_collection: boolean; has_more: boolean } };
 
@@ -153,6 +157,15 @@ describe("read-only Codex portal monitoring", () => {
     h.failTables.add("inbox_messages");
     await expect(current()).rejects.toThrow("coverage is incomplete");
     h.failTables.clear();
+    expect((await current()).conversation.needs_reply).toBe(true);
+  });
+  it("treats a staff reaction on the client's latest message as answered, but not on an earlier one", async () => {
+    const h = harness();
+    const current = () => h.api.readPortalCollection(uid(2), "messages", new URLSearchParams()) as Promise<Page>;
+    expect((await current()).conversation.needs_reply).toBe(true);
+    h.staffReactions.add(uid(13));
+    expect((await current()).conversation).toMatchObject({ needs_reply: false, reason: "admin_reacted_to_latest_message" });
+    h.tables.inbox_messages.push({ id: uid(92), client_id: uid(2), sender_role: "client", message: "Another question", created_at: "2026-11-02T12:00:00Z" });
     expect((await current()).conversation.needs_reply).toBe(true);
   });
   it("requires portal:read before any source read, with no broad-token fallback", async () => {

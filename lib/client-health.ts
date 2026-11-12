@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TrafficLight } from "./types";
 import { weekStart } from "./ops/task-weeks";
+import { staffReactedMessageIds } from "./inbox-reactions";
 
 /**
  * How each client is doing, for the admin Dashboard, Clients list, Blueprint AI and the weekly email.
@@ -215,7 +216,7 @@ export async function loadClientActivity(
       const [messages, ai, lessons] = await Promise.all([
         admin
           .from("inbox_messages")
-          .select("client_id,sender_role,read_by_admin,created_at")
+          .select("id,client_id,sender_role,read_by_admin,created_at")
           .in("client_id", ids)
           .gte("created_at", since)
           .order("created_at", { ascending: false })
@@ -231,14 +232,18 @@ export async function loadClientActivity(
           .limit(5000),
       ]);
 
-      const latestByClient = new Map<string, { sender_role: string; read_by_admin: boolean; created_at: string }>();
-      for (const m of (messages.error ? [] : messages.data || []) as Array<{ client_id: string; sender_role: string; read_by_admin: boolean; created_at: string }>) {
+      type Msg = { id: string; client_id: string; sender_role: string; read_by_admin: boolean; created_at: string };
+      const latestByClient = new Map<string, Msg>();
+      for (const m of (messages.error ? [] : messages.data || []) as Msg[]) {
         if (!latestByClient.has(m.client_id)) latestByClient.set(m.client_id, m);
         if (m.sender_role === "client") bump(m.client_id, m.created_at, "sent a message");
       }
+      // A thumbs up or heart from Marc on the client's latest message counts as a reply (Marc, 12 Nov 2026).
+      const waiting = [...latestByClient.values()].filter((m) => m.sender_role === "client" && ms(m.created_at) >= messageSince);
+      const reacted = waiting.length ? await staffReactedMessageIds(admin, waiting.map((m) => m.id)) : new Set<string>();
       for (const [clientId, m] of latestByClient) {
         const row = result.get(clientId);
-        if (row && m.sender_role === "client" && ms(m.created_at) >= messageSince) {
+        if (row && m.sender_role === "client" && ms(m.created_at) >= messageSince && !reacted.has(m.id)) {
           row.awaiting_reply_since = m.created_at;
           row.awaiting_reply_unread = m.read_by_admin === false;
         }

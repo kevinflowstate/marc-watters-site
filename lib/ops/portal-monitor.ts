@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, uuid } from "./tasks";
+import { staffReactedMessageIds } from "@/lib/inbox-reactions";
+
+export { staffReactedMessageIds };
 
 type Row = Record<string, unknown> & { id: string };
 const collections = {
@@ -75,7 +78,7 @@ function clientSummary(row: Row, now = Date.now()) {
 }
 
 /** Read status is deliberately not used to decide whether a reply is outstanding. */
-export function messageReplyState(latest: Row[]) {
+export function messageReplyState(latest: Row[], staffReacted?: Set<string>) {
   const first = latest[0];
   if (!first)
     return { needs_reply: false, reason: "no_messages", latest_message_id: null, latest_message_at: null };
@@ -86,7 +89,10 @@ export function messageReplyState(latest: Row[]) {
     at !== null &&
     (!latest[1] || (timestamp(latest[1].created_at) !== null && timestamp(latest[1].created_at) !== at))
   ) {
-    if (first.sender_role === "client") {
+    if (first.sender_role === "client" && staffReacted?.has(first.id)) {
+      needsReply = false;
+      reason = "admin_reacted_to_latest_message";
+    } else if (first.sender_role === "client") {
       needsReply = true;
       reason = "latest_message_from_client";
     } else if (first.sender_role === "admin") {
@@ -258,7 +264,9 @@ export async function readPortalCollection(id: string, name: string, params: URL
       .order("created_at", { ascending: false, nullsFirst: true })
       .order("id", { ascending: false }).limit(2);
     assertRead(latest.error);
-    conversation = messageReplyState((latest.data || []) as Row[]);
+    const latestRows = (latest.data || []) as Row[];
+    const reacted = latestRows[0]?.sender_role === "client" ? await staffReactedMessageIds(admin, [latestRows[0].id]) : undefined;
+    conversation = messageReplyState(latestRows, reacted);
   }
   return {
     observed_at: new Date().toISOString(),

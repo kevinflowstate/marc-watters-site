@@ -7,7 +7,7 @@ import { listReports } from "./reports";
 import { automationControls } from "./artifact-execution";
 import { portalActionSwitches } from "./portal-controls";
 import { listWorkspaceResults } from "./workspace-results";
-import { messageReplyState, checkinReplyState, routineFollowUpPaused } from "./portal-monitor";
+import { messageReplyState, checkinReplyState, routineFollowUpPaused, staffReactedMessageIds } from "./portal-monitor";
 import { isClosed, needsApproval, statusLabels } from "./workspace";
 import type {
   WorkspaceCard,
@@ -57,6 +57,7 @@ export function clientSignalCards(
   now = Date.now(),
   training: Row[] | null = [],
   lessons: Row[] | null = [],
+  staffReacted: Set<string> = new Set(),
 ): WorkspaceCard[] {
   const cards: WorkspaceCard[] = [];
   for (const c of clients) {
@@ -85,7 +86,7 @@ export function clientSignalCards(
           return y - x || b.id.localeCompare(a.id);
         })
         .slice(0, 2);
-      const reply = messageReplyState(latest);
+      const reply = messageReplyState(latest, staffReacted);
       if (reply.needs_reply !== false)
         cards.push({
           ...base,
@@ -428,6 +429,17 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     ),
   ]);
   if (tasks) await attachCompletionTimes(tasks);
+  // A staff reaction on a client's latest message counts as answering it.
+  const latestByClient = new Map<string, Row>();
+  for (const m of messages || []) {
+    const key = String(m.client_id);
+    const prev = latestByClient.get(key);
+    if (!prev || String(m.created_at) > String(prev.created_at)) latestByClient.set(key, m);
+  }
+  const staffReacted = await staffReactedMessageIds(
+    createAdminClient(),
+    [...latestByClient.values()].filter((m) => m.sender_role === "client").map((m) => m.id),
+  );
   const paymentTaskIds = new Set(
     (payments || []).map((p) => p.task_id).filter(Boolean),
   );
@@ -443,6 +455,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
       Date.now(),
       training,
       lessons,
+      staffReacted,
     ),
     ...(reports || []).map((r, index) => ({
       id: `report:${r.id}`,

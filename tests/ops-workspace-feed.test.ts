@@ -50,6 +50,12 @@ describe("live workspace signals", () => {
       "Needs a reply",
     );
   });
+  it("treats a staff reaction on the client's latest message as a reply (Marc, 12 Nov 2026)", () => {
+    const reacted = new Set(["client"]);
+    expect(clientSignalCards([client], [msg("client"), msg("admin", old)], [], now, [], [], reacted)).toEqual([]);
+    // A reaction on an earlier message does not clear a newer one.
+    expect(clientSignalCards([client], [msg("client"), msg("admin", old)], [], now, [], [], new Set(["other"]))[0].state).toBe("Needs a reply");
+  });
   it("does not infer a reply order from matching or invalid timestamps", () => {
     expect(flags([msg("admin"), msg("client")])[0].state).toBe(
       "Needs checking",

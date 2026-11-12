@@ -5,6 +5,7 @@ import {
   checkinReplyState,
   listPortalClients,
   messageReplyState,
+  staffReactedMessageIds,
 } from "./portal-monitor";
 import { reportWeekStart } from "./report-week";
 import { lessonSourceForSnapshot } from "./lesson-source";
@@ -118,6 +119,10 @@ export async function buildPortalSnapshot(now = new Date()) {
   readOk(calls.error, "calendar");
 
   const messageMap = byClient((messages.data || []) as Row[]);
+  const staffReacted = await staffReactedMessageIds(
+    admin,
+    [...messageMap.values()].map((m) => m[0]).filter((m) => m?.sender_role === "client").map((m) => String(m.id)),
+  );
   const checkinMap = byClient((checkins.data || []) as Row[]);
   const trainingMap = byClient((training.data || []) as Row[]);
 
@@ -128,7 +133,7 @@ export async function buildPortalSnapshot(now = new Date()) {
     return {
       ...client,
       conversation: msgs.length
-        ? messageReplyState(msgs.slice(0, 2))
+        ? messageReplyState(msgs.slice(0, 2), staffReacted)
         : { needs_reply: false, reason: `no_messages_in_last_${MESSAGE_DAYS}_days` },
       recent_messages: msgs.slice(0, MESSAGES_PER_CLIENT).map((m) => ({
         from: m.sender_role,
