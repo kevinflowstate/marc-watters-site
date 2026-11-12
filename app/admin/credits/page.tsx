@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { initials } from "@/lib/initials";
+import { Chip, Empty, Icon, SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 
 interface ClientCredit {
   id: string;
@@ -121,44 +123,39 @@ export default function CreditsPage() {
 
   if (loading) {
     return (
-      <>
-        <div className="mb-8">
-          <div className="skeleton rounded-lg h-8 w-48 mb-2" />
-          <div className="skeleton rounded-lg h-4 w-64" />
+      <div className="ws ws-page">
+        <div>
+          <span className="ws-skel" style={{ width: 140, height: 22 }} />
+          <span className="ws-skel mt-2" style={{ width: 260, height: 12 }} />
         </div>
-        <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-              <div className="skeleton rounded-lg h-4 w-40 mb-2" />
-              <div className="skeleton rounded-lg h-3 w-56" />
-            </div>
-          ))}
-        </div>
-      </>
+        <div className="ws-panel"><SkeletonRows count={4} /></div>
+      </div>
     );
   }
 
   const totalCredits = clients.reduce((sum, c) => sum + (c.ai_credits || 0), 0);
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">AI Credits</h1>
-          <p className="text-text-secondary mt-1">
+    <div className="ws ws-page">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">AI credits</h1>
+          <p className="ws-meta mt-1">
             {clients.length} clients - {formatCredits(totalCredits)} total credits outstanding
           </p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="ws-pair">
         {/* Client credits list */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider px-1">Credit Balances</h2>
+        <section className="ws-panel" aria-label="Credit balances">
+          <header className="ws-panel-head">
+            <h2 className="ws-h2">Credit balances</h2>
+            <span className="ws-caption">{clients.length}</span>
+          </header>
+          <div>
           {clients.length === 0 && (
-            <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 text-center text-text-muted text-sm">
-              No clients found.
-            </div>
+            <Empty icon="users" title="No clients found." />
           )}
           {clients.map((client) => {
             const user = Array.isArray(client.user) ? client.user[0] : client.user;
@@ -169,104 +166,105 @@ export default function CreditsPage() {
             return (
               <div
                 key={client.id}
-                className={`bg-bg-card/80 border rounded-2xl p-5 transition-all cursor-pointer ${
-                  isSelected
-                    ? "border-[rgba(34,114,222,0.3)] bg-[rgba(34,114,222,0.04)]"
-                    : "border-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.08)]"
-                }`}
+                className={`ws-cr-row ${isSelected ? "is-on" : ""}`}
                 onClick={() => loadDetail(client.user_id)}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-text-primary truncate">
-                        {(user as { full_name: string } | null)?.full_name || "Unknown"}
-                      </p>
-                      {isLow && (
-                        <span className="flex-shrink-0 text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
-                          Low
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-text-muted mt-0.5 truncate">
-                      {client.business_name || (user as { email: string } | null)?.email || "-"}
+                <span className="ws-avatar is-md" aria-hidden="true">
+                  {initials((user as { full_name: string } | null)?.full_name || "Unknown")}
+                </span>
+                <div className="min-w-0">
+                  <div className="ws-cr-name">
+                    <p className="ws-row-title">
+                      {(user as { full_name: string } | null)?.full_name || "Unknown"}
                     </p>
+                    {isLow && (
+                      <Chip tone="attn">
+                        Low
+                      </Chip>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <div className="text-right">
-                      <p className={`text-base font-bold font-heading ${credits === 0 ? "text-red-400" : isLow ? "text-amber-400" : "text-emerald-400"}`}>
-                        {formatCredits(credits)}
-                      </p>
-                      <p className="text-[10px] text-text-muted">balance</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTopUpModal(client);
-                        setTopUpAmount("");
-                        setTopUpMessage(null);
-                      }}
-                      className="px-3 py-1.5 text-xs font-semibold gradient-accent text-white rounded-lg cursor-pointer"
-                    >
-                      Top Up
-                    </button>
+                  <p className="ws-row-sub">
+                    {client.business_name || (user as { email: string } | null)?.email || "-"}
+                  </p>
+                </div>
+                <div className="ws-cr-right">
+                  <div className="ws-cr-bal">
+                    <p className={`ws-cr-amt ${credits === 0 ? "is-bad" : isLow ? "is-attn" : "is-ok"}`}>
+                      {formatCredits(credits)}
+                    </p>
+                    <p className="ws-cr-cap">balance</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTopUpModal(client);
+                      setTopUpAmount("");
+                      setTopUpMessage(null);
+                    }}
+                    className="ws-btn ws-btn-sm ws-focus"
+                  >
+                    Top up
+                  </button>
                 </div>
               </div>
             );
           })}
-        </div>
+          </div>
+        </section>
 
         {/* Usage detail panel */}
-        <div>
-          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider px-1 mb-3">Usage Detail</h2>
+        <section className="ws-panel" aria-label="Usage detail">
+          <header className="ws-panel-head">
+            <h2 className="ws-h2">Usage detail</h2>
+          </header>
+          <div>
           {!detailUserId && (
-            <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center text-text-muted text-sm">
-              Select a client to view usage history
-            </div>
+            <Empty icon="reporting" title="Select a client to view usage history" />
           )}
           {detailUserId && detailLoading && (
-            <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 space-y-3">
-              <div className="skeleton rounded-lg h-4 w-32 mb-4" />
-              <div className="grid grid-cols-2 gap-3">
+            <div className="ws-cr-pad">
+              <span className="ws-skel" style={{ width: 128, height: 12 }} />
+              <div className="ws-cr-grid">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="skeleton rounded-xl h-16" />
+                  <div key={i} className="ws-cr-cell">
+                    <span className="ws-skel" style={{ width: 60, height: 10 }} />
+                    <span className="ws-skel" style={{ width: 44, height: 18 }} />
+                  </div>
                 ))}
               </div>
             </div>
           )}
           {detailUserId && !detailLoading && detailData && (
-            <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-5">
-              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-[rgba(255,255,255,0.04)]">
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">
-                    {(Array.isArray(detailData.profile.user) ? detailData.profile.user[0] : detailData.profile.user as { full_name: string } | null)?.full_name || "Unknown"}
-                  </p>
-                  <p className="text-xs text-text-muted">{detailData.profile.business_name || "-"}</p>
-                </div>
+            <div>
+              <div className="ws-cr-who">
+                <p className="ws-row-title">
+                  {(Array.isArray(detailData.profile.user) ? detailData.profile.user[0] : detailData.profile.user as { full_name: string } | null)?.full_name || "Unknown"}
+                </p>
+                <p className="ws-row-sub">{detailData.profile.business_name || "-"}</p>
               </div>
 
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Last 30 Days</p>
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                <div className="bg-bg-primary/60 border border-[rgba(255,255,255,0.04)] rounded-xl p-3">
-                  <p className="text-xs text-text-muted mb-1">Requests</p>
-                  <p className="text-lg font-heading font-bold text-text-primary">{detailData.usage.last30Days.totalRequests}</p>
+              <div className="ws-group">Last 30 days</div>
+              <div className="ws-cr-grid">
+                <div className="ws-cr-cell">
+                  <p className="ws-cr-l">Requests</p>
+                  <p className="ws-cr-n">{detailData.usage.last30Days.totalRequests}</p>
                 </div>
-                <div className="bg-bg-primary/60 border border-[rgba(255,255,255,0.04)] rounded-xl p-3">
-                  <p className="text-xs text-text-muted mb-1">Billed</p>
-                  <p className="text-lg font-heading font-bold text-text-primary">
+                <div className="ws-cr-cell">
+                  <p className="ws-cr-l">Billed</p>
+                  <p className="ws-cr-n">
                     {formatCredits(detailData.usage.last30Days.totalBilledPence)}
                   </p>
                 </div>
-                <div className="bg-bg-primary/60 border border-[rgba(255,255,255,0.04)] rounded-xl p-3">
-                  <p className="text-xs text-text-muted mb-1">Input Tokens</p>
-                  <p className="text-base font-heading font-bold text-text-primary">
+                <div className="ws-cr-cell">
+                  <p className="ws-cr-l">Input tokens</p>
+                  <p className="ws-cr-n">
                     {detailData.usage.last30Days.totalInputTokens.toLocaleString()}
                   </p>
                 </div>
-                <div className="bg-bg-primary/60 border border-[rgba(255,255,255,0.04)] rounded-xl p-3">
-                  <p className="text-xs text-text-muted mb-1">Output Tokens</p>
-                  <p className="text-base font-heading font-bold text-text-primary">
+                <div className="ws-cr-cell">
+                  <p className="ws-cr-l">Output tokens</p>
+                  <p className="ws-cr-n">
                     {detailData.usage.last30Days.totalOutputTokens.toLocaleString()}
                   </p>
                 </div>
@@ -274,17 +272,17 @@ export default function CreditsPage() {
 
               {detailData.usage.recent.length > 0 && (
                 <>
-                  <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Recent Requests</p>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="ws-group">Recent requests</div>
+                  <div className="ws-cr-recent">
                     {detailData.usage.recent.map((entry, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-[rgba(255,255,255,0.03)] last:border-0">
-                        <div>
-                          <p className="text-xs text-text-primary">
+                      <div key={i} className="ws-cr-req">
+                        <div className="min-w-0">
+                          <p className="ws-cr-req-t">
                             {entry.input_tokens.toLocaleString()} in / {entry.output_tokens.toLocaleString()} out
                           </p>
-                          <p className="text-[10px] text-text-muted">{timeAgo(entry.created_at)}</p>
+                          <p className="ws-caption">{timeAgo(entry.created_at)}</p>
                         </div>
-                        <span className="text-xs font-medium text-text-secondary">
+                        <span className="ws-cr-req-n">
                           {formatCredits(Number(entry.billed_cost_pence))}
                         </span>
                       </div>
@@ -293,71 +291,67 @@ export default function CreditsPage() {
                 </>
               )}
               {detailData.usage.recent.length === 0 && (
-                <p className="text-xs text-text-muted text-center py-4">No usage in the last 30 days</p>
+                <p className="ws-caption ws-cr-none">No usage in the last 30 days</p>
               )}
             </div>
           )}
-        </div>
+          </div>
+        </section>
       </div>
 
       {/* Top Up Modal */}
       {topUpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-heading font-bold text-text-primary">Top Up Credits</h3>
-                <p className="text-xs text-text-muted">
+        <div className="ws-overlay">
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Top up credits">
+            <div className="ws-dialog-head">
+              <div className="min-w-0">
+                <h3 className="ws-dialog-title">Top up credits</h3>
+                <p className="ws-caption mt-0.5">
                   {(Array.isArray(topUpModal.user) ? topUpModal.user[0] : topUpModal.user as { full_name: string } | null)?.full_name || topUpModal.business_name}
                 </p>
               </div>
             </div>
 
-            <div className="bg-bg-primary/60 border border-[rgba(255,255,255,0.04)] rounded-xl px-4 py-3 mb-4">
-              <p className="text-xs text-text-muted mb-0.5">Current balance</p>
-              <p className="text-base font-heading font-bold text-text-primary">{formatCredits(topUpModal.ai_credits || 0)}</p>
-            </div>
+            <div className="ws-dialog-body">
+            <dl className="ws-kv ws-cr-kv">
+              <dt>Current balance</dt>
+              <dd>{formatCredits(topUpModal.ai_credits || 0)}</dd>
+            </dl>
 
             {topUpMessage && (
-              <div className={`flex items-center gap-2 rounded-xl px-4 py-3 mb-4 border ${
-                topUpMessage.type === "success"
-                  ? "bg-emerald-500/10 border-emerald-500/20"
-                  : "bg-red-500/10 border-red-500/20"
-              }`}>
-                <span className={`text-sm font-medium ${topUpMessage.type === "success" ? "text-emerald-400" : "text-red-400"}`}>
+              <div className={`ws-note ${topUpMessage.type === "success" ? "is-ok" : "is-bad"}`} role={topUpMessage.type === "success" ? "status" : "alert"}>
+                <Icon name={topUpMessage.type === "success" ? "checkCircle" : "alert"} size={15} />
+                <span>
                   {topUpMessage.text}
                 </span>
               </div>
             )}
 
-            <form onSubmit={handleTopUp} className="space-y-4">
+            <form onSubmit={handleTopUp} className="ws-cr-form">
               <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">Amount (£)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">£</span>
+                <label className="ws-label" htmlFor="topup-amount">Amount (£)</label>
+                <div className="ws-cr-money">
+                  <span aria-hidden="true">£</span>
                   <input
+                    id="topup-amount"
                     type="number"
                     min="0.01"
                     step="0.01"
                     value={topUpAmount}
                     onChange={(e) => setTopUpAmount(e.target.value)}
                     placeholder="10.00"
-                    className="w-full pl-7 pr-4 py-2.5 bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-bright/50 transition-colors"
+                    className="ws-input"
                     autoFocus
                   />
                 </div>
-                <div className="flex gap-2 mt-2">
+                <div className="ws-cr-presets">
                   {[5, 10, 25, 50].map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => setTopUpAmount(String(preset))}
-                      className="flex-1 py-1.5 text-xs font-medium text-text-secondary bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-lg hover:border-[rgba(255,255,255,0.12)] hover:text-text-primary transition-colors cursor-pointer"
+                      className="ws-btn ws-btn-sm ws-focus"
                     >
                       £{preset}
                     </button>
@@ -365,26 +359,27 @@ export default function CreditsPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="ws-dialog-foot">
                 <button
                   type="button"
                   onClick={() => { setTopUpModal(null); setTopUpAmount(""); setTopUpMessage(null); }}
-                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-text-secondary bg-bg-primary border border-[rgba(255,255,255,0.08)] rounded-xl hover:text-text-primary transition-colors cursor-pointer"
+                  className="ws-btn ws-btn-quiet ws-focus"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={topping || !topUpAmount.trim()}
-                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white gradient-accent rounded-xl disabled:opacity-50 cursor-pointer"
+                  className="ws-btn ws-btn-primary ws-focus"
                 >
-                  {topping ? "Adding..." : "Add Credits"}
+                  {topping ? "Adding..." : "Add credits"}
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
