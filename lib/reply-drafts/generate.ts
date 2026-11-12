@@ -9,7 +9,7 @@ import { DRAFT_OUTPUT_SCHEMA, inboxDraftDecision, outcomeFromModel, parseModelDr
 import { loadThread } from "./store";
 import { notifyAdminsOfDraft } from "./notify";
 import { staffReactedMessageIds } from "@/lib/inbox-reactions";
-import { guardDraft, loadKnownClients, redactText, type KnownClient } from "./privacy";
+import { PrivacyError, guardDraft, loadKnownClients, newDelimiters, redactText, type KnownClient } from "./privacy";
 
 type DraftRow = {
   id: string;
@@ -70,6 +70,17 @@ async function loadExamples(admin: SupabaseClient, query: string, clientId: stri
   };
 }
 
+async function failClosed(admin: SupabaseClient, draft: DraftRow, reason: string) {
+  console.error("reply_drafts_privacy_abort", { draftId: draft.id, reason });
+  await admin
+    .from("reply_drafts")
+    .update({ status: "failed", error_message: reason, claimed_at: null })
+    .eq("id", draft.id)
+    .eq("status", "pending")
+    .eq("ref_id", draft.ref_id);
+  return { status: "failed" as const, reason };
+}
+
 /** Generate one claimed draft. Writes the result only if the draft is still the same pending draft. */
 export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps: GenerateDeps = {}) {
   if (!replyDraftsEnabled()) return { status: "disabled" as const };
@@ -91,9 +102,19 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
   let result: ClaudeResult | null = null;
   try {
     const ctx = await gatherDraftContext(admin, draft, voiceUserId(), now);
-    const clients = await loadKnownClients(admin);
+    // Fail closed: without the full client list we cannot redact or guard, so no draft is written.
+    let clients: KnownClient[];
+    try {
+      clients = await loadKnownClients(admin);
+    } catch (error) {
+      return await failClosed(admin, draft, error instanceof PrivacyError ? error.message : "privacy: client list unavailable");
+    }
     const examples = await loadExamples(admin, exampleQuery(draft.kind, ctx), draft.client_id, clients);
-    const guardExamples = [...examples.originals, ...examples.prompt.map((e) => e.reply_text)];
+    // No profiles, or no client names at all, while examples exist: redaction would be blind.
+    if (examples.originals.length && (!clients.length || clients.every((c) => !c.fullName))) {
+      return await failClosed(admin, draft, "privacy: client list unavailable");
+    }
+    const delimiters = newDelimiters();
 
     let outcome: ReturnType<typeof outcomeFromModel> | null = null;
     let rejection: string | null = null;
@@ -101,8 +122,8 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
     // One retry if the leak guard rejects the first draft.
     for (let attempt = 0; attempt < 2 && !outcome; attempt += 1) {
       result = await callClaude({
-        system: systemPrompt(guide),
-        user: userPrompt(draft.kind, ctx, examples.prompt, now, rejection ?? undefined),
+        system: systemPrompt(guide, delimiters),
+        user: userPrompt(draft.kind, ctx, examples.prompt, delimiters, now, rejection ?? undefined),
         maxTokens: 16000,
         effort: "medium",
         jsonSchema: DRAFT_OUTPUT_SCHEMA as unknown as Record<string, unknown>,
@@ -117,9 +138,25 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
           ? { status: "skipped" as const, draftText: null, reason: "Reply yourself" }
           : outcomeFromModel(parseModelDraft(result.text));
       const shown = [candidate.draftText, candidate.reason].filter(Boolean).join("\n");
-      rejection = shown ? guardDraft(shown, { currentClientId: draft.client_id, clients, exampleReplies: guardExamples }) : null;
+      const guard = shown
+        ? guardDraft(shown, {
+            currentClientId: draft.client_id,
+            clients,
+            exampleReplies: examples.prompt.map((e) => e.reply_text),
+            exampleOriginals: examples.originals,
+          })
+        : { reject: null, flag: null };
+      rejection = guard.reject;
       if (rejection) {
         console.error("reply_drafts_guard_rejected", { draftId: draft.id, attempt: attempt + 1, reason: rejection });
+      } else if (guard.flag && candidate.draftText) {
+        // Close to another client's reply: keep it, but make Marc look before it can go.
+        console.error("reply_drafts_guard_flagged", { draftId: draft.id, reason: guard.flag });
+        outcome = {
+          status: "needs_marc",
+          draftText: candidate.draftText,
+          reason: candidate.status === "needs_marc" && candidate.reason ? `${guard.flag}. Also: ${candidate.reason}` : guard.flag,
+        };
       } else {
         outcome = candidate;
       }

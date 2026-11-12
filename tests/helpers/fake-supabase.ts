@@ -11,6 +11,8 @@ export type FakeDb = {
   updates: Array<{ table: string; patch: Row }>;
   rpcCalls: Array<{ name: string; args: Row }>;
   rpcHandlers: Record<string, (args: Row) => unknown>;
+  /** Paginated (.range) reads per table: return an error or no rows (to test fail-closed paths). */
+  rangedReads: Record<string, "error" | "empty">;
   from: (table: string) => Builder;
   rpc: (name: string, args: Row) => Promise<{ data: unknown; error: null | { message: string } }>;
 };
@@ -25,6 +27,8 @@ class Builder implements PromiseLike<{ data: unknown; error: { code?: string; me
   private wantSingle: "single" | "maybe" | null = null;
   private orderBy: { col: string; asc: boolean } | null = null;
   private max: number | null = null;
+  private offset = 0;
+  private ranged = false;
   private returning = false;
 
   constructor(private db: FakeDb, private table: string, private uniqueOpen?: (rows: Row[], row: Row) => boolean) {}
@@ -94,6 +98,12 @@ class Builder implements PromiseLike<{ data: unknown; error: { code?: string; me
     this.max = n;
     return this;
   }
+  range(from: number, to: number) {
+    this.ranged = true;
+    this.offset = from;
+    this.max = to - from + 1;
+    return this;
+  }
   returns() {
     return this;
   }
@@ -111,6 +121,9 @@ class Builder implements PromiseLike<{ data: unknown; error: { code?: string; me
   }
 
   private run(): { data: unknown; error: { code?: string; message: string } | null } {
+    const ranged = this.op === "select" && this.ranged ? this.db.rangedReads[this.table] : undefined;
+    if (ranged === "error") return { data: null, error: { message: "read failed" } };
+    if (ranged === "empty") return { data: [], error: null };
     const table = this.rows();
     let out: Row[] = [];
     if (this.op === "insert") {
@@ -141,7 +154,7 @@ class Builder implements PromiseLike<{ data: unknown; error: { code?: string; me
       const { col, asc } = this.orderBy;
       out = [...out].sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : String(a[col]) > String(b[col]) ? 1 : 0) * (asc ? 1 : -1));
     }
-    if (this.max !== null) out = out.slice(0, this.max);
+    if (this.max !== null || this.offset) out = out.slice(this.offset, this.max !== null ? this.offset + this.max : undefined);
     out = out.map((r) => ({ ...r }));
     if (this.wantSingle) {
       if (out.length > 1) return { data: null, error: { message: "multiple rows" } };
@@ -168,6 +181,7 @@ export function fakeSupabase(seed: Record<string, Row[]> = {}): FakeDb {
     updates: [],
     rpcCalls: [],
     rpcHandlers: {},
+    rangedReads: {},
     from(table: string) {
       // Mirrors the partial unique index reply_drafts_one_open_per_conversation.
       const unique =

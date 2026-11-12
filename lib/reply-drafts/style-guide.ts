@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { voiceUserId } from "./config";
 import { callClaude, logAiCall, type ClaudeResult, type FetchLike } from "./anthropic";
-import { loadKnownClients, neutralise, redactText } from "./privacy";
+import { escapeAngles, loadKnownClients, redactText } from "./privacy";
 
 type Pair = { client: string; reply: string; kind: "inbox" | "checkin" };
 
@@ -90,8 +90,8 @@ export async function buildStyleGuide(admin: SupabaseClient, deps: { fetchImpl?:
   const clients = await loadKnownClients(admin);
   const pairs = (await collectMarcReplies(admin, marc)).map((p) => ({
     ...p,
-    client: neutralise(redactText(p.client, clients)),
-    reply: neutralise(redactText(p.reply, clients)),
+    client: escapeAngles(redactText(p.client, clients)),
+    reply: escapeAngles(redactText(p.reply, clients)),
   }));
   if (pairs.length < 5) throw Object.assign(new Error("Not enough of Marc's replies to learn from yet (need at least 5)."), { status: 409 });
 
