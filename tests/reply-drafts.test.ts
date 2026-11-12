@@ -629,3 +629,21 @@ function walk(dir: string): string[] {
     return /\.(ts|tsx)$/.test(e.name) ? [p] : [];
   });
 }
+
+describe("reply drafts api key", () => {
+  it("prefers REPLY_DRAFTS_ANTHROPIC_API_KEY over the portal key", async () => {
+    const { callClaude } = await import("@/lib/reply-drafts/anthropic");
+    vi.stubEnv("ANTHROPIC_API_KEY", "portal-key");
+    vi.stubEnv("REPLY_DRAFTS_ANTHROPIC_API_KEY", "drafts-key");
+    let sent = "";
+    await callClaude({
+      system: "s", user: "u", maxTokens: 10, effort: "low",
+      fetchImpl: async (_url, init) => {
+        sent = String((init?.headers as Record<string, string>)["x-api-key"]);
+        return new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 1 }, model: "m", stop_reason: "end_turn" }), { status: 200 });
+      },
+    }).catch(() => undefined);
+    expect(sent).toBe("drafts-key");
+    vi.stubEnv("REPLY_DRAFTS_ANTHROPIC_API_KEY", "");
+  });
+});

@@ -25,7 +25,9 @@ export async function callClaude(opts: {
   fetchImpl?: FetchLike;
   timeoutMs?: number;
 }): Promise<ClaudeResult> {
-  const apiKey = getEnv("ANTHROPIC_API_KEY");
+  // Drafts can bill to their own key (Marc's own Anthropic account, Kevin 12 Nov 2026) so they never
+  // share a bill with Blueprint AI. Until that key is set they fall back to the portal's key.
+  const apiKey = getEnv("REPLY_DRAFTS_ANTHROPIC_API_KEY") || getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("anthropic_not_configured");
   const doFetch: FetchLike = opts.fetchImpl ?? ((input, init) => fetch(input, init));
 
