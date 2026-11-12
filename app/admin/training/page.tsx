@@ -352,9 +352,9 @@ export default function TrainingManagerPage() {
 
           const CardContent = (
             <>
-              {/* Cover - the module's cover image, or the CBB mark and title */}
+              {/* Cover - generated from the title */}
               <div className="ws-tr-cover-wrap">
-                <ModuleCover title={mod.title} imageUrl={mod.thumbnail_url} />
+                <ModuleCover title={mod.title} number={i + 1} />
 
                 {/* Module number / checkbox */}
                 <div className="ws-tr-cover-tl">
@@ -362,11 +362,7 @@ export default function TrainingManagerPage() {
                     <div className={`ws-tr-box is-lg${isSelected ? " is-on" : ""}`}>
                       {isSelected && <Icon name="check" size={16} stroke={2.4} />}
                     </div>
-                  ) : (
-                    <div className="ws-tr-badge">
-                      {i + 1}
-                    </div>
-                  )}
+                  ) : null}
 
                   {!bulkMode && (
                     <>

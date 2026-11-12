@@ -193,11 +193,10 @@ export default function TrainingLibrary() {
                     href={`/portal/training/${module.id}`}
                     className="ws-tr-card is-link ws-focus"
                   >
-                    <ModuleCover title={module.title} imageUrl={module.thumbnail_url} />
+                    <ModuleCover title={module.title} imageUrl={module.thumbnail_url} number={index + 1} />
 
                     <div className="ws-tr-card-b">
                       <div className="ws-tr-card-top">
-                        <span>Module {String(index + 1).padStart(2, "0")}</span>
                         <span>{lessons.length} {lessons.length === 1 ? "lesson" : "lessons"}</span>
                       </div>
 

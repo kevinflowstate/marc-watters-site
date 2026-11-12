@@ -372,8 +372,8 @@ export default function ModuleEditorPage() {
           </div>
         </div>
 
-        {/* Cover - the module's cover image, or the CBB mark and title */}
-        <ModuleCover title={moduleTitle} variant="banner" imageUrl={module.thumbnail_url} />
+        {/* Cover - generated from the title */}
+        <ModuleCover title={moduleTitle} variant="banner" number={modules.findIndex((m) => m.id === module.id) + 1 || undefined} />
       </header>
 
       <section className="ws-panel">

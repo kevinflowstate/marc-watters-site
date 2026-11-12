@@ -465,15 +465,16 @@
  * Every rule is scoped under .ws and reads the .ws tokens.
  * =================================================================== */
 
-/* Cover: the module's own image, or a solid tone with the CBB mark and title */
-.ws .ws-cover { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--cv-bg, #2b3d47); color: #fff; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 14px 16px; }
+/* Cover (approved mock): solid tone, large faint line icon right, "Module N" kicker and title bottom-left.
+ * An uploaded cover image replaces it on the client pages. */
+.ws .ws-cover { position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 100%; overflow: hidden; background: var(--cv-bg, #2b3d47); color: #fff; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px 16px; }
 .ws .ws-cover.has-img { background: var(--ws-panel-3); }
 .ws .ws-cover-img { object-fit: cover; }
-.ws .ws-cover-logo { position: absolute; top: 14px; left: 16px; width: 18px; height: auto; }
-.ws .ws-cover-t { position: relative; max-width: 85%; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.ws .ws-cover.is-lg { aspect-ratio: auto; height: 100%; min-height: 190px; padding: 18px 20px; }
-.ws .ws-cover.is-lg .ws-cover-t { font-size: 22px; }
-.ws .ws-cover.is-lg .ws-cover-logo { top: 18px; left: 20px; width: 20px; }
+.ws .ws-cover svg.ws-cover-art { position: absolute; right: -6%; top: 50%; transform: translateY(-50%); width: 46%; height: auto; color: rgba(255, 255, 255, 0.16); }
+.ws .ws-cover-k { position: relative; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; opacity: 0.75; }
+.ws .ws-cover-t { position: relative; max-width: 72%; font-size: 19px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+.ws .ws-cover.is-lg { aspect-ratio: auto; min-height: 190px; }
+.ws .ws-cover.is-lg .ws-cover-t { font-size: 24px; }
 
 /* Library grid and cards */
 .ws .ws-tr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
