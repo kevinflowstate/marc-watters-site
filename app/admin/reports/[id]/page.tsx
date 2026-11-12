@@ -5,6 +5,7 @@ import Link from "next/link";
 import { reportWeekStart } from "@/lib/ops/report-week";
 import ReportSummary from "@/components/ops/ReportSummary";
 import MarkdownPreview from "@/components/ops/MarkdownPreview";
+import { Icon } from "@/components/ops/workspace/WorkspaceUI";
 type Report = {
   id: string;
   week_start: string;
@@ -78,137 +79,165 @@ export default function ReportDetail() {
     }
   }
   return (
-    <div className="max-w-6xl mx-auto">
-      <Link href="/admin/reports" className="text-accent-bright">
-        ← Reports
+    <div className="ws ws-page ws-rp">
+      <Link href="/admin/reports" className="ws-back ws-focus">
+        <Icon name="chevron" size={14} className="ws-back-ic" />
+        Reports
       </Link>
-      <h1 className="v2-page-title my-4">
-        Weekly report{report ? ` · ${report.week_start}` : ""}
-      </h1>
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">
+            Weekly report{report ? ` · ${report.week_start}` : ""}
+          </h1>
+          {report && <p className="ws-meta mt-1">Status: {report.status}</p>}
+        </div>
+      </div>
       {error && (
-        <p role="alert" className="text-amber-600 my-4">
-          {error}
-        </p>
+        <div role="alert" className="ws-note is-attn">
+          <Icon name="alert" size={15} />
+          <span>{error}</span>
+        </div>
       )}
       {notice && (
-        <p role="status" className="text-accent-bright my-4">
-          {notice}
-        </p>
+        <div role="status" className="ws-note is-info">
+          <Icon name="info" size={15} />
+          <span>{notice}</span>
+        </div>
       )}
       {report && (
         <>
           {Boolean(report.data.narrative_review_required) && (
-            <p role="status" className="text-amber-600 mb-4">
-              Source figures changed. Check the saved narrative before marking
-              reviewed.
-            </p>
+            <div role="status" className="ws-note is-attn">
+              <Icon name="alert" size={15} />
+              <span>
+                Source figures changed. Check the saved narrative before marking
+                reviewed.
+              </span>
+            </div>
           )}
           {report.send_claim_id && (
-            <p role="status" className="text-amber-600 mb-4">
-              A send is in progress or needs reconciliation. This revision is
-              locked.
-            </p>
+            <div role="status" className="ws-note is-attn">
+              <Icon name="alert" size={15} />
+              <span>
+                A send is in progress or needs reconciliation. This revision is
+                locked.
+              </span>
+            </div>
           )}
-          <p className="text-text-secondary mb-5">Status: {report.status}</p>
           {!report.narrative_md.trim() && (
-            <p className="v2-surface p-4 mb-5 text-text-secondary">
-              The figures are ready. Ask Codex to prepare this report, or write
-              the report text below.
-            </p>
+            <div className="ws-note">
+              <Icon name="info" size={15} />
+              <span>
+                The figures are ready. Ask Codex to prepare this report, or write
+                the report text below.
+              </span>
+            </div>
           )}
-          <ReportSummary data={report.data} />
-          <div className="grid lg:grid-cols-2 gap-5">
-            <label className="block">
-              Narrative
+          <div className="ws-rp-summary">
+            <ReportSummary data={report.data} />
+          </div>
+          <div className="ws-rp-cols">
+            <label className="ws-rp-field">
+              <span className="ws-label">Narrative</span>
               <textarea
                 aria-label="Report narrative"
                 rows={22}
                 disabled={
                   report.status === "sent" || Boolean(report.send_claim_id)
                 }
-                className="block mt-2 w-full rounded-xl border border-current/15 bg-bg-secondary p-4 text-sm"
+                className="ws-input ws-rp-ta"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
               />
             </label>
-            <section className="v2-surface p-5">
-              <h2 className="font-heading font-bold mb-3">Preview</h2>
-              <MarkdownPreview text={text} />
+            <section className="ws-panel ws-rp-preview" aria-label="Preview">
+              <header className="ws-panel-head">
+                <h2 className="ws-h2">Preview</h2>
+              </header>
+              <div className="ws-rp-preview-body">
+                <MarkdownPreview text={text} />
+              </div>
             </section>
           </div>
-          <label className="block mt-5">
-            Eimear’s observations
+          <label className="ws-rp-field">
+            <span className="ws-label">Eimear’s observations</span>
             <textarea
               aria-label="Observations"
               rows={5}
               disabled={
                 report.status === "sent" || Boolean(report.send_claim_id)
               }
-              className="block mt-2 w-full rounded-xl border border-current/15 bg-bg-secondary p-4"
+              className="ws-input ws-rp-ta"
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
             />
           </label>
-          <div className="flex flex-wrap gap-3 my-5">
-            <button
-              className="v2-button-secondary"
-              disabled={
-                busy ||
-                report.status === "sent" ||
-                Boolean(report.send_claim_id)
-              }
-              onClick={() => void save()}
-            >
-              Save draft
-            </button>
-            <button
-              className="v2-button-secondary"
-              disabled={
-                busy ||
-                report.status === "sent" ||
-                Boolean(report.send_claim_id) ||
-                report.week_start !== reportWeekStart() ||
-                text !== report.narrative_md ||
-                observations !== report.observations_md
-              }
-              onClick={() => void save("refresh")}
-            >
-              Refresh source data
-            </button>
-            <button
-              className="v2-button-primary"
-              disabled={
-                busy ||
-                !text.trim() ||
-                report.status === "sent" ||
-                Boolean(report.send_claim_id)
-              }
-              onClick={() => void save("review")}
-            >
-              Mark reviewed
-            </button>
-            <button
-              className="v2-button-secondary"
-              disabled={
-                busy ||
-                report.status !== "reviewed" ||
-                Boolean(report.send_claim_id) ||
-                text !== report.narrative_md ||
-                observations !== report.observations_md
-              }
-              onClick={() => void save("send")}
-            >
-              Send to Marc
-            </button>
+          <div className="ws-rp-actions">
+            <div className="ws-rp-btns">
+              <button
+                type="button"
+                className="ws-btn ws-focus"
+                disabled={
+                  busy ||
+                  report.status === "sent" ||
+                  Boolean(report.send_claim_id)
+                }
+                onClick={() => void save()}
+              >
+                Save draft
+              </button>
+              <button
+                type="button"
+                className="ws-btn ws-focus"
+                disabled={
+                  busy ||
+                  report.status === "sent" ||
+                  Boolean(report.send_claim_id) ||
+                  report.week_start !== reportWeekStart() ||
+                  text !== report.narrative_md ||
+                  observations !== report.observations_md
+                }
+                onClick={() => void save("refresh")}
+              >
+                Refresh source data
+              </button>
+              <button
+                type="button"
+                className="ws-btn ws-btn-primary ws-focus"
+                disabled={
+                  busy ||
+                  !text.trim() ||
+                  report.status === "sent" ||
+                  Boolean(report.send_claim_id)
+                }
+                onClick={() => void save("review")}
+              >
+                Mark reviewed
+              </button>
+              <button
+                type="button"
+                className="ws-btn ws-focus"
+                disabled={
+                  busy ||
+                  report.status !== "reviewed" ||
+                  Boolean(report.send_claim_id) ||
+                  text !== report.narrative_md ||
+                  observations !== report.observations_md
+                }
+                onClick={() => void save("send")}
+              >
+                Send to Marc
+              </button>
+            </div>
+            <p className="ws-caption">
+              Source refresh is available for the current week. Historical
+              snapshots are preserved. Sending is off by default. Review is
+              required before a send can proceed.
+            </p>
           </div>
-          <p className="text-sm text-text-muted">
-            Source refresh is available for the current week. Historical
-            snapshots are preserved. Sending is off by default. Review is
-            required before a send can proceed.
-          </p>
-          <details className="v2-surface p-5 mt-5">
+          <details className="ws-panel ws-details ws-rp-source">
             <summary>Source data and periods</summary>
-            <pre className="whitespace-pre-wrap break-words text-xs mt-4">
+            <pre className="ws-original ws-rp-pre">
               {JSON.stringify(report.data, null, 2)}
             </pre>
           </details>

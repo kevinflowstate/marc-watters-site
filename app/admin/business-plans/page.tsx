@@ -1,10 +1,11 @@
 "use client";
 
 import { initials } from "@/lib/initials";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
 import type { BusinessPlan, TrafficLight } from "@/lib/types";
 import BusinessPlanBuilder from "@/components/admin/BusinessPlanBuilder";
+import { Chip, Empty, Icon, SkeletonRows, StatusIcon } from "@/components/ops/workspace/WorkspaceUI";
 
 interface PlanWithClient extends BusinessPlan {
   client_name: string;
@@ -108,95 +109,95 @@ export default function BusinessPlansPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="skeleton rounded-lg h-8 w-48 mb-6" />
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-            <div className="skeleton rounded-lg h-5 w-1/3 mb-3" />
-            <div className="skeleton rounded-lg h-3 w-2/3" />
-          </div>
-        ))}
+      <div className="ws ws-page">
+        <div>
+          <span className="ws-skel" style={{ width: 160, height: 22 }} />
+          <span className="ws-skel mt-2" style={{ width: 220, height: 12 }} />
+        </div>
+        <div className="ws-panel"><SkeletonRows count={4} /></div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="ws ws-page">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">Business Plans</h1>
-          <p className="text-text-secondary mt-1 text-sm">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Business plans</h1>
+          <p className="ws-meta mt-1">
             {activePlans.length} active plan{activePlans.length !== 1 ? "s" : ""} across {new Set(activePlans.map(p => p.client_id)).size} clients
           </p>
         </div>
-        <button
-          onClick={() => setClientPickerOpen(true)}
-          className="px-4 py-2.5 gradient-accent text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Plan
-        </button>
+        <div className="ws-ph-acts">
+          <button
+            type="button"
+            onClick={() => setClientPickerOpen(true)}
+            className="ws-btn ws-btn-primary ws-focus"
+          >
+            <Icon name="plus" size={14} />
+            Create plan
+          </button>
+        </div>
       </div>
 
       {planSaveNotice && (
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          <span>{planSaveNotice}</span>
-          <button type="button" onClick={() => setPlanSaveNotice(null)} className="text-emerald-200/70 hover:text-emerald-100">
+        <div className="ws-note is-ok ws-bp-notice" role="status">
+          <Icon name="checkCircle" size={15} />
+          <span className="ws-bp-notice-t">{planSaveNotice}</span>
+          <button type="button" onClick={() => setPlanSaveNotice(null)} className="ws-btn ws-btn-quiet ws-btn-sm ws-focus">
             Dismiss
           </button>
         </div>
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1 mb-6 bg-bg-card/50 rounded-xl p-1 w-fit">
+      <div className="ws-seg" role="group" aria-label="Filter plans">
         {(["active", "completed", "all"] as const).map((f) => (
           <button
             key={f}
+            type="button"
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer capitalize ${
-              filter === f
-                ? "bg-accent/10 text-accent-bright border border-accent/20"
-                : "text-text-muted hover:text-text-secondary"
-            }`}
+            aria-pressed={filter === f}
+            className="ws-seg-btn ws-focus ws-bp-seg"
           >
-            {f} {f === "active" ? `(${activePlans.length})` : f === "completed" ? `(${plans.filter(p => p.status === "completed").length})` : `(${plans.length})`}
+            {f}
+            <span className="ws-seg-count">{f === "active" ? activePlans.length : f === "completed" ? plans.filter(p => p.status === "completed").length : plans.length}</span>
           </button>
         ))}
       </div>
 
       {/* Clients without a plan */}
       {filter === "active" && clientsWithoutPlan.length > 0 && (
-        <div className="bg-amber-500/[0.04] border border-amber-500/15 rounded-2xl px-5 py-4 mb-6">
-          <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3">
-            Clients without an active plan ({clientsWithoutPlan.length})
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <section className="ws-panel" aria-label="Clients without an active plan">
+          <header className="ws-panel-head">
+            <span className="ws-dot" style={{ color: "var(--ws-attn)" }} />
+            <h2 className="ws-h2">Clients without an active plan</h2>
+            <span className="ws-caption">{clientsWithoutPlan.length}</span>
+          </header>
+          <div className="ws-bp-wrap">
             {clientsWithoutPlan.map((c) => (
               <button
                 key={c.id}
+                type="button"
                 onClick={() => openCreateForClient(c.id)}
-                className="px-3 py-1.5 bg-white/5 hover:bg-accent/10 border border-[rgba(255,255,255,0.06)] hover:border-accent/20 rounded-lg text-xs text-text-secondary hover:text-accent-bright transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                className="ws-btn ws-btn-sm ws-focus"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                <Icon name="plus" size={12} />
                 {c.name}
               </button>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Plans list */}
       {filtered.length === 0 ? (
-        <div className="bg-bg-card/80 border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
-          <p className="text-text-muted text-sm">No {filter !== "all" ? filter : ""} business plans yet.</p>
+        <div className="ws-panel">
+          <Empty icon="plan" title={`No ${filter !== "all" ? filter : ""} business plans yet.`} />
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="ws-panel ws-bp-list">
           {filtered.map((plan) => {
             const allItems = plan.phases.flatMap((ph) => ph.items);
             const done = allItems.filter((i) => i.completed).length;
@@ -206,88 +207,69 @@ export default function BusinessPlansPage() {
             const isExpanded = expandedPlan === plan.id;
 
             return (
-              <div key={plan.id} className="bg-bg-card/80 backdrop-blur-sm border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
+              <div key={plan.id} className="ws-bp-plan">
                 {/* Plan header */}
                 <button
+                  type="button"
                   onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-[rgba(255,255,255,0.02)] transition-colors text-left cursor-pointer"
+                  aria-expanded={isExpanded}
+                  className="ws-row ws-focus ws-bp-row"
                 >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                      plan.status === "active"
-                        ? "bg-accent/10 text-accent-bright border border-accent/20"
-                        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    }`}>
-                      {initials(plan.client_name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-semibold text-text-primary">{plan.client_name}</span>
-                        <span className="text-[10px] text-text-muted">({plan.client_business})</span>
-                      </div>
-                      <p className="text-xs text-text-muted max-w-lg whitespace-pre-line line-clamp-2">{plan.summary}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-5 flex-shrink-0">
-                    <div className="text-right hidden sm:block">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-20 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${pct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-text-muted w-7 text-right">{pct}%</span>
-                      </div>
-                      <div className="text-[10px] text-text-muted mt-0.5">
-                        {plan.phases.length} sections - {total} items - {trainingsCount} trainings
-                      </div>
-                    </div>
-                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold ${
-                      plan.status === "active"
-                        ? "bg-accent/10 text-accent-bright border border-accent/20"
-                        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    }`}>
-                      {plan.status === "active" ? "Active" : "Completed"}
+                  <span className="ws-avatar is-md" style={{ "--c": plan.status === "active" ? "var(--ws-accent)" : "var(--ws-ok)" } as CSSProperties} aria-hidden="true">
+                    {initials(plan.client_name)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="ws-row-title">
+                      {plan.client_name}
+                      <span className="ws-bp-biz"> · {plan.client_business}</span>
                     </span>
-                    <svg
-                      className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
+                    <span className="ws-row-sub ws-bp-summary">{plan.summary}</span>
+                  </span>
+                  <span className="ws-row-meta">
+                    <span className="ws-bp-prog ws-sm-up">
+                      <span className="ws-bp-prog-top">
+                        <span className="ws-bar ws-bp-bar"><i style={{ width: `${pct}%`, ...(pct === 100 ? { "--c": "var(--ws-ok)" } : {}) } as CSSProperties} /></span>
+                        <span className="ws-bp-pct">{pct}%</span>
+                      </span>
+                      <span className="ws-bp-counts">
+                        {plan.phases.length} sections - {total} items - {trainingsCount} trainings
+                      </span>
+                    </span>
+                    <Chip tone={plan.status === "active" ? "decide" : "ok"}>
+                      {plan.status === "active" ? "Active" : "Completed"}
+                    </Chip>
+                    <Icon name="chevron" size={14} className={`ws-chev ${isExpanded ? "is-open" : ""}`} />
+                  </span>
                 </button>
 
                 {/* Expanded plan detail */}
                 {isExpanded && (
-                  <div className="border-t border-[rgba(255,255,255,0.04)] px-5 pb-5">
+                  <div className="ws-bp-detail">
                     {/* Actions bar */}
-                    <div className="flex items-center justify-between py-3 border-b border-[rgba(255,255,255,0.03)] mb-4">
-                      <div className="flex items-center gap-2">
+                    <div className="ws-bp-acts">
+                      <div className="ws-bp-acts-g">
                         <button
+                          type="button"
                           onClick={() => openEditPlan(plan)}
-                          className="px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                          className="ws-btn ws-btn-sm ws-focus"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
-                          Edit Plan
+                          Edit plan
                         </button>
                         <Link
                           href={`/admin/clients/${plan.client_id_profile}`}
-                          className="px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] rounded-lg transition-colors inline-flex items-center gap-1.5 no-underline"
+                          className="ws-btn ws-btn-sm ws-focus"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          View Client
+                          <Icon name="owner" size={13} />
+                          View client
                         </Link>
                       </div>
                       {plan.status === "active" && (
-                        <div className="flex items-center gap-2">
+                        <div className="ws-bp-acts-g">
                           <button
+                            type="button"
                             onClick={async () => {
                               if (!confirm(`Mark ${plan.client_name}'s plan as complete?`)) return;
                               await fetch("/api/admin/business-plans", {
@@ -297,69 +279,51 @@ export default function BusinessPlansPage() {
                               });
                               await loadData();
                             }}
-                            className="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                            className="ws-btn ws-btn-sm ws-focus"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Mark Complete
+                            <Icon name="check" size={13} />
+                            Mark complete
                           </button>
                           <button
+                            type="button"
                             onClick={() => openCreateForClient(plan.client_id)}
-                            className="px-3 py-1.5 text-xs font-semibold text-white gradient-accent rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+                            className="ws-btn ws-btn-sm ws-btn-primary ws-focus"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            Assign New Plan
+                            <Icon name="plus" size={13} />
+                            Assign new plan
                           </button>
                         </div>
                       )}
                     </div>
 
                     {/* Phases/sections */}
-                    <div className="space-y-4">
+                    <div className="ws-bp-phases">
                       {plan.phases.map((phase) => {
                         const phDone = phase.items.filter(i => i.completed).length;
                         const phTotal = phase.items.length;
                         const phPct = phTotal > 0 ? Math.round((phDone / phTotal) * 100) : 0;
 
                         return (
-                          <div key={phase.id} className="bg-bg-primary/50 border border-[rgba(255,255,255,0.03)] rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-sm font-semibold text-text-primary">{phase.name}</h4>
-                              <div className="flex items-center gap-2">
-                                <div className="h-1.5 w-12 bg-[rgba(255,255,255,0.03)] rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${phPct === 100 ? "bg-emerald-500" : "gradient-accent"}`}
-                                    style={{ width: `${phPct}%` }}
-                                  />
-                                </div>
-                                <span className="text-[10px] text-text-muted">{phDone}/{phTotal}</span>
-                              </div>
+                          <div key={phase.id} className="ws-bp-phase">
+                            <div className="ws-bp-phase-head">
+                              <h4 className="ws-h2 ws-bp-phase-t">{phase.name}</h4>
+                              <span className="ws-bp-prog-top">
+                                <span className="ws-bar ws-bp-bar is-sm"><i style={{ width: `${phPct}%`, ...(phPct === 100 ? { "--c": "var(--ws-ok)" } : {}) } as CSSProperties} /></span>
+                                <span className="ws-bp-pct">{phDone}/{phTotal}</span>
+                              </span>
                             </div>
 
                             {phase.notes && (
-                              <p className="text-xs text-text-secondary leading-relaxed mb-3 whitespace-pre-line">{phase.notes}</p>
+                              <p className="ws-bp-phase-note">{phase.notes}</p>
                             )}
 
                             {/* Items */}
                             {phase.items.length > 0 && (
-                              <div className="space-y-1 mb-2">
+                              <div className="ws-bp-items">
                                 {phase.items.map((item) => (
-                                  <div key={item.id} className="flex items-center gap-2 py-1">
-                                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
-                                      item.completed ? "bg-emerald-500/20" : "border border-[rgba(255,255,255,0.1)]"
-                                    }`}>
-                                      {item.completed && (
-                                        <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </div>
-                                    <span className={`text-xs ${item.completed ? "text-text-muted line-through" : "text-text-secondary"}`}>
-                                      {item.title}
-                                    </span>
+                                  <div key={item.id} className={`ws-bp-item ${item.completed ? "is-done" : ""}`}>
+                                    <StatusIcon tone={item.completed ? "ok" : "open"} />
+                                    <span>{item.title}</span>
                                   </div>
                                 ))}
                               </div>
@@ -367,13 +331,13 @@ export default function BusinessPlansPage() {
 
                             {/* Linked trainings */}
                             {phase.linked_trainings.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-[rgba(255,255,255,0.03)]">
-                                <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-1">
-                                  Assigned Trainings ({phase.linked_trainings.length})
+                              <div className="ws-bp-trainings">
+                                <div className="ws-field-l">
+                                  Assigned trainings ({phase.linked_trainings.length})
                                 </div>
-                                <div className="flex flex-wrap gap-1">
+                                <div className="ws-bp-wrap is-tight">
                                   {phase.linked_trainings.map((id) => (
-                                    <span key={id} className="text-[10px] px-2 py-0.5 bg-accent/5 text-accent-bright rounded-md border border-accent/10">
+                                    <span key={id} className="ws-chip">
                                       {id.slice(0, 8)}...
                                     </span>
                                   ))}
@@ -394,36 +358,47 @@ export default function BusinessPlansPage() {
 
       {/* Client picker modal */}
       {clientPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-card border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h3 className="text-lg font-heading font-bold text-text-primary mb-1">Create Business Plan</h3>
-            <p className="text-xs text-text-muted mb-4">Select a client to create a plan for.</p>
-            <div className="space-y-1 max-h-64 overflow-y-auto">
-              {allClients.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setClientPickerOpen(false);
-                    openCreateForClient(c.id);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-[rgba(255,255,255,0.04)] transition-colors cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-xs font-bold text-accent-bright flex-shrink-0">
-                    {initials(c.name)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm text-text-primary font-medium">{c.name}</div>
-                    <div className="text-[10px] text-text-muted">{c.business_name}</div>
-                  </div>
-                </button>
-              ))}
+        <div className="ws-overlay">
+          <div className="ws-overlay-bg" />
+          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Create business plan">
+            <div className="ws-dialog-head">
+              <div className="min-w-0">
+                <h3 className="ws-dialog-title">Create business plan</h3>
+                <p className="ws-caption mt-0.5">Select a client to create a plan for.</p>
+              </div>
             </div>
-            <button
-              onClick={() => setClientPickerOpen(false)}
-              className="w-full mt-4 px-4 py-2.5 text-sm font-medium text-text-secondary bg-white/5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
+            <div className="ws-dialog-body">
+              <div className="ws-bp-pick">
+                {allClients.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setClientPickerOpen(false);
+                      openCreateForClient(c.id);
+                    }}
+                    className="ws-row ws-focus ws-bp-pick-row"
+                  >
+                    <span className="ws-avatar is-md" aria-hidden="true">
+                      {initials(c.name)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="ws-row-title">{c.name}</span>
+                      <span className="ws-row-sub">{c.business_name}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="ws-dialog-foot">
+                <button
+                  type="button"
+                  onClick={() => setClientPickerOpen(false)}
+                  className="ws-btn ws-btn-quiet ws-focus"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -445,6 +420,6 @@ export default function BusinessPlansPage() {
           error={planSaveError}
         />
       )}
-    </>
+    </div>
   );
 }

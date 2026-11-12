@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { CheckinFormConfig, BusinessPlanFormConfig, FormQuestion } from "@/lib/types";
+import { Icon } from "@/components/ops/workspace/WorkspaceUI";
 
 function generateQuestionId() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -178,24 +179,29 @@ export default function AdminSettingsPage() {
     setBpConfig({ ...bpConfig, questions: [...bpConfig.questions, newQ] });
   }
 
-  const inputClass = "w-full bg-bg-primary border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent/40";
+  const inputClass = "ws-input";
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-text-primary">Admin Settings</h1>
-        <p className="text-text-secondary mt-1">Manage portal configuration.</p>
+    <div className="ws ws-page ws-st">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Admin settings</h1>
+          <p className="ws-meta mt-1">Manage portal configuration.</p>
+        </div>
       </div>
 
       {/* Create client */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Create Client Account</h2>
-        <p className="text-text-muted text-sm mb-4">Add a new client to the portal. They will receive an email to set their password.</p>
+      <section className="ws-panel" aria-label="Create client account">
+        <header className="ws-panel-head ws-st-head">
+          <h2 className="ws-h2">Create client account</h2>
+          <p className="ws-caption">Add a new client to the portal. They will receive an email to set their password.</p>
+        </header>
 
-        <form onSubmit={createClientAccount} className="space-y-4">
+        <form onSubmit={createClientAccount} className="ws-st-body">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Full Name</label>
+            <label className="ws-label" htmlFor="st-name">Full name</label>
             <input
+              id="st-name"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -204,8 +210,9 @@ export default function AdminSettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Email</label>
+            <label className="ws-label" htmlFor="st-email">Email</label>
             <input
+              id="st-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -213,33 +220,39 @@ export default function AdminSettingsPage() {
               className={inputClass}
             />
           </div>
-          <button
-            type="submit"
-            disabled={creating || !email.trim() || !fullName.trim()}
-            className="px-6 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer transition-opacity"
-          >
-            {creating ? "Creating..." : "Create Client"}
-          </button>
-        </form>
-
-        {message && (
-          <div className={`mt-4 p-3 rounded-xl text-sm ${message.startsWith("Error") ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-            {message}
+          <div className="ws-st-save">
+            <button
+              type="submit"
+              disabled={creating || !email.trim() || !fullName.trim()}
+              className="ws-btn ws-btn-primary ws-focus"
+            >
+              {creating ? "Creating..." : "Create client"}
+            </button>
           </div>
-        )}
-      </div>
+
+          {message && (
+            <div className={`ws-note ${message.startsWith("Error") ? "is-bad" : "is-ok"}`} role={message.startsWith("Error") ? "alert" : "status"}>
+              <Icon name={message.startsWith("Error") ? "alert" : "checkCircle"} size={15} />
+              <span>{message}</span>
+            </div>
+          )}
+        </form>
+      </section>
 
       {/* Check-In Form Config */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-heading font-bold text-text-primary mb-1">Check-In Form</h2>
-        <p className="text-text-muted text-sm mb-5">Configure the weekly check-in questions clients see.</p>
+      <section className="ws-panel" aria-label="Check-in form">
+        <header className="ws-panel-head ws-st-head">
+          <h2 className="ws-h2">Check-in form</h2>
+          <p className="ws-caption">Configure the weekly check-in questions clients see.</p>
+        </header>
 
         {checkinConfig ? (
-          <div className="space-y-5">
+          <div className="ws-st-body">
             {/* Check-in day */}
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Check-in day</label>
+              <label className="ws-label" htmlFor="st-day">Check-in day</label>
               <select
+                id="st-day"
                 value={checkinConfig.checkin_day}
                 onChange={(e) => setCheckinConfig({ ...checkinConfig, checkin_day: e.target.value })}
                 className={inputClass}
@@ -251,53 +264,56 @@ export default function AdminSettingsPage() {
             </div>
 
             {/* Mood toggle */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <div className="text-sm font-medium text-text-primary">Mood selector</div>
-                <div className="text-xs text-text-muted mt-0.5">Show mood options at top of check-in form</div>
+            <div className="ws-st-toggle">
+              <div className="min-w-0">
+                <div className="ws-st-toggle-t">Mood selector</div>
+                <div className="ws-caption">Show mood options at top of check-in form</div>
               </div>
               <button
                 type="button"
                 onClick={() => setCheckinConfig({ ...checkinConfig, mood_enabled: !checkinConfig.mood_enabled })}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${checkinConfig.mood_enabled ? "bg-accent" : "bg-[rgba(255,255,255,0.1)]"}`}
+                aria-label="Mood selector"
+                aria-pressed={!!checkinConfig.mood_enabled}
+                className={`ws-switch ws-focus ${checkinConfig.mood_enabled ? "is-on" : ""}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checkinConfig.mood_enabled ? "translate-x-5" : ""}`} />
+                <span />
               </button>
             </div>
 
             {/* Questions */}
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-3">Questions</label>
-              <div className="space-y-3">
+              <label className="ws-label">Questions</label>
+              <div className="ws-st-qs">
                 {checkinConfig.questions.map((q, idx) => (
-                  <div key={q.id} className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 space-y-2">
-                        <input
-                          type="text"
-                          value={q.label}
-                          onChange={(e) => updateCheckinQuestion(idx, { label: e.target.value })}
-                          placeholder="Question label"
-                          className="w-full bg-transparent border-b border-[rgba(255,255,255,0.06)] pb-1 text-sm font-medium text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-                        />
-                        <input
-                          type="text"
-                          value={q.placeholder}
-                          onChange={(e) => updateCheckinQuestion(idx, { placeholder: e.target.value })}
-                          placeholder="Placeholder text"
-                          className="w-full bg-transparent text-xs text-text-secondary placeholder:text-text-muted focus:outline-none"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeCheckinQuestion(idx)}
-                        className="text-text-muted hover:text-red-400 transition-colors p-1 mt-0.5 cursor-pointer"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div key={q.id} className="ws-st-q">
+                    <div className="ws-st-q-f">
+                      <input
+                        type="text"
+                        value={q.label}
+                        onChange={(e) => updateCheckinQuestion(idx, { label: e.target.value })}
+                        placeholder="Question label"
+                        aria-label="Question label"
+                        className="ws-input ws-st-q-l"
+                      />
+                      <input
+                        type="text"
+                        value={q.placeholder}
+                        onChange={(e) => updateCheckinQuestion(idx, { placeholder: e.target.value })}
+                        placeholder="Placeholder text"
+                        aria-label="Placeholder text"
+                        className="ws-input ws-st-q-p"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeCheckinQuestion(idx)}
+                      className="ws-btn ws-btn-quiet ws-btn-icon ws-focus ws-st-del"
+                      aria-label="Remove question"
+                    >
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      </button>
-                    </div>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -305,133 +321,130 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 onClick={addCheckinQuestion}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-[rgba(255,255,255,0.08)] hover:border-accent/30 rounded-xl text-xs text-text-muted hover:text-accent-bright transition-colors cursor-pointer"
+                className="ws-btn ws-btn-sm ws-focus ws-st-add"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Question
+                <Icon name="plus" size={13} />
+                Add question
               </button>
             </div>
 
             {/* Save */}
-            <div className="flex items-center gap-3">
+            <div className="ws-st-save">
               <button
+                type="button"
                 onClick={saveCheckinConfig}
                 disabled={checkinSaving}
-                className="px-6 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition-opacity"
+                className="ws-btn ws-btn-primary ws-focus"
               >
-                {checkinSaving ? "Saving..." : "Save Check-In Config"}
+                {checkinSaving ? "Saving..." : "Save check-in config"}
               </button>
               {checkinMessage && (
-                <span className={`text-sm ${checkinMessage.startsWith("Error") ? "text-red-400" : "text-emerald-400"}`}>
+                <span className={`ws-st-msg ${checkinMessage.startsWith("Error") ? "is-bad" : "is-ok"}`}>
                   {checkinMessage}
                 </span>
               )}
             </div>
           </div>
         ) : (
-          <div className="text-text-muted text-sm">Loading config...</div>
+          <div className="ws-st-body ws-caption">Loading config...</div>
         )}
-      </div>
+      </section>
 
       {/* Business Plan Template */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-heading font-bold text-text-primary mb-1">Business Plan Template</h2>
-        <p className="text-text-muted text-sm mb-5">Discovery questions shown when creating or editing a business plan.</p>
+      <section className="ws-panel" aria-label="Business plan template">
+        <header className="ws-panel-head ws-st-head">
+          <h2 className="ws-h2">Business plan template</h2>
+          <p className="ws-caption">Discovery questions shown when creating or editing a business plan.</p>
+        </header>
 
         {bpConfig ? (
-          <div className="space-y-5">
+          <div className="ws-st-body">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-3">Discovery Questions</label>
-              <div className="space-y-3">
+              <label className="ws-label">Discovery questions</label>
+              <div className="ws-st-qs">
                 {bpConfig.questions.map((q, idx) => (
-                  <div key={q.id} className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 space-y-2">
-                        <input
-                          type="text"
-                          value={q.label}
-                          onChange={(e) => updateBpQuestion(idx, { label: e.target.value })}
-                          placeholder="Question label"
-                          className="w-full bg-transparent border-b border-[rgba(255,255,255,0.06)] pb-1 text-sm font-medium text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
-                        />
-                        <input
-                          type="text"
-                          value={q.placeholder}
-                          onChange={(e) => updateBpQuestion(idx, { placeholder: e.target.value })}
-                          placeholder="Placeholder text"
-                          className="w-full bg-transparent text-xs text-text-secondary placeholder:text-text-muted focus:outline-none"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeBpQuestion(idx)}
-                        className="text-text-muted hover:text-red-400 transition-colors p-1 mt-0.5 cursor-pointer"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div key={q.id} className="ws-st-q">
+                    <div className="ws-st-q-f">
+                      <input
+                        type="text"
+                        value={q.label}
+                        onChange={(e) => updateBpQuestion(idx, { label: e.target.value })}
+                        placeholder="Question label"
+                        aria-label="Question label"
+                        className="ws-input ws-st-q-l"
+                      />
+                      <input
+                        type="text"
+                        value={q.placeholder}
+                        onChange={(e) => updateBpQuestion(idx, { placeholder: e.target.value })}
+                        placeholder="Placeholder text"
+                        aria-label="Placeholder text"
+                        className="ws-input ws-st-q-p"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeBpQuestion(idx)}
+                      className="ws-btn ws-btn-quiet ws-btn-icon ws-focus ws-st-del"
+                      aria-label="Remove question"
+                    >
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      </button>
-                    </div>
+                    </button>
                   </div>
                 ))}
 
                 {bpConfig.questions.length === 0 && (
-                  <p className="text-text-muted text-xs py-2">No discovery questions configured. Plans will go straight to the phase builder.</p>
+                  <p className="ws-caption ws-st-none">No discovery questions configured. Plans will go straight to the phase builder.</p>
                 )}
               </div>
 
               <button
                 type="button"
                 onClick={addBpQuestion}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-[rgba(255,255,255,0.08)] hover:border-accent/30 rounded-xl text-xs text-text-muted hover:text-accent-bright transition-colors cursor-pointer"
+                className="ws-btn ws-btn-sm ws-focus ws-st-add"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Question
+                <Icon name="plus" size={13} />
+                Add question
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="ws-st-save">
               <button
+                type="button"
                 onClick={saveBpConfig}
                 disabled={bpSaving}
-                className="px-6 py-3 gradient-accent text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition-opacity"
+                className="ws-btn ws-btn-primary ws-focus"
               >
-                {bpSaving ? "Saving..." : "Save Template"}
+                {bpSaving ? "Saving..." : "Save template"}
               </button>
               {bpMessage && (
-                <span className={`text-sm ${bpMessage.startsWith("Error") ? "text-red-400" : "text-emerald-400"}`}>
+                <span className={`ws-st-msg ${bpMessage.startsWith("Error") ? "is-bad" : "is-ok"}`}>
                   {bpMessage}
                 </span>
               )}
             </div>
           </div>
         ) : (
-          <div className="text-text-muted text-sm">Loading config...</div>
+          <div className="ws-st-body ws-caption">Loading config...</div>
         )}
-      </div>
+      </section>
 
       {/* Info */}
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-        <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Portal Info</h2>
-        <div className="space-y-3">
-          <div className="flex justify-between py-2 border-b border-[rgba(255,255,255,0.04)]">
-            <span className="text-sm text-text-muted">Portal URL</span>
-            <span className="text-sm text-text-primary">/portal</span>
-          </div>
-          <div className="flex justify-between py-2 border-b border-[rgba(255,255,255,0.04)]">
-            <span className="text-sm text-text-muted">Admin URL</span>
-            <span className="text-sm text-text-primary">/admin</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-sm text-text-muted">Authentication</span>
-            <span className="text-sm text-text-primary">Supabase Auth (Email/Password)</span>
-          </div>
-        </div>
-      </div>
+      <section className="ws-panel" aria-label="Portal info">
+        <header className="ws-panel-head">
+          <h2 className="ws-h2">Portal info</h2>
+        </header>
+        <dl className="ws-props ws-st-props">
+          <dt>Portal URL</dt>
+          <dd>/portal</dd>
+          <dt>Admin URL</dt>
+          <dd>/admin</dd>
+          <dt>Authentication</dt>
+          <dd>Supabase Auth (Email/Password)</dd>
+        </dl>
+      </section>
     </div>
   );
 }
