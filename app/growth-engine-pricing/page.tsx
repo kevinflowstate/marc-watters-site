@@ -1,3 +1,5 @@
+import "../admin/work/workspace.css";
+import "../restyle.css";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import AdminBackground from "@/components/admin/AdminBackground";

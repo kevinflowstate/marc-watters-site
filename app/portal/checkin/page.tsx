@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useToast } from "@/components/ui/Toast";
-import { InlineNotice, PageSkeleton, ProgressSummary } from "@/components/ui/PortalState";
+import { WsNotice as InlineNotice, WsPageSkeleton as PageSkeleton, WsProgress as ProgressSummary } from "@/components/portal/WsState";
+import { Icon } from "@/components/ops/workspace/WorkspaceUI";
 import { defaultCheckinConfig, deriveCheckinMood } from "@/lib/checkins";
 import { acquireDraftLock, checkinErrors, draftKey, questionError, readDraft, validReceipt, writeDraft, type CheckinDraft, type CheckinReceipt } from "@/lib/checkin-submission";
 import type { CheckinFormConfig, FormQuestion } from "@/lib/types";
 
 const moodColorMap: Record<string, string> = {
-  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  blue: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-  amber: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-  red: "border-red-500/30 bg-red-500/10 text-red-400",
+  emerald: "is-ok",
+  blue: "is-info",
+  amber: "is-attn",
+  red: "is-bad",
 };
 
 function QuestionField({
@@ -27,8 +28,8 @@ function QuestionField({
 }) {
   if (question.type === "single_choice") {
     return (
-      <div className="space-y-3">
-        <div className="grid gap-2">
+      <div className="ws-ck-field">
+        <div className="ws-ck-opts">
           {question.options?.map((option) => {
             const selected = value === option.value;
             return (
@@ -37,11 +38,7 @@ function QuestionField({
                 type="button"
                 onClick={() => onChange(question.id, option.value)}
                 aria-pressed={selected}
-                className={`min-h-12 w-full rounded-[var(--cbb-radius-sm)] border px-4 py-3 text-left text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
-                  selected
-                    ? "border-accent/45 bg-accent/12 text-blue-100"
-                    : "border-white/[0.08] bg-white/[0.025] text-text-secondary hover:border-white/[0.16] hover:bg-white/[0.04]"
-                }`}
+                className="ws-ck-opt ws-focus"
               >
                 {option.label}
               </button>
@@ -55,7 +52,7 @@ function QuestionField({
             value={otherValue}
             onChange={(event) => onChange(`${question.id}__other`, event.target.value)}
             placeholder="Add your answer"
-            className="min-h-12 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/60 px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10 transition-colors"
+            className="ws-input ws-ck-input"
           />
         )}
       </div>
@@ -79,18 +76,14 @@ function QuestionField({
     } as CSSProperties;
 
     return (
-      <div className="rounded-[var(--cbb-radius-sm)] border border-white/[0.08] bg-white/[0.025] px-4 py-4 sm:px-5">
-        <div className="mb-1 flex min-h-9 items-center justify-between gap-4">
-          <span className="text-xs font-medium text-text-muted">
+      <div className="ws-ck-scale">
+        <div className="ws-ck-scale-top">
+          <span className="ws-caption">
             {hasValue ? "Selected score" : "Move the slider to answer"}
           </span>
           <output
             htmlFor={`scale-${question.id}`}
-            className={`flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-base font-bold tabular-nums transition-colors ${
-              hasValue
-                ? "border-accent/35 bg-accent/12 text-accent-bright"
-                : "border-white/[0.08] bg-white/[0.025] text-text-muted"
-            }`}
+            className={`ws-ck-score ${hasValue ? "is-on" : ""}`}
             aria-live="polite"
           >
             {hasValue ? value : "—"}
@@ -106,17 +99,17 @@ function QuestionField({
           onChange={(event) => onChange(question.id, event.target.value)}
           aria-label={question.label}
           aria-valuetext={hasValue ? `${value} out of ${max}` : "Not answered"}
-          className="portal-v2-range"
+          className="portal-v2-range ws-range"
           style={rangeStyle}
         />
-        <div className="flex items-start justify-between gap-4 text-xs font-medium text-text-muted">
-          <span className="max-w-[45%] text-left">
-            <span className="mr-1 text-text-secondary">{min}</span>
+        <div className="ws-ck-scale-ends">
+          <span className="ws-ck-scale-end">
+            <span className="ws-ck-scale-n">{min}</span>
             {minLabel && <span>· {minLabel}</span>}
           </span>
-          <span className="max-w-[45%] text-right">
+          <span className="ws-ck-scale-end is-max">
             {maxLabel && <span>{maxLabel} ·</span>}
-            <span className="ml-1 text-text-secondary">{max}</span>
+            <span className="ws-ck-scale-n">{max}</span>
           </span>
         </div>
       </div>
@@ -130,7 +123,7 @@ function QuestionField({
         value={value}
         onChange={(event) => onChange(question.id, event.target.value)}
         placeholder={question.placeholder}
-        className="min-h-12 w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/60 px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10 transition-colors"
+        className="ws-input ws-ck-input"
       />
     );
   }
@@ -141,7 +134,7 @@ function QuestionField({
       onChange={(event) => onChange(question.id, event.target.value)}
       rows={4}
       placeholder={question.placeholder}
-      className="w-full rounded-[var(--cbb-radius-sm)] border border-white/[0.09] bg-bg-primary/60 px-4 py-3 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10 transition-colors resize-y"
+      className="ws-input ws-ck-textarea"
     />
   );
 }
@@ -355,81 +348,80 @@ export default function CheckInPage() {
   }
 
   if (loadError) {
-    return <div className="max-w-3xl space-y-4"><InlineNotice tone="error">{loadError}</InlineNotice>
-      {signInRequired ? <a className="v2-button-primary" href="/login?redirect=%2Fportal%2Fcheckin">Sign in</a> :
-        <button className="v2-button-secondary" onClick={() => window.location.reload()}>Try loading again</button>}
+    return <div className="ws ws-page ws-ck-page"><InlineNotice tone="error">{loadError}</InlineNotice>
+      {signInRequired ? <a className="ws-btn ws-btn-primary ws-focus ws-self-start" href="/login?redirect=%2Fportal%2Fcheckin">Sign in</a> :
+        <button className="ws-btn ws-focus ws-self-start" onClick={() => window.location.reload()}>Try loading again</button>}
     </div>;
   }
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-3xl pt-4 sm:pt-12">
-        <div className="v2-surface-strong px-6 py-10 text-center sm:px-10 sm:py-14">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/25 bg-emerald-500/10">
-            <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div className="v2-eyebrow mb-3 text-emerald-300">Saved successfully</div>
-          <h2 className="v2-page-title">Check-In Submitted</h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-text-secondary">Marc will review your check-in and respond shortly. You can return to the portal while he reviews it.</p>
-          {receipt && <p className="mt-4 text-sm text-text-secondary">Saved {new Date(receipt.created_at).toLocaleString("en-GB")} · <a className="text-accent-bright underline" href={`/portal/checkins/${receipt.id}`}>View saved check-in</a></p>}
+      <div className="ws ws-page ws-ck-page">
+        <section className="ws-panel ws-ck-done">
+          <span className="ws-ck-done-ic">
+            <Icon name="checkCircle" size={22} />
+          </span>
+          <div className="ws-caption ws-ck-done-k">Saved successfully</div>
+          <h2 className="ws-title">Check-in submitted</h2>
+          <p className="ws-meta ws-ck-done-p">Marc will review your check-in and respond shortly. You can return to the portal while he reviews it.</p>
+          {receipt && <p className="ws-meta ws-ck-done-r">Saved {new Date(receipt.created_at).toLocaleString("en-GB")} · <a className="ws-link" href={`/portal/checkins/${receipt.id}`}>View saved check-in</a></p>}
           {storageWarning && <InlineNotice tone="error">{storageWarning}</InlineNotice>}
           {draftConflict && <InlineNotice tone="error">Another tab changed your draft. Finish in that tab before starting another check-in here.</InlineNotice>}
           <button
             disabled={draftConflict}
             onClick={resetForm}
-            className="v2-button-secondary mt-7 cursor-pointer"
+            className="ws-btn ws-focus ws-ck-done-btn"
           >
-            Submit Another
+            Submit another
           </button>
-        </div>
+        </section>
       </div>
     );
   }
 
   if (!config) {
-    return <div className="max-w-4xl"><PageSkeleton rows={5} /></div>;
+    return <div className="ws-ck-page"><PageSkeleton rows={5} /></div>;
   }
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-6 sm:mb-8">
-        <div className="v2-eyebrow mb-3">Weekly reflection</div>
-        <h1 className="v2-page-title">Weekly Check-In</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">Let Marc know how the business felt this week and where next week needs to go.</p>
+    <div className="ws ws-page ws-ck-page">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Weekly check-in</h1>
+          <p className="ws-meta mt-1 max-w-2xl">Let Marc know how the business felt this week and where next week needs to go.</p>
+        </div>
       </div>
 
-      <div className="mb-6">
+      <div>
         <ProgressSummary
           value={progress.percentage}
-          label="Check-In progress"
+          label="Check-in progress"
           detail={`${progress.answered} of ${progress.total} answers completed`}
         />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
-        {storageWarning ? <InlineNotice tone="error">{storageWarning}</InlineNotice> : <p className="pt-caption">Answers are saved on this device until you send them.</p>}
+      <form onSubmit={handleSubmit} className="ws-ck-form">
+        {storageWarning ? <InlineNotice tone="error">{storageWarning}</InlineNotice> : <p className="ws-caption">Answers are saved on this device until you send them.</p>}
         {draftConflict && <InlineNotice tone="error">Another tab changed your draft. Your answers are still visible here. Keep this page open and finish in the other tab to avoid overwriting its answers.</InlineNotice>}
         {pending && <InlineNotice>These answers are waiting for save confirmation. Retry the same submission below before changing them.</InlineNotice>}
-        <fieldset disabled={pending || draftConflict || submitting} className="min-w-0 space-y-5 sm:space-y-6">
+        <fieldset disabled={pending || draftConflict || submitting} className="ws-ck-fields">
         {moodRequired && (
-          <section id="checkin-mood" tabIndex={-1} className="v2-surface p-4 sm:p-5">
-            <div className="mb-4">
-              <div className="text-xs font-semibold text-accent-light">Start here</div>
-              <label className="mt-1 block text-base font-semibold text-text-primary">How are you feeling this week?</label>
+          <section id="checkin-mood" tabIndex={-1} className="ws-panel ws-ck-mood-panel">
+            <div className="ws-ck-mood-head">
+              <div className="ws-caption">Start here</div>
+              <label className="ws-h2 ws-ck-q">How are you feeling this week?</label>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="ws-ck-moods">
               {moodOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => changeMood(option.value)}
                   aria-pressed={mood === option.value}
-                  className={`min-h-12 px-4 py-3 rounded-[var(--cbb-radius-sm)] border text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                  className={`ws-ck-mood ws-focus ${
                     mood === option.value
-                      ? (moodColorMap[option.color] || "border-accent/30 bg-accent/10 text-accent-bright")
-                      : "border-white/[0.08] bg-white/[0.02] text-text-muted hover:border-white/[0.16] hover:text-text-secondary"
+                      ? (moodColorMap[option.color] || "is-info")
+                      : ""
                   }`}
                 >
                   {option.label}
@@ -440,25 +432,25 @@ export default function CheckInPage() {
         )}
 
         {groupedQuestions.map((group, groupIndex) => (
-          <section key={group.section} className="v2-surface overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-4 sm:px-5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 text-xs font-bold text-accent-bright">
+          <section key={group.section} className="ws-panel">
+            <div className="ws-panel-head">
+              <span className="ws-ck-num">
                 {groupIndex + 1}
-              </div>
-              <h2 className="v2-section-title">{group.section}</h2>
+              </span>
+              <h2 className="ws-h2">{group.section}</h2>
             </div>
 
-            <div className="divide-y divide-white/[0.055] px-4 sm:px-5">
+            <div className="ws-ck-qs">
             {group.questions.map((question) => (
-              <div id={`checkin-${question.id}`} tabIndex={-1} key={question.id} className="space-y-3 py-5">
-                <label className="block text-sm font-medium text-text-primary">
+              <div id={`checkin-${question.id}`} tabIndex={-1} key={question.id} className="ws-ck-qrow">
+                <label className="ws-label ws-ck-q">
                   {question.label}
-                  {question.required && <span className="text-accent-bright"> *</span>}
+                  {question.required && <span className="ws-ck-req"> *</span>}
                 </label>
                 {question.help_text && (
-                  <p className="text-xs leading-relaxed text-text-muted">{question.help_text}</p>
+                  <p className="ws-caption">{question.help_text}</p>
                 )}
-                {fieldErrors[question.id] && <p role="alert" className="text-sm text-red-400">{fieldErrors[question.id]}</p>}
+                {fieldErrors[question.id] && <p role="alert" className="ws-ck-err">{fieldErrors[question.id]}</p>}
                 <QuestionField
                   question={question}
                   value={responses[question.id] || ""}
@@ -473,14 +465,14 @@ export default function CheckInPage() {
 
         </fieldset>
         {error && <div role="alert"><InlineNotice tone="error">{error}</InlineNotice></div>}
-        {signInRequired && <a className="v2-button-secondary" href="/login?redirect=%2Fportal%2Fcheckin">Sign in again, then return to this draft</a>}
-        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 rounded-[var(--cbb-radius-md)] border border-white/[0.08] bg-bg-primary/90 p-3 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+        {signInRequired && <a className="ws-btn ws-focus ws-self-start" href="/login?redirect=%2Fportal%2Fcheckin">Sign in again, then return to this draft</a>}
+        <div className="ws-ck-submit">
           <button
             type="submit"
             disabled={submitting || draftConflict}
-            className="v2-button-primary min-h-12 w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            className="ws-btn ws-btn-primary ws-focus ws-ck-submit-btn"
           >
-            {submitting ? "Confirming save…" : pending ? "Retry and confirm this check-in" : "Submit Check-In"}
+            {submitting ? "Confirming save…" : pending ? "Retry and confirm this check-in" : "Submit check-in"}
           </button>
         </div>
       </form>

@@ -20,15 +20,15 @@ const REGION_STORAGE_KEY = "cbb-growth-engine-region";
 
 function ArrowIcon() {
   return (
-    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M5 12h14m-5-5 5 5-5 5" />
+    <svg aria-hidden="true" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M5 12h14m-5-5 5 5-5 5" />
     </svg>
   );
 }
 
 function CheckIcon() {
   return (
-    <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-accent-bright" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg aria-hidden="true" width="14" height="14" className="ws-gx-check" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m5 12 4 4L19 6" />
     </svg>
   );
@@ -40,10 +40,10 @@ function CheckoutButton({ href, label }: { href: string; label: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="btn-primary inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-center text-sm font-bold text-white no-underline transition-colors hover:bg-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
+      className="ws-btn ws-btn-primary ws-focus ws-gx-cta"
       aria-label={`${label} — secure checkout opens in a new tab`}
     >
-      Get Started
+      Get started
       <ArrowIcon />
     </a>
   );
@@ -51,25 +51,25 @@ function CheckoutButton({ href, label }: { href: string; label: string }) {
 
 function PriceValue({ value, suffix }: { value: string; suffix?: string }) {
   return (
-    <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-      <span className="font-heading text-2xl font-extrabold tracking-tight text-text-primary">{value}</span>
-      {suffix && <span className="text-xs font-bold uppercase tracking-[0.08em] text-text-secondary">{suffix}</span>}
+    <div className="ws-gx-price">
+      <span className="ws-gx-price-n">{value}</span>
+      {suffix && <span className="ws-caption">{suffix}</span>}
     </div>
   );
 }
 
 function PriceSummary({ price, priceSuffix }: { price: GrowthEnginePrice; priceSuffix?: string }) {
   return (
-    <div className="grid gap-4">
+    <div className="ws-gx-prices">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">
+        <div className="ws-field-l">
           {price.paymentType === "one-off" ? "One-off payment" : "First payment"}
         </div>
         <PriceValue value={price.firstPayment} suffix={priceSuffix} />
       </div>
       {price.thenMonthly && (
-        <div className="border-t border-border-light pt-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Then monthly</div>
+        <div className="ws-gx-then">
+          <div className="ws-field-l">Then monthly</div>
           <PriceValue value={price.thenMonthly} suffix={priceSuffix} />
         </div>
       )}
@@ -85,17 +85,17 @@ function ProblemSolution({
   solution: string;
 }) {
   return (
-    <div className="grid gap-5 md:grid-cols-[1fr_auto_1fr] md:items-start">
+    <div className="ws-gx-ps">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">The problem</div>
-        <p className="mt-2 text-sm leading-7 text-text-secondary">{problem}</p>
+        <div className="ws-field-l">The problem</div>
+        <p className="ws-prose">{problem}</p>
       </div>
-      <div className="hidden pt-8 text-text-muted md:block">
+      <div className="ws-gx-ps-arrow">
         <ArrowIcon />
       </div>
-      <div className="border-l-2 border-accent/40 pl-4 md:border-l-0 md:pl-0">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-bright">The solution</div>
-        <p className="mt-2 text-sm leading-7 text-text-primary">{solution}</p>
+      <div>
+        <div className="ws-field-l ws-gx-sol-l">The solution</div>
+        <p className="ws-prose ws-gx-sol">{solution}</p>
       </div>
     </div>
   );
@@ -123,24 +123,24 @@ function ServiceSection({
   const headingId = `${idPrefix}-service-${number}`;
 
   return (
-    <section className="border-t border-border-light py-10 sm:py-12" aria-labelledby={headingId}>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-12">
-        <div>
-          <div className="text-xs font-bold tracking-[0.12em] text-accent-bright">{number}</div>
-          <h2 id={headingId} className="mt-2 font-heading text-2xl font-extrabold tracking-tight text-text-primary sm:text-[28px]">
+    <section className="ws-panel ws-gx-sec" aria-labelledby={headingId}>
+      <div className="ws-gx-sec-grid">
+        <div className="min-w-0">
+          <div className="ws-caption">{number}</div>
+          <h2 id={headingId} className="ws-gx-h">
             {title}
           </h2>
-          <p className="mt-2 text-base text-text-secondary">{tagline}</p>
-          <div className="mt-7">
+          <p className="ws-meta">{tagline}</p>
+          <div className="ws-gx-ps-wrap">
             <ProblemSolution problem={problem} solution={solution} />
           </div>
         </div>
-        <div className="flex flex-col justify-center border-t border-border-light pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+        <div className="ws-gx-buy">
           <PriceSummary price={price} priceSuffix={priceSuffix} />
-          <div className="mt-5">
+          <div className="ws-gx-buy-cta">
             <CheckoutButton href={price.checkoutUrl} label={title} />
           </div>
-          <p className="mt-3 text-center text-xs text-text-muted">Secure checkout powered by Stripe</p>
+          <p className="ws-caption ws-gx-stripe">Secure checkout powered by Stripe</p>
         </div>
       </div>
     </section>
@@ -164,27 +164,27 @@ function WebsitePackage({
 }) {
   return (
     <article
-      className={`flex h-full flex-col rounded-2xl border p-5 sm:p-6 ${
+      className={`ws-panel ws-gx-pkg ${
         featured
-          ? "border-accent/70 bg-accent/[0.07] shadow-[0_0_0_1px_rgba(34,114,222,0.1)]"
-          : "border-border-light bg-bg-card"
+          ? "is-featured"
+          : ""
       }`}
     >
       <div>
-        <h3 className="font-heading text-lg font-extrabold text-text-primary">{name}</h3>
-        <p className="mt-1 text-sm text-text-secondary">{description}</p>
+        <h3 className="ws-cd-h">{name}</h3>
+        <p className="ws-meta">{description}</p>
       </div>
-      <ul className="mt-5 space-y-2.5 text-sm text-text-secondary">
+      <ul className="ws-gx-feats">
         {features.map((feature) => (
-          <li key={feature} className="flex items-start gap-2">
+          <li key={feature} className="ws-gx-feat">
             <CheckIcon />
             <span>{feature}</span>
           </li>
         ))}
       </ul>
-      <div className="mt-auto pt-7">
+      <div className="ws-gx-pkg-foot">
         <PriceSummary price={price} priceSuffix={priceSuffix} />
-        <div className="mt-5">
+        <div className="ws-gx-buy-cta">
           <CheckoutButton href={price.checkoutUrl} label={name} />
         </div>
       </div>
@@ -214,21 +214,23 @@ function ServiceSelector({
       aria-expanded={active}
       aria-controls={detailsId}
       onClick={() => onToggle(serviceKey)}
-      className={`group flex min-h-36 w-full scroll-mt-4 flex-col justify-between rounded-2xl border p-5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright sm:p-6 ${
+      className={`ws-gx-pick ws-focus ${
         active
-          ? "border-accent/70 bg-accent/[0.08] shadow-[0_0_24px_rgba(34,114,222,0.1)]"
-          : "border-border-light bg-bg-card hover:border-accent/40 hover:bg-bg-card-hover"
+          ? "is-on"
+          : ""
       }`}
     >
       <span>
-        <span className="block font-heading text-lg font-extrabold text-text-primary">{title}</span>
-        <span className="mt-2 block text-sm leading-6 text-text-secondary">{tagline}</span>
+        <span className="ws-cd-h ws-gx-pick-t">{title}</span>
+        <span className="ws-meta ws-gx-pick-s">{tagline}</span>
       </span>
-      <span className={`mt-5 flex items-center justify-between text-xs font-bold uppercase tracking-[0.12em] ${active ? "text-accent-bright" : "text-text-muted group-hover:text-accent-bright"}`}>
+      <span className="ws-gx-pick-foot">
         {active ? "Hide details" : "Explore service"}
         <svg
           aria-hidden="true"
-          className={`h-5 w-5 transition-transform duration-200 ${active ? "rotate-180" : ""}`}
+          width="16"
+          height="16"
+          className={`ws-gx-pick-chev ${active ? "is-open" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -269,25 +271,25 @@ function ServiceDetails({
           />
 
           <aside
-            className="rounded-2xl border border-accent/60 bg-accent/[0.07] p-5 shadow-[0_0_28px_rgba(34,114,222,0.16),0_0_70px_rgba(34,114,222,0.08)] sm:p-7"
+            className="ws-panel ws-gx-offer"
             aria-labelledby={`${idPrefix}-introductory-offer-heading`}
           >
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px_220px] lg:items-center">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-[0.14em] text-accent-bright">Save £1,919</div>
+            <div className="ws-gx-offer-grid">
+              <div className="min-w-0">
+                <span className="ws-chip is-decide">Save £1,919</span>
                 <h2
                   id={`${idPrefix}-introductory-offer-heading`}
-                  className="mt-2 font-heading text-xl font-extrabold text-text-primary sm:text-2xl"
+                  className="ws-gx-h"
                 >
-                  6 Month Introductory Offer
+                  6 month introductory offer
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
+                <p className="ws-meta">
                   Six months of the full AI Lead Generation service with a discounted setup fee,{" "}
-                  <strong className="font-bold text-text-primary">plus AI Receptionist completely free</strong> for six months.
+                  <strong className="ws-gx-strong">plus AI Receptionist completely free</strong> for six months.
                 </p>
               </div>
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">One-off payment</div>
+                <div className="ws-field-l">One-off payment</div>
                 <PriceValue value={offers.webinar.firstPayment} suffix={offers.priceSuffix} />
               </div>
               <CheckoutButton href={offers.webinar.checkoutUrl} label="6 Month Introductory Offer" />
@@ -298,25 +300,25 @@ function ServiceDetails({
 
       {service === "websites" && (
         <section
-          className="border-t border-border-light py-10 sm:py-12"
+          className="ws-panel ws-gx-sec"
           aria-labelledby={`${idPrefix}-service-02`}
         >
-          <div className="text-xs font-bold tracking-[0.12em] text-accent-bright">02</div>
+          <div className="ws-caption">02</div>
           <h2
             id={`${idPrefix}-service-02`}
-            className="mt-2 font-heading text-2xl font-extrabold tracking-tight text-text-primary sm:text-[28px]"
+            className="ws-gx-h"
           >
             Custom Websites
           </h2>
-          <p className="mt-2 text-base text-text-secondary">Clear, fast websites built for customers and the way people search today.</p>
-          <div className="mt-7">
+          <p className="ws-meta">Clear, fast websites built for customers and the way people search today.</p>
+          <div className="ws-gx-ps-wrap">
             <ProblemSolution
               problem="More people now ask AI assistants such as ChatGPT to help them find and compare local businesses. Many conventional websites are vague, slow, or unclear about what the company does, where it works and why a customer should choose it."
               solution="We build a modern website for real customers and the new way people search: clear services and locations, useful answers, strong business signals, fast pages, and content that is easy for search and AI systems to understand."
             />
           </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="ws-gx-pkgs">
             <WebsitePackage
               name="Website A"
               description="One-page website"
@@ -340,7 +342,7 @@ function ServiceDetails({
               priceSuffix={offers.priceSuffix}
             />
           </div>
-          <p className="mt-4 text-xs leading-6 text-text-muted">
+          <p className="ws-caption ws-gx-fine">
             Website visibility depends on many factors. We build a clear, search-ready foundation but do not guarantee rankings or inclusion in AI answers.
           </p>
         </section>
@@ -364,18 +366,18 @@ function ServiceDetails({
 
 function LockedState() {
   return (
-    <div className="mx-auto flex min-h-[62vh] max-w-2xl items-center justify-center py-10">
-      <div className="w-full rounded-2xl border border-border-light bg-bg-card p-7 text-center sm:p-10">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/20 bg-accent/[0.07] text-accent-bright">
-          <svg aria-hidden="true" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="ws ws-gx-center">
+      <div className="ws-panel ws-gx-lock">
+        <div className="ws-ge-lock-ic">
+          <svg aria-hidden="true" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M16 10V7a4 4 0 0 0-8 0v3m-1 0h10a2 2 0 0 1 2 2v7H5v-7a2 2 0 0 1 2-2Z" />
           </svg>
         </div>
-        <div className="v2-eyebrow mt-6">CBB Growth Engine</div>
-        <h1 className="mt-3 font-heading text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">
+        <div className="ws-caption ws-gx-k">CBB Growth Engine</div>
+        <h1 className="ws-title">
           Your Growth Engine is currently locked
         </h1>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-text-secondary sm:text-base">
+        <p className="ws-meta ws-gx-lock-p">
           This member-only section is not active on your account yet. Marc and the team will let you know when access is available.
         </p>
       </div>
@@ -385,11 +387,11 @@ function LockedState() {
 
 function LoadingState() {
   return (
-    <div className="py-8" aria-label="Loading Growth Engine">
-      <div className="skeleton h-4 w-36 rounded-md" />
-      <div className="skeleton mt-4 h-11 w-full max-w-xl rounded-lg" />
-      <div className="skeleton mt-4 h-5 w-full max-w-2xl rounded-md" />
-      <div className="skeleton mt-10 h-32 w-full rounded-2xl" />
+    <div className="ws ws-page" aria-label="Loading Growth Engine">
+      <span className="ws-skel" style={{ width: 144, height: 12 }} />
+      <span className="ws-skel" style={{ width: "100%", maxWidth: 576, height: 22 }} />
+      <span className="ws-skel" style={{ width: "100%", maxWidth: 672, height: 12 }} />
+      <span className="ws-skel" style={{ width: "100%", height: 128, borderRadius: 10 }} />
     </div>
   );
 }
@@ -400,16 +402,16 @@ function RegionEntry({
   onChoose: (region: GrowthEngineRegion) => void;
 }) {
   return (
-    <div className="mx-auto flex min-h-[72vh] max-w-3xl items-center justify-center py-8 sm:py-12">
-      <section className="w-full text-center" aria-labelledby="region-entry-heading">
-        <div className="v2-eyebrow">CBB Growth Engine</div>
+    <div className="ws ws-gx-center is-tall">
+      <section className="ws-gx-region" aria-labelledby="region-entry-heading">
+        <div className="ws-caption ws-gx-k">CBB Growth Engine</div>
         <h1
           id="region-entry-heading"
-          className="mx-auto mt-4 max-w-2xl font-heading text-[34px] font-extrabold leading-[1.1] tracking-[-0.035em] text-text-primary sm:text-[44px]"
+          className="ws-title"
         >
           Where is your business based?
         </h1>
-        <div className="mx-auto mt-10 grid max-w-2xl gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Business location">
+        <div className="ws-gx-regions" role="radiogroup" aria-label="Business location">
           {(["uk", "ireland"] as const).map((regionKey) => {
             const option = GROWTH_ENGINE_OFFERS[regionKey];
             return (
@@ -419,13 +421,13 @@ function RegionEntry({
                 role="radio"
                 aria-checked="false"
                 onClick={() => onChoose(regionKey)}
-                className="group flex min-h-24 items-center justify-between gap-5 rounded-2xl border border-border-light bg-bg-card px-5 py-5 text-left transition-colors hover:border-accent/60 hover:bg-accent/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-bright"
+                className="ws-gx-reg ws-focus"
               >
-                <span>
-                  <span className="block font-heading text-base font-extrabold text-text-primary">{option.label}</span>
-                  <span className="mt-1 block text-sm text-text-muted">{option.taxNote}</span>
+                <span className="min-w-0">
+                  <span className="ws-cd-h ws-gx-reg-t">{option.label}</span>
+                  <span className="ws-caption ws-gx-reg-s">{option.taxNote}</span>
                 </span>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-light text-text-muted transition-colors group-hover:border-accent/40 group-hover:text-accent-bright">
+                <span className="ws-gx-reg-go">
                   <ArrowIcon />
                 </span>
               </button>
@@ -502,9 +504,11 @@ export default function GrowthEngineExperience({
   if (access === "locked") return <LockedState />;
   if (access === "error") {
     return (
-      <div className="mx-auto max-w-xl py-20 text-center">
-        <h1 className="font-heading text-2xl font-extrabold text-text-primary">We could not load Growth Engine</h1>
-        <p className="mt-3 text-sm text-text-secondary">Please refresh the page. If the problem continues, contact the CBB team.</p>
+      <div className="ws ws-gx-center">
+        <div className="ws-panel ws-gx-lock">
+        <h1 className="ws-title">We could not load Growth Engine</h1>
+        <p className="ws-meta ws-gx-lock-p">Please refresh the page. If the problem continues, contact the CBB team.</p>
+        </div>
       </div>
     );
   }
@@ -513,24 +517,26 @@ export default function GrowthEngineExperience({
   if (!offers) return <RegionEntry onChoose={chooseRegion} />;
 
   return (
-    <div className="mx-auto max-w-[1180px] pb-16">
-      <header className="pb-8 pt-1 sm:pb-10">
-        <div className="v2-eyebrow">CBB Growth Engine</div>
-        <h1 className="mt-3 max-w-4xl font-heading text-[34px] font-extrabold leading-[1.08] tracking-[-0.035em] text-text-primary sm:text-[44px] lg:text-[50px]">
-          Done For You Systems
+    <div className="ws ws-page ws-gx">
+      <header className="ws-ph">
+        <div className="min-w-0">
+        <div className="ws-caption">CBB Growth Engine</div>
+        <h1 className="ws-title mt-1">
+          Done-for-you systems
         </h1>
-        <p className="mt-4 max-w-3xl text-base leading-7 text-text-secondary sm:text-lg">
+        <p className="ws-meta mt-1 max-w-3xl">
           Choose the system you want to explore. You will only see the details and pricing for the service you select.
         </p>
+        </div>
       </header>
 
-      <div className="flex flex-col justify-between gap-3 rounded-xl border border-border-light bg-bg-card px-4 py-3 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-2 text-sm text-text-secondary">
-          <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-accent-bright" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="ws-note ws-gx-loc">
+        <div className="ws-gx-loc-t">
+          <svg aria-hidden="true" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M12 21s7-5.2 7-12A7 7 0 1 0 5 9c0 6.8 7 12 7 12Zm0-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
           </svg>
           <span>
-            Prices for <strong className="font-semibold text-text-primary">{offers.label}</strong>. {offers.taxNote}
+            Prices for <strong className="ws-gx-strong">{offers.label}</strong>. {offers.taxNote}
           </span>
         </div>
         <button
@@ -540,20 +546,20 @@ export default function GrowthEngineExperience({
             setRegion(null);
             setOpenService(null);
           }}
-          className="self-start text-xs font-semibold text-accent-bright hover:text-accent-light sm:self-auto"
+          className="ws-btn ws-btn-sm ws-focus"
         >
           Change location
         </button>
       </div>
 
-      <section className="mt-8" aria-labelledby="services-heading">
-        <div className="mb-5">
-          <h2 id="services-heading" className="font-heading text-xl font-extrabold text-text-primary sm:text-2xl">
+      <section className="ws-gx-services" aria-labelledby="services-heading">
+        <div className="ws-gx-services-head">
+          <h2 id="services-heading" className="ws-cd-h">
             Choose a service
           </h2>
-          <p className="mt-1 text-sm text-text-secondary">Select an option to see how it works and what it costs.</p>
+          <p className="ws-caption">Select an option to see how it works and what it costs.</p>
         </div>
-        <div className="space-y-4 lg:hidden">
+        <div className="ws-gx-mobile lg:hidden">
           <ServiceSelector
             serviceKey="lead-generation"
             title="AI Lead Generation"
@@ -567,7 +573,7 @@ export default function GrowthEngineExperience({
               service="lead-generation"
               offers={offers}
               idPrefix="mobile"
-              className="-mt-1"
+              className="ws-gx-details"
             />
           )}
           <ServiceSelector
@@ -579,7 +585,7 @@ export default function GrowthEngineExperience({
             onToggle={(service) => setOpenService((current) => current === service ? null : service)}
           />
           {openService === "websites" && (
-            <ServiceDetails service="websites" offers={offers} idPrefix="mobile" className="-mt-1" />
+            <ServiceDetails service="websites" offers={offers} idPrefix="mobile" className="ws-gx-details" />
           )}
           <ServiceSelector
             serviceKey="receptionist"
@@ -590,11 +596,11 @@ export default function GrowthEngineExperience({
             onToggle={(service) => setOpenService((current) => current === service ? null : service)}
           />
           {openService === "receptionist" && (
-            <ServiceDetails service="receptionist" offers={offers} idPrefix="mobile" className="-mt-1" />
+            <ServiceDetails service="receptionist" offers={offers} idPrefix="mobile" className="ws-gx-details" />
           )}
         </div>
 
-        <div className="hidden gap-4 lg:grid lg:grid-cols-3">
+        <div className="ws-gx-desktop hidden lg:grid">
           <ServiceSelector
             serviceKey="lead-generation"
             title="AI Lead Generation"
@@ -624,7 +630,7 @@ export default function GrowthEngineExperience({
               service={openService}
               offers={offers}
               idPrefix="desktop"
-              className="col-span-3 mt-4"
+              className="ws-gx-details is-wide"
             />
           )}
         </div>

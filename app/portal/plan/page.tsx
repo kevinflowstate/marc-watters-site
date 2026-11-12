@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { trainingLessonHref } from "@/lib/portal-training-links";
+import { Chip, Icon, SkeletonRows, StatusIcon } from "@/components/ops/workspace/WorkspaceUI";
 
 interface PlanItem {
   id: string;
@@ -36,31 +37,6 @@ interface BusinessPlan {
   status: string;
   created_at: string;
   pdf_url?: string;
-}
-
-const phaseIcons: Record<string, string> = {
-  financial: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  pipeline: "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
-  team: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
-  systems: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
-  default: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-};
-
-const phaseColors = [
-  { bg: "bg-blue-500/10", border: "border-blue-500/20", icon: "text-blue-400", accent: "text-blue-400" },
-  { bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: "text-emerald-400", accent: "text-emerald-400" },
-  { bg: "bg-purple-500/10", border: "border-purple-500/20", icon: "text-purple-400", accent: "text-purple-400" },
-  { bg: "bg-amber-500/10", border: "border-amber-500/20", icon: "text-amber-400", accent: "text-amber-400" },
-];
-
-function getPhaseIcon(name: string): string {
-  if (typeof name !== "string") return phaseIcons.default;
-  const lower = name.toLowerCase();
-  if (lower.includes("financial") || lower.includes("foundation") || lower.includes("pricing")) return phaseIcons.financial;
-  if (lower.includes("pipeline") || lower.includes("sales") || lower.includes("growth")) return phaseIcons.pipeline;
-  if (lower.includes("team") || lower.includes("hire") || lower.includes("people")) return phaseIcons.team;
-  if (lower.includes("system") || lower.includes("operation")) return phaseIcons.systems;
-  return phaseIcons.default;
 }
 
 function normalizePhases(phases: unknown[]): PlanPhase[] {
@@ -189,34 +165,20 @@ export default function BusinessPlanPage() {
   }
 
   if (loading) return (
-    <div className="space-y-6">
-      <div className="space-y-2 mb-8">
-        <div className="skeleton rounded-lg h-8 w-64" />
-        <div className="skeleton rounded-lg h-4 w-full max-w-xl" />
-      </div>
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-        <div className="flex justify-between mb-3">
-          <div className="skeleton rounded-lg h-4 w-32" />
-          <div className="skeleton rounded-lg h-4 w-24" />
+    <div className="ws ws-page" role="status" aria-label="Loading business plan">
+      <div className="ws-ph">
+        <div className="min-w-0" style={{ display: "grid", gap: 8 }}>
+          <span className="ws-skel" style={{ width: 240, height: 22 }} />
+          <span className="ws-skel" style={{ width: 420, maxWidth: "80vw", height: 12 }} />
         </div>
-        <div className="skeleton rounded-full h-3 w-full" />
+      </div>
+      <div className="ws-panel ws-pad">
+        <span className="ws-skel" style={{ width: "60%", height: 16 }} />
+        <span className="ws-skel" style={{ width: "100%", height: 4, marginTop: 16 }} />
       </div>
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="skeleton w-12 h-12 rounded-xl" />
-              <div className="flex-1 space-y-2">
-                <div className="skeleton rounded-lg h-5 w-48" />
-                <div className="skeleton rounded-full h-1.5 w-full" />
-              </div>
-            </div>
-          </div>
-          <div className="p-6 space-y-3">
-            {[...Array(3)].map((_, j) => (
-              <div key={j} className="skeleton rounded-lg h-4 w-full" />
-            ))}
-          </div>
+        <div key={i} className="ws-panel">
+          <SkeletonRows count={3} />
         </div>
       ))}
     </div>
@@ -224,9 +186,15 @@ export default function BusinessPlanPage() {
 
   if (!plan) {
     return (
-      <div className="bg-bg-card border border-[rgba(255,255,255,0.04)] rounded-2xl p-8 text-center">
-        <p className="text-text-secondary">No business plan created yet.</p>
-        <p className="text-text-muted text-sm mt-2">Marc will build your plan based on your discovery session.</p>
+      <div className="ws ws-page">
+        <h1 className="ws-title">Your business plan</h1>
+        <section className="ws-panel">
+          <div className="ws-empty ws-empty-lg">
+            <span className="ws-empty-glyph"><Icon name="plan" size={20} /></span>
+            <p className="ws-empty-h">No business plan created yet.</p>
+            <p>Marc will build your plan based on your discovery session.</p>
+          </div>
+        </section>
       </div>
     );
   }
@@ -240,55 +208,51 @@ export default function BusinessPlanPage() {
   const nextAction = allItems.find((item) => !item.completed);
 
   return (
-    <>
-      <div className="mb-7 sm:mb-9">
-        <div className="v2-eyebrow mb-3">Your roadmap</div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="v2-page-title">Your Business Plan</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-secondary whitespace-pre-line">{plan.summary}</p>
-          </div>
-          {plan.pdf_url && (
+    <div className="ws ws-page">
+      <div className="ws-ph">
+        <div className="min-w-0">
+          <h1 className="ws-title">Your business plan</h1>
+          <p className="ws-meta mt-1 max-w-3xl whitespace-pre-line">{plan.summary}</p>
+        </div>
+        {plan.pdf_url && (
+          <div className="ws-ph-acts">
             <a
               href={plan.pdf_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="v2-button-secondary shrink-0"
+              className="ws-btn ws-focus"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              <Icon name="external" size={14} />
               Download PDF
             </a>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      <section className="v2-surface-strong mb-6 overflow-hidden p-5 sm:p-7">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
-          <div>
-            <div className="v2-eyebrow">Next action</div>
-            <h2 className="mt-3 max-w-3xl font-heading text-xl font-bold leading-snug text-text-primary sm:text-2xl">
+      <section className="ws-panel" aria-label="Next action">
+        <div className="ws-pl-focus">
+          <div className="min-w-0">
+            <div className="ws-caption">Next action</div>
+            <h2 className="ws-pl-focus-t">
               {nextAction?.title || "All current actions are complete"}
             </h2>
-            <p className="mt-2 text-sm text-text-secondary">
+            <p className="ws-meta mt-1">
               {phases[activePhaseIndex]?.name || "Your plan"}
             </p>
           </div>
-          <div className="lg:text-right">
-            <div className="font-heading text-4xl font-bold tracking-[-0.04em] text-text-primary">{pct}%</div>
-            <div className="mt-1 text-xs text-text-muted">{completedItems} of {totalItems} actions complete</div>
+          <div className="ws-pl-focus-n">
+            <div className="ws-pl-pct">{pct}%</div>
+            <div className="ws-caption">{completedItems} of {totalItems} actions complete</div>
           </div>
         </div>
-        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-          <div className="h-full rounded-full bg-accent-bright transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div className="ws-pl-focus-bar">
+          <span className="ws-bar"><i style={{ width: `${pct}%` }} /></span>
         </div>
       </section>
 
       {/* Phases */}
-      <div className="space-y-4 sm:space-y-5">
+      <div className="ws-stack">
         {phases.map((phase, i) => {
-          const color = phaseColors[i % phaseColors.length];
           const phaseCompleted = phase.items.filter((item) => item.completed).length;
           const phaseTotal = phase.items.length;
           const phasePct = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
@@ -296,72 +260,64 @@ export default function BusinessPlanPage() {
           const isComplete = phasePct === 100 && phaseTotal > 0;
 
           return (
-            <div key={phase.id} className={`v2-surface overflow-hidden ${isCurrent ? "!border-accent/30" : ""}`}>
+            <section key={phase.id} className={`ws-panel ws-pl-phase ${isCurrent ? "is-current" : ""}`} aria-label={phase.name}>
               {/* Phase header */}
-              <div className={`p-5 sm:p-6 border-b border-[rgba(255,255,255,0.05)] ${isCurrent ? "bg-accent/[0.07]" : color.bg}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl ${color.bg} border ${color.border} flex items-center justify-center`}>
-                    <svg className={`w-6 h-6 ${color.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={getPhaseIcon(phase.name)} />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">Phase {i + 1}</div>
-                        <h2 className="mt-1 text-lg font-heading font-bold text-text-primary">{phase.name}</h2>
-                      </div>
-                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isComplete ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : isCurrent ? "border-accent/25 bg-accent/10 text-accent-bright" : "border-white/10 bg-white/[0.03] text-text-muted"}`}>
-                        {isComplete ? "Complete" : isCurrent ? "Current phase" : `${phaseCompleted}/${phaseTotal} actions`}
-                      </span>
+              <div className="ws-pl-phase-head">
+                <StatusIcon tone={isComplete ? "ok" : phaseCompleted > 0 || isCurrent ? "running" : "open"} />
+                <div className="min-w-0 flex-1">
+                  <div className="ws-pl-phase-top">
+                    <div className="min-w-0">
+                      <div className="ws-caption">Phase {i + 1}</div>
+                      <h2 className="ws-cd-h">{phase.name}</h2>
                     </div>
-                    <div className="w-full bg-[rgba(255,255,255,0.06)] rounded-full h-1.5 mt-2">
-                      <div className="h-1.5 rounded-full gradient-accent transition-all duration-500" style={{ width: `${phasePct}%` }} />
-                    </div>
+                    <Chip tone={isComplete ? "ok" : isCurrent ? "decide" : undefined}>
+                      {isComplete ? "Complete" : isCurrent ? "Current phase" : `${phaseCompleted}/${phaseTotal} actions`}
+                    </Chip>
                   </div>
+                  <span className="ws-bar mt-2" style={isComplete ? ({ "--c": "var(--ws-ok)" } as CSSProperties) : undefined}>
+                    <i style={{ width: `${phasePct}%` }} />
+                  </span>
                 </div>
               </div>
 
-              <div className="p-5 sm:p-6 space-y-6">
+              <div className="ws-pl-phase-body">
                 {/* Notes from Marc */}
                 {phase.notes && (
-                  <div className="bg-bg-primary border border-[rgba(255,255,255,0.04)] rounded-xl p-4">
-                    <div className="v2-eyebrow mb-2">Notes from Marc</div>
-                    <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{phase.notes}</p>
+                  <div className="ws-pl-notes">
+                    <div className="ws-field-l">Notes from Marc</div>
+                    <p className="ws-prose whitespace-pre-line">{phase.notes}</p>
                   </div>
                 )}
 
                 {/* Action items */}
                 <div>
-                  <h3 className="v2-eyebrow mb-3 !text-text-muted">Action Items</h3>
-                  <div className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.06] bg-black/10">
+                  <h3 className="ws-pl-sub">Action items</h3>
+                  <div className="ws-pl-items">
                     {phase.items.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => toggleItem(phase.id, item.id)}
                         disabled={pendingItemId !== null}
                         aria-pressed={item.completed}
-                        className="group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.025] disabled:cursor-wait disabled:opacity-70"
+                        className={`ws-row ws-focus ws-pl-item ${item.completed ? "is-done" : ""}`}
                       >
-                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                          item.completed ? "bg-emerald-500 border-emerald-500" : "border-[rgba(255,255,255,0.15)] group-hover:border-accent/50"
-                        }`}>
+                        <span className="ws-pl-tick">
                           {pendingItemId === item.id ? (
-                            <span className="brand-spinner h-3.5 w-3.5 border-2" />
-                          ) : item.completed && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
+                            <Icon name="refresh" size={14} className="ws-spin" />
+                          ) : item.completed ? (
+                            <StatusIcon tone="ok" />
+                          ) : (
+                            <StatusIcon tone="open" />
                           )}
-                        </div>
-                        <span className="min-w-0 flex-1">
-                          <span className={`block text-sm leading-relaxed transition-all duration-200 ${item.completed ? "text-text-muted line-through" : "text-text-primary group-hover:text-accent-bright"}`}>
+                        </span>
+                        <span className="min-w-0">
+                          <span className="ws-row-title">
                             {item.title}
                           </span>
-                          {failedItemId === item.id && <span className="mt-0.5 block text-xs text-red-300">Couldn&apos;t save. Tap to try again.</span>}
+                          {failedItemId === item.id && <span className="ws-pl-fail">Couldn&apos;t save. Tap to try again.</span>}
                         </span>
                         {item.completed_at && pendingItemId !== item.id && (
-                          <span className="ml-auto hidden text-[10px] text-text-muted sm:block">
+                          <span className="ws-row-meta ws-sm-up">
                             {new Date(item.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                           </span>
                         )}
@@ -373,36 +329,30 @@ export default function BusinessPlanPage() {
                 {/* Linked Trainings */}
                 {phase.linkedTrainings.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Related Training</h3>
-                    <div className="space-y-1.5">
+                    <h3 className="ws-pl-sub">Related training</h3>
+                    <div className="ws-pl-items">
                       {phase.linkedTrainings.map((training) => (
                         <Link
                           key={training.id}
                           href={trainingLessonHref(training.module_id, training.id)}
-                          className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors no-underline group"
+                          className="ws-row ws-focus ws-pl-train no-underline"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                            <svg className="w-3.5 h-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm text-text-primary group-hover:text-accent-bright transition-colors">{training.title}</div>
-                            <div className="text-[10px] text-text-muted">{training.moduleName} - {training.duration_minutes} min</div>
-                          </div>
-                          <svg className="w-4 h-4 text-text-muted group-hover:text-accent-bright transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                          <Icon name="play" size={13} className="ws-status-ic" />
+                          <span className="min-w-0">
+                            <span className="ws-row-title">{training.title}</span>
+                            <span className="ws-row-sub">{training.moduleName} - {training.duration_minutes} min</span>
+                          </span>
+                          <Icon name="chevron" size={14} className="ws-chev" />
                         </Link>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>
-    </>
+    </div>
   );
 }
