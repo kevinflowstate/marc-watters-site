@@ -6,14 +6,19 @@ import type { OpsTask } from "@/lib/ops/types";
 import { Icon } from "@/components/ops/workspace/WorkspaceUI";
 export default function AttentionCard() {
   const [tasks, setTasks] = useState<OpsTask[] | null>(null);
+  // Only say "unavailable" once a read has actually failed; before the first answer it is loading.
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     const load = () =>
       fetch("/api/admin/work")
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
-          if (d) setTasks(d.tasks);
+          if (d) {
+            setTasks(d.tasks);
+            setFailed(false);
+          } else setFailed(true);
         })
-        .catch(() => {});
+        .catch(() => setFailed(true));
     void load();
     const t = setInterval(load, 10000);
     return () => clearInterval(t);
@@ -38,7 +43,7 @@ export default function AttentionCard() {
               <span className={`ws-chip ${flags ? "is-attn" : ""}`}>{flags} flag{flags === 1 ? "" : "s"}</span>
             </>
           ) : (
-            <span className="ws-caption">Work queue unavailable</span>
+            <span className="ws-caption">{failed ? "Work queue unavailable" : "Loading..."}</span>
           )}
         </span>
       </div>
