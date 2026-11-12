@@ -146,7 +146,12 @@ export default function ClientDetailPage() {
   useEffect(() => { loadClient(); }, [loadClient]);
   // The Dashboard's "Plans to set up" links here with #plan; jump to the plan once it has loaded.
   useEffect(() => {
-    if (!loading && window.location.hash === "#plan") document.getElementById("plan")?.scrollIntoView({ block: "start" });
+    if (loading || window.location.hash !== "#plan") return;
+    // Sections above the plan finish loading after it, so settle the scroll a few times.
+    const jump = () => document.getElementById("plan")?.scrollIntoView({ block: "start" });
+    jump();
+    const timers = [300, 800, 1600].map((ms) => window.setTimeout(jump, ms));
+    return () => timers.forEach((t) => window.clearTimeout(t));
   }, [loading]);
 
   async function handleReply(checkinId: string) {
