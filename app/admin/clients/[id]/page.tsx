@@ -1,5 +1,6 @@
 "use client";
 import { initials } from "@/lib/initials";
+import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
@@ -110,6 +111,7 @@ export default function ClientDetailPage() {
   const [notesSaving, setNotesSaving] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
+  const [replyDraftIds, setReplyDraftIds] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [contentLookup, setContentLookup] = useState<Map<string, { title: string; moduleName: string; moduleId: string; duration?: number }>>(new Map());
@@ -195,7 +197,7 @@ export default function ClientDetailPage() {
       const res = await fetch("/api/admin/reply-checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkin_id: checkinId, reply_text: text }),
+        body: JSON.stringify({ checkin_id: checkinId, reply_text: text, reply_draft_id: replyDraftIds[checkinId] }),
       });
 
       if (!res.ok) {
@@ -1157,6 +1159,16 @@ export default function ClientDetailPage() {
                       </div>
                     ) : !isArchived ? (
                       <div className="ws-cd-reply">
+                        <div className="mb-2">
+                          <ReplyDraftCard
+                            scope={{ checkinId: c.id }}
+                            onEdit={(text, draftId) => {
+                              setReplyTexts((prev) => ({ ...prev, [c.id]: text }));
+                              setReplyDraftIds((prev) => ({ ...prev, [c.id]: draftId }));
+                            }}
+                            onSent={(text) => setSentReplies((prev) => ({ ...prev, [c.id]: text }))}
+                          />
+                        </div>
                         <label className="ws-field-l" htmlFor={`reply-${c.id}`}>Reply to this check-in</label>
                         <textarea
                           id={`reply-${c.id}`}

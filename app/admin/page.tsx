@@ -1,5 +1,6 @@
 "use client";
 import AttentionCard from "@/components/ops/AttentionCard";
+import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { initials } from "@/lib/initials";
 import { roundStart } from "@/lib/client-health";
 
@@ -1053,6 +1054,7 @@ function CheckInsPanel({
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["earlier"]));
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, string>>({});
+  const [replyDraftIds, setReplyDraftIds] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
 
@@ -1088,7 +1090,7 @@ function CheckInsPanel({
       const res = await fetch("/api/admin/reply-checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkin_id: checkinId, reply_text: text }),
+        body: JSON.stringify({ checkin_id: checkinId, reply_text: text, reply_draft_id: replyDraftIds[checkinId] }),
       });
 
       if (!res.ok) {
@@ -1150,6 +1152,11 @@ function CheckInsPanel({
                     replyText={replies[checkin.id] || ""}
                     onReplyChange={(text) => setReplies((prev) => ({ ...prev, [checkin.id]: text }))}
                     onReplySubmit={() => handleReply(checkin.id)}
+                    onDraftEdit={(text, draftId) => {
+                      setReplies((prev) => ({ ...prev, [checkin.id]: text }));
+                      setReplyDraftIds((prev) => ({ ...prev, [checkin.id]: draftId }));
+                    }}
+                    onDraftSent={(text) => setSentReplies((prev) => ({ ...prev, [checkin.id]: text }))}
                     sentReply={sentReplies[checkin.id]}
                     isSending={sendingReply === checkin.id}
                     error={sendingReply === checkin.id ? replyError : null}
@@ -1171,6 +1178,8 @@ function CheckInRow({
   replyText,
   onReplyChange,
   onReplySubmit,
+  onDraftEdit,
+  onDraftSent,
   sentReply,
   isSending,
   error,
@@ -1182,6 +1191,8 @@ function CheckInRow({
   replyText: string;
   onReplyChange: (text: string) => void;
   onReplySubmit: () => void;
+  onDraftEdit: (text: string, draftId: string) => void;
+  onDraftSent: (text: string) => void;
   sentReply?: string;
   isSending?: boolean;
   error?: string | null;
@@ -1258,6 +1269,9 @@ function CheckInRow({
               </div>
             ) : (
               <div className="pt-3" style={{ borderTop: "1px solid var(--ws-line)" }}>
+                <div className="mb-2">
+                  <ReplyDraftCard scope={{ checkinId: checkin.id }} onEdit={onDraftEdit} onSent={onDraftSent} />
+                </div>
                 <label className="ws-label">Reply to this check-in</label>
                 <textarea
                   value={replyText}

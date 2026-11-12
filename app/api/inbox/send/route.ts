@@ -1,16 +1,10 @@
 import { getInboxViewer } from "@/lib/inbox-server";
-import { normalizeAttachments } from "@/lib/attachments";
-import { getEnv } from "@/lib/env";
-import { sendPushToUser } from "@/lib/push";
+import { InboxSendError, sendInboxMessage } from "@/lib/inbox-send";
+import { replyDraftsEnabled } from "@/lib/reply-drafts/config";
+import { inboxKey } from "@/lib/reply-drafts/rules";
+import { markConversationAnswered, onClientInboxMessage, recordDraftSent } from "@/lib/reply-drafts/store";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { NextResponse } from "next/server";
-
-function isInboxStorageUrl(url: string, clientId: string) {
-  const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL")?.replace(/\/$/, "");
-  if (!supabaseUrl) return false;
-
-  return url.startsWith(`${supabaseUrl}/storage/v1/object/public/plan-documents/inbox/${clientId}/`);
-}
+import { after, NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const viewer = await getInboxViewer();
@@ -19,119 +13,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { client_id, message, attachments } = await request.json().catch(() => ({}));
-  const trimmed = typeof message === "string" ? message.trim() : "";
-  const normalizedAttachments = normalizeAttachments(attachments);
+  const { client_id, message, attachments, reply_draft_id } = await request.json().catch(() => ({}));
 
-  if (!trimmed && normalizedAttachments.length === 0) {
-    return NextResponse.json({ error: "message or attachment is required" }, { status: 400 });
+  let result: Awaited<ReturnType<typeof sendInboxMessage>>;
+  try {
+    result = await sendInboxMessage(viewer, { clientId: client_id, message, attachments });
+  } catch (error) {
+    const status = error instanceof InboxSendError ? error.status : 500;
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to send message" }, { status });
   }
 
-  const admin = createAdminClient();
-  const clientId = viewer.role === "client" ? viewer.clientProfileId : client_id;
-
-  if (!clientId) {
-    return NextResponse.json({ error: "client_id is required" }, { status: 400 });
-  }
-
-  const { data: clientProfile } = await admin
-    .from("client_profiles")
-    .select("id, user_id, business_name")
-    .eq("id", clientId)
-    .single<{ id: string; user_id: string; business_name: string | null }>();
-
-  if (!clientProfile) {
-    return NextResponse.json({ error: "Client conversation not found" }, { status: 404 });
-  }
-
-  if (viewer.role === "client" && clientProfile.id !== viewer.clientProfileId) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
-
-  if (normalizedAttachments.some((attachment) => !isInboxStorageUrl(attachment.url, clientProfile.id))) {
-    return NextResponse.json({ error: "Attachments must be uploaded through the inbox first" }, { status: 400 });
-  }
-
-  const insertPayload = {
-    client_id: clientProfile.id,
-    sender_user_id: viewer.userId,
-    sender_role: viewer.role,
-    message: trimmed,
-    attachments: normalizedAttachments,
-    read_by_admin: viewer.role === "admin",
-    read_by_client: viewer.role === "client",
-  };
-
-  const { data: row, error } = await admin
-    .from("inbox_messages")
-    .insert(insertPayload)
-    .select("*")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const notificationUserId = viewer.role === "admin" ? clientProfile.user_id : null;
-  let adminRecipientIds: string[] = [];
-
-  if (viewer.role === "client") {
-    const { data: adminUsers } = await admin
-      .from("users")
-      .select("id")
-      .eq("role", "admin")
-      .order("created_at", { ascending: true })
-      .returns<Array<{ id: string }>>();
-
-    adminRecipientIds = (adminUsers ?? []).map((user) => user.id);
-  }
-
-  const recipientUserIds =
-    viewer.role === "admin"
-      ? (notificationUserId ? [notificationUserId] : [])
-      : adminRecipientIds;
-
-  if (recipientUserIds.length > 0) {
-    const preview =
-      trimmed ||
-      (normalizedAttachments.length === 1
-        ? `Attachment: ${normalizedAttachments[0].name}`
-        : `Sent ${normalizedAttachments.length} attachments`);
-    const title =
-      viewer.role === "admin"
-        ? "New inbox message from Marc"
-        : `New inbox message from ${clientProfile.business_name || viewer.fullName}`;
-    const link = viewer.role === "admin" ? "/portal/inbox" : `/admin/inbox?client=${clientProfile.id}`;
-
-    await admin.from("notifications").insert(
-      recipientUserIds.map((userId) => ({
-        user_id: userId,
-        title,
-        message: preview.slice(0, 200),
-        link,
-      })),
-    );
-
-    await Promise.all(
-      recipientUserIds.map(async (userId) => {
-        try {
-          await sendPushToUser(userId, {
-            title,
-            body: preview.slice(0, 140),
-            url: link,
-            tag: viewer.role === "admin" ? "inbox-from-marc" : `inbox-${clientProfile.id}`,
-          });
-        } catch (pushError) {
-          console.error("Failed to send inbox push notification:", pushError);
+  // Reply drafts (switch OFF by default). Runs after the response; never blocks or fails the send.
+  try {
+    if (replyDraftsEnabled()) {
+      const sentId = result.message?.id as string | undefined;
+      const sentText = typeof result.message?.message === "string" ? result.message.message : "";
+      after(async () => {
+        const admin = createAdminClient();
+        if (viewer.role === "client") {
+          if (sentId) await onClientInboxMessage(admin, result.clientId, sentId);
+          return;
         }
-      }),
-    );
+        // An admin replied: record the draft they started from (if any), then retire any other open draft.
+        if (typeof reply_draft_id === "string" && reply_draft_id) {
+          await recordDraftSent(admin, reply_draft_id, sentText, viewer.userId, inboxKey(result.clientId));
+        }
+        await markConversationAnswered(admin, inboxKey(result.clientId));
+      });
+    }
+  } catch (draftError) {
+    console.error("reply_draft_hook_failed", draftError instanceof Error ? draftError.message : String(draftError));
   }
 
-  return NextResponse.json({
-    message: {
-      ...row,
-      attachments: normalizeAttachments(row?.attachments),
-    },
-  });
+  return NextResponse.json({ message: result.message });
 }

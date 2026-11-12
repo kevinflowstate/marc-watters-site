@@ -3,7 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { defaultCheckinConfig, deriveCheckinMood } from "@/lib/checkins";
 import { checkinErrors, sameResponses, submissionIdPattern, validReceipt, validResponses } from "@/lib/checkin-submission";
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { replyDraftsEnabled } from "@/lib/reply-drafts/config";
+import { onCheckinSubmitted } from "@/lib/reply-drafts/store";
+import { after, NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
@@ -90,6 +92,15 @@ export async function POST(request: Request) {
     if (receipt?.cancelled === true) return NextResponse.json({ error: "The earlier attempt was safely cancelled. Review your answers and submit again.", cancelled: true, config }, { status: 409 });
     if (!validReceipt(receipt, submissionId)) return failure(503, "Your check-in has not been confirmed yet. Please retry safely below.", "invalid_receipt");
     console.info("checkin_submission", { requestId, clientId, submissionId, stage: "saved", receiptId: receipt.id, durationMs: Date.now() - started });
+    // The check-in is saved: queueing a reply draft must never turn this into an error.
+    try {
+      if (replyDraftsEnabled()) {
+        const receiptId = receipt.id;
+        after(() => onCheckinSubmitted(createAdminClient(), receiptId));
+      }
+    } catch (draftError) {
+      console.error("reply_draft_queue_failed", { requestId, receiptId: receipt.id, error: draftError instanceof Error ? draftError.message : String(draftError) });
+    }
     return NextResponse.json({ success: true, receipt, week_number: receipt.week_number });
   } catch {
     return failure(503, "We could not confirm your check-in. Your answers are kept; please retry.", "unexpected_error");

@@ -1,6 +1,9 @@
 import { getInboxViewer } from "@/lib/inbox-server";
+import { replyDraftsEnabled } from "@/lib/reply-drafts/config";
+import { inboxKey } from "@/lib/reply-drafts/rules";
+import { loadThread, markConversationAnswered } from "@/lib/reply-drafts/store";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 const ALLOWED_EMOJIS = new Set(["👍", "❤️", "😂", "😮", "😢", "🙏", "👏", "🔥", "✅"]);
 
@@ -65,6 +68,18 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // A staff reaction on the client's latest message counts as answered: retire any open reply draft.
+  try {
+    if (viewer.role === "admin" && replyDraftsEnabled()) {
+      after(async () => {
+        const thread = await loadThread(admin, message.client_id, 1);
+        if (thread[thread.length - 1]?.id === message.id) await markConversationAnswered(admin, inboxKey(message.client_id));
+      });
+    }
+  } catch (draftError) {
+    console.error("reply_draft_hook_failed", draftError instanceof Error ? draftError.message : String(draftError));
   }
 
   return NextResponse.json({ reacted: true });

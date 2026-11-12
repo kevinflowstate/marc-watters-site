@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InboxThread from "@/components/inbox/InboxThread";
+import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { Empty, Icon, SkeletonRows } from "@/components/ops/workspace/WorkspaceUI";
 import { useToast } from "@/components/ui/Toast";
 import type { Attachment, InboxConversation, InboxMessage } from "@/lib/types";
@@ -63,6 +64,8 @@ export default function AdminInboxClient() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mobileThreadOpen, setMobileThreadOpen] = useState(Boolean(initialClientId));
+  // Reply draft the admin chose to edit: its text goes into the composer, its id rides along on Send.
+  const [draftEdit, setDraftEdit] = useState<{ draftId: string; clientId: string; text: string; key: string } | null>(null);
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.client_id === selectedClientId) ?? null,
@@ -212,7 +215,12 @@ export default function AdminInboxClient() {
       const res = await fetch("/api/inbox/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: selectedClientId, message, attachments }),
+        body: JSON.stringify({
+          client_id: selectedClientId,
+          message,
+          attachments,
+          reply_draft_id: draftEdit?.clientId === selectedClientId ? draftEdit.draftId : undefined,
+        }),
       });
 
       if (!res.ok) {
@@ -220,6 +228,7 @@ export default function AdminInboxClient() {
         throw new Error(data.error || "Failed to send message.");
       }
 
+      setDraftEdit(null);
       toast(attachments.length > 0 ? "Message and attachments sent" : "Message sent");
       await Promise.all([loadConversations(), loadThread(selectedClientId)]);
     } catch (err) {
@@ -360,6 +369,7 @@ export default function AdminInboxClient() {
 
   function handleSelectConversation(clientId: string) {
     setSelectedClientId(clientId);
+    setDraftEdit(null);
     setMobileThreadOpen(true);
   }
 
@@ -460,6 +470,19 @@ export default function AdminInboxClient() {
         onDeleteMessage={handleDeleteMessage}
         onToggleReaction={handleToggleReaction}
         scrollPageToLatest
+        prefill={draftEdit?.clientId === selectedClientId ? { text: draftEdit.text, key: draftEdit.key } : null}
+        composerTop={
+          <ReplyDraftCard
+            key={selectedClientId}
+            scope={{ clientId: selectedClientId }}
+            refreshKey={thread?.messages?.[thread.messages.length - 1]?.id ?? null}
+            onEdit={(text, draftId) => setDraftEdit({ draftId, clientId: selectedClientId, text, key: `${draftId}:${Date.now()}` })}
+            onSent={async () => {
+              toast("Reply sent");
+              await Promise.all([loadConversations(), loadThread(selectedClientId)]);
+            }}
+          />
+        }
       />
     )
   ) : (

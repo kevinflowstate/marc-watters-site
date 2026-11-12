@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Empty, Icon } from "@/components/ops/workspace/WorkspaceUI";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
@@ -29,6 +29,10 @@ interface InboxThreadProps {
   onDeleteMessage?: (messageId: string) => Promise<void>;
   onToggleReaction?: (messageId: string, emoji: string) => Promise<void>;
   scrollPageToLatest?: boolean;
+  /** Rendered at the top of the composer (admin reply draft card). */
+  composerTop?: ReactNode;
+  /** Replace the composer text when `key` changes (Edit on a reply draft). */
+  prefill?: { text: string; key: string } | null;
 }
 
 const reactionOptions = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
@@ -225,8 +229,15 @@ export default function InboxThread({
   onDeleteMessage,
   onToggleReaction,
   scrollPageToLatest = false,
+  composerTop,
+  prefill,
 }: InboxThreadProps) {
   const [draft, setDraft] = useState("");
+  const prefillKey = prefill?.key;
+  const prefillText = prefill?.text;
+  useEffect(() => {
+    if (prefillKey && typeof prefillText === "string") setDraft(prefillText);
+  }, [prefillKey, prefillText]);
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -750,6 +761,7 @@ export default function InboxThread({
       </div>
 
       <div className="ib-composer">
+        {composerTop}
         {composerError && (
           <div className="ws-note is-bad" role="alert">
             <Icon name="alert" size={15} />

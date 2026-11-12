@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { CheckinFormConfig, BusinessPlanFormConfig, FormQuestion } from "@/lib/types";
 import { Icon } from "@/components/ops/workspace/WorkspaceUI";
+import ReplyDraftSettings from "@/components/reply-drafts/ReplyDraftSettings";
 
 function generateQuestionId() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -430,6 +431,9 @@ export default function AdminSettingsPage() {
           <div className="ws-st-body ws-caption">Loading config...</div>
         )}
       </section>
+
+      {/* AI reply drafts (renders nothing while the switch is off) */}
+      <ReplyDraftSettings />
 
       {/* Info */}
       <section className="ws-panel" aria-label="Portal info">
