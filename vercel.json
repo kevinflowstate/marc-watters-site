@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/reply-drafts",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/content-intake",
+      "schedule": "0 7-22 * * *"
     }
   ]
 }

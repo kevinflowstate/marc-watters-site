@@ -6,6 +6,7 @@ export const adminSections: ShellNavSection[] = [
     items: [
       { href: "/admin", label: "Dashboard", short: "Home", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
       { href: "/admin/work", label: "Workspace", child: "Item", icon: "M9 12l2 2 4-4M5 4h14v16H5z" },
+      { href: "/admin/content", label: "Content", child: "Video", icon: "M4 4h16v16H4zM10 8l6 4-6 4V8z" },
       { href: "/admin/inbox", label: "Inbox", child: "Conversation", icon: "M8 10h8m-8 4h5m-7 6h12a2 2 0 002-2V8a2 2 0 00-.586-1.414l-4-4A2 2 0 0014 2H6a2 2 0 00-2 2v14a2 2 0 002 2z" },
     ],
   },
