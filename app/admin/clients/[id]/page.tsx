@@ -1,5 +1,6 @@
 "use client";
 import { initials } from "@/lib/initials";
+import AutoGrowingTextarea from "@/components/shared/AutoGrowingTextarea";
 import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
@@ -419,8 +420,7 @@ export default function ClientDetailPage() {
     setNotesSaving(false);
   }
 
-  // Week progress
-  const totalWeeks = 12;
+  // Elapsed coaching week; coaching has no fixed end date.
   const currentWeek = client.current_week;
 
   // Calculate alert context for red/amber clients
@@ -749,9 +749,8 @@ export default function ClientDetailPage() {
 
       <div className="ws-strip">
         <div className="ws-stat" style={{ cursor: "default" }}>
-          <span className="ws-stat-l"><Icon name="calendar" size={14} />Current week</span>
-          <span className="ws-stat-n">{currentWeek}</span>
-          <span className="ws-stat-s">of {totalWeeks} weeks</span>
+          <span className="ws-stat-l"><Icon name="calendar" size={14} />Coaching</span>
+          <span className="ws-stat-n">Week {currentWeek}</span>
         </div>
         <div className="ws-stat" style={{ cursor: "default" }}>
           <span className="ws-stat-l"><Icon name="plan" size={14} />Plan progress</span>
@@ -778,29 +777,19 @@ export default function ClientDetailPage() {
 
       <ClientSignals id={client.id} />
 
-      {/* Week timeline */}
-      <section className="ws-panel min-w-0" aria-label="Programme timeline">
+      <section className="ws-panel min-w-0" aria-label="Plan Progress">
         <div className="ws-panel-head">
-          <h2 className="ws-h2">Programme timeline</h2>
-          <span className="ws-caption">
-            Started {new Date(client.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-          </span>
+          <h2 className="ws-h2">Plan Progress</h2>
+          <span className="ws-caption">{planTotal > 0 ? `${planPct}% complete` : "No plan items yet"}</span>
         </div>
-        <div className="ws-wk">
-          {Array.from({ length: totalWeeks }).map((_, i) => {
-            const weekNum = i + 1;
-            const isCurrent = weekNum === currentWeek;
-            const isComplete = weekNum < currentWeek;
-            return (
-              <div
-                key={i}
-                className={`ws-wk-cell ${isCurrent ? "is-now" : isComplete ? "is-done" : ""}`}
-                aria-current={isCurrent ? "step" : undefined}
-              >
-                {weekNum}
-              </div>
-            );
-          })}
+        <div className="ws-cd-plan-progress">
+          <div className="ws-cd-plan-track" role="progressbar" aria-label="Business plan completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={planPct} aria-valuetext={planTotal > 0 ? `${planDone} of ${planTotal} active plan items completed` : "No active plan items"}>
+            <span style={{ transform: `scaleX(${planPct / 100})` }} />
+          </div>
+          <div className="ws-cd-plan-progress-meta">
+            <span className="ws-caption">{planTotal > 0 ? `${planDone} of ${planTotal} action items completed` : "Add action items to the business plan to track progress."}</span>
+            <a className="ws-caption" href="#plan">View business plan</a>
+          </div>
         </div>
       </section>
 
@@ -1170,7 +1159,7 @@ export default function ClientDetailPage() {
                           />
                         </div>
                         <label className="ws-field-l" htmlFor={`reply-${c.id}`}>Reply to this check-in</label>
-                        <textarea
+                        <AutoGrowingTextarea
                           id={`reply-${c.id}`}
                           value={replyTexts[c.id] || ""}
                           onChange={(e) => setReplyTexts((prev) => ({ ...prev, [c.id]: e.target.value }))}

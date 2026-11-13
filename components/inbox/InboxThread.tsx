@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import AutoGrowingTextarea from "@/components/shared/AutoGrowingTextarea";
 import { Empty, Icon } from "@/components/ops/workspace/WorkspaceUI";
 import type { Attachment, InboxMessage } from "@/lib/types";
 
@@ -597,7 +598,7 @@ export default function InboxThread({
                         )}
                         {editingMessageId === message.id ? (
                           <div className="ib-edit">
-                            <textarea
+                            <AutoGrowingTextarea
                               value={editingDraft}
                               onChange={(event) => setEditingDraft(event.target.value)}
                               rows={3}
@@ -855,7 +856,7 @@ export default function InboxThread({
               )}
             </div>
           )}
-          <textarea
+          <AutoGrowingTextarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -863,7 +864,7 @@ export default function InboxThread({
             placeholder={composerPlaceholder}
             aria-label={composerPlaceholder}
             className={`ib-textarea ${composerPadding}`}
-            style={{ minHeight: "46px", maxHeight: "140px" }}
+            style={{ minHeight: "46px" }}
           />
           <button
             onClick={() => void handleSubmit()}
