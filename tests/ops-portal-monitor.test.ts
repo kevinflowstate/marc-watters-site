@@ -105,6 +105,7 @@ function harness() {
   };
   const staffReactions = new Set<string>();
   const api = load("../lib/ops/portal-monitor.ts", {
+    "@/lib/checkin-reply-state": load("../lib/checkin-reply-state.ts", {}),
     "@/lib/supabase/admin": { createAdminClient: () => db },
     "./tasks": helpers,
     "@/lib/inbox-reactions": {

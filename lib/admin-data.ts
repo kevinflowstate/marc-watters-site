@@ -1,3 +1,4 @@
+import { CHECKIN_INBOX_REPLY_SELECT } from "./checkin-reply-state";
 import { clientHealth, loadCheckinDay, loadClientActivity, type ClientHealth } from "./client-health";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
@@ -159,7 +160,7 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
   const profileIds = profiles.map((profile) => profile.id);
 
   const [{ data: allCheckins }, { data: plans }, activity, checkinDay] = await Promise.all([
-    admin.from("checkins").select("*").in("client_id", profileIds).order("created_at", { ascending: false }),
+    admin.from("checkins").select(`*,${CHECKIN_INBOX_REPLY_SELECT}`).in("client_id", profileIds).order("created_at", { ascending: false }),
     admin.from("business_plans").select("*").in("client_id", profileIds).order("created_at", { ascending: false }),
     loadClientActivity(admin, profiles),
     loadCheckinDay(admin),
@@ -304,7 +305,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
   // Checkins
   const { data: checkins } = await admin
     .from("checkins")
-    .select("*")
+    .select(`*,${CHECKIN_INBOX_REPLY_SELECT}`)
     .eq("client_id", id)
     .order("created_at", { ascending: false });
 
@@ -460,7 +461,7 @@ export async function getRecentCheckins() {
   const { data: checkins } = await admin
     .from("checkins")
     .select(`
-      *,
+      *,${CHECKIN_INBOX_REPLY_SELECT},
       client:client_profiles!checkins_client_id_fkey(
         id, business_name, archived_at,
         user:users!client_profiles_user_id_fkey(full_name)

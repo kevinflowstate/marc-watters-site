@@ -1,3 +1,6 @@
+import { checkinReplyState, CHECKIN_INBOX_REPLY_SELECT } from "@/lib/checkin-reply-state";
+export { checkinReplyState };
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, uuid } from "./tasks";
 import { staffReactedMessageIds } from "@/lib/inbox-reactions";
@@ -13,7 +16,7 @@ const collections = {
   checkins: {
     table: "checkins",
     fields:
-      "id,week_number,mood,wins,challenges,questions,responses,admin_reply,replied_at,client_reply,client_replied_at,created_at",
+      `id,client_id,week_number,mood,wins,challenges,questions,responses,admin_reply,replied_at,client_reply,client_replied_at,created_at,${CHECKIN_INBOX_REPLY_SELECT}`,
   },
   training: {
     table: "client_modules",
@@ -36,9 +39,6 @@ function text(value: unknown) {
 function timestamp(value: unknown): number | null {
   const result = typeof value === "string" ? Date.parse(value) : NaN;
   return Number.isFinite(result) ? result : null;
-}
-function hasText(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0;
 }
 function relation(value: unknown): Record<string, unknown> {
   const item = Array.isArray(value) ? value[0] : value;
@@ -108,23 +108,6 @@ export function messageReplyState(latest: Row[], staffReacted?: Set<string>) {
   };
 }
 
-export function checkinReplyState(row: Row) {
-  if (!hasText(row.admin_reply))
-    return { needs_reply: true, reason: "no_admin_reply" };
-  const replied = timestamp(row.replied_at);
-  const created = timestamp(row.created_at);
-  if (replied === null || created === null || replied < created)
-    return { needs_reply: null, reason: "reply_order_uncertain" };
-  if (!hasText(row.client_reply))
-    return { needs_reply: false, reason: "admin_replied" };
-  const clientReplied = timestamp(row.client_replied_at);
-  if (clientReplied === null || clientReplied < created || clientReplied === replied)
-    return { needs_reply: null, reason: "reply_order_uncertain" };
-  return {
-    needs_reply: clientReplied > replied,
-    reason: clientReplied > replied ? "client_replied_after_admin" : "admin_replied",
-  };
-}
 
 function pageInput(params: URLSearchParams, scope: string) {
   const rawLimit = params.get("limit") || "50";
