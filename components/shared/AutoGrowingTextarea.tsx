@@ -18,6 +18,7 @@ export default function AutoGrowingTextarea({
   value,
   maxHeight = 320,
   style,
+  className = "",
   ...props
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -49,6 +50,13 @@ export default function AutoGrowingTextarea({
           ? field.scrollHeight
           : previousScrollTop
         : 0;
+    if (document.activeElement === field) {
+      field.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "instant",
+      });
+    }
   }, [maxHeight]);
 
   useLayoutEffect(() => {
@@ -81,6 +89,7 @@ export default function AutoGrowingTextarea({
       {...props}
       ref={ref}
       value={value}
+      className={`auto-growing-textarea ${className}`}
       style={{ ...style, boxSizing: "border-box", resize: "none" }}
     />
   );

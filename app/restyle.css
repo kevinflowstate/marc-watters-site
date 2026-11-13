@@ -1546,3 +1546,7 @@
  .admin-shell .content-batch .content-schedule { min-height:44px; justify-content:center; }
 }
 @media(prefers-reduced-motion:reduce) { .admin-shell .content-review-row { transition:none; } }
+
+/* Leave room for the fixed header and phone navigation while a reply grows. */
+.auto-growing-textarea { scroll-margin-block:64px 16px; }
+@media(max-width:1023px) { .auto-growing-textarea { scroll-margin-block-end:calc(88px + env(safe-area-inset-bottom)); } }
