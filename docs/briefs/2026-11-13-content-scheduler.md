@@ -165,6 +165,6 @@ New env:
 
 ## Open items (Kevin or Marc)
 
-1. **Drive folder.** The videographer's folder must be shared, as Viewer, with `cbb-portal-drive-reader@flowstate-ai-486508.iam.gserviceaccount.com`. Then set its id in `OPS_CONTENT_INBOX_FOLDER_ID`. Not found in Kevin's Drive on 12 Nov.
+1. **Drive folder.** The folder is "Killen Studios" in Marc's own Google Drive, and it isn't shared with Kevin. Marc must share it, as Viewer, with `cbb-portal-drive-reader@flowstate-ai-486508.iam.gserviceaccount.com`. Then set its id in `OPS_CONTENT_INBOX_FOLDER_ID`. Once it's shared, the service account can find the id itself by listing folders named "Killen Studios".
 2. **Captions.** Does the videographer, Eimear or Marc write them? If nobody supplies them with the video, the option is AI-drafted captions in Marc's style, using his ~60 past captions as examples and a transcript of the video (roughly 1-3p per video). Not in this build unless Kevin says so.
 3. **Token scope.** Confirm `CBB_GHL_PIT_TOKEN` has the medias write and social posting write scopes, with a read-only call where possible.
