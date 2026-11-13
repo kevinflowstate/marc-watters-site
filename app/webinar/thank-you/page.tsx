@@ -1,64 +1,23 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { WEBINAR, WEBINAR_BOOKING_PATH, WEBINAR_CALENDAR_URL } from "@/lib/webinar";
+import { DECEMBER_WEBINAR, WEBINAR_SESSIONS, decemberCalendarLinks, decemberRegistrationEnabled, getDecemberSession } from "@/lib/webinar-december";
 
-export const metadata: Metadata = {
-  title: "From Chaos To Control | What To Do Next",
-  description: "Watch this short message from Marc before the live workshop.",
-  robots: { index: false, follow: false },
-};
-
-export default function WebinarThankYou() {
-  return (
-    <main className="relative min-h-screen overflow-hidden px-5 py-12 sm:px-8 sm:py-16">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 8%, rgba(34,114,222,0.13) 0%, transparent 48%)" }} />
-      <div className="relative z-10 mx-auto max-w-[820px]">
-        <div className="flex items-center justify-center gap-3">
-          <Image src="/images/cbb-logo.png" alt="Construction Business Blueprint" width={42} height={42} className="h-10 w-auto" priority />
-          <span className="font-heading text-sm font-extrabold"><span className="text-text-primary">CONSTRUCTION</span>{" "}<span className="text-accent-bright">BUSINESS BLUEPRINT</span></span>
-        </div>
-
-        <div className="mt-9 text-center">
-          <div className="inline-flex items-center rounded-full border border-accent/25 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-accent-bright">Before the workshop</div>
-          <h1 className="mt-5 font-heading text-[2.4rem] font-black leading-[1.05] tracking-[-1.8px] sm:text-[3.5rem]">
-            Your workshop details.
-            <br /><span className="gradient-text">Here&apos;s what to do next.</span>
-          </h1>
-          <p className="mx-auto mt-5 max-w-[620px] text-base leading-7 text-text-secondary">Watch this short video from Marc, then add the live workshop to your calendar. Your joining details will arrive by email.</p>
-        </div>
-
-        <div className="mt-9 overflow-hidden rounded-[20px] border border-white/[0.08] bg-bg-card shadow-[0_25px_70px_rgba(0,0,0,0.45)]">
-          <video controls playsInline preload="metadata" poster="/images/webinar/marc-webinar-thank-you-vsl-poster.jpg" className="aspect-video w-full bg-black" aria-label="A message from Marc Watters about the From Chaos To Control workshop">
-            <source src="/media/webinar/marc-webinar-thank-you-vsl.mp4" type="video/mp4" />
-            <track kind="captions" src="/media/webinar/marc-webinar-thank-you-vsl.en-GB.vtt" srcLang="en-GB" label="English" default />
-            Your browser does not support embedded video.
-          </video>
-        </div>
-
-        <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[["Date", WEBINAR.shortDateLabel], ["Time", WEBINAR.timeLabel], ["Where", "Live on Zoom"]].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-5 py-4 text-center">
-              <div className="text-[0.67rem] font-bold uppercase tracking-[1.5px] text-text-muted">{label}</div>
-              <div className="mt-1 font-heading text-sm font-bold text-text-primary">{value}</div>
-            </div>
-          ))}
-        </div>
-
-        <a href={WEBINAR_CALENDAR_URL} className="btn-primary gradient-accent mt-5 flex w-full items-center justify-center rounded-xl px-7 py-4 font-heading font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_14px_45px_rgba(34,114,222,0.3)]">
-          Add to my calendar
-        </a>
-        <p className="mt-3 text-center text-xs leading-5 text-text-muted">Your joining details and reminders will be sent by email and WhatsApp.</p>
-
-        <div className="my-12 border-t border-white/[0.07]" />
-
-        <section className="rounded-[22px] border border-accent/20 bg-accent/[0.055] p-6 text-center sm:p-9">
-          <p className="text-xs font-bold uppercase tracking-[2.5px] text-accent-bright">Want to work through it sooner?</p>
-          <h2 className="mt-3 font-heading text-2xl font-black tracking-[-0.8px]">Book a business deep dive with Marc</h2>
-          <p className="mx-auto mt-4 max-w-[620px] text-sm leading-7 text-text-secondary">We&apos;ll look at your numbers, team, jobs and where your time is going, then discuss what to address first.</p>
-          <Link href={WEBINAR_BOOKING_PATH} className="mt-6 inline-flex rounded-xl border border-accent/40 bg-accent px-7 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:bg-accent-light">Book a call with Marc</Link>
-        </section>
-      </div>
-    </main>
-  );
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Your CBB 2027 Growth Engine Session", description: "Your workshop details and next steps with Marc Watters.", robots: { index: false, follow: false } };
+export default async function WebinarThankYou({ searchParams }: { searchParams: Promise<{ session?: string }> }) {
+  const query = await searchParams;
+  const session = getDecemberSession(query.session);
+  const links = session ? decemberCalendarLinks(session.id, DECEMBER_WEBINAR.siteUrl) : null;
+  const video = process.env.WEBINAR_DEC_2026_THANK_YOU_VIDEO_URL;
+  const preview = !decemberRegistrationEnabled();
+  return <main className="min-h-screen px-5 py-8 sm:px-8 sm:py-12"><div className="mx-auto max-w-[840px]">
+    {preview && <p className="mb-8 rounded-lg border border-accent/25 bg-accent/10 px-4 py-3 text-center text-xs font-semibold text-accent-bright">Review preview · No registration or message has been sent</p>}
+    <Link href="/webinar" className="flex items-center justify-center gap-3"><Image src="/images/cbb-logo.png" alt="Construction Business Blueprint" width={42} height={42} className="h-10 w-auto" priority /><span className="font-heading text-xs font-extrabold leading-tight">CONSTRUCTION<br /><span className="text-accent-bright">BUSINESS BLUEPRINT</span></span></Link>
+    <header className="mt-9 text-center"><p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">The CBB 2027 Growth Engine</p><h1 className="mt-4 font-heading text-4xl font-extrabold leading-tight tracking-[-1.4px] sm:text-5xl">A plan for 2027 starts here.</h1><p className="mx-auto mt-5 max-w-[640px] text-base leading-8 text-text-secondary">Get your session in the calendar now, then bring a pen, paper and your biggest question. Marc will be answering them live.</p></header>
+    {session && links ? <section className="mt-8 rounded-2xl border border-accent/35 bg-accent/[.07] p-5 text-center sm:p-7"><p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">Your chosen session</p><h2 className="mt-3 font-heading text-2xl font-extrabold">{DECEMBER_WEBINAR.dateLabel}</h2><p className="mt-2 font-heading text-3xl font-extrabold text-accent-bright">{session.time}</p><p className="mt-2 text-sm text-text-secondary">UK &amp; Ireland time (GMT) · One hour · Live on Zoom</p><div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row"><a href={links.google} target="_blank" rel="noopener noreferrer" className="gradient-accent rounded-lg px-5 py-3 text-sm font-bold text-white">Google Calendar</a><a href={links.outlook} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-white/20 px-5 py-3 text-sm font-bold">Outlook</a><a href={links.apple} className="rounded-lg border border-white/20 px-5 py-3 text-sm font-bold">Apple / Other calendar</a></div><p className="mt-4 text-xs leading-6 text-text-muted">Your calendar entry includes a joining page that will take you to the correct Zoom room.</p></section> : <section className="mt-8 rounded-2xl border border-white/15 p-6 text-center"><h2 className="font-heading text-xl font-bold">Open the details for your registered session</h2><p className="mt-3 text-sm leading-7 text-text-secondary">Choose the time you selected when registering. This only opens the matching calendar details; it does not change your registration.</p><div className="mt-5 flex justify-center gap-3">{WEBINAR_SESSIONS.map(item => <Link key={item.id} href={`/webinar/thank-you?session=${item.id}`} className="rounded-lg border border-accent/50 bg-accent/10 px-6 py-3 font-bold text-accent-bright">{item.time}</Link>)}</div></section>}
+    <div className="mt-8 overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary">{video ? <video controls playsInline preload="metadata" className="aspect-video w-full bg-black" aria-label="A message from Marc about The CBB 2027 Growth Engine"><source src={video} type="video/mp4" />Your browser does not support embedded video.</video> : <div className="grid min-h-[240px] items-center gap-5 p-6 sm:grid-cols-[130px_1fr] sm:p-8"><div className="relative mx-auto h-36 w-28 overflow-hidden rounded-xl"><Image src="/images/marc-about.png" alt="Marc Watters" fill sizes="112px" className="object-cover object-top" /></div><div><p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">A message from Marc</p><h2 className="mt-3 font-heading text-xl font-bold">Know what to fix first.</h2><p className="mt-3 text-sm leading-7 text-text-secondary">Get off the tools, get your pricing right and build a team that runs without you in the middle of every decision.</p>{preview && <p className="mt-3 text-xs text-text-muted">The new thank-you video will appear here when Marc’s recording is ready.</p>}</div></div>}</div>
+    <div className="mt-7 grid gap-5 border-b border-white/10 pb-9 sm:grid-cols-2"><div><h2 className="font-heading text-base font-bold">Check your inbox</h2><p className="mt-2 text-sm leading-7 text-text-secondary">Your confirmation and joining instructions will arrive by email. Check your junk or spam folder too.</p></div><div><h2 className="font-heading text-base font-bold">Come ready with a question</h2><p className="mt-2 text-sm leading-7 text-text-secondary">Think about the biggest thing you want to change in your business before 2027 starts.</p></div></div>
+    <section className="mt-9 rounded-2xl border border-white/15 bg-white/[.025] p-6 text-center sm:p-8"><p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">Ready to work through it sooner?</p><h2 className="mt-3 font-heading text-2xl font-extrabold tracking-tight">Book a business deep dive with Marc</h2><p className="mx-auto mt-4 max-w-[600px] text-sm leading-7 text-text-secondary">Your numbers, your team, your jobs. Work through what’s holding the business back and what to fix first. If you’d like to discuss Marc’s coaching, you can do that too.</p><Link href="/book-marc" className="gradient-accent mt-6 inline-flex rounded-lg px-7 py-3.5 font-bold text-white">Book a call with Marc</Link><p className="mt-4 text-xs text-text-muted">Your workshop place is separate from booking a call.</p></section>
+  </div></main>;
 }
