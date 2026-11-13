@@ -1,3 +1,4 @@
+import { CHECKIN_INBOX_REPLY_SELECT } from "@/lib/checkin-reply-state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEnv } from "@/lib/env";
 import { listTasks, OpsError } from "./tasks";
@@ -409,7 +410,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     check("checkins", "Client check-ins", () =>
       readAll(
         "checkins",
-        "id,client_id,created_at,admin_reply,replied_at,client_reply,client_replied_at,client:client_profiles!inner(archived_at)",
+        `id,client_id,created_at,admin_reply,replied_at,client_reply,client_replied_at,${CHECKIN_INBOX_REPLY_SELECT},client:client_profiles!inner(archived_at)`,
         true,
       ),
     ),

@@ -1,3 +1,4 @@
+import { CHECKIN_INBOX_REPLY_SELECT } from "@/lib/checkin-reply-state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { connectContentDrive, type DriveConnection } from "./drive-connection";
 import { ContentPackError, contentResponseBytes } from "./content-pack";
@@ -85,7 +86,7 @@ export async function buildPortalSnapshot(now = new Date()) {
     admin
       .from("checkins")
       .select(
-        "id,client_id,week_number,mood,wins,challenges,questions,admin_reply,replied_at,client_reply,client_replied_at,created_at,client:client_profiles!inner(archived_at)",
+        `id,client_id,week_number,mood,wins,challenges,questions,admin_reply,replied_at,client_reply,client_replied_at,created_at,${CHECKIN_INBOX_REPLY_SELECT},client:client_profiles!inner(archived_at)`,
       )
       .is("client.archived_at", null)
       .gte("created_at", since(CHECKIN_DAYS))

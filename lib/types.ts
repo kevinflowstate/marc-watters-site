@@ -99,6 +99,13 @@ export interface CheckIn {
   replied_at?: string;
   client_reply?: string;
   client_replied_at?: string;
+  inbox_reply_id?: string | null;
+  inbox_reply?: {
+    id: string;
+    client_id: string;
+    sender_role: string;
+    created_at: string;
+  } | null;
   created_at: string;
   client?: ClientProfile;
 }

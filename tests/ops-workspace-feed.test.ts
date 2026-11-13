@@ -64,6 +64,14 @@ describe("live workspace signals", () => {
       "Needs checking",
     );
   });
+  it("clears an explicitly linked inbox reply, but preserves newer follow-ups", () => {
+    const resolved = {
+      ...checkin, client_reply: "Follow-up", client_replied_at: "2026-11-06T12:01:00Z",
+      inbox_reply: { id: "linked", client_id: client.id, sender_role: "admin", created_at: "2026-11-06T12:02:00Z" },
+    };
+    expect(flags([], [resolved])).toEqual([]);
+    expect(flags([], [{ ...resolved, client_replied_at: "2026-11-06T12:03:00Z" }])[0].signal_ids).toContain("checkin:client-1");
+  });
   it("recognises a new client reply on an already reviewed check-in", () => {
     expect(flags([], [checkin])).toEqual([]);
     expect(

@@ -1,4 +1,5 @@
 "use client";
+import { checkinReplyState } from "@/lib/checkin-reply-state";
 import AttentionCard from "@/components/ops/AttentionCard";
 import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { initials } from "@/lib/initials";
@@ -204,7 +205,7 @@ export default function AdminDashboard() {
     clients.filter((c) => c.health?.awaiting_reply_since).length +
     new Set(
       recentCheckins
-        .filter((ck) => !ck.admin_reply || (ck.client_reply && ck.client_replied_at && ck.replied_at && Date.parse(ck.client_replied_at) > Date.parse(ck.replied_at)))
+        .filter((ck) => checkinReplyState(ck).needs_reply !== false)
         .map((ck) => ck.client_id),
     ).size;
   const checkedInThisRound = clients.filter((c) => c.health?.checked_in_this_round).length;
@@ -668,8 +669,7 @@ function buildNeedsYou(clients: AdminClient[], recentCheckins: EnrichedCheckin[]
 
   const checkinMap = new Map<string, EnrichedCheckin[]>();
   for (const ck of recentCheckins) {
-    const followUp = Boolean(ck.client_reply && ck.client_replied_at && ck.replied_at && Date.parse(ck.client_replied_at) > Date.parse(ck.replied_at));
-    if (ck.admin_reply && !followUp) continue;
+    if (checkinReplyState(ck).needs_reply === false) continue;
     if (!checkinMap.has(ck.client_id)) checkinMap.set(ck.client_id, []);
     checkinMap.get(ck.client_id)!.push(ck);
   }
@@ -974,6 +974,7 @@ interface EnrichedCheckin {
   replied_at?: string;
   client_reply?: string;
   client_replied_at?: string;
+  inbox_reply?: CheckIn["inbox_reply"];
   created_at: string;
   client_name: string;
   client_business: string;
