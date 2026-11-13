@@ -1,5 +1,6 @@
 "use client";
 import { initials } from "@/lib/initials";
+import AutoGrowingTextarea from "@/components/shared/AutoGrowingTextarea";
 import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
@@ -1158,7 +1159,7 @@ export default function ClientDetailPage() {
                           />
                         </div>
                         <label className="ws-field-l" htmlFor={`reply-${c.id}`}>Reply to this check-in</label>
-                        <textarea
+                        <AutoGrowingTextarea
                           id={`reply-${c.id}`}
                           value={replyTexts[c.id] || ""}
                           onChange={(e) => setReplyTexts((prev) => ({ ...prev, [c.id]: e.target.value }))}
