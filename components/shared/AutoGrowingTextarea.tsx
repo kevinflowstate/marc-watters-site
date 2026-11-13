@@ -24,6 +24,11 @@ export default function AutoGrowingTextarea({
   const resize = useCallback(() => {
     const field = ref.current;
     if (!field) return;
+    const previousScrollTop = field.scrollTop;
+    const typingAtEnd =
+      document.activeElement === field &&
+      field.selectionStart === field.value.length &&
+      field.selectionEnd === field.value.length;
     const minimum = Number.parseFloat(getComputedStyle(field).minHeight) || 0;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const limit = Math.max(minimum, Math.min(maxHeight, viewportHeight * 0.4));
@@ -36,6 +41,14 @@ export default function AutoGrowingTextarea({
     const height = field.scrollHeight + borders;
     field.style.height = `${Math.min(height, limit)}px`;
     field.style.overflowY = height > limit ? "auto" : "hidden";
+    // Measuring at auto height can reset scroll position. Keep the active last
+    // line visible, and preserve the reading position when editing in the middle.
+    field.scrollTop =
+      height > limit
+        ? typingAtEnd
+          ? field.scrollHeight
+          : previousScrollTop
+        : 0;
   }, [maxHeight]);
 
   useLayoutEffect(() => {
