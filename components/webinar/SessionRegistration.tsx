@@ -39,7 +39,7 @@ export default function SessionRegistration({ initialSession, enabled, forms, no
         <p className="mt-3 text-center text-xs leading-5 text-text-muted">Review preview · Registration opens after campaign approval.</p>
         <Link className="mt-4 block text-center text-sm font-semibold text-accent-bright underline underline-offset-4" href={`/webinar/thank-you?session=${session.id}`}>Preview the {session.id} thank-you page →</Link>
       </>}
-    </div> : <p className="mt-6 rounded-xl border border-dashed border-white/15 px-4 py-5 text-center text-sm text-text-secondary">Choose 1pm or 7pm above to save your place.</p>}
+    </div> : enabled && WEBINAR_SESSIONS.every(item => closed[item.id]) ? <div className="mt-6 rounded-xl border border-white/15 p-5 text-center" aria-live="polite"><p className="font-heading font-bold">Registration has closed.</p><p className="mt-3 text-sm leading-7 text-text-secondary">Both live sessions have now started. You can book a call with Marc to discuss your business.</p><Link href="/book-marc" className="mt-4 inline-block font-bold text-accent-bright underline underline-offset-4">Book a call with Marc</Link></div> : <p className="mt-6 rounded-xl border border-dashed border-white/15 px-4 py-5 text-center text-sm text-text-secondary">Choose 1pm or 7pm above to save your place.</p>}
     <a href="/privacy" className="mt-5 block text-center text-xs text-text-muted underline underline-offset-4">Privacy policy</a>
   </div>;
 }
