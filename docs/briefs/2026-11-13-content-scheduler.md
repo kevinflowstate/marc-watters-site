@@ -53,8 +53,17 @@ Read these at runtime from the accounts endpoint. Don't hard-code them, so a rec
 
 ## Data flow
 
+0. **First, map the real folder (read only).** Kevin has no access to the folder; Marc's Codex does. Before writing the intake code:
+   - get the tree under "Killen Studios Folder" from Marc's Codex, or from the service account once the folder is shared: folder names, file names, mime types, and how the captions are stored;
+   - save it as `docs/briefs/killen-studios-layout.md`, with names only and no file contents;
+   - build the walker and caption matcher to fit that layout, not the guesses in this brief.
+
 1. **Intake.** A cron at `/api/cron/content-intake` runs hourly, 08:00-22:00 London. A "Check for new videos" button on the page calls the same code. It:
-   - lists video files (`mimeType contains 'video/'`, not trashed) in the folder `OPS_CONTENT_INBOX_FOLDER_ID` and one level of subfolders;
+   - walks the folder tree under `OPS_CONTENT_INBOX_FOLDER_ID`, which is the root "Killen Studios Folder":
+     - root > one folder per month > subfolders such as content and captions (exact names to be confirmed, see step 0 below);
+     - it only walks the current month's folder and next month's, so old months are never re-imported;
+     - month folders are matched by name (for example "November 2026", "Nov 26" or "2026-11"), so the parser must accept every format the folder actually uses;
+   - lists the video files in those folders (`mimeType contains 'video/'`, not trashed);
    - inserts any `drive_file_id` not already in `content_videos`, with status `new`;
    - de-duplicates on `drive_file_id`. A different `md5Checksum` on the same id means the videographer replaced the file: mark the row `replaced` and re-import, but only while it is still unscheduled.
 2. **Import.** One video per invocation, with `maxDuration` 300. It:
@@ -64,7 +73,7 @@ Read these at runtime from the accounts endpoint. Don't hard-code them, so a rec
    - caps the size at `OPS_CONTENT_VIDEO_MAX_MB` (default 500), and confirm the media library's real video limit before choosing that default;
    - generates no thumbnail; the player uses `preload="metadata"`.
 3. **Caption.** Taken in this order:
-   1. a sidecar file in the same folder with the same base name (`.txt`, `.docx` or a Google Doc);
+   1. a caption from the month's captions subfolder, matched to the video. How they match depends on what step 0 finds: one Doc per video with the same base name, or one Doc listing several captions under video names or numbers. Build the matcher for the real layout, and record unmatched captions as a warning on the page;
    2. otherwise blank, with "Caption needed" on the card.
 
    No AI caption in this build (see Open items).
@@ -165,6 +174,9 @@ New env:
 
 ## Open items (Kevin or Marc)
 
-1. **Drive folder.** The folder is "Killen Studios" in Marc's own Google Drive, and it isn't shared with Kevin. Marc must share it, as Viewer, with `cbb-portal-drive-reader@flowstate-ai-486508.iam.gserviceaccount.com`. Then set its id in `OPS_CONTENT_INBOX_FOLDER_ID`. Once it's shared, the service account can find the id itself by listing folders named "Killen Studios".
+1. **Drive folder.** The root is "Killen Studios Folder" in Marc's own Google Drive, with month folders and then content and captions subfolders inside. Kevin has no access; Marc's Codex does.
+   - Marc, or Marc's Codex, shares the root folder, as Viewer, with `cbb-portal-drive-reader@flowstate-ai-486508.iam.gserviceaccount.com`. Sharing the root covers future month folders too.
+   - Then set its id in `OPS_CONTENT_INBOX_FOLDER_ID`.
+   - Once the folder is shared, the service account can find the id itself by searching for "Killen Studios Folder".
 2. **Captions.** Does the videographer, Eimear or Marc write them? If nobody supplies them with the video, the option is AI-drafted captions in Marc's style, using his ~60 past captions as examples and a transcript of the video (roughly 1-3p per video). Not in this build unless Kevin says so.
 3. **Token scope.** Confirm `CBB_GHL_PIT_TOKEN` has the medias write and social posting write scopes, with a read-only call where possible.
