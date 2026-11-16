@@ -497,6 +497,15 @@ describe("privacy: other clients never leak into a draft", () => {
     expect(res.flag).not.toBe(privacy.SHORT_COPY_REASON);
   });
 
+  it("a 10+ word copy is rejected even when two examples share it, unless the style guide has it", () => {
+    const run = "get the price in writing before you start and do not knock a penny off";
+    const examples = [`Sam, ${run}.`, `Jo, ${run} either.`];
+    const draft = `Pat, ${run} this time.`;
+    const g = (voiceText?: string) => privacy.guardDraft(draft, { currentClientId: CLIENT, clients: known, exampleReplies: examples, voiceText });
+    expect(g().reject).toMatch(/10\+ words/);
+    expect(g(`Pricing: "${run}".`).reject).toBeNull();
+  });
+
   it("the redacted and original copy of one example count as one reply", () => {
     const original = "Sam, get the price in writing before you start and do not knock a penny off.";
     const redacted = "[client], get the price in writing before you start and do not knock a penny off.";
