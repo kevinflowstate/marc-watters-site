@@ -469,11 +469,44 @@ describe("privacy: other clients never leak into a draft", () => {
     expect(privacy.guardDraft("Pat, good work on the quote.", { ...opts, exampleOriginals: ["Morning, good work."] }).reject).toBeNull();
   });
 
-  it("the guard rejects 6+ words copied from an example reply", () => {
+  it("the guard rejects 10+ words copied from an example reply", () => {
     const example = "Get the price in writing before you start and do not knock a penny off.";
     const g = (d: string) => privacy.guardDraft(d, { currentClientId: CLIENT, clients: known, exampleReplies: [example] });
-    expect(g("Sam, get the price in writing before anything.").reject).toMatch(/6\+ words/);
+    expect(g("Sam, get the price in writing before you start and do not budge.").reject).toMatch(/10\+ words/);
     expect(g("Sam, put the price in writing first, then crack on.")).toEqual({ reject: null, flag: null });
+  });
+
+  it("a distinctive 6-9 word phrase from an example is flagged for Marc, not rejected", () => {
+    const example = "Get the price in writing before you start and do not knock a penny off.";
+    const res = privacy.guardDraft("Sam, get the price in writing before anything.", { currentClientId: CLIENT, clients: known, exampleReplies: [example] });
+    expect(res).toEqual({ reject: null, flag: privacy.SHORT_COPY_REASON });
+  });
+
+  it("Marc's own stock phrases are never treated as a copy", () => {
+    const examples = [
+      "Good week. Where are you at with the quote for the extension? Come back to me on those numbers.",
+      "Solid. Where are you at with the hiring plan? Come back to me on those by Friday.",
+    ];
+    const draft = "Fair play. Where are you at with the van finance? Come back to me on those two.";
+    // Shared by two different example replies: a habit, not one client's wording.
+    expect(privacy.guardDraft(draft, { currentClientId: CLIENT, clients: known, exampleReplies: examples }).reject).toBeNull();
+    // In the approved style guide: Marc's voice, even if only one example uses it.
+    const guide = 'Sign-offs: "Come back to me on those". Check-ins: "Where are you at with the" plan.';
+    const res = privacy.guardDraft(draft, { currentClientId: CLIENT, clients: known, exampleReplies: [examples[0]], voiceText: guide });
+    expect(res.reject).toBeNull();
+    expect(res.flag).not.toBe(privacy.SHORT_COPY_REASON);
+  });
+
+  it("the redacted and original copy of one example count as one reply", () => {
+    const original = "Sam, get the price in writing before you start and do not knock a penny off.";
+    const redacted = "[client], get the price in writing before you start and do not knock a penny off.";
+    const res = privacy.guardDraft("Get the price in writing before you start and do not budge.", {
+      currentClientId: CLIENT,
+      clients: known,
+      exampleReplies: [redacted],
+      exampleOriginals: [original],
+    });
+    expect(res.reject).toMatch(/10\+ words/);
   });
 
   const CLOSE_EXAMPLE = "Hold your price on that one. Walk the job first, mate. Put it all in writing today.";
