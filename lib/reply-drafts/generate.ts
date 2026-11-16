@@ -144,6 +144,7 @@ export async function generateDraft(admin: SupabaseClient, draft: DraftRow, deps
             clients,
             exampleReplies: examples.prompt.map((e) => e.reply_text),
             exampleOriginals: examples.originals,
+            voiceText: guide,
           })
         : { reject: null, flag: null };
       rejection = guard.reject;

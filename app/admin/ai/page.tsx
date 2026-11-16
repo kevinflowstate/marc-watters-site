@@ -28,6 +28,15 @@ function renderMarkdown(text: string) {
   });
 }
 
+function renderInline(line: string) {
+  return line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={j} className="ws-ai-strong">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={j}>{renderMarkdown(part)}</span>;
+  });
+}
+
 function renderContent(text: string) {
   const lines = text.split("\n");
   return lines.map((line, i) => {
@@ -38,23 +47,16 @@ function renderContent(text: string) {
         </p>
       );
     }
-    const boldParts = line.split(/(\*\*.*?\*\*)/g);
-    const rendered = boldParts.map((part, j) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={j} className="ws-ai-strong">{part.slice(2, -2)}</strong>;
-      }
-      return <span key={j}>{renderMarkdown(part)}</span>;
-    });
     if (line.trim() === "") return <br key={i} />;
+    // Bullets render their text once, without the leading "- " or "* " marker.
     if (line.startsWith("- ") || line.startsWith("* ")) {
       return (
         <li key={i} className="ws-ai-li">
-          {rendered.slice(0, 1)}
-          {boldParts.length > 1 ? rendered.slice(1) : renderMarkdown(line.slice(2))}
+          {renderInline(line.slice(2))}
         </li>
       );
     }
-    return <p key={i}>{rendered}</p>;
+    return <p key={i}>{renderInline(line)}</p>;
   });
 }
 

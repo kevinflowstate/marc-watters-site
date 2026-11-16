@@ -136,11 +136,21 @@ function words(text: string) {
     .filter(Boolean);
 }
 
-/** A run of this many consecutive words shared with an example rejects the draft. */
-export const COPY_RUN = 6;
+/**
+ * A run of this many consecutive words shared with an example rejects the draft, unless the run is one of
+ * Marc's own habits. Long runs are where another client's specifics would leak.
+ */
+export const COPY_RUN = 10;
+/**
+ * Shorter shared runs (6 to 9 words) only flag the draft for Marc to check. Marc reuses short phrases all
+ * the time ("where are you at with the", "come back to me on those"), so blocking on 6 words left clients
+ * with no suggested reply (Derry Cullen 13 Nov, Ryan Ciarns 15 Nov).
+ */
+export const SHORT_COPY_RUN = 6;
 /** Jaccard similarity of word 4-grams with any single example at or above this flags the draft. */
 export const CLOSE_WORDING_JACCARD = 0.15;
 export const CLOSE_WORDING_REASON = "Check wording - close to another client's reply";
+export const SHORT_COPY_REASON = "Check wording - repeats a phrase from another client's reply";
 
 function shingles(text: string, n: number) {
   const w = words(text);
@@ -159,14 +169,33 @@ export function jaccard(a: Set<string>, b: Set<string>) {
 export type GuardResult = { reject: string | null; flag: string | null };
 
 /**
+ * Runs of n words that are Marc's habits rather than one client's specifics: they appear in his approved
+ * style guide, or in two or more different example replies.
+ */
+function habitualRuns(n: number, redacted: string[], originals: string[], voiceText: string | undefined) {
+  const habits = voiceText ? shingles(voiceText, n) : new Set<string>();
+  const seen = new Map<string, number>();
+  // redacted[i] and originals[i] are the same reply, so each reply counts once.
+  for (let i = 0; i < Math.max(redacted.length, originals.length); i += 1) {
+    const runs = new Set([...shingles(redacted[i] ?? "", n), ...shingles(originals[i] ?? "", n)]);
+    for (const s of runs) seen.set(s, (seen.get(s) ?? 0) + 1);
+  }
+  for (const [s, count] of seen) if (count >= 2) habits.add(s);
+  return habits;
+}
+
+/**
  * - reject: the draft names another client (full name, business, surname, or a first name that appeared
- *   in the original text of this draft's examples), or copies 6+ consecutive words from an example.
- * - flag: the wording is close to an example (4-gram Jaccard); the draft is kept but marked needs_marc.
- * Names are always checked against the original, unredacted client list.
+ *   in the original text of this draft's examples), or copies 10+ consecutive words from an example that
+ *   are not one of Marc's habitual phrases.
+ * - flag: the draft repeats a distinctive 6-9 word phrase from an example, or its wording is close to an
+ *   example (4-gram Jaccard); the draft is kept but marked needs_marc.
+ * Names are always checked against the original, unredacted client list. `voiceText` is Marc's approved
+ * style guide: phrases it contains are his voice, never a copy.
  */
 export function guardDraft(
   draft: string,
-  opts: { currentClientId: string; clients: KnownClient[]; exampleReplies: string[]; exampleOriginals?: string[] },
+  opts: { currentClientId: string; clients: KnownClient[]; exampleReplies: string[]; exampleOriginals?: string[]; voiceText?: string },
 ): GuardResult {
   const current = opts.clients.find((c) => c.clientId === opts.currentClientId);
   const mine = nameParts(current?.fullName ?? null);
@@ -192,12 +221,13 @@ export function guardDraft(
   }
 
   const examples = [...opts.exampleReplies, ...originals];
-  const draftRuns = shingles(draft, COPY_RUN);
-  for (const reply of examples) {
-    for (const s of shingles(reply, COPY_RUN)) {
-      if (draftRuns.has(s)) return { reject: `Draft copied ${COPY_RUN}+ words in a row from an example reply`, flag: null };
-    }
-  }
+  const sharedRun = (n: number) => {
+    const habits = habitualRuns(n, opts.exampleReplies, originals, opts.voiceText);
+    const draftRuns = shingles(draft, n);
+    return examples.some((reply) => [...shingles(reply, n)].some((s) => draftRuns.has(s) && !habits.has(s)));
+  };
+  if (sharedRun(COPY_RUN)) return { reject: `Draft copied ${COPY_RUN}+ words in a row from an example reply`, flag: null };
+  if (sharedRun(SHORT_COPY_RUN)) return { reject: null, flag: SHORT_COPY_REASON };
   const draftGrams = shingles(draft, 4);
   for (const reply of examples) {
     if (jaccard(draftGrams, shingles(reply, 4)) >= CLOSE_WORDING_JACCARD) return { reject: null, flag: CLOSE_WORDING_REASON };
