@@ -170,10 +170,12 @@ export type GuardResult = { reject: string | null; flag: string | null };
 
 /**
  * Runs of n words that are Marc's habits rather than one client's specifics: they appear in his approved
- * style guide, or in two or more different example replies.
+ * style guide, or (for short runs only) in two or more different example replies.
  */
-function habitualRuns(n: number, redacted: string[], originals: string[], voiceText: string | undefined) {
+function habitualRuns(n: number, redacted: string[], originals: string[], voiceText: string | undefined, guideOnly = false) {
   const habits = voiceText ? shingles(voiceText, n) : new Set<string>();
+  // Two examples can be replies to the same other client, so repetition alone never excuses a long copy.
+  if (guideOnly) return habits;
   const seen = new Map<string, number>();
   // redacted[i] and originals[i] are the same reply, so each reply counts once.
   for (let i = 0; i < Math.max(redacted.length, originals.length); i += 1) {
@@ -221,13 +223,13 @@ export function guardDraft(
   }
 
   const examples = [...opts.exampleReplies, ...originals];
-  const sharedRun = (n: number) => {
-    const habits = habitualRuns(n, opts.exampleReplies, originals, opts.voiceText);
+  const sharedRun = (n: number, guideOnly: boolean) => {
+    const habits = habitualRuns(n, opts.exampleReplies, originals, opts.voiceText, guideOnly);
     const draftRuns = shingles(draft, n);
     return examples.some((reply) => [...shingles(reply, n)].some((s) => draftRuns.has(s) && !habits.has(s)));
   };
-  if (sharedRun(COPY_RUN)) return { reject: `Draft copied ${COPY_RUN}+ words in a row from an example reply`, flag: null };
-  if (sharedRun(SHORT_COPY_RUN)) return { reject: null, flag: SHORT_COPY_REASON };
+  if (sharedRun(COPY_RUN, true)) return { reject: `Draft copied ${COPY_RUN}+ words in a row from an example reply`, flag: null };
+  if (sharedRun(SHORT_COPY_RUN, false)) return { reject: null, flag: SHORT_COPY_REASON };
   const draftGrams = shingles(draft, 4);
   for (const reply of examples) {
     if (jaccard(draftGrams, shingles(reply, 4)) >= CLOSE_WORDING_JACCARD) return { reject: null, flag: CLOSE_WORDING_REASON };
