@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { activateClient, type Activation } from "./client-activation";
 import { startOnboarding } from "./onboarding";
 import { createTask } from "./tasks";
 import type { StripePaymentAccount } from "./payment-stripe";
@@ -9,9 +10,11 @@ import type { StripePaymentAccount } from "./payment-stripe";
  * joined. Rules (all idempotent, so Stripe retries are harmless):
  * - payer is a portal client added in the last 30 days -> their onboarding checklist starts;
  * - payer is an older portal client -> nothing (an instalment or renewal);
- * - payer is not in the portal -> one task for Eimear to check and invite them, which then starts
- *   the checklist automatically.
- * Nothing here creates an account, invitation or message.
+ * - payer is not in the portal and this is the customer's first paid invoice ever (no earlier paid
+ *   invoice and no earlier successful payment) -> they are added to the portal, get the welcome
+ *   email, and their onboarding checklist starts (Kevin, 16 Nov 2026);
+ * - anything else not in the portal (a payment link with no invoice, history Stripe could not
+ *   confirm, no name on the invoice, an archived client) -> one task for Eimear to check and invite.
  */
 
 const NEW_CLIENT_DAYS = 30;
@@ -22,6 +25,7 @@ type Deps = {
   findClient?: (email: string) => Promise<Client | null>;
   start?: (clientId: string) => Promise<unknown>;
   raiseTask?: typeof createTask;
+  activate?: (name: string, email: string) => Promise<Activation>;
   now?: Date;
 };
 
@@ -42,17 +46,38 @@ async function findClientByEmail(email: string): Promise<Client | null> {
   return (profile.data as Client | null) ?? null;
 }
 
-/** An invoice that is not the customer's first paid one is an existing customer paying again. */
-async function hasEarlierPaidInvoice(account: StripePaymentAccount, customer: string, invoiceId: string, f: typeof fetch) {
-  const q = new URLSearchParams({ customer, status: "paid", limit: "5" });
-  const r = await f(`https://api.stripe.com/v1/invoices?${q}`, {
+async function stripeRows(account: StripePaymentAccount, path: string, q: URLSearchParams, f: typeof fetch) {
+  const r = await f(`https://api.stripe.com/v1/${path}?${q}`, {
     headers: { Authorization: `Bearer ${account.api_key}` },
     signal: AbortSignal.timeout(15_000),
     cache: "no-store",
   });
-  if (!r.ok) return false; // unknown history: fall back to the portal's own records
-  const body = (await r.json()) as { data?: { id?: string; amount_paid?: number }[] };
-  return (body.data || []).some((i) => i.id !== invoiceId && Number(i.amount_paid) > 0);
+  if (!r.ok) return null;
+  return ((await r.json()) as { data?: Record<string, unknown>[] }).data ?? [];
+}
+
+/**
+ * Has this customer paid before? "earlier": an earlier paid invoice, or a successful payment from
+ * before this invoice was raised (a payment link, say). "unknown": Stripe could not answer.
+ */
+async function paymentHistory(
+  account: StripePaymentAccount,
+  customer: string,
+  invoiceId: string,
+  invoiceCreated: number,
+  f: typeof fetch,
+): Promise<"first" | "earlier" | "unknown"> {
+  try {
+    const invoices = await stripeRows(account, "invoices", new URLSearchParams({ customer, status: "paid", limit: "10" }), f);
+    if (!invoices) return "unknown";
+    if (invoices.some((i) => i.id !== invoiceId && Number(i.amount_paid) > 0)) return "earlier";
+    if (!(invoiceCreated > 0)) return "unknown";
+    const charges = await stripeRows(account, "charges", new URLSearchParams({ customer, "created[lt]": String(invoiceCreated), limit: "10" }), f);
+    if (!charges) return "unknown";
+    return charges.some((c) => c.status === "succeeded" && c.paid === true && Number(c.amount) > 0) ? "earlier" : "first";
+  } catch {
+    return "unknown";
+  }
 }
 
 /** Reads the payer from a signature-verified invoice.paid or checkout.session.completed event. */
@@ -65,6 +90,7 @@ export function paymentFromEvent(type: string, object: Record<string, unknown>) 
       amount: Number(object.amount_paid),
       currency: String(object.currency || "gbp"),
       customer: typeof object.customer === "string" ? object.customer : "",
+      created: Number(object.created),
       invoice: true,
     };
   }
@@ -77,6 +103,7 @@ export function paymentFromEvent(type: string, object: Record<string, unknown>) 
       amount: Number(object.amount_total),
       currency: String(object.currency || "gbp"),
       customer: typeof object.customer === "string" ? object.customer : "",
+      created: Number(object.created),
       // A subscription checkout is followed by its own invoice.paid; handle it once, there.
       invoice: object.mode === "subscription",
     };
@@ -91,19 +118,62 @@ export async function onboardFromPayment(account: StripePaymentAccount, type: st
 
   const client = await (deps.findClient ?? findClientByEmail)(pay.email);
   const now = deps.now ?? new Date();
+  const start = deps.start ?? startOnboarding;
   if (client && !client.archived_at) {
     const recent = now.getTime() - Date.parse(client.created_at) < NEW_CLIENT_DAYS * 86_400_000;
     if (!recent || client.onboarding_stage === "complete") return { action: "existing_client" as const };
-    await (deps.start ?? startOnboarding)(client.id);
+    await start(client.id);
     return { action: "checklist_started" as const, client_id: client.id };
   }
-  if (pay.invoice && /^cus_[A-Za-z0-9]+$/.test(pay.customer) &&
-      (await hasEarlierPaidInvoice(account, pay.customer, pay.id, deps.fetch ?? fetch)))
-    return { action: "existing_customer" as const };
 
   const name = pay.name || pay.email;
   const paid = new Intl.NumberFormat("en-GB", { style: "currency", currency: pay.currency.toUpperCase() }).format(pay.amount / 100);
-  const ref = createHash("sha256").update(pay.email).digest("hex").slice(0, 32);
+  const where = `${account.label || account.alias} in Stripe`;
+  let note = "";
+
+  if (type === "invoice.paid" && /^cus_[A-Za-z0-9]+$/.test(pay.customer)) {
+    const history = await paymentHistory(account, pay.customer, pay.id, pay.created, deps.fetch ?? fetch);
+    if (history === "earlier") return { action: "existing_customer" as const };
+    if (history === "unknown") note = "Stripe could not confirm whether they have paid before, so they were not added automatically.";
+    else if (client?.archived_at) note = "They have an archived portal account, so they were not added automatically.";
+    else if (!pay.name) note = "The invoice has no customer name, so they were not added automatically.";
+    else {
+      const result = await (deps.activate ?? activateClient)(pay.name, pay.email);
+      if (result.status === "created") {
+        // The account is live; the checklist is best effort and never undoes it.
+        let checklist = true;
+        try {
+          await start(result.profileId);
+        } catch (e) {
+          checklist = false;
+          console.error("[STRIPE INTAKE] Onboarding checklist failed:", e instanceof Error ? e.message : e);
+        }
+        if (!result.emailSent || !checklist) {
+          await raise(deps, pay.email, `New client added · ${name} · needs a check`, [
+            `${name} (${pay.email}) paid ${paid} to ${where} (their first invoice) and was added to the portal automatically.`,
+            !result.emailSent ? "The welcome email did NOT send. Open Clients and resend their invite." : "",
+            !checklist ? "Their onboarding checklist did not start. Open the client and start onboarding." : "",
+          ]);
+        }
+        return { action: "client_added" as const, client_id: result.profileId, email_sent: result.emailSent, checklist_started: checklist };
+      }
+      if (result.status === "exists") note = "An account with this email already exists in the portal (not as an active client), so nothing was created.";
+      else note = result.userId
+        ? `Adding them automatically stopped part-way (${result.error}). Their login exists but may be incomplete: check Clients before inviting.`
+        : `Adding them automatically failed (${result.error}). Nothing was created.`;
+    }
+  }
+
+  await raise(deps, pay.email, `New client paid · ${name}`, [
+    `${name} (${pay.email}) paid ${paid} to ${where} and is not in the portal yet.`,
+    note,
+    "If they are a new programme client, open Clients and use Invite client with this email. Their onboarding checklist then appears here automatically. If it was something else (an event ticket, for example), mark this done with a note. Nothing has been sent to them.",
+  ], pay.id);
+  return { action: "setup_task" as const };
+}
+
+async function raise(deps: Deps, email: string, title: string, lines: string[], paymentId?: string) {
+  const ref = createHash("sha256").update(email).digest("hex").slice(0, 32);
   await (deps.raiseTask ?? createTask)(
     {
       kind: "task",
@@ -112,11 +182,10 @@ export async function onboardFromPayment(account: StripePaymentAccount, type: st
       source: "system",
       priority: 1,
       external_ref: `onboarding-stripe:${ref}`,
-      title: `New client paid · ${name}`,
-      detail: `${name} (${pay.email}) paid ${paid} to ${account.label || account.alias} in Stripe and is not in the portal yet.\n\nIf they are a new programme client, open Clients and use Invite client with this email. Their onboarding checklist then appears here automatically. If it was something else (an event ticket, for example), mark this done with a note. Nothing has been sent to them.`,
-      payload: { stripe_payment: pay.id, email: pay.email },
+      title,
+      detail: lines.filter(Boolean).join("\n\n"),
+      payload: { ...(paymentId ? { stripe_payment: paymentId } : {}), email },
     },
     "system",
   );
-  return { action: "setup_task" as const };
 }
