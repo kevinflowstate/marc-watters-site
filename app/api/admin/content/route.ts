@@ -4,6 +4,8 @@ import { allVideos, intake } from "@/lib/content/intake";
 import { accounts, accountWarnings } from "@/lib/content/crm";
 import { inboxFolder, schedulingEnabled } from "@/lib/content/config";
 import { contentResponse } from "@/lib/content/http";
+import { captionDocsForMonths } from "@/lib/content/caption-pdf";
+import { captionOptions, type CaptionOption } from "@/lib/content/captions";
 export const maxDuration = 300;
 export async function GET() {
   return contentResponse(async () => {
@@ -24,8 +26,20 @@ export async function GET() {
         "CRM accounts could not be checked. Scheduling will stay blocked until the connection is verified.",
       ];
     }
+    // Clips from Killen's caption docs that a reviewer can pick for each video (same episode first).
+    const months = [...new Set(videos.map((v) => v.month_id).filter((m): m is string => !!m))];
+    const docs = await captionDocsForMonths(months);
+    const options: Record<string, CaptionOption[]> = {};
+    for (const v of videos) {
+      const list = captionOptions(
+        { id: v.id, name: v.file_name, path: v.drive_path ?? [], monthId: v.month_id },
+        docs,
+      );
+      if (list.length) options[v.id] = list;
+    }
     return {
       videos,
+      captionOptions: options,
       configured: !!inboxFolder(),
       enabled: schedulingEnabled(),
       ...state.data,

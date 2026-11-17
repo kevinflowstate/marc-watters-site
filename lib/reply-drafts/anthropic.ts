@@ -18,7 +18,8 @@ export type ClaudeResult = {
 
 export async function callClaude(opts: {
   system: string;
-  user: string;
+  /** Text, or content blocks (for example a PDF document block followed by a text block). */
+  user: string | Array<Record<string, unknown>>;
   maxTokens: number;
   effort: "low" | "medium" | "high";
   jsonSchema?: Record<string, unknown>;

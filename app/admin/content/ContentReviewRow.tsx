@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { londonToUtc } from "@/lib/content/slots";
 import { platforms, type Platform, type Video } from "@/lib/content/types";
 import { reviewIssue, type Review } from "@/lib/content/review";
+import type { CaptionOption } from "@/lib/content/captions";
 
 export const platformLabels = {
   instagram: "Instagram",
@@ -43,6 +44,8 @@ function status(v: Video, review: Review) {
 type Props = {
   video: Video;
   review: Review;
+  /** Clips from Killen's caption doc for this video's episode. */
+  captionOptions?: CaptionOption[];
   expanded: boolean;
   busy: boolean;
   enabled: boolean;
@@ -50,7 +53,7 @@ type Props = {
   error?: string;
   onExpand: () => void;
   onEdit: (
-    patch: Partial<Pick<Review, "caption" | "date" | "platforms">>,
+    patch: Partial<Pick<Review, "caption" | "title" | "date" | "platforms">>,
   ) => void;
   onApproval: (approved: boolean) => void;
   onSave: () => void;
@@ -61,6 +64,7 @@ type Props = {
 export default function ContentReviewRow({
   video: v,
   review,
+  captionOptions = [],
   expanded,
   busy,
   enabled,
@@ -82,7 +86,9 @@ export default function ContentReviewRow({
     v.status === "skipped";
   const issue = reviewIssue(v, review);
   const approved = review.approved && !issue;
-  const title = v.file_name.replace(/\.mp4$/i, "");
+  const fileTitle = v.file_name.replace(/\.(mp4|mov|webm|m4v)$/i, "");
+  const title = review.title || v.title || fileTitle;
+  const picked = captionOptions.find((o) => o.caption === review.caption)?.key ?? "";
   const count = Array.from(review.caption).length;
   const id = `review-${v.id}`;
   let displayDate = v.schedule_at;
@@ -187,6 +193,35 @@ export default function ContentReviewRow({
             )}
           </div>
           <div className="content-copy-column">
+            {captionOptions.length > 0 && !locked && (
+              <div className="content-caption-pick">
+                <label className="ws-label" htmlFor={`${id}-pick`}>
+                  Caption from Killen&apos;s doc
+                </label>
+                <select
+                  id={`${id}-pick`}
+                  className="ws-input"
+                  value={picked}
+                  disabled={busy}
+                  onChange={(e) => {
+                    const o = captionOptions.find((x) => x.key === e.target.value);
+                    if (o) onEdit({ caption: o.caption, title: o.title });
+                  }}
+                >
+                  <option value="" disabled>
+                    {review.caption.trim() ? "Edited caption" : "Choose the caption for this clip"}
+                  </option>
+                  {captionOptions.map((o) => (
+                    <option key={o.key} value={o.key}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                {title !== fileTitle && (
+                  <span className="content-muted">File: {fileTitle}</span>
+                )}
+              </div>
+            )}
             <label className="ws-label" htmlFor={`${id}-caption`}>
               Caption{" "}
               <span className="content-muted">
