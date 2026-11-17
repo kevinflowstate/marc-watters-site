@@ -94,6 +94,22 @@ describe("weekly lesson source", () => {
     expect(rows.get("2026-11-10")).toMatchObject({ status: "packaged", task_id: "task-1" });
   });
 
+  it("puts the review note on the task, never in the client summary", async () => {
+    await advanceLessonSource({ fetch: fathom(), now: WED, key: "k" });
+    const pack = {
+      schema_version: 1, lesson_ref: "lesson:2026-11-10:pricing-the-job", version: 1, mode: "append",
+      module_id: "faa36657-fa83-4f66-87cb-cf597b3d75b2", title: "Pricing the Job", summary_md: "Here's what you learned: pricing.", workbook_md: "",
+      media: { storage_path: "incoming/2026-11-10/201755940.mp4", sha256: SHA },
+    };
+    await importLessonPackage({ kind: "lesson_package", lesson_date: "2026-11-10", lesson_package: pack, review_note: "Opening 2 min cut." });
+    const task = createTask.mock.calls[0][0];
+    expect(task.detail).toContain("Notes for you (not shown to clients): Opening 2 min cut.");
+    expect((task.payload as Record<string, Record<string, unknown>>).lesson_package.summary_md).toBe("Here's what you learned: pricing.");
+    await expect(
+      importLessonPackage({ lesson_date: "2026-11-10", lesson_package: { ...pack, summary_md: "Overview.\n\n**Review note for Marc**\nCheck 21:50." } }),
+    ).rejects.toThrow("review_note");
+  });
+
   it("refuses a package pointing anywhere but this lesson's slot, or for another date", async () => {
     await advanceLessonSource({ fetch: fathom(), now: WED, key: "k" });
     const base = { schema_version: 1, lesson_ref: "lesson:2026-11-10:x", version: 1, mode: "append", module_id: "faa36657-fa83-4f66-87cb-cf597b3d75b2", title: "X", summary_md: "S", workbook_md: "" };
