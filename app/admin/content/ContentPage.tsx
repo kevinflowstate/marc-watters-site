@@ -283,8 +283,8 @@ export default function ContentPage({ sample }: { sample?: Video[] }) {
       )}
       {data && !data.enabled && (
         <p className="content-muted">
-          Scheduling is switched off. Videos will upload after scheduling is
-          enabled.
+          Preview only for now: review captions, dates and platforms and tick
+          Approved. Nothing posts until scheduling is switched on.
         </p>
       )}
       {error && (
