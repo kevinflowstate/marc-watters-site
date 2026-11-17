@@ -194,6 +194,12 @@ export async function importLessonPackage(doc: unknown) {
     throw new OpsError("No lesson source is waiting for this date");
   if (media.storage_path !== uploadPath(row)) throw new OpsError("The lesson video must be in this lesson's upload slot");
   if (typeof media.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(media.sha256)) throw new OpsError("A SHA-256 fingerprint is required");
+  // Notes for whoever reviews (what was or was not cut, anything to check) go on the task only.
+  // The summary is what clients read once the lesson is published, so it must never carry them.
+  const reviewNote = d.review_note === undefined || d.review_note === null ? "" : d.review_note;
+  if (typeof reviewNote !== "string" || reviewNote.length > 2000) throw new OpsError("review_note must be plain text under 2,000 characters");
+  if (/review note|notes? for (marc|eimear|the reviewer)/i.test(String(pack.summary_md ?? "")))
+    throw new OpsError("Keep review notes out of summary_md (clients read it); send them as review_note instead");
   const approved = `approved/${media.sha256}.mp4`;
   const finalPack = validateLessonPackage({ ...pack, media: { storage_path: approved, sha256: media.sha256 } });
   if (!finalPack.lesson_ref.startsWith(`lesson:${lessonDate}:`)) throw new OpsError("lesson_ref must start with lesson:<date>:");
@@ -212,7 +218,9 @@ export async function importLessonPackage(doc: unknown) {
       priority: 2,
       external_ref: `lesson-review:${finalPack.lesson_ref}:v${finalPack.version}`,
       title: `${finalPack.title} · lesson ready to review`,
-      detail: `Last Tuesday's call (${lessonDate}), prepared by Codex. Check the video, read the summary and workbook, then approve it for ${finalPack.mode === "append" ? "Call Replays" : "Training"} or request changes.`,
+      detail:
+        `Last Tuesday's call (${lessonDate}), prepared by Codex. Check the video, read the summary and workbook, then approve it for ${finalPack.mode === "append" ? "Call Replays" : "Training"} or request changes.` +
+        (reviewNote.trim() ? `\n\nNotes for you (not shown to clients): ${reviewNote.trim()}` : ""),
       payload: { lesson_package: { ...pack, media: { storage_path: approved, sha256: media.sha256 } } },
     },
     "system",
