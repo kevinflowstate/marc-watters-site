@@ -39,6 +39,10 @@
     {
       "path": "/api/cron/content-intake",
       "schedule": "0 7-22 * * *"
+    },
+    {
+      "path": "/api/cron/lead-dms",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
