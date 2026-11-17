@@ -53,8 +53,20 @@ function speaker(line: DmLine, first: string) {
   return line.from === "lead" ? first : line.from === "ai" ? "Marc's AI setter" : "Marc";
 }
 
-export function dmUserPrompt(name: string, lines: DmLine[], d: Delimiters, now = new Date(), retryNote?: string) {
-  const first = (name.split(/[\s|]+/)[0] || "Them").slice(0, 40);
+/** A lead's display name is theirs to write: one short line of letters, numbers and basic punctuation only. */
+export function safeName(name: string) {
+  return (
+    name
+      .replace(/[^\p{L}\p{N} .,'&|_-]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 60) || "Instagram user"
+  );
+}
+
+export function dmUserPrompt(rawName: string, lines: DmLine[], d: Delimiters, now = new Date(), retryNote?: string) {
+  const name = safeName(rawName);
+  const first = (name.split(/[\s|]+/)[0] || "Them").slice(0, 30);
   const transcript = lines
     .slice(-24)
     .map((l) => {
@@ -63,7 +75,9 @@ export function dmUserPrompt(name: string, lines: DmLine[], d: Delimiters, now =
     })
     .join("\n");
   const parts = [
-    `<lead>\nInstagram name: ${name.replace(/[<>]/g, "")}\nToday: ${now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" })}\n</lead>`,
+    `Today: ${now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" })}`,
+    // The display name is lead-written, so it sits inside the data block with the conversation.
+    untrusted(d, "lead_instagram_name", name),
     untrusted(d, "instagram_conversation", transcript),
     "Write Marc's reply to their latest message(s).",
   ];
