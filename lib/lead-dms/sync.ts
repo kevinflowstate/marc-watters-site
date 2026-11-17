@@ -74,7 +74,10 @@ export async function syncLeadDms(admin: SupabaseClient, deps: { crm?: CrmDeps; 
         profile_photo: c.profilePhoto && /^https:\/\//.test(c.profilePhoto) ? c.profilePhoto : null,
         inbound_message_id: state.latest.id,
         inbound_at: state.latest.at,
-        inbound_text: state.burst.map(preview).join("\n").slice(0, 1000),
+        inbound_text: (state.textless
+          ? preview({ text: "", media: state.burst.reduce((n, l) => n + Math.max(l.media, 1), 0) })
+          : state.burst.filter((l) => l.text.trim()).map(preview).join("\n")
+        ).slice(0, 1000),
         for_marc: existing?.for_marc ?? false,
         due_at: due,
         // Nothing to answer in words (a reel, photo or voice note): no suggestion, no model call.

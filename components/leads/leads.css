@@ -17,7 +17,7 @@
 }
 @media (min-width: 900px) {
   .ld-book:nth-child(-n + 2) { border-top: 0; }
-  .ld-book:nth-child(odd) { border-right: 1px solid var(--ws-line); }
+  .ld-book:nth-child(odd):not(:last-child) { border-right: 1px solid var(--ws-line); }
 }
 @media (max-width: 899px) { .ld-book:first-child { border-top: 0; } }
 .ld-book-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ws-ink); }
