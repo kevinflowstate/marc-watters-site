@@ -54,8 +54,19 @@ describe("platform payload and guarded create", () => {
     expect(f).not.toHaveBeenCalled();
     expect(await importOneVideo()).toEqual({
       imported: false,
-      reason: "Scheduling is switched off",
+      reason: "Video import is switched off",
     });
+  });
+  it("lets preview import run on its own switch while scheduling stays off", async () => {
+    vi.stubEnv("OPS_CONTENT_SCHEDULING_ENABLED", "false");
+    vi.stubEnv("OPS_CONTENT_IMPORT_ENABLED", "true");
+    const f = vi.fn();
+    await expect(executeVideoPost(payload, f)).rejects.toThrow("switched off");
+    expect(f).not.toHaveBeenCalled();
+    const { importEnabled, schedulingEnabled } = await import("@/lib/content/config");
+    expect(importEnabled()).toBe(true);
+    expect(schedulingEnabled()).toBe(false);
+    vi.stubEnv("OPS_CONTENT_IMPORT_ENABLED", "");
   });
   it("requires strict readback and keeps a receipt", async () => {
     enabled();

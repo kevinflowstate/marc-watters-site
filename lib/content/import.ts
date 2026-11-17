@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError } from "@/lib/ops/tasks";
 import {
-  assertSchedulingEnabled,
-  schedulingEnabled,
+  assertImportEnabled,
+  importEnabled,
   videoMaxBytes,
 } from "./config";
 import { accounts, CRM_API, crmHeaders, mediaUrl } from "./crm";
@@ -15,8 +15,8 @@ import { connectInbox, driveRead, DRIVE_FILES } from "./drive";
 import type { Video } from "./types";
 /** One file, disk-backed multipart; never buffer a 500 MB video in the function heap. */
 export async function importOneVideo() {
-  if (!schedulingEnabled())
-    return { imported: false, reason: "Scheduling is switched off" };
+  if (!importEnabled())
+    return { imported: false, reason: "Video import is switched off" };
   const db = createAdminClient();
   const next = await db
     .from("content_videos")
@@ -99,7 +99,7 @@ export async function importOneVideo() {
     form.set("name", video.file_name);
     form.set("hosted", "false");
     const headers = crmHeaders();
-    assertSchedulingEnabled();
+    assertImportEnabled();
     attempted = true;
     const upload = await fetch(CRM_API + "/medias/upload-file", {
       method: "POST",

@@ -2,6 +2,16 @@ import { OpsError } from "@/lib/ops/tasks";
 export const env = (name: string) => (process.env[name] ?? "").trim();
 export const schedulingEnabled = () =>
   env("OPS_CONTENT_SCHEDULING_ENABLED") === "true";
+/**
+ * Copying a video into the CRM media library so it can be previewed in the portal. It posts nothing, so it
+ * has its own switch (OPS_CONTENT_IMPORT_ENABLED, Kevin 17 Nov 2026) and is also on whenever scheduling is.
+ */
+export const importEnabled = () =>
+  schedulingEnabled() || env("OPS_CONTENT_IMPORT_ENABLED") === "true";
+export function assertImportEnabled() {
+  if (!importEnabled())
+    throw new OpsError("Video import is switched off", 409);
+}
 export function assertSchedulingEnabled() {
   if (!schedulingEnabled())
     throw new OpsError("Scheduling is switched off", 409);
