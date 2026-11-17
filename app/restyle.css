@@ -1525,6 +1525,9 @@
 .admin-shell .is-approved .content-approval { color:var(--adm-green); }
 .admin-shell .content-expanded { display:grid; grid-template-columns:240px minmax(0,1fr); align-items:start; gap:24px; padding:4px 18px 20px; }
 .admin-shell .content-copy-column { min-width:0; }
+.admin-shell .content-caption-pick { display:flex; flex-direction:column; gap:0; margin-bottom:14px; }
+.admin-shell .content-caption-pick select { width:100%; }
+.admin-shell .content-caption-pick > .content-muted { margin-top:6px; font-size:12px; }
 .admin-shell .content-video-column .content-video-stage { margin-bottom:10px; }
 .admin-shell .content-video-column > a { display:flex; justify-content:center; }
 .admin-shell .content-expanded .content-settings { gap:14px; margin:14px 0; }

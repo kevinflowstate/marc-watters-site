@@ -4,6 +4,8 @@ import type { Platform, Video } from "./types";
 export type Review = {
   revision: string;
   caption: string;
+  /** Title picked with the caption from Killen's doc; null keeps the saved title (or file name). */
+  title: string | null;
   date: string;
   platforms: Platform[];
   approved: boolean;
@@ -12,6 +14,7 @@ export function newReview(video: Video): Review {
   return {
     revision: video.updated_at,
     caption: video.caption,
+    title: video.title ?? null,
     date:
       video.schedule_at || video.suggested_at
         ? londonInput((video.schedule_at || video.suggested_at)!)
@@ -22,7 +25,7 @@ export function newReview(video: Video): Review {
 }
 export function editReview(
   review: Review,
-  patch: Partial<Pick<Review, "caption" | "date" | "platforms">>,
+  patch: Partial<Pick<Review, "caption" | "title" | "date" | "platforms">>,
 ): Review {
   return { ...review, ...patch, approved: false };
 }

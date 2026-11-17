@@ -11,6 +11,7 @@ const edit = z
     revision: z.string().datetime({ offset: true }),
     action: z.enum(["save", "skip", "reconcile"]),
     caption: z.string().max(20000).optional(),
+    title: z.string().max(200).nullable().optional(),
     suggested_at: z.string().datetime({ offset: true }).optional(),
     platforms: z.array(z.enum(platforms)).min(1).max(3).optional(),
   })
@@ -39,6 +40,9 @@ export async function PATCH(
         : {
             ...(body.caption !== undefined
               ? { caption: body.caption, caption_source: "manual" }
+              : {}),
+            ...(body.title !== undefined
+              ? { title: body.title?.trim() || null }
               : {}),
             ...(body.suggested_at ? { suggested_at: body.suggested_at } : {}),
             ...(body.platforms

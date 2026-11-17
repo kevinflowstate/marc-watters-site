@@ -33,6 +33,10 @@ export type Video = {
   media_file_id: string | null;
   caption: string;
   caption_source: "sidecar" | "manual" | null;
+  /** From the caption doc ("Being Successful Shouldn't Consume Your Life"); the file name when null. */
+  title?: string | null;
+  drive_path?: string[];
+  month_id?: string | null;
   suggested_at: string | null;
   schedule_at: string | null;
   platforms: Platform[];

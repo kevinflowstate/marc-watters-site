@@ -12,6 +12,8 @@ import {
 import { syncReviewTask } from "./review-task";
 import { nextSlots } from "./slots";
 import { importOneVideo } from "./import";
+import { loadCaptionDocs } from "./caption-pdf";
+import { matchClips } from "./captions";
 import type { Video } from "./types";
 export async function allVideos(): Promise<Video[]> {
   const rows: Video[] = [];
@@ -78,6 +80,17 @@ export async function intake(now = new Date()) {
     }
     const captions = matchCaptions(files, docs);
     warnings.push(...captions.warnings);
+    // Killen Studios' caption docs are PDFs: read once each, then matched inside their episode folder.
+    const pdfs = tree.files.filter(
+      (f) =>
+        f.path.slice(1, -1).some((p) => /caption/i.test(p)) &&
+        f.mimeType === "application/pdf",
+    );
+    const pdfDocs = await loadCaptionDocs(pdfs, tree.token, warnings);
+    const pdfMatches = matchClips(
+      files.map((f) => ({ id: f.id, name: f.name, path: f.path, monthId: f.monthId })),
+      pdfDocs,
+    );
     const existing = await allVideos();
     const remote = await listPosts(
       now.toISOString(),
@@ -102,26 +115,34 @@ export async function intake(now = new Date()) {
         );
         continue;
       }
-      const caption = captions.matches.get(file.id);
+      const pdf = pdfMatches.get(file.id);
+      const caption = captions.matches.get(file.id) ?? pdf?.caption;
+      const title = captions.matches.has(file.id) ? null : (pdf?.title ?? null);
       if (action === "unchanged") {
-        if (
-          old &&
-          caption &&
-          old.caption_source !== "manual" &&
-          !old.approved_at
-        ) {
-          const updated = await db
-            .from("content_videos")
-            .update({
-              caption,
-              caption_source: "sidecar",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", old.id)
-            .eq("updated_at", old.updated_at)
-            .is("approved_at", null);
-          if (updated.error)
-            throw new OpsError("Caption could not be saved", 502);
+        if (old && !old.approved_at) {
+          // Only write when something changed, so an open review is not marked "Video changed" every hour.
+          const place =
+            (old.month_id ?? null) !== (file.monthId ?? null) ||
+            (old.drive_path ?? []).join("/") !== file.path.join("/");
+          const sidecar =
+            !!caption &&
+            old.caption_source !== "manual" &&
+            (old.caption !== caption || (old.title ?? null) !== title);
+          if (place || sidecar) {
+            const updated = await db
+              .from("content_videos")
+              .update({
+                drive_path: file.path,
+                month_id: file.monthId ?? null,
+                ...(sidecar ? { caption, caption_source: "sidecar", title } : {}),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", old.id)
+              .eq("updated_at", old.updated_at)
+              .is("approved_at", null);
+            if (updated.error)
+              throw new OpsError("Caption could not be saved", 502);
+          }
         }
         continue;
       }
@@ -155,6 +176,9 @@ export async function intake(now = new Date()) {
             : caption
               ? "sidecar"
               : null,
+        title: old?.caption_source === "manual" ? (old.title ?? null) : title,
+        drive_path: file.path,
+        month_id: file.monthId ?? null,
         updated_at: new Date().toISOString(),
       };
       const saved = old

@@ -10,9 +10,11 @@ import {
   type Review,
 } from "@/lib/content/review";
 import ContentReviewRow, { when } from "./ContentReviewRow";
+import type { CaptionOption } from "@/lib/content/captions";
 
 type Data = {
   videos: Video[];
+  captionOptions?: Record<string, CaptionOption[]>;
   configured: boolean;
   enabled: boolean;
   checked_at?: string;
@@ -131,6 +133,7 @@ export default function ContentPage({ sample }: { sample?: Video[] }) {
       action: "save",
       revision: review.revision,
       caption: review.caption,
+      ...(review.title !== (video.title ?? null) ? { title: review.title } : {}),
       suggested_at: londonToUtc(review.date),
       platforms: review.platforms,
     });
@@ -368,6 +371,7 @@ export default function ContentPage({ sample }: { sample?: Video[] }) {
                 key={v.id}
                 video={v}
                 review={review}
+                captionOptions={data.captionOptions?.[v.id] ?? []}
                 expanded={expanded === v.id}
                 busy={busy}
                 enabled={data.enabled}
