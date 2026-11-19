@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { DECEMBER_WEBINAR, WEBINAR_SESSIONS, decemberCalendarLinks, decemberRegistrationEnabled, getDecemberSession } from "@/lib/webinar-december";
@@ -7,8 +8,15 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your CBB 2027 Growth Engine Session", description: "Your workshop details and next steps with Marc Watters.", robots: { index: false, follow: false } };
 export default async function WebinarThankYou({ searchParams }: { searchParams: Promise<{ session?: string; source?: string }> }) {
   const query = await searchParams;
-  const session = getDecemberSession(query.session);
-  const metaFallback = !session && query.source === "meta-fallback";
+  const requestHeaders = await headers();
+  const userAgent = requestHeaders.get("user-agent") ?? "";
+  // Meta's desktop test client can open the default 1pm CTA for either choice.
+  const ambiguousDesktopMeta = query.source === "meta" && query.session === "1pm"
+    && /Windows NT|Macintosh|X11/i.test(userAgent)
+    && !/Android|iPhone|iPad|iPod|Mobile/i.test(userAgent)
+    && requestHeaders.get("sec-ch-ua-mobile") !== "?1";
+  const session = ambiguousDesktopMeta ? undefined : getDecemberSession(query.session);
+  const metaFallback = ambiguousDesktopMeta || (!session && query.source === "meta-fallback");
   const links = session ? decemberCalendarLinks(session.id, DECEMBER_WEBINAR.siteUrl) : null;
   const video = "/media/webinar/marc-cbb-2027-thank-you-v2.mp4";
   const preview = !decemberRegistrationEnabled();
