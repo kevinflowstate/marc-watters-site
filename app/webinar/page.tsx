@@ -1,177 +1,60 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import GhlWebinarForm from "@/components/GhlWebinarForm";
-import { GHL_WEBINAR_FORM, WEBINAR, webinarRegistrationClosed } from "@/lib/webinar";
+import Link from "next/link";
+import SessionRegistration from "@/components/webinar/SessionRegistration";
+import { DECEMBER_WEBINAR, WEBINAR_SESSIONS, decemberRegistrationEnabled, getDecemberSession } from "@/lib/webinar-december";
 
 export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
-  title: "From Chaos To Control | Free Live Workshop",
-  description: "A free live workshop with Marc Watters for trade and construction business owners. Thursday 15 October 2026 at 7pm UK and Ireland time.",
+  title: "The CBB 2027 Growth Engine | Free Live Workshop",
+  description: "A free live workshop for construction business owners ready to walk into 2027 with more time, profit and control. Wednesday 9 December, 1pm or 7pm.",
   alternates: { canonical: "/webinar" },
-  openGraph: {
-    title: "From Chaos To Control — Free Live Workshop",
-    description: `${WEBINAR.dateLabel} at ${WEBINAR.timeLabel}. Live on Zoom with Marc Watters.`,
-    images: ["/images/webinar/lead-form-header-15-october.jpg"],
-  },
+  openGraph: { title: DECEMBER_WEBINAR.title, description: "Wednesday 9 December · Choose 1pm or 7pm · Free live workshop with Marc Watters", images: [{ url: "/images/webinar/cbb-2027-growth-engine.jpg", width: 1200, height: 628 }] },
+  twitter: { card: "summary_large_image", images: ["/images/webinar/cbb-2027-growth-engine.jpg"] },
 };
-
 const outcomes = [
-  "Why being good at your trade does not automatically teach you how to run a company.",
-  "Where relying on the owner creates problems for the team and the business.",
-  "How to identify the first thing to take off your plate and who should own it.",
-  "What to look at first when jobs are busy but profit and time are under pressure.",
+  ["Get your time back", "How to get yourself off the tools and out of every decision, without the business falling over."],
+  ["Price for profit", "How to price jobs so the profit’s actually there at the end."],
+  ["Know your numbers", "How to know your numbers before the month’s over, not after."],
+  ["Build a team you can trust", "How to build a team that handles problems without ringing you."],
+  ["Start January with a plan", "A clear idea of what to fix first, so January starts with a plan."],
+  ["Get your questions answered", "Live answers from someone who’s seen these problems in businesses of every size."],
 ];
-
-const videoTestimonials = [
-  { id: "obge0_bDhqg", title: "Construction Business Blueprint client testimonial" },
-  { id: "1FILP9frS9E", title: "Trade business owner testimonial" },
-  { id: "7eRY9Wgr67c", title: "Construction business owner testimonial" },
-];
-
-export default function WebinarOptIn() {
-  const registrationClosed = webinarRegistrationClosed();
-
-  return (
-    <main className="overflow-hidden">
-      <section className="relative px-5 pb-20 pt-8 sm:px-8 lg:min-h-screen lg:pb-24 lg:pt-10">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 72% 25%, rgba(34,114,222,0.15) 0%, transparent 42%), radial-gradient(ellipse at 15% 75%, rgba(34,114,222,0.07) 0%, transparent 38%)" }} />
-        <div className="relative z-10 mx-auto max-w-[1240px]">
-          <div className="mb-10 flex items-center gap-3">
-            <Image src="/images/cbb-logo.png" alt="Construction Business Blueprint" width={42} height={42} className="h-10 w-auto" priority />
-            <div className="font-heading text-[0.78rem] font-extrabold leading-tight tracking-[-0.2px] sm:text-sm">
-              <span className="text-text-primary">CONSTRUCTION</span><br className="sm:hidden" />{" "}
-              <span className="text-accent-bright">BUSINESS BLUEPRINT</span>
-            </div>
+const testimonials = ["obge0_bDhqg", "1FILP9frS9E", "7eRY9Wgr67c"];
+export default async function WebinarPage({ searchParams }: { searchParams: Promise<{ session?: string }> }) {
+  const query = await searchParams;
+  const selected = getDecemberSession(query.session);
+  const enabled = decemberRegistrationEnabled();
+  const forms = { "1pm": process.env.WEBINAR_DEC_2026_1PM_FORM_ID || WEBINAR_SESSIONS[0].formId, "7pm": process.env.WEBINAR_DEC_2026_7PM_FORM_ID || WEBINAR_SESSIONS[1].formId };
+  // Dynamic server render supplies the request time; the client clock keeps session cutoffs current.
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
+  return <main className="overflow-hidden">
+    {!enabled && <div className="border-b border-accent/25 bg-accent/10 px-5 py-2 text-center text-xs font-semibold text-accent-bright">Campaign review preview · Registration is off</div>}
+    <section className="relative px-5 pb-16 pt-7 sm:px-8 lg:pb-24 lg:pt-9">
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 75% 20%, rgba(34,114,222,0.16), transparent 48%)" }} />
+      <div className="relative mx-auto max-w-[1240px]">
+        <Link href="/" className="inline-flex items-center gap-3"><Image src="/images/cbb-logo.png" alt="Construction Business Blueprint" width={42} height={42} className="h-10 w-auto" priority /><span className="font-heading text-xs font-extrabold leading-tight tracking-wide sm:text-sm">CONSTRUCTION<br /><span className="text-accent-bright">BUSINESS BLUEPRINT</span></span></Link>
+        <div className="mt-10 grid items-start gap-10 lg:mt-14 lg:grid-cols-[minmax(0,1.12fr)_minmax(370px,.88fr)] lg:gap-14">
+          <div className="lg:pt-3">
+            <p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">Free live workshop · Construction business owners</p>
+            <h1 className="mt-5 max-w-[720px] font-heading text-[2.8rem] font-extrabold leading-[1.04] tracking-[-1.8px] sm:text-[4.1rem] lg:text-[4.5rem]">The CBB 2027<br /><span className="gradient-text">Growth Engine</span></h1>
+            <p className="mt-6 max-w-[620px] text-lg leading-8 text-text-secondary sm:text-xl sm:leading-9">A free live workshop for construction business owners ready to walk into 2027 with <strong className="font-semibold text-white">more time, profit &amp; control.</strong></p>
+            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 border-y border-white/10 py-4 text-sm font-semibold"><span>Wednesday 9 December</span><span className="text-accent-bright">1pm or 7pm</span><span>Live on Zoom · One hour</span></div>
+            <div className="mt-8 flex items-center gap-4"><div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/15"><Image src="/images/marc-about.png" alt="Marc Watters" fill sizes="64px" className="object-cover object-top" /></div><div><p className="font-heading text-sm font-bold">With Marc Watters</p><p className="mt-1 text-xs text-text-muted">Construction Business Blueprint</p></div></div>
+            <a href="#register" className="mt-7 inline-flex font-semibold text-accent-bright underline underline-offset-4 lg:hidden">Choose my session ↓</a>
           </div>
-
-          <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.12fr)_minmax(400px,0.88fr)] lg:gap-16">
-            <div className="pt-2 lg:pt-10">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-4 py-2 text-xs font-bold uppercase tracking-[1.5px] text-accent-bright">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent-bright shadow-[0_0_12px_rgba(96,165,250,0.8)]" />
-                Free live workshop for trade &amp; construction owners
-              </div>
-              <h1 className="max-w-[720px] font-heading text-[3rem] font-black leading-[0.98] tracking-[-2.5px] sm:text-[4.4rem] lg:text-[5rem]">
-                From Chaos<br /><span className="gradient-text">To Control</span>
-              </h1>
-              <p className="mt-5 font-heading text-xl font-bold text-text-primary sm:text-2xl">The shift from tradesman to business owner.</p>
-              <p className="mt-6 max-w-[650px] text-base leading-8 text-text-secondary sm:text-lg">
-                If every quote, site problem and decision still comes through you, there is a limit to what the business can do. In this live workshop, Marc will show you how to start changing the owner&apos;s role and build more structure into your team, your numbers and your working week.
-              </p>
-              <div className="mt-8 grid max-w-[680px] grid-cols-1 gap-3 sm:grid-cols-3">
-                {[["Date", WEBINAR.shortDateLabel], ["Time", WEBINAR.timeLabel], ["Where", "Live on Zoom"]].map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-5 py-4 backdrop-blur-sm">
-                    <div className="text-[0.67rem] font-bold uppercase tracking-[1.5px] text-text-muted">{label}</div>
-                    <div className="mt-1 font-heading text-sm font-bold text-text-primary">{value}</div>
-                  </div>
-                ))}
-              </div>
-              <a href="#register" className="mt-8 inline-flex items-center gap-2 font-semibold text-accent-bright hover:text-white lg:hidden">Register below <span aria-hidden="true">↓</span></a>
-            </div>
-
-            <div id="register" className="relative scroll-mt-6">
-              <div className="absolute -inset-8 rounded-[40px] bg-accent/10 blur-3xl" />
-              <div className="relative overflow-hidden rounded-[24px] border border-white/[0.09] bg-[rgba(12,12,18,0.92)] shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-                <div className="h-1 gradient-accent" />
-                <Image
-                  src="/images/webinar/lead-form-header-15-october.jpg"
-                  alt="From Chaos To Control with Marc Watters, Thursday 15 October at 7pm UK and Ireland"
-                  width={1200}
-                  height={628}
-                  className="h-auto w-full border-b border-white/[0.07]"
-                  priority
-                />
-                <div className="p-6 sm:p-8">
-                  <div className="mb-6">
-                    <p className="text-xs font-bold uppercase tracking-[2px] text-accent-bright">Register free</p>
-                    <h2 className="mt-2 font-heading text-2xl font-black tracking-[-0.7px]">Save your place</h2>
-                    <p className="mt-2 text-sm leading-6 text-text-secondary">Enter your details to receive the joining instructions and workshop reminders.</p>
-                  </div>
-                  {registrationClosed ? (
-                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] px-5 py-8 text-center">
-                      <p className="font-heading text-xl font-bold text-text-primary">Registration has closed.</p>
-                      <p className="mt-3 text-sm leading-6 text-text-secondary">This live workshop has now started. You can still book a call with Marc to work through the next steps for your business.</p>
-                      <a href="/book-marc" className="btn-primary gradient-accent mt-6 inline-flex rounded-xl px-6 py-3 font-bold text-white">Book a call with Marc</a>
-                    </div>
-                  ) : (
-                    <div className="overflow-hidden rounded-xl bg-white">
-                      <GhlWebinarForm
-                        formId={GHL_WEBINAR_FORM.id}
-                        formName={GHL_WEBINAR_FORM.name}
-                        embedOrigin={GHL_WEBINAR_FORM.embedOrigin}
-                        height={GHL_WEBINAR_FORM.height}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+          <div id="register" className="scroll-mt-6 overflow-hidden rounded-2xl border border-white/15 bg-bg-card shadow-[0_24px_80px_rgba(0,0,0,.35)]">
+            <Image src="/images/webinar/cbb-2027-growth-engine.jpg" alt="The CBB 2027 Growth Engine, Wednesday 9 December, 1pm and 7pm" width={1200} height={628} priority className="h-auto w-full border-b border-white/10" />
+            <div className="p-5 sm:p-7"><SessionRegistration initialSession={selected?.id} enabled={enabled} forms={forms} nowMs={nowMs} /></div>
           </div>
         </div>
-      </section>
-
-      <section className="relative border-y border-white/[0.05] bg-bg-secondary px-5 py-20 sm:px-8 sm:py-24">
-        <div className="mx-auto max-w-[1060px]">
-          <div className="max-w-[680px]">
-            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">What we&apos;ll cover</p>
-            <h2 className="mt-4 font-heading text-[2rem] font-black leading-tight tracking-[-1.3px] sm:text-[2.8rem]">Start building a business that does not need you in every decision.</h2>
-          </div>
-          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-            {outcomes.map((outcome, index) => (
-              <div key={outcome} className="flex gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-5 sm:p-6">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/15 font-heading text-sm font-bold text-accent-bright">{index + 1}</span>
-                <p className="text-[0.95rem] leading-7 text-text-secondary">{outcome}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="relative px-5 py-20 sm:px-8 sm:py-24">
-        <div className="mx-auto grid max-w-[980px] items-center gap-10 sm:grid-cols-[220px_1fr]">
-          <div className="relative mx-auto h-[260px] w-[200px] overflow-hidden rounded-[24px] border border-white/[0.08] sm:h-[290px] sm:w-[220px]">
-            <Image src="/images/marc-about.png" alt="Marc Watters" fill sizes="220px" className="object-cover object-top" />
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">Your host</p>
-            <h2 className="mt-3 font-heading text-[2rem] font-black tracking-[-1px] sm:text-[2.5rem]">Marc Watters</h2>
-            <p className="mt-5 text-base leading-8 text-text-secondary">Marc works with trade and construction business owners on the structure behind a well-run company: the numbers, the team, the systems and the owner&apos;s role. This session is practical, direct and built around the problems that show up in a real working business.</p>
-            <a href="#register" className="btn-primary gradient-accent mt-7 inline-flex rounded-xl px-7 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:shadow-[0_12px_35px_rgba(34,114,222,0.3)]">Save my free place</a>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative border-t border-white/[0.05] bg-bg-secondary px-5 py-20 sm:px-8 sm:py-24">
-        <div className="mx-auto max-w-[1060px]">
-          <div className="mx-auto max-w-[680px] text-center">
-            <p className="text-xs font-bold uppercase tracking-[3px] text-accent-bright">Results</p>
-            <h2 className="mt-4 font-heading text-[2rem] font-black leading-tight tracking-[-1.3px] sm:text-[2.8rem]">What clients say</h2>
-            <p className="mt-4 text-base leading-7 text-text-secondary">Real outcomes from trade and construction business owners on the programme.</p>
-          </div>
-          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {videoTestimonials.map((video) => (
-              <div key={video.id} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black shadow-[0_20px_60px_rgba(0,0,0,0.32)]">
-                <div className="relative w-full pt-[177.78%]">
-                  <iframe
-                    className="absolute inset-0 h-full w-full"
-                    src={`https://www.youtube.com/embed/${video.id}`}
-                    title={video.title}
-                    loading="lazy"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-white/[0.05] bg-bg-secondary px-5 py-14 text-center sm:px-8">
-        <p className="font-heading text-lg font-bold text-text-primary">{WEBINAR.dateLabel} · {WEBINAR.timeLabel}</p>
-        <p className="mt-2 text-sm text-text-muted">One hour · Live on Zoom · Free to attend</p>
-      </section>
-    </main>
-  );
+      </div>
+    </section>
+    <section className="border-y border-white/[.07] bg-bg-secondary px-5 py-16 sm:px-8 sm:py-20"><div className="mx-auto max-w-[1120px]"><p className="text-xs font-bold uppercase tracking-[2.5px] text-accent-bright">What you’ll walk away with</p><h2 className="mt-4 max-w-[800px] font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">Make 2027 the year the business stops relying on you for everything.</h2><div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">{outcomes.map(([title, text], i) => <div key={title} className="border-t border-white/10 pt-5"><span className="font-heading text-sm font-bold text-accent-bright">0{i + 1}</span><h3 className="mt-3 font-heading text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-7 text-text-secondary">{text}</p></div>)}</div></div></section>
+    <section className="px-5 py-16 sm:px-8 sm:py-20"><div className="mx-auto grid max-w-[1120px] gap-10 md:grid-cols-[.65fr_1fr]"><div><p className="text-xs font-bold uppercase tracking-[2.5px] text-accent-bright">Who it’s for</p><h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight">You’ve built a business.<br />Now make it work for you.</h2></div><div className="text-base leading-8 text-text-secondary"><p>Trade and construction business owners — builders, sparks, plumbers, joiners, roofers, contractors — who’ve got a business that works but are tired of it relying on them for everything.</p><p className="mt-4">Built for established businesses doing £250k to £10 million, or serious about getting there.</p><a href="#register" className="mt-6 inline-flex font-bold text-accent-bright underline underline-offset-4">Choose 1pm or 7pm →</a></div></div></section>
+    <section className="border-y border-white/[.07] bg-bg-secondary px-5 py-16 sm:px-8 sm:py-20"><div className="mx-auto grid max-w-[1000px] items-center gap-8 sm:grid-cols-[230px_1fr] sm:gap-12"><div className="relative mx-auto h-[300px] w-[230px] overflow-hidden rounded-2xl"><Image src="/images/marc-about.png" alt="Marc Watters, Construction Business Blueprint founder" fill sizes="230px" className="object-cover object-top" /></div><div><p className="text-xs font-bold uppercase tracking-[2.5px] text-accent-bright">Your host</p><h2 className="mt-3 font-heading text-3xl font-extrabold tracking-tight">Marc Watters</h2><p className="mt-5 text-sm leading-7 text-text-secondary">Marc started on building sites at fourteen, served his time, and went out on his own with no clue how to run a business. Twenty years later, having worked from apprentice to director level across major firms, he’s seen the same problems in one-man bands and multi-million-pound companies.</p><p className="mt-4 text-sm leading-7 text-text-secondary">Through the Construction Business Blueprint he’s taken 50+ construction business owners through the shift from tradesman to business owner.</p></div></div></section>
+    <section className="px-5 py-16 sm:px-8 sm:py-20"><div className="mx-auto max-w-[1120px]"><p className="text-xs font-bold uppercase tracking-[2.5px] text-accent-bright">Construction Business Blueprint</p><h2 className="mt-4 font-heading text-3xl font-extrabold tracking-tight">Hear from Marc’s clients</h2><div className="mt-8 grid gap-5 md:grid-cols-3">{testimonials.map((id, i) => <div key={id} className="aspect-[9/16] overflow-hidden rounded-xl border border-white/10 bg-black"><iframe className="h-full w-full" src={`https://www.youtube-nocookie.com/embed/${id}`} title={`Construction Business Blueprint client story ${i + 1}`} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div>)}</div></div></section>
+    <section className="border-t border-white/10 bg-accent/[.07] px-5 py-14 text-center sm:px-8"><h2 className="mx-auto max-w-[760px] font-heading text-2xl font-extrabold leading-tight sm:text-3xl">Don’t walk into 2027 doing the same thing.</h2><p className="mt-4 text-sm text-text-secondary">Wednesday 9 December · 1pm or 7pm · Free · Live on Zoom</p><a href="#register" className="gradient-accent mt-7 inline-flex rounded-xl px-7 py-4 font-heading text-sm font-bold text-white">Pick my session &amp; save my spot</a></section>
+  </main>;
 }
