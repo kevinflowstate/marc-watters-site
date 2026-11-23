@@ -17,6 +17,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // CBB Growth Engine booking page (private link for Marc's clients).
+  if (hostname.startsWith('growthengine.') && path === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/cbbgrowthengine';
+    return NextResponse.rewrite(url);
+  }
+  if (path === '/cbbgrowthengine') {
+    return NextResponse.next({ request });
+  }
+
   if (hostname.startsWith('join.')) {
     // Root -> webinar opt-in page
     if (path === '/') {

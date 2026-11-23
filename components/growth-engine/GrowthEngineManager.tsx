@@ -22,7 +22,7 @@ function initials(client: GrowthAdminClient) {
     .toUpperCase();
 }
 
-export default function GrowthEngineManager() {
+export default function GrowthEngineManager({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const [clients, setClients] = useState<GrowthAdminClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,13 +85,19 @@ export default function GrowthEngineManager() {
   if (loading) return <PageSkeleton rows={6} />;
 
   return (
-    <div className="ws ws-page">
-      <header className="ws-ph">
+    <div className={embedded ? "ws-page" : "ws ws-page"}>
+      <header className={embedded ? "ws-ph ge-embedded-head" : "ws-ph"}>
         <div className="min-w-0">
-          <h1 className="ws-title">CBB Growth Engine</h1>
-          <p className="ws-meta mt-1 max-w-2xl">
-            Strategy, implementation and weekly reporting for active Growth Engine clients.
-          </p>
+          {embedded ? (
+            <h2 className="ws-h2">Live clients</h2>
+          ) : (
+            <>
+              <h1 className="ws-title">CBB Growth Engine</h1>
+              <p className="ws-meta mt-1 max-w-2xl">
+                Strategy, implementation and weekly reporting for active Growth Engine clients.
+              </p>
+            </>
+          )}
         </div>
         <div className="ws-ph-acts">
           <Link href="/growth-engine-pricing" className="ws-btn ws-focus">
