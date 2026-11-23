@@ -30,8 +30,8 @@ export default function GrowthEngineBookingPage() {
             Book your <span className="geb-hl">Growth Engine</span> call
           </h1>
           <p className="geb-lede">
-            A private 30-minute call with Kevin Harkin, Marc&apos;s growth partner. We&apos;ll look at how work comes into
-            your business, where time is being lost, and what the Growth Engine would take off your plate.
+            A private 30-minute call with Kevin Harkin. We&apos;ll look at how work comes into your business, where time
+            is being lost, and what the Growth Engine would take off your plate.
           </p>
           <ul className="geb-facts" aria-label="Call details">
             <li>30 minutes</li>
