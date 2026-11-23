@@ -1,5 +1,6 @@
-import GrowthEngineManager from "@/components/growth-engine/GrowthEngineManager";
+import "./growth-engine.css";
+import GrowthEngineHub from "@/components/growth-engine/GrowthEngineHub";
 
 export default function AdminGrowthEnginePage() {
-  return <GrowthEngineManager />;
+  return <GrowthEngineHub />;
 }

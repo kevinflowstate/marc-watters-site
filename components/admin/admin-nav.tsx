@@ -6,6 +6,7 @@ export const adminSections: ShellNavSection[] = [
     items: [
       { href: "/admin", label: "Dashboard", short: "Home", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
       { href: "/admin/work", label: "Workspace", child: "Item", icon: "M9 12l2 2 4-4M5 4h14v16H5z" },
+      { href: "/admin/growth-engine", label: "Growth Engine", child: "Client", operator: true, icon: "M4 19V9m5 10V5m5 14v-7m5 7V3M3 19h18" },
       { href: "/admin/leads", label: "Leads", child: "Lead", icon: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6" },
       { href: "/admin/content", label: "Content", child: "Video", icon: "M4 4h16v16H4zM10 8l6 4-6 4V8z" },
       { href: "/admin/inbox", label: "Inbox", child: "Conversation", icon: "M8 10h8m-8 4h5m-7 6h12a2 2 0 002-2V8a2 2 0 00-.586-1.414l-4-4A2 2 0 0014 2H6a2 2 0 00-2 2v14a2 2 0 002 2z" },
@@ -25,7 +26,6 @@ export const adminSections: ShellNavSection[] = [
     items: [
       { href: "/admin/training", label: "Training", child: "Lesson", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
       { href: "/admin/ai", label: "Blueprint AI", icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" },
-      { href: "/admin/growth-engine", label: "Growth Engine", child: "Client", operator: true, icon: "M4 19V9m5 10V5m5 14v-7m5 7V3M3 19h18" },
     ],
   },
 ];
