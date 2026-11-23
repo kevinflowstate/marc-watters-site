@@ -92,6 +92,7 @@ export function cleanDealPatch(body: Record<string, unknown>) {
     const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw.replace(/[£,\s]/g, "")) : NaN;
     patch.proposal_value = Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
   }
+  if (typeof patch.email === "string") patch.email = patch.email.toLowerCase();
   if (patch.contact_name === null) delete patch.contact_name;
   return patch;
 }

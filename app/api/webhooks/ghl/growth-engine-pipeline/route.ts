@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GROWTH_ENGINE_CALENDAR_ID, isCancelledStatus, parseBookingPayload } from "@/lib/growth-engine-pipeline";
-import { exactIlike, matchClientByEmail } from "@/lib/growth-engine-pipeline-server";
+import { matchClientByEmail, normalizeEmail } from "@/lib/growth-engine-pipeline-server";
 
 /**
  * CBB Growth Engine bookings from the Flowstate CRM workflow
@@ -41,9 +41,10 @@ export async function POST(request: NextRequest) {
     existing = data;
   }
   // A new booking from someone already open in the pipeline moves their existing card.
-  if (!existing && (booking.contactId || booking.email)) {
+  const email = normalizeEmail(booking.email);
+  if (!existing && (booking.contactId || email)) {
     let query = admin.from("cbb_growth_pipeline").select("id, stage").in("stage", ["call_booked", "proposal", "follow_up"]);
-    query = booking.contactId ? query.eq("ghl_contact_id", booking.contactId) : query.ilike("email", exactIlike(booking.email));
+    query = booking.contactId ? query.eq("ghl_contact_id", booking.contactId) : query.eq("email", email);
     const { data } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
     existing = data;
   }
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     stage: "call_booked",
     position: (top ? Number(top.position) : 0) - 1,
     contact_name: booking.name || booking.email,
-    email: booking.email || null,
+    email: email || null,
     phone: booking.phone || null,
     business_name: booking.businessName || null,
     client_id: await matchClientByEmail(admin, booking.email),

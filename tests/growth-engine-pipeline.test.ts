@@ -61,9 +61,11 @@ describe("toDeal", () => {
   });
 });
 
-describe("exactIlike", () => {
-  it("escapes LIKE wildcards", async () => {
-    const { exactIlike } = await import("@/lib/growth-engine-pipeline-server");
-    expect(exactIlike("john_smith%@x.com")).toBe("john\\_smith\\%@x.com");
+describe("normalizeEmail", () => {
+  it("lowercases plain emails and rejects wildcard input", async () => {
+    const { normalizeEmail } = await import("@/lib/growth-engine-pipeline-server");
+    expect(normalizeEmail(" John_Smith@X.com ")).toBe("john_smith@x.com");
+    expect(normalizeEmail("*@x.com")).toBe("");
+    expect(normalizeEmail("a%@x.com")).toBe("");
   });
 });
