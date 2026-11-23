@@ -4,7 +4,14 @@ type C = { params: Promise<{ id: string }> };
 export async function GET(_r: Request, c: C) {
   return respond(async () => {
     await adminActor();
-    return { report: await getReport((await c.params).id) };
+    const report = await getReport((await c.params).id);
+    const sheetId = process.env.CBB_WEEKLY_RECONCILIATION_SHEET_ID?.trim();
+    return {
+      report,
+      reconciliationSheetUrl: sheetId && /^[\w-]+$/.test(sheetId)
+        ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit`
+        : null,
+    };
   });
 }
 export async function PATCH(r: Request, c: C) {
