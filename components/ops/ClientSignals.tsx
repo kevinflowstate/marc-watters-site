@@ -9,6 +9,15 @@ type Signals = {
   next_action: string | null;
   next_action_due: string | null;
 };
+const deliveryLabels = {
+  claimed: "Attempt reserved · confirmation pending",
+  accepted: "Accepted by provider",
+  partial: "Some devices accepted · check delivery",
+  unconfirmed: "Delivery unconfirmed · check before retrying",
+  rejected: "Rejected by provider",
+  no_destination: "No delivery address or subscribed device",
+};
+type Reminder = { week_start: string; channel: "email" | "push"; status: keyof typeof deliveryLabels };
 const stages = [
   "none",
   "invited",
@@ -21,6 +30,7 @@ const stages = [
 ];
 export default function ClientSignals({ id }: { id: string }) {
   const [s, setS] = useState<Signals | null>(null),
+    [reminders, setReminders] = useState<Reminder[] | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
@@ -31,6 +41,7 @@ export default function ClientSignals({ id }: { id: string }) {
       return;
     }
     setS(d.client);
+    setReminders(d.reminderHistory ?? null);
   }, [id]);
   useEffect(() => {
     void load();
@@ -150,6 +161,20 @@ export default function ClientSignals({ id }: { id: string }) {
               Save action
             </button>
           </form>
+          <details className="col-span-full">
+            <summary className="ws-label">Weekly check-in reminder history</summary>
+            {reminders?.length ? (
+              <ul className="mt-2 space-y-1">
+                {reminders.map((r) => (
+                  <li key={r.week_start + r.channel}>
+                    Week of {r.week_start} · {r.channel === "email" ? "Email" : "App notification"} · {deliveryLabels[r.status]}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="ws-caption">{reminders ? "No attempts recorded since reminder tracking began." : "Reminder history unavailable."}</p>
+            )}
+          </details>
         </div>
       )}
       </div>
