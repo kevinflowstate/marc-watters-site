@@ -47,7 +47,7 @@ const flow = [
 
 const phases = [
   {
-    d: "Days 1-30",
+    d: "Phase 1",
     w: "Map it",
     h: "The AI mapped around your business",
     intro: "Every construction business runs differently. So it starts with yours: how you quote, how you price, who does what, and where the hours actually go.",
@@ -55,11 +55,11 @@ const phases = [
       ["Every job on the table.", "The work that eats your week, and what's worth handing over first."],
       ["Your business brain.", "Your rates, services and how you talk to customers, written down in one place you own."],
       ["Connected properly.", "Email, accounts, files and messages, each with only the access its job needs."],
-      ["A quick win early.", "The first agent doing real work in your hands by day 14."],
+      ["A quick win early.", "The first agent doing real work in your hands early on."],
     ],
   },
   {
-    d: "Days 31-60",
+    d: "Phase 2",
     w: "Build it",
     h: "Your AI team, built",
     intro: "Agent by agent, from the moment a job starts to the finished output. You see each one working on your own examples before anything goes live.",
@@ -71,10 +71,10 @@ const phases = [
     ],
   },
   {
-    d: "Days 61-90",
+    d: "Phase 3",
     w: "Run it",
     h: "Run alongside you on real jobs",
-    intro: "Going live isn't the finish line. For the last 30 days it runs on real work with support beside you, so it beds in properly and you're never left in the dark.",
+    intro: "Going live isn't the finish line. In the final phase it runs on real work with support beside you, so it beds in properly and you're never left in the dark.",
     ticks: [
       ["Refining.", "Real jobs go through, the weak spots get fixed and the wording tightened every week."],
       ["Optimising.", "Switch on the jobs you trust first, then move more across as confidence builds."],
@@ -164,7 +164,7 @@ export default function GrowthEnginePage() {
             <a className="geb-engine" href="#integration">
               <span className="geb-engine-n">02</span>
               <h3>Construction AI Integration</h3>
-              <p>An AI team mapped, built and run inside your business in 90 days. Quotes, invoices, the site diary, messages and chasing money, handled from your phone.</p>
+              <p>An AI team mapped, built and run inside your business, in three phases. Quotes, invoices, the site diary, messages and chasing money, handled from your phone.</p>
               <span className="geb-engine-out"><b>The result</b>Your evenings back</span>
             </a>
           </div>
@@ -219,7 +219,7 @@ export default function GrowthEnginePage() {
             <h2 className="geb-h2">Construction AI <span className="geb-brush">Integration.</span></h2>
             <p className="geb-lede">
               The office work that follows you home, handed to an AI team that knows your rates, your jobs and how you talk to
-              customers. Mapped, built and run over 90 days.
+              customers. Mapped, built and run in three phases.
             </p>
           </div>
 
@@ -241,7 +241,7 @@ export default function GrowthEnginePage() {
                 </div>
               </div>
             ))}
-            <p className="geb-after"><b>After day 90</b>Support is agreed before the start. Keep it improving with ongoing support, or run it yourselves with everything handed over.</p>
+            <p className="geb-after"><b>After phase 3</b>Support is agreed before the start. Keep it improving with ongoing support, or run it yourselves with everything handed over.</p>
           </div>
 
           <div className="geb-head geb-head-sub">
