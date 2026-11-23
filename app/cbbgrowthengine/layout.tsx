@@ -10,6 +10,20 @@ export const metadata: Metadata = {
   title: { absolute: "CBB Growth Engine | Construction Business Blueprint" },
   description: "AI lead generation and AI integration built around trade and construction businesses.",
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
+  // Link previews (WhatsApp, iMessage) show the Growth Engine, not the main site.
+  openGraph: {
+    title: "CBB Growth Engine",
+    description: "AI lead generation and AI integration for trade and construction businesses.",
+    siteName: "CBB Growth Engine",
+    images: [{ url: "/images/growth-engine/hero-van.jpg", alt: "CBB Growth Engine" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CBB Growth Engine",
+    description: "AI lead generation and AI integration for trade and construction businesses.",
+    images: ["/images/growth-engine/hero-van.jpg"],
+  },
 };
 
 export default function GrowthEngineLayout({ children }: { children: React.ReactNode }) {
