@@ -60,3 +60,10 @@ describe("toDeal", () => {
     expect("proposal_file_path" in deal).toBe(false);
   });
 });
+
+describe("exactIlike", () => {
+  it("escapes LIKE wildcards", async () => {
+    const { exactIlike } = await import("@/lib/growth-engine-pipeline-server");
+    expect(exactIlike("john_smith%@x.com")).toBe("john\\_smith\\%@x.com");
+  });
+});

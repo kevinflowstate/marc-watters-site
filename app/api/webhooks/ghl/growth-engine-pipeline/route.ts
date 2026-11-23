@@ -2,12 +2,12 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GROWTH_ENGINE_CALENDAR_ID, isCancelledStatus, parseBookingPayload } from "@/lib/growth-engine-pipeline";
-import { matchClientByEmail } from "@/lib/growth-engine-pipeline-server";
+import { exactIlike, matchClientByEmail } from "@/lib/growth-engine-pipeline-server";
 
 /**
  * CBB Growth Engine bookings from the Flowstate CRM workflow
  * ("CBB Growth Engine - Pipeline sync"). Lands each booking in "Call booked".
- * Auth: x-growth-engine-secret header (or ?key=) matching GROWTH_ENGINE_PIPELINE_SECRET.
+ * Auth: x-growth-engine-secret header matching GROWTH_ENGINE_PIPELINE_SECRET.
  */
 function safeEqual(left: string, right: string) {
   const a = Buffer.from(left);
@@ -17,7 +17,7 @@ function safeEqual(left: string, right: string) {
 
 export async function POST(request: NextRequest) {
   const configured = process.env.GROWTH_ENGINE_PIPELINE_SECRET?.trim();
-  const supplied = (request.headers.get("x-growth-engine-secret") || request.nextUrl.searchParams.get("key") || "").trim();
+  const supplied = (request.headers.get("x-growth-engine-secret") || "").trim();
   if (!configured || !supplied || !safeEqual(configured, supplied)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   // A new booking from someone already open in the pipeline moves their existing card.
   if (!existing && (booking.contactId || booking.email)) {
     let query = admin.from("cbb_growth_pipeline").select("id, stage").in("stage", ["call_booked", "proposal", "follow_up"]);
-    query = booking.contactId ? query.eq("ghl_contact_id", booking.contactId) : query.ilike("email", booking.email);
+    query = booking.contactId ? query.eq("ghl_contact_id", booking.contactId) : query.ilike("email", exactIlike(booking.email));
     const { data } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
     existing = data;
   }
