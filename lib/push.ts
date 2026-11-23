@@ -34,7 +34,7 @@ function sanitizeErrorMessage(reason: unknown) {
 export async function sendPushToUser(
   userId: string,
   notification: { title: string; body?: string; url?: string; tag?: string }
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; skipped?: "not_configured" | "unavailable" | "no_subscriptions" }> {
   const admin = createAdminClient();
   const vapidPublicKey = getEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY") || getEnv("VAPID_PUBLIC_KEY");
   const vapidPrivateKey = getEnv("VAPID_PRIVATE_KEY");
@@ -48,7 +48,7 @@ export async function sendPushToUser(
       status: "skipped",
       error_message: "VAPID keys are not configured",
     });
-    return { sent: 0, failed: 0 };
+    return { sent: 0, failed: 0, skipped: "not_configured" };
   }
 
   webpush.setVapidDetails(
@@ -57,14 +57,15 @@ export async function sendPushToUser(
     vapidPrivateKey
   );
 
-  const { data: subscriptions } = await admin
+  const { data: subscriptions, error: subscriptionError } = await admin
     .from("push_subscriptions")
     .select("id, endpoint, keys")
     .eq("user_id", userId)
     .is("revoked_at", null)
     .returns<PushSubscriptionRow[]>();
 
-  if (!subscriptions || subscriptions.length === 0) {
+  if (subscriptionError || !subscriptions) return { sent: 0, failed: 0, skipped: "unavailable" };
+  if (subscriptions.length === 0) {
     await admin.from("push_notification_attempts").insert({
       user_id: userId,
       notification_type: "portal_push",
@@ -72,7 +73,7 @@ export async function sendPushToUser(
       status: "skipped",
       error_message: "No active push subscriptions",
     });
-    return { sent: 0, failed: 0 };
+    return { sent: 0, failed: 0, skipped: "no_subscriptions" };
   }
 
   const payload = JSON.stringify(notification);

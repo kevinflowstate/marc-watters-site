@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listClients } from "./clients";
-import { createTask, listTasks, OpsError } from "./tasks";
+import { createTask, OpsError } from "./tasks";
 function isoWeek(date: Date) {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
@@ -10,7 +10,6 @@ function isoWeek(date: Date) {
 }
 export async function runDaily(now = new Date()) {
   const clients = await listClients(),
-    open = await listTasks(),
     ids: string[] = [];
   const make = async (
     title: string,
@@ -54,22 +53,6 @@ export async function runDaily(now = new Date()) {
         `payment-stale:${c.id}:${c.payment_status_updated_at}`,
         c.id,
       );
-    if (
-      Date.parse(c.last_checkin || c.created_at) <
-        now.getTime() - 14 * 86400000 &&
-      !open.some(
-        (t) =>
-          t.client_id === c.id &&
-          t.area === "engagement" &&
-          !["done", "cancelled", "rejected"].includes(t.status),
-      )
-    )
-      await make(
-        `engagement: check in with ${name}`,
-        "engagement",
-        `engagement:${c.id}:${isoWeek(now)}`,
-        c.id,
-      );
   }
   if (now.getUTCDay() === 1)
     await make(
@@ -83,5 +66,9 @@ export async function runDaily(now = new Date()) {
         .join("\n") || "All connected clients are current.",
       "task",
     );
-  return { task_ids: [...new Set(ids)], checked_clients: clients.length };
+  const { data: engagementIds, error } = await createAdminClient().rpc(
+    "ops_reconcile_engagement_tasks", { p_now: now.toISOString() },
+  );
+  if (error) throw new OpsError("Overdue check-in tasks could not be reconciled", 503);
+  return { task_ids: [...new Set([...ids, ...(engagementIds ?? [])])], checked_clients: clients.length };
 }
