@@ -13,9 +13,9 @@
   --muted: #7d8696;
   --blue: #2272de;
   --blue-2: #4a95ff;
-  --display: var(--ge-display), "Barlow Condensed", Impact, sans-serif;
-  --label: var(--ge-label), "Arial Narrow", sans-serif;
-  --text: var(--ge-text), system-ui, -apple-system, sans-serif;
+  --display: "Big Shoulders Display", "Barlow Condensed", Impact, sans-serif;
+  --label: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --text: "Barlow", system-ui, -apple-system, sans-serif;
   position: relative;
   background: var(--ground);
   color: var(--ink);

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { Barlow, Barlow_Condensed, Big_Shoulders } from "next/font/google";
 import "./growth-engine-booking.css";
 
-const display = Big_Shoulders({ subsets: ["latin"], weight: ["700", "800", "900"], variable: "--ge-display", display: "swap" });
-const label = Barlow_Condensed({ subsets: ["latin"], weight: ["600", "700"], variable: "--ge-label", display: "swap" });
-const text = Barlow({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--ge-text", display: "swap" });
+// Fonts load in the browser (not next/font) so the build never depends on a Google Fonts fetch.
+const FONTS =
+  "https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap";
 
 // Private link shared with Marc's clients only: kept out of search and the sitemap.
 export const metadata: Metadata = {
@@ -14,5 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default function GrowthEngineLayout({ children }: { children: React.ReactNode }) {
-  return <div className={`${display.variable} ${label.variable} ${text.variable}`}>{children}</div>;
+  return (
+    <>
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      <link rel="stylesheet" href={FONTS} precedence="default" />
+      {children}
+    </>
+  );
 }
