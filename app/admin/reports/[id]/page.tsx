@@ -19,6 +19,7 @@ type Report = {
 export default function ReportDetail() {
   const { id } = useParams<{ id: string }>(),
     [report, setReport] = useState<Report | null>(null),
+    [reconciliationSheetUrl, setReconciliationSheetUrl] = useState<string | null>(null),
     [text, setText] = useState(""),
     [observations, setObservations] = useState(""),
     [error, setError] = useState(""),
@@ -29,6 +30,7 @@ export default function ReportDetail() {
       d = await r.json();
     if (!r.ok) throw Error(d.error);
     setReport(d.report);
+    setReconciliationSheetUrl(d.reconciliationSheetUrl ?? null);
     setText(d.report.narrative_md);
     setObservations(d.report.observations_md);
   }, [id]);
@@ -135,6 +137,16 @@ export default function ReportDetail() {
           )}
           <div className="ws-rp-summary">
             <ReportSummary data={report.data} />
+            {reconciliationSheetUrl && (
+              <a
+                className="ws-btn ws-focus"
+                href={reconciliationSheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open weekly financial reconciliation ↗
+              </a>
+            )}
           </div>
           <div className="ws-rp-cols">
             <label className="ws-rp-field">
