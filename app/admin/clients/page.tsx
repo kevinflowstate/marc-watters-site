@@ -35,6 +35,8 @@ export default function ClientsPage() {
   const [lifecycle, setLifecycle] = useState<"active" | "archived">("active");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"attention" | "name" | "recent">("attention");
+  const [intakeMethod,setIntakeMethod]=useState("portal");
+  const [intakeStatus,setIntakeStatus]=useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -114,7 +116,7 @@ export default function ClientsPage() {
         <div className="ws-ph-acts">
           <button
             type="button"
-            onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
+            onClick={() => { setInviteOpen(true); setIntakeMethod("portal"); setIntakeStatus(""); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
             className="ws-btn ws-btn-primary ws-focus"
           >
             <Icon name="plus" size={14} />
@@ -131,7 +133,7 @@ export default function ClientsPage() {
             <div className="ws-dialog-head">
               <div className="min-w-0">
                 <h3 className="ws-dialog-title">Add client</h3>
-                <p className="ws-caption mt-0.5">They&apos;ll receive an activation email for their portal account</p>
+                <p className="ws-caption mt-0.5">{intakeMethod === "portal" ? "They’ll receive a portal activation email." : "This starts the existing CRM contract workflow. Portal onboarding follows the signed contract."}</p>
               </div>
             </div>
 
@@ -140,7 +142,7 @@ export default function ClientsPage() {
                 <div className="ws-note is-ok" role="status">
                   <Icon name="checkCircle" size={15} />
                   <span>
-                    {inviteResult.passwordSet
+                    {intakeStatus || (inviteResult.passwordSet
                       ? "Client added - password set, ready to log in"
                       : inviteResult.alreadyExisted
                         ? inviteResult.emailSent
@@ -148,7 +150,7 @@ export default function ClientsPage() {
                           : "Client found - reset link ready"
                         : inviteResult.emailSent
                           ? "Client added and email sent"
-                          : "Client added"}
+                          : "Client added")}
                   </span>
                 </div>
                 {!inviteResult.passwordSet && !inviteResult.emailSent && inviteResult.setupUrl && (
@@ -176,6 +178,12 @@ export default function ClientsPage() {
                   </div>
                 )}
                 <div>
+                  <label htmlFor="intake-method" className="ws-label">Onboarding route</label>
+                  <select id="intake-method" className="ws-input mb-3" value={intakeMethod} onChange={e=>setIntakeMethod(e.target.value)}>
+                    <option value="portal">Portal invite only</option>
+                    <option value="cash">Cash payment · contract and welcome</option>
+                    <option value="bank_transfer">Bank transfer · contract and welcome</option>
+                  </select>
                   <label className="ws-label" htmlFor="invite-name">Full name</label>
                   <input
                     id="invite-name"
@@ -200,7 +208,7 @@ export default function ClientsPage() {
                 <div>
                   <label className="ws-label" htmlFor="invite-password">Set password <span>(optional - or they set via email)</span></label>
                   <input
-                    id="invite-password"
+                    id="invite-password" disabled={intakeMethod !== "portal"}
                     type="password"
                     value={invitePassword}
                     onChange={(e) => setInvitePassword(e.target.value)}
@@ -223,13 +231,15 @@ export default function ClientsPage() {
                       setInviteSending(true);
                       setInviteResult(null);
                       try {
-                        const res = await fetch("/api/admin/invite-client", {
+                        const manual=intakeMethod !== "portal";
+                        const res = await fetch(manual ? "/api/admin/manual-intake" : "/api/admin/invite-client", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ name: inviteName, email: inviteEmail, ...(invitePassword.trim() ? { password: invitePassword.trim() } : {}) }),
+                          body: JSON.stringify({ name: inviteName, email: inviteEmail, paymentMethod:intakeMethod, ...(!manual && invitePassword.trim() ? { password: invitePassword.trim() } : {}) }),
                         });
                         const data = await res.json();
                         if (res.ok) {
+                          if (manual) setIntakeStatus(data.status==="already_started"?"Contract workflow already started.":"Contract workflow started.");
                           setInviteResult({ success: true, alreadyExisted: data.alreadyExisted, emailSent: data.emailSent, passwordSet: data.passwordSet, setupUrl: data.setupUrl });
                         } else {
                           setInviteResult({ success: false, error: data.error });
@@ -247,7 +257,7 @@ export default function ClientsPage() {
                         <Icon name="refresh" size={14} className="ws-spin" />
                         Adding...
                       </>
-                    ) : "Add client"}
+                    ) : intakeMethod === "portal" ? "Add client" : "Start contract and welcome"}
                   </button>
                 </div>
               </div>

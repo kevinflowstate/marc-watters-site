@@ -6,6 +6,7 @@ import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ClientTerm from "@/components/ops/ClientTerm";
 import ClientSignals from "@/components/ops/ClientSignals";
 import MonthlyMetricsOverview from "@/components/shared/MonthlyMetricsOverview";
 import type { AdminClient } from "@/lib/admin-data";
@@ -776,6 +777,7 @@ export default function ClientDetailPage() {
       </div>
 
       <ClientSignals id={client.id} />
+      <ClientTerm id={client.id} />
 
       <section className="ws-panel min-w-0" aria-label="Plan Progress">
         <div className="ws-panel-head">

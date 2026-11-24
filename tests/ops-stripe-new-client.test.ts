@@ -34,6 +34,14 @@ function created(over: Record<string, unknown> = {}) {
 const detail = (d: ReturnType<typeof deps>) => String((d.raiseTask.mock.calls[0][0] as Record<string, unknown>).detail);
 
 describe("new client from a Stripe payment", () => {
+  it("leaves a cash or bank-transfer client in their existing contract flow when Stripe later reports an instalment", async () => {
+    const d = deps(null);
+    d.findClient.mockResolvedValue("manual_intake" as never);
+    expect(await onboardFromPayment(account, "invoice.paid", invoice(), d)).toEqual({action:"manual_intake_in_progress"});
+    expect(d.activate).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(d.raiseTask).not.toHaveBeenCalled();
+  });
   it("starts the checklist for a client added in the last 30 days", async () => {
     const d = deps({ id: "c1", onboarding_stage: "none", archived_at: null, created_at: "2026-11-01T00:00:00Z" });
     expect(await onboardFromPayment(account, "invoice.paid", invoice(), d)).toMatchObject({ action: "checklist_started" });

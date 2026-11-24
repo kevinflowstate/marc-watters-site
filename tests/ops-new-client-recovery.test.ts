@@ -40,11 +40,12 @@ const POST = new Function(
   "startOnboarding",
   "sendWelcomeEmail",
   "NextResponse",
+  "installWelcome",
   code + ";return POST;",
 )(db, f.invite, f.onboarding, f.welcome, {
   json: (data: unknown, init?: ResponseInit) =>
     new Response(JSON.stringify(data), init),
-}) as (request: Request) => Promise<Response>;
+}, "Welcome to the Blueprint. Install the app and allow notifications.") as (request: Request) => Promise<Response>;
 const request = () =>
   new Request("http://localhost/api/webhooks/new-client", {
     method: "POST",
