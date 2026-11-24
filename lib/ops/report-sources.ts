@@ -177,3 +177,20 @@ export async function paymentsReceived(
     accounts: results,
   };
 }
+
+/** Count paid recurring invoices (renewals) by payment date. An unreadable invoice feed stays unknown. */
+export async function recurringPayments(range: Range, f: Fetch = fetch, accounts: Account[] = stripeAccounts()) {
+  if (!accounts.length) return null;
+  const from = Date.parse(range.from) / 1000, to = Date.parse(range.to) / 1000;
+  const counts = await Promise.all(accounts.map(async a => {
+    try {
+      const r = await stripeList(f, a.api_key, "invoices",{status:"paid","created[gte]":String(Math.floor(from)-180*86400),"created[lt]":String(Math.ceil(to))});
+      if(!r.ok) return null;
+      return r.rows.filter(i=>{
+        const at=Number((i.status_transitions as Record<string,unknown>)?.paid_at);
+        return i.billing_reason==="subscription_cycle" && Number(i.amount_paid)>0 && at>=from && at<to;
+      }).length;
+    } catch { return null; }
+  }));
+  return counts.some(n=>n===null) ? null : counts.reduce<number>((sum,n)=>sum+(n??0),0);
+}

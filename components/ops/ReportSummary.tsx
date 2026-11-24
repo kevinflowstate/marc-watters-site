@@ -1,3 +1,5 @@
+import BusinessDashboard from "./BusinessDashboard";
+import type { businessDashboard } from "@/lib/ops/business-dashboard";
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -91,6 +93,7 @@ export default function ReportSummary({
 }) {
   return (
     <>
+    {data.dashboard && typeof data.dashboard === "object" ? <BusinessDashboard data={data.dashboard as Awaited<ReturnType<typeof businessDashboard>>} snapshot={data} /> : null}
     <CallsAndPayments data={data} />
     <div className="grid sm:grid-cols-3 gap-4 mb-6">
       {Object.entries({

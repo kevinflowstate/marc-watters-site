@@ -135,10 +135,10 @@ export async function markConversationRead(conversationId: string, deps: CrmDeps
   }
 }
 
-export type Booking = { id: string; name: string; startTime: string; bookedAt: string | null; status: string };
+export type Booking = { id: string; name: string; startTime: string; endTime?: string; bookedAt: string | null; status: string };
 
 /** Strategy Call bookings whose call time falls between from and to. */
-export async function strategyCallBookings(fromMs: number, toMs: number, deps: CrmDeps = {}): Promise<Booking[]> {
+export async function strategyCallBookings(fromMs: number, toMs: number, deps: CrmDeps = {}, includeCancelled = false): Promise<Booking[]> {
   const q = new URLSearchParams({
     locationId: LEAD_LOCATION,
     calendarId: STRATEGY_CALENDAR,
@@ -147,11 +147,12 @@ export async function strategyCallBookings(fromMs: number, toMs: number, deps: C
   });
   const body = await call<{ events?: Record<string, unknown>[] }>(`/calendars/events?${q}`, deps);
   return (body.events ?? [])
-    .filter((e) => e.deleted !== true && String(e.appointmentStatus ?? "") !== "cancelled")
+    .filter((e) => e.deleted !== true && (includeCancelled || String(e.appointmentStatus ?? "") !== "cancelled"))
     .map((e) => ({
       id: String(e.id ?? ""),
       name: String(e.title ?? "Strategy call").replace(/\s+/g, " ").trim().slice(0, 120),
       startTime: String(e.startTime ?? ""),
+      ...(e.endTime ? { endTime: String(e.endTime) } : {}),
       bookedAt: e.dateAdded ? String(e.dateAdded) : null,
       status: String(e.appointmentStatus ?? "confirmed"),
     }))

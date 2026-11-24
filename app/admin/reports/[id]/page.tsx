@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { reportWeekLabel, reportWeekStart } from "@/lib/ops/report-week";
+import TeamActivity from "@/components/ops/TeamActivity";
 import ReportSummary from "@/components/ops/ReportSummary";
 import MarkdownPreview from "@/components/ops/MarkdownPreview";
 import { Icon } from "@/components/ops/workspace/WorkspaceUI";
@@ -137,6 +138,7 @@ export default function ReportDetail() {
           )}
           <div className="ws-rp-summary">
             <ReportSummary data={report.data} />
+            <TeamActivity report={id} />
             {reconciliationSheetUrl && (
               <a
                 className="ws-btn ws-focus"

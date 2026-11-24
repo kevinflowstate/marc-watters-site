@@ -71,6 +71,7 @@ function harness(initial?: Row) {
     if (name.includes("supabase/admin")) return { createAdminClient: () => db };
     if (name === "./tasks")
       return { OpsError, uuid: (v: string) => v, record: (v: unknown) => v };
+    if (name === "./business-dashboard") return { businessDashboard: async () => ({}) };
     if (name === "./report-data")
       return {
         gatherReportData: gather,
