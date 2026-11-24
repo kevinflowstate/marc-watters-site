@@ -89,7 +89,7 @@ function summarise(items: { at: number; currency: string; amount: number; refund
   return by;
 }
 
-async function stripeList(f: Fetch, key: string, path: string, params: Record<string, string>) {
+export async function stripeList(f: Fetch, key: string, path: string, params: Record<string, string>) {
   const rows: Record<string, unknown>[] = [];
   let after = "";
   for (let page = 0; page < 20; page += 1) {
@@ -102,9 +102,11 @@ async function stripeList(f: Fetch, key: string, path: string, params: Record<st
     });
     if (!r.ok) return { ok: false as const, status: r.status };
     const body = (await r.json()) as { data?: Record<string, unknown>[]; has_more?: boolean };
-    const batch = body.data || [];
+    if (!Array.isArray(body.data) || typeof body.has_more !== "boolean") return { ok: false as const, status: 502 };
+    const batch = body.data;
     rows.push(...batch);
-    if (!body.has_more || !batch.length) return { ok: true as const, rows };
+    if (!body.has_more) return { ok: true as const, rows };
+    if (!batch.length || !batch[batch.length - 1].id || batch[batch.length - 1].id === after) return { ok: false as const, status: 502 };
     after = String(batch[batch.length - 1].id);
   }
   return { ok: false as const, status: 507 };
