@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { reportWeekStart } from "@/lib/ops/report-week";
+import { reportWeekLabel, reportWeekStart } from "@/lib/ops/report-week";
 import ReportSummary from "@/components/ops/ReportSummary";
 import MarkdownPreview from "@/components/ops/MarkdownPreview";
 import { Icon } from "@/components/ops/workspace/WorkspaceUI";
@@ -89,7 +89,7 @@ export default function ReportDetail() {
       <div className="ws-ph">
         <div className="min-w-0">
           <h1 className="ws-title">
-            Weekly report{report ? ` · ${report.week_start}` : ""}
+            Weekly report{report ? ` · ${reportWeekLabel(report.week_start)}` : ""}
           </h1>
           {report && <p className="ws-meta mt-1">Status: {report.status}</p>}
         </div>
@@ -106,6 +106,7 @@ export default function ReportDetail() {
           <span>{notice}</span>
         </div>
       )}
+      {!report && !error && <p className="ws-note" role="status">Loading the saved weekly figures…</p>}
       {report && (
         <>
           {Boolean(report.data.narrative_review_required) && (
@@ -130,8 +131,7 @@ export default function ReportDetail() {
             <div className="ws-note">
               <Icon name="info" size={15} />
               <span>
-                The figures are ready. Ask Codex to prepare this report, or write
-                the report text below.
+                The written review is pending. The saved figures for this week are below.
               </span>
             </div>
           )}

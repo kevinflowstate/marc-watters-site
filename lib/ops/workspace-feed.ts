@@ -1,3 +1,4 @@
+import { reportWeekLabel } from "./report-week";
 import { CHECKIN_INBOX_REPLY_SELECT } from "@/lib/checkin-reply-state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEnv } from "@/lib/env";
@@ -460,7 +461,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     ),
     ...(reports || []).map((r, index) => ({
       id: `report:${r.id}`,
-      title: `Business report · week of ${r.week_start}`,
+      title: `Business report · week of ${reportWeekLabel(String(r.week_start))}`,
       detail: r.narrative_md
         ? "The saved report is ready to read. Check its period and source coverage."
         : "Figures are saved; the written review has not been added yet.",

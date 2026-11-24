@@ -2,6 +2,7 @@
 
 import "./workspace.css";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { areaLabels, ownerLabels, statusLabels, needsApproval, isClosed } from "@/lib/ops/workspace";
 import { areas, assignees, type OpsTask } from "@/lib/ops/types";
@@ -94,6 +95,7 @@ function eventIcon(action: string) {
 }
 
 export default function WorkPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [data, setData] = useState<WorkspaceData | null>(null);
   const [summary, setSummary] = useState<Summary>({ artifacts: [], payments: [], controls: emptyControls });
@@ -217,7 +219,7 @@ export default function WorkPage() {
     if (card.task_id) setDrawer({ kind: "task", id: card.task_id });
     else if (card.id.startsWith("artifact:")) setDrawer({ kind: "artifact", id: card.id.slice(9) });
     else if (card.id.startsWith("payment:")) setDrawer({ kind: "payment", id: card.id.slice(8) });
-    else if (card.id.startsWith("report:")) setDrawer({ kind: "result", id: card.id.slice(7) });
+    else if (card.id.startsWith("report:")) router.push(`/admin/reports/${encodeURIComponent(card.id.slice(7))}`);
     else setDrawer({ kind: "card", id: card.id });
   }
   function openTask(id: string) {
