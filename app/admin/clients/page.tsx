@@ -35,7 +35,7 @@ export default function ClientsPage() {
   const [lifecycle, setLifecycle] = useState<"active" | "archived">("active");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"attention" | "name" | "recent">("attention");
-  const [intakeMethod,setIntakeMethod]=useState("portal");
+  const [intakeMethod,setIntakeMethod]=useState("");
   const [intakeStatus,setIntakeStatus]=useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState("");
@@ -61,7 +61,10 @@ export default function ClientsPage() {
     }
   }
 
-  useEffect(() => { loadClients(); }, []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("add") === "1") setInviteOpen(true);
+    void loadClients();
+  }, []);
 
   if (loading) {
     return (
@@ -116,7 +119,7 @@ export default function ClientsPage() {
         <div className="ws-ph-acts">
           <button
             type="button"
-            onClick={() => { setInviteOpen(true); setIntakeMethod("portal"); setIntakeStatus(""); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
+            onClick={() => { setInviteOpen(true); setIntakeMethod(""); setIntakeStatus(""); setInviteResult(null); setInviteName(""); setInviteEmail(""); setInvitePassword(""); }}
             className="ws-btn ws-btn-primary ws-focus"
           >
             <Icon name="plus" size={14} />
@@ -133,7 +136,7 @@ export default function ClientsPage() {
             <div className="ws-dialog-head">
               <div className="min-w-0">
                 <h3 className="ws-dialog-title">Add client</h3>
-                <p className="ws-caption mt-0.5">{intakeMethod === "portal" ? "They’ll receive a portal activation email." : "This starts the existing CRM contract workflow. Portal onboarding follows the signed contract."}</p>
+                <p className="ws-caption mt-0.5">{intakeMethod === "portal" ? "Send access to the portal only." : intakeMethod ? "The client will receive Marc’s Blueprint contract by email. Portal onboarding follows their signature." : "Choose how to onboard this client."}</p>
               </div>
             </div>
 
@@ -180,9 +183,10 @@ export default function ClientsPage() {
                 <div>
                   <label htmlFor="intake-method" className="ws-label">Onboarding route</label>
                   <select id="intake-method" className="ws-input mb-3" value={intakeMethod} onChange={e=>setIntakeMethod(e.target.value)}>
-                    <option value="portal">Portal invite only</option>
+                    <option value="" disabled>Select an onboarding route</option>
                     <option value="cash">Cash payment · contract and welcome</option>
                     <option value="bank_transfer">Bank transfer · contract and welcome</option>
+                    <option value="portal">Portal access only · no contract</option>
                   </select>
                   <label className="ws-label" htmlFor="invite-name">Full name</label>
                   <input
@@ -226,7 +230,7 @@ export default function ClientsPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={!inviteName.trim() || !inviteEmail.trim() || inviteSending}
+                    disabled={!intakeMethod || !inviteName.trim() || !inviteEmail.trim() || inviteSending}
                     onClick={async () => {
                       setInviteSending(true);
                       setInviteResult(null);
@@ -257,7 +261,7 @@ export default function ClientsPage() {
                         <Icon name="refresh" size={14} className="ws-spin" />
                         Adding...
                       </>
-                    ) : intakeMethod === "portal" ? "Add client" : "Start contract and welcome"}
+                    ) : intakeMethod === "portal" ? "Invite to portal" : intakeMethod ? "Start contract and welcome" : "Add client"}
                   </button>
                 </div>
               </div>
