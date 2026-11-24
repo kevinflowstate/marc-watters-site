@@ -4,7 +4,7 @@ import { newLeads, publishedPosts } from "./business-dashboard";
 import { callsForPeriod } from "./sales-calls";
 import { strategyCalls } from "./report-sources";
 import { outcomeStats } from "./call-outcomes";
-import { summariseHubdocWeek } from "./hubdoc-week";
+import { readDashboardHubdoc } from "./hubdoc-dashboard";
 import { overviewRevenue } from "./overview-revenue";
 import { londonDate, londonMidnight, weekStart } from "./task-weeks";
 import { OpsError } from "./tasks";
@@ -48,36 +48,6 @@ async function taskCounts(range: Range) {
   };
 }
 
-async function hubdoc(week: string, today: string) {
-  const { error, data } = await createAdminClient()
-    .from("ops_workspace_results")
-    .select("run_key,summary,outcome")
-    .eq("kind", "payments")
-    .gte("run_key", "hubdoc:" + week)
-    .lt("run_key", "hubdoc:" + today + "~");
-  if (error) return null;
-  const records = data || [];
-  const summary = summariseHubdocWeek(records, week);
-  // Today's brief may precede the forwarding job. Absence of a logged day is not proof of zero.
-  const expectedDays = Math.min(
-    5,
-    1 + (Date.parse(today) - Date.parse(week)) / day,
-  );
-  const completeDaily = records.filter(
-    (r) =>
-      /^hubdoc:\d{4}-\d{2}-\d{2}:scheduled$/.test(r.run_key) &&
-      new Date(r.run_key.slice(7, 17) + "T12:00:00Z").getUTCDay() % 6 !== 0 &&
-      r.outcome === "complete" &&
-      /^Hubdoc forwards: \d{1,6}\.(?:\s|$)/i.test(r.summary),
-  ).length;
-  return {
-    ...summary,
-    expectedDays,
-    coverage:
-      completeDaily === expectedDays ? ("complete" as const) : summary.coverage,
-  };
-}
-
 async function weeklyCallStats(week: Date, nextWeek: Date, asOf: Date) {
   const rows = await callsForPeriod(week.getTime(), nextWeek.getTime());
   const cancelled = rows.filter((call) => call.status === "cancelled").length;
@@ -113,7 +83,7 @@ async function collect(now: Date) {
         priority: null,
         completed: null,
       })),
-      hubdoc(londonDate(week), today).catch(() => null),
+      readDashboardHubdoc(now).catch(() => null),
     ]);
   return {
     asOf: now.toISOString(),

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { transformSync } from "esbuild";
 import { readFileSync } from "node:fs";
+import * as taskWeeks from "../lib/ops/task-weeks";
 import * as identities from "../lib/ops/team-identities";
 import * as access from "../lib/ops/business-report-access";
 import type { WorkspaceResult } from "../lib/ops/workspace-types";
@@ -20,6 +21,8 @@ function route(path: string, actor: string | null, mocks: Record<string, unknown
       respondPrivate: (fn: () => unknown) => fn(),
     },
     "@/lib/ops/team-identities": identities,
+    "@/lib/ops/task-weeks": taskWeeks,
+    "@/lib/ops/hubdoc-dashboard": { readDashboardHubdoc: async () => null },
     "@/lib/ops/business-report-access": access,
     "@/lib/ops/tasks": { OpsError, record: (v: unknown) => v },
     ...mocks,
@@ -63,6 +66,17 @@ describe("business access at portal boundaries", () => {
       }
     },
   );
+  it("reads a later Codex receipt without refreshing the full snapshot or returning an old week's count", async () => {
+    const latest = {forwarded:3,weekStart:"2026-11-23",coverage:"partial"};
+    const load = vi.fn(async () => snapshot);
+    const receipt = vi.fn<() => Promise<typeof latest | null>>().mockResolvedValueOnce(latest).mockResolvedValueOnce(null);
+    const handlers = route("../app/api/admin/business-overview/route.ts", identities.EIMEAR_USER_ID, {
+      "@/lib/ops/business-overview-snapshot": {readBusinessOverview:load},
+      "@/lib/ops/hubdoc-dashboard": {readDashboardHubdoc:receipt},
+    });
+    expect(await handlers.GET()).toHaveProperty("snapshot.operations.hubdoc.forwarded",3);
+    expect(await handlers.GET()).toHaveProperty("snapshot.operations.hubdoc",null);
+  });
   it("checks login before either read or refresh", async () => {
     const load = vi.fn();
     const handlers = route("../app/api/admin/business-overview/route.ts", null, {
