@@ -392,6 +392,7 @@ export default function WorkPage() {
           </p>
         </div>
         <div className="ws-ph-acts">
+          <Link href="/admin/events" className="ws-btn ws-btn-quiet ws-focus">Event planner</Link>
           <button type="button" className="ws-btn ws-btn-quiet ws-sm-up" onClick={() => setDrawer({ kind: "connections" })}>
             <Icon name="plug" size={14} /> Connections
           </button>
