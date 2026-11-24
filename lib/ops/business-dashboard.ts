@@ -24,7 +24,8 @@ async function newLeads(range: Range) {
       const at=Date.parse(o.createdAt);
       if(o.locationId===LEAD_LOCATION && o.pipelineId===SALES_PIPELINE && o.contactId && at>=Date.parse(range.from) && at<Date.parse(range.to)) contacts.add(o.contactId);
     }
-    if(!result.meta.nextPage) return contacts.size;
+    // HighLevel can return nextPage=2 even after the final cursor page.
+    if(result.opportunities.length < 100 || !result.meta.nextPage) return contacts.size;
     if(!result.meta.startAfterId || !result.meta.startAfter || query.get("startAfterId")===result.meta.startAfterId) return null;
     query.set("startAfterId",result.meta.startAfterId);
     query.set("startAfter",String(result.meta.startAfter));
