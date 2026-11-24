@@ -1,94 +1,27 @@
 # Failed payment reminders (GHL-native)
 
-Updated 7 November 2026. Replaces the earlier preflight/dispatch/receipt design, which GHL could not satisfy because a workflow cannot see the outbound message ID.
+Updated 24 November 2026. Replaces the earlier preflight/dispatch/receipt design, which GHL could not satisfy because a workflow cannot see the outbound message ID.
 
-## (a) The flow
+## November 24 call decisions
 
-1. Stripe sends `invoice.payment_failed` (and paid, voided and subscription events) for each MRW Management Ltd account to `/api/webhooks/stripe-ops/{account-alias}`, where the portal checks the signature, re-reads the invoice from Stripe, records one case per account + invoice and opens a task for Eimear.
-2. On a new unpaid case, if `OPS_PAYMENT_REMINDERS_ENABLED=true`, the portal finds the CRM contact by the invoice email in Marc's location and adds them to reminder workflow `5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed`, passing reminder 1's time as the workflow event start time; if no contact or more than one matches, nobody is enrolled and Eimear's task says so.
-3. GHL sends reminder 1 at 09:00 London on the next working day (Mon-Fri) after the failure, then reminder 2 exactly 48 hours later if the invoice is still unpaid, and reports each step back to `/api/webhooks/ghl-payment`.
-4. When Stripe reports the invoice paid or voided, the portal closes that case's task (Eimear's note is kept) and removes the contact from the workflow.
-5. A reply, a DND or the end of the workflow ("escalated") marks the case as needing Eimear, and her task is reopened with the detail.
+Stripe creates one case per merchant and invoice and one work-list task for Eimear. The CRM workflow remains in draft and the production portal enrolment switch is off. Marc approved these UK utility templates:
 
-## (b) GHL workflow build spec
+| Step | Timing and wording |
+|---|---|
+| `cbb_payment_issue_v1` | Next working day at 09:00 London. “Hi {{1}}, it's Eimear from Construction Business Blueprint. A payment on your account hasn't gone through. Please reply here and I'll help you get it sorted.” |
+| `cbb_payment_followup_v2` | 48 hours after the first reminder, if still unpaid and unanswered. “Just checking you got my message above. Give me a shout and we’ll get the details updated.” |
 
-Workflow `5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed` ("CBB Ops | Payment recovery"). Build it in the GHL builder by hand. Leave it in Draft until the test in section (d) passes.
+The second template is approved and selected in the saved draft. A live-client test remains on hold.
 
-**Settings (gear icon)**
-- Allow re-entry: **off**.
-- Stop on response: **on** (a client reply ends the workflow; the reply webhook in step 6 still tells the portal).
-- Time zone: Europe/London (account time zone).
+## Provider and portal wiring
 
-**Trigger - pick one**
-- **Option A (recommended): portal enrolment.** The portal adds contacts through the API, which works with any trigger. Remove the existing "Payment Received - Payment Status is Failed" trigger, or leave the workflow with no trigger, so contacts are not enrolled twice.
-- **Option B: GHL's native Payment Failed trigger**, only if Marc's invoices are billed through GHL payments rather than directly in Stripe. Then set `OPS_PAYMENT_REMINDERS_ENABLED=false` so the portal does not also enrol. Limitation: the portal only links GHL callbacks to a case once a contact ID is on it, so Eimear must match the contact on the case.
+The portal signs in each Stripe source separately, re-reads its invoice, binds the CRM contact and keeps one workflow owner per contact. A second invoice using the same contact goes to human review. Only the owning invoice can remove its enrolment. A failed or uncertain CRM operation needs reconciliation before reuse. The initial enrolment also checks the current WhatsApp DND flag.
 
-**Steps**
-1. **Wait** - "Wait until event start date/time", 0 minutes after. The portal sets the event start time to 09:00 London on the next working day after the failure.
-   - If that wait type does not appear for this trigger, use: Wait 1 day, then Advanced window Mon-Fri 09:00-09:30. Caveat: an afternoon failure then waits an extra day. Kevin decides.
-2. **WhatsApp** - template `cbb_payment_issue_v1`.
-3. **Custom Webhook** (reminder 1 reported) - see the bodies below, `event_type` `reminder_1_sent`.
-4. **Wait** - Time delay 48 hours.
-   - **Decision for Kevin:** 48 hours after a Friday 09:00 reminder 1 is **Sunday 09:00**. Either accept it, or add an Advanced window Mon-Fri 09:00-09:30 to this wait so it moves to Monday. The portal currently shows exactly 48 hours.
-5. **WhatsApp** - template `cbb_payment_followup_v1`.
-6. **Custom Webhook** - `event_type` `reminder_2_sent`.
-7. **Custom Webhook** - `event_type` `escalated` (both reminders sent, still unpaid; the portal reopens Eimear's task).
-8. End.
+Callbacks use the existing `POST /api/webhooks/ghl-payment` route with its secret header and a stable `event_id`. Each send result (`reminder_1_sent`, `reminder_2_sent`, `reminder_failed`, `escalated`) requires the `contact_id`, original `invoice_id` and `stripe_account_id` from that particular workflow run. Use the immutable values from enrolment. A lookup of the most recently unpaid invoice or mutable contact fields can misattribute a late callback. The response rejects unscoped delivery callbacks. A signed send report is distinct from an independently verified delivery receipt.
 
-**Reply and DND.** Add a separate small workflow (or an If/Else branch in a "Customer Replied" workflow) for contacts in this workflow: on a WhatsApp reply, Custom Webhook `reply_received`; when DND is switched on, Custom Webhook `dnd`.
+Contact-wide `reply_received` and `dnd` callbacks use `contact_id` and `event_id`; every open case for that contact stops for Eimear. A failed WhatsApp pauses the matching invoice, records a manual task and stops the owned workflow. Replayed outcomes and late callbacks after settlement cannot advance the invoice. A card change alone is not settlement.
 
-**Payment received.** If the account has a native Payment Received trigger, add a workflow that removes the contact from this workflow ("Remove from workflow" action). The portal does this as well from Stripe; the duplicate is harmless.
-
-**Custom Webhook action settings (every step)**
-- Method: `POST`
-- URL: `https://portal.constructionbusinessblueprint.co.uk/api/webhooks/ghl-payment`
-- Header: `x-payment-workflow-secret` = the value of `OPS_PAYMENT_WORKFLOW_SECRET`
-- Header: `Content-Type` = `application/json`
-- Body (change only `event_type` and the suffix of `event_id`):
-
-```json
-{
-  "event_type": "reminder_1_sent",
-  "contact_id": "{{contact.id}}",
-  "event_id": "{{contact.id}}-reminder_1_sent"
-}
-```
-
-```json
-{
-  "event_type": "reminder_2_sent",
-  "contact_id": "{{contact.id}}",
-  "event_id": "{{contact.id}}-reminder_2_sent"
-}
-```
-
-```json
-{
-  "event_type": "escalated",
-  "contact_id": "{{contact.id}}",
-  "event_id": "{{contact.id}}-escalated"
-}
-```
-
-```json
-{
-  "event_type": "reply_received",
-  "contact_id": "{{contact.id}}",
-  "event_id": "{{contact.id}}-reply-{{message.id}}"
-}
-```
-
-```json
-{
-  "event_type": "dnd",
-  "contact_id": "{{contact.id}}",
-  "event_id": "{{contact.id}}-dnd"
-}
-```
-
-Optional fields: `occurred_at` (ISO time; the portal uses the time it receives the call if left out) and `invoice_id` (Stripe `in_...`, narrows the update to one invoice). If `{{message.id}}` is not offered in the reply workflow, use `{{contact.id}}-reply`.
-
-How the portal treats them: duplicate `event_id`s for the same case are ignored; the update applies to the contact's open cases (all of them if there are several, and the task notes it); `escalated`, `reply_received` and `dnd` reopen Eimear's task; `reply_received` and `dnd` mark the case "needs a person". Unknown contacts return `matched: 0` without error.
+**Before activation:** the current native workflow still needs an immutable invoice and merchant mapping for its callbacks, a failed-send branch and pre-send eligibility verification. Keep all three workflows in Draft while these are outstanding. Use isolated fixtures for failure, second invoice, reply, opt-out and settlement. Marc must authorise any later live-client WhatsApp test.
 
 ## (c) Environment variables
 
@@ -104,12 +37,6 @@ Removed: `OPS_LEGACY_PAYMENT_EVENTS_ENABLED`, `OPS_GHL_PAYMENT_TOKEN`, `OPS_PAYM
 
 GHL endpoints used (base `https://services.leadconnectorhq.com`, header `Version: 2021-07-28`): `POST /contacts/search` (email `eq` filter), `POST /contacts/{contactId}/workflow/{workflowId}` (body `eventStartTime`), `DELETE /contacts/{contactId}/workflow/{workflowId}` (404 = already out), `GET /contacts/{contactId}` (manual binding check).
 
-## (d) Still manual
+## Timing and recovery
 
-- Building the workflow above in the GHL builder, choosing the trigger option and the Sunday decision, and publishing it.
-- Meta approval of templates `cbb_payment_issue_v1` and `cbb_payment_followup_v1`.
-- Setting the env vars in Vercel and registering both Stripe webhook endpoints.
-- First live test: a test invoice on one Stripe account that fails, check the case, enrolment, both webhooks and removal on payment.
-- Cases with no single CRM match: Eimear matches the contact in the CRM and adds them to the workflow by hand (the admin binding route records the contact on the case so later callbacks attach).
-- Bank holidays are not handled.
-- Cases opened while reminders were off are not enrolled retroactively.
+Bank holidays use the existing weekday rule. Cases opened while reminders were off are not enrolled retroactively. If a workflow owner becomes uncertain after an interrupted provider request, reconcile that invoice with CRM enrolment history before clearing its owner or retrying.

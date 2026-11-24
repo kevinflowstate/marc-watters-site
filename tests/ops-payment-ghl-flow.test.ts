@@ -17,7 +17,7 @@ const ghl = vi.hoisted(() => ({
 // Small in-memory stand-in for the Supabase query builder used by payment-cases.
 function query(table: string) {
   const filters: ((r: Row) => boolean)[] = [];
-  let op: "select" | "update" | "insert" = "select";
+  let op: "select" | "update" | "insert" | "delete" = "select";
   let patch: Row = {};
   let single = false;
   let max = Infinity;
@@ -27,10 +27,13 @@ function query(table: string) {
       const row: Row = { id: `row-${++state.seq}`, created_at: new Date().toISOString(), ...patch };
       if (table === "ops_payment_case_events" && rows().some((r) => r.source === row.source && r.external_id === row.external_id))
         return { data: null, error: { code: "23505", message: "duplicate" } };
+      if (table === "ops_payment_workflow_owners" && rows().some(r=>r.contact_id===row.contact_id || r.case_id===row.case_id))
+        return { data:null, error:{code:"23505",message:"duplicate workflow"} };
       rows().push(row);
       return { data: null, error: null };
     }
     const hit = rows().filter((r) => filters.every((f) => f(r)));
+    if (op === "delete") state.tables[table] = rows().filter(r=>!hit.includes(r));
     if (op === "update") hit.forEach((r) => Object.assign(r, patch, { updated_at: new Date().toISOString() }));
     const data = hit.slice(0, max).map((r) => ({ ...r }));
     return { data: single ? (data[0] ?? null) : data, error: null };
@@ -45,6 +48,7 @@ function query(table: string) {
     limit: (n: number) => ((max = n), q),
     maybeSingle: () => ((single = true), q),
     update: (p: Row) => ((op = "update"), (patch = p), q),
+    delete: () => ((op = "delete"), q),
     insert: (p: Row) => ((op = "insert"), (patch = p), q),
     then: (resolve: (v: unknown) => unknown) => resolve(run()),
   };
@@ -75,6 +79,24 @@ function rpc(fn: string, args: Record<string, unknown>) {
     if (t && c.state === "paid") t.status = "done";
     c.task_id = t?.id ?? null;
     return Promise.resolve({ data: { duplicate: false, case: { ...c } }, error: null });
+  }
+  if (fn === "ops_apply_invoice_progress") {
+    const c = state.tables.ops_payment_cases.find(r => r.id === args.p_case)!;
+    const type = args.p_type;
+    const external = `progress:${args.p_event_id}:${c.id}`;
+    const events = state.tables.ops_payment_case_events;
+    if (events.some(e=>e.external_id===external)) return {data:"duplicate", error:null};
+    events.push({case_id:c.id, source:"ghl", event_type:type, external_id:external});
+    if (type==="reply_received") c.reply_needs_human=true;
+    else if (type==="dnd") c.contact_dnd=true;
+    else if (type==="reminder_failed") { c.latest_delivery=type; c.manual_pause=true; }
+    else if (type==="escalated") c.latest_delivery=type;
+    else {
+      const n = type==="reminder_1_sent"?1:2;
+      if (n>=Number(c.reminder_count) && !c.manual_pause) c.latest_delivery=type;
+      c.reminder_count=Math.max(Number(c.reminder_count),n);
+    }
+    return {data:"applied",error:null};
   }
   if (fn === "ops_mutate_task") {
     const data = args.p_data as Row;
@@ -151,6 +173,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", stripeFetch());
   for (const fn of Object.values(ghl)) fn.mockReset();
   ghl.findContactsByEmail.mockResolvedValue([{ id: "contactFixture01", email: "client@example.invalid" }]);
+  ghl.getGhlContact.mockResolvedValue({id:"contactFixture01", dnd:false});
   ghl.addContactToWorkflow.mockResolvedValue({ workflow_id: "5ef4aa6d-05f7-42e5-9c36-5c872f0ca2ed" });
   ghl.removeContactFromWorkflow.mockResolvedValue({ removed: true, not_in_workflow: false });
 });
@@ -201,6 +224,13 @@ describe("failed payment -> GHL workflow enrolment", () => {
     },
   );
 
+  it("checks the current CRM WhatsApp opt-out before enrolling", async () => {
+    ghl.getGhlContact.mockResolvedValue({id:"contactFixture01", dndSettings:{WhatsApp:{status:"active"}}});
+    await stripeEvent("invoice.payment_failed");
+    expect(theCase()).toMatchObject({contact_dnd:true,latest_delivery:"held_for_review"});
+    expect(ghl.addContactToWorkflow).not.toHaveBeenCalled();
+  });
+
   it("records an enrolment failure on the case instead of failing the Stripe webhook", async () => {
     ghl.addContactToWorkflow.mockRejectedValue(new Error("CRM workflow enrolment failed (422)"));
     const result = await stripeEvent("invoice.payment_failed");
@@ -234,7 +264,7 @@ describe("failed payment -> GHL workflow enrolment", () => {
 
 describe("GHL progress callbacks", () => {
   const progress = (event_type: string, event_id: string, extra: Row = {}) =>
-    recordGhlPaymentProgress({ event_type, contact_id: "contactFixture01", occurred_at: "2026-11-06T11:01:00Z", event_id, ...extra });
+    recordGhlPaymentProgress({ event_type, invoice_id:"in_Fixture", stripe_account_id:account.account_id, contact_id: "contactFixture01", occurred_at: "2026-11-06T11:01:00Z", event_id, ...extra });
 
   it("is idempotent on event_id", async () => {
     await stripeEvent("invoice.payment_failed");
@@ -251,6 +281,8 @@ describe("GHL progress callbacks", () => {
   it("escalation reopens Eimear's task with the detail", async () => {
     await stripeEvent("invoice.payment_failed");
     theTask().status = "done";
+    await progress("reminder_1_sent","wf-1");
+    await progress("reminder_2_sent","wf-2");
     await progress("escalated", "wf-esc");
     expect(theTask().status).toBe("open");
     expect(String(theTask().title)).toContain("Eimear: follow up");
@@ -266,15 +298,46 @@ describe("GHL progress callbacks", () => {
     expect(theTask().status).toBe("open");
   });
 
-  it("applies to every open case for the contact and notes it", async () => {
+  it("records delivery only for its original merchant and invoice, including delayed callbacks", async () => {
+    await stripeEvent("invoice.payment_failed");
+    state.tables.ops_payment_cases.push({...theCase(), id:"case-other", stripe_account_id:"acct_Other", task_id:null});
+    await expect(progress("reminder_1_sent","missing",{invoice_id:undefined})).rejects.toThrow("original invoice_id");
+    await expect(progress("reminder_1_sent","missing",{stripe_account_id:undefined})).rejects.toThrow("stripe_account_id");
+    expect(await progress("reminder_1_sent","wf-1")).toMatchObject({matched:1,applied:1});
+    expect(state.tables.ops_payment_cases[1].reminder_count).toBe(0);
+    invoiceStatus="paid";
+    await stripeEvent("invoice.paid");
+    expect(await progress("reminder_2_sent","wf-2")).toMatchObject({matched:0});
+    expect(state.tables.ops_payment_cases[1].reminder_count).toBe(0);
+  });
+
+  it("stops all open cases on a contact-wide reply or opt-out", async () => {
     await stripeEvent("invoice.payment_failed");
     state.tables.ops_payment_cases.push({ ...theCase(), id: "case-other", invoice_id: "in_Other", task_id: null });
-    const result = await progress("reply_received", "wf-many");
-    expect(result).toMatchObject({ matched: 2, applied: 2 });
-    expect(result.note).toContain("2 open invoices");
-    expect(state.tables.ops_payment_cases.every((c) => c.reply_needs_human)).toBe(true);
-    // invoice_id narrows it to one case.
-    expect(await progress("dnd", "wf-one", { invoice_id: "in_Other" })).toMatchObject({ matched: 1 });
+    expect(await progress("reply_received","wf-many",{invoice_id:undefined,stripe_account_id:undefined})).toMatchObject({matched:2,applied:2});
+    expect(state.tables.ops_payment_cases.every(c=>c.reply_needs_human)).toBe(true);
+    expect(ghl.removeContactFromWorkflow).toHaveBeenCalledOnce();
+    expect(await progress("dnd","wf-dnd")).toMatchObject({matched:2});
+  });
+
+  it("hands a failed WhatsApp to Eimear without counting a send", async () => {
+    await stripeEvent("invoice.payment_failed");
+    await progress("reminder_failed","wf-failed");
+    expect(theCase()).toMatchObject({latest_delivery:"reminder_failed",manual_pause:true,reminder_count:0});
+    expect(ghl.removeContactFromWorkflow).toHaveBeenCalledOnce();
+    expect(String(theTask().detail)).toContain("failed WhatsApp");
+  });
+
+  it("holds a second invoice and its settlement cannot cancel the first workflow", async () => {
+    const previous = {case_id:"other-case",contact_id:"contactFixture01",phase:"active"};
+    state.tables.ops_payment_workflow_owners=[previous];
+    await stripeEvent("invoice.payment_failed");
+    expect(theCase().latest_delivery).toBe("held_for_review");
+    expect(ghl.addContactToWorkflow).not.toHaveBeenCalled();
+    invoiceStatus="paid";
+    await stripeEvent("invoice.paid");
+    expect(ghl.removeContactFromWorkflow).not.toHaveBeenCalled();
+    expect(state.tables.ops_payment_workflow_owners).toEqual([previous]);
   });
 
   it("rejects unknown event types and ignores contacts with no open case", async () => {
