@@ -53,7 +53,7 @@ function Task({
       setOpen(false);
   }
   return (
-    <article className="event-task">
+    <article className="event-task" id={"step-"+task.id}>
       <strong>{task.title}</strong>
       <p className="ws-caption">
         {task.assignee === "marc" ? "Marc" : "Eimear"}
@@ -130,12 +130,18 @@ export default function Events() {
     setLoading(false);
   }, []);
   useEffect(() => {
+    const boardId = new URLSearchParams(window.location.search).get("board");
+    if (boardId) setSelected(boardId);
     load().catch((e) => {
       setError(e.message);
       setLoading(false);
     });
   }, [load]);
   const board = boards.find((b) => b.id === selected) || boards[0];
+  useEffect(() => {
+    if (!loading && window.location.hash.startsWith("#step-"))
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView({block: "center"});
+  }, [loading, board?.id]);
   const save: Save = async (method, data) => {
     setBusy(true);
     setError("");

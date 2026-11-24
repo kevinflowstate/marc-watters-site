@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import AttentionCard from "./AttentionCard";
 import TeamActivity from "./TeamActivity";
 
 import type { BusinessOverviewSnapshot } from "@/lib/ops/business-overview-snapshot";
@@ -104,6 +105,7 @@ export default function BusinessOverview() {
       });
     return () => request.abort();
   }, []);
+  const [revision, setRevision] = useState(0);
   async function refresh() {
     if (busy) return;
     setBusy(true);
@@ -114,6 +116,7 @@ export default function BusinessOverview() {
       setError("Refresh failed. Try again in a moment.");
     } finally {
       setBusy(false);
+      setRevision((n) => n + 1);
     }
   }
   const snapshot = overview?.snapshot;
@@ -155,6 +158,7 @@ export default function BusinessOverview() {
           {error}
         </p>
       )}
+      <AttentionCard revision={revision} />
       {revenue && snapshot && (
         <Panel title="Revenue">
           <dl className="grid gap-5 sm:grid-cols-2">
@@ -204,7 +208,7 @@ export default function BusinessOverview() {
         <>
           <Panel
             title={"Sales since " + periodStart(snapshot.weekStart)}
-            link="Sales call register"
+            link="Review sales calls"
             href="/admin/sales-calls"
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
@@ -246,24 +250,21 @@ export default function BusinessOverview() {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
               <Metric
                 label="Invoices forwarded to Hubdoc"
-                value={ops.hubdoc?.forwarded}
+                value={
+                  ops.hubdoc?.forwarded ?? (
+                    <span className="ws-caption">
+                      Awaiting Codex forwarding record
+                    </span>
+                  )
+                }
                 note={
                   ops.hubdoc?.coverage === "partial"
-                    ? "Partial forwarding records"
-                    : "Forwarding evidence only"
+                    ? "Marc’s Codex · Partial forwarding records"
+                    : "Source: Marc’s Codex"
                 }
               />
               <Metric label="Published posts" value={ops.posts} />
               <Metric label="Completed tasks" value={ops.tasks.completed} />
-              <Metric
-                label="Open tasks"
-                value={ops.tasks.open}
-                note={
-                  ops.tasks.priority == null
-                    ? undefined
-                    : ops.tasks.priority + " priority"
-                }
-              />
               <Metric
                 label="Recurring payments received"
                 value={ops.recurring}

@@ -9,6 +9,7 @@ export const adminSections: ShellNavSection[] = [
       { href: "/admin/events", label: "Event Planner", child: "Event", icon: "M4 6h16v14H4zM8 3v5m8-5v5M4 11h16m-12 4h3" },
       { href: "/admin/growth-engine", label: "Growth Engine", child: "Client", operator: true, icon: "M4 19V9m5 10V5m5 14v-7m5 7V3M3 19h18" },
       { href: "/admin/leads", label: "Leads", child: "Lead", icon: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6" },
+      { href: "/admin/sales-calls", label: "Sales calls", icon: "M5 4h4l1 5-2 1c1 3 3 5 6 6l1-2 5 1v4c0 1-1 2-2 2C10 20 4 14 3 6c0-1 1-2 2-2z" },
       { href: "/admin/content", label: "Content", child: "Video", icon: "M4 4h16v16H4zM10 8l6 4-6 4V8z" },
       { href: "/admin/inbox", label: "Inbox", child: "Conversation", icon: "M8 10h8m-8 4h5m-7 6h12a2 2 0 002-2V8a2 2 0 00-.586-1.414l-4-4A2 2 0 0014 2H6a2 2 0 00-2 2v14a2 2 0 002 2z" },
     ],

@@ -1,52 +1,100 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { businessAttention } from "../lib/ops/business-attention";
 import type { OpsTask } from "../lib/ops/types";
-
-const fixture = vi.hoisted(() => ({ tasks: null as OpsTask[] | null, failed: false }));
-vi.mock("react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react")>();
+import type { WorkspaceCard } from "../lib/ops/workspace-types";
+const now = new Date("2026-11-24T11:00:00Z");
+function task(id: string, changes: Partial<OpsTask> = {}): OpsTask {
   return {
-    ...actual,
-    useEffect: () => undefined,
-    // tasks starts null, failed starts false: tell them apart by the initial value.
-    useState: (initial: unknown) => [typeof initial === "boolean" ? fixture.failed : fixture.tasks, () => undefined],
-  };
-});
-
-import AttentionCard from "../components/ops/AttentionCard";
-
-const task = (status: OpsTask["status"], kind: OpsTask["kind"] = "approval") =>
-  ({ status, kind }) as OpsTask;
-// The counts render as chips; compare the visible text with the tags stripped.
-const render = () =>
-  renderToStaticMarkup(createElement(AttentionCard))
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ");
-
-describe("dashboard work counts", () => {
-  beforeEach(() => { fixture.tasks = null; fixture.failed = false; });
-
-  it("keeps requested changes open without claiming another approval is needed", () => {
-    fixture.tasks = [task("rejected")];
-    expect(render()).toContain("1 open 0 approvals 0 flags");
-  });
-
-  it("counts pending decisions separately from approved work and ordinary flags", () => {
-    fixture.tasks = [
-      task("awaiting_approval"), task("approved"), task("rejected"),
-      task("open", "flag"), task("done"), task("cancelled"),
+    id,
+    title: id,
+    kind: "task",
+    status: "open",
+    area: "other",
+    assignee: "marc",
+    source: "human",
+    priority: 2,
+    created_at: "2026-11-22T12:00:00Z",
+    payload: {},
+    ...changes,
+  } as OpsTask;
+}
+const call = {
+  id: "a",
+  name: "Example member",
+  startTime: "2026-11-23T10:00:00Z",
+  endTime: "2026-11-23T10:30:00Z",
+  status: "confirmed",
+  outcome: null,
+};
+describe("Dashboard attention", () => {
+  it("filters owners, completed work, approvals already decided and future routine work, while retaining event questions", () => {
+    const tasks = [
+      task("today"),
+      task("tomorrow", { due_at: "2026-11-25" }),
+      task("closed", { status: "done" }),
+      task("approved", { status: "approved" }),
+      task("delegate", { assignee: "eimear" }),
+      task("event", {
+        area: "events",
+        assignee: "eimear",
+        status: "awaiting_approval",
+        payload: { event_board_id: "board" },
+      }),
+      task("amount", { area: "finance" }),
+      task("routine", { source: "system", external_ref: "engagement:routine" }),
     ];
-    expect(render()).toContain("4 open 1 approval 1 flag");
+    const result = businessAttention({ tasks, checks: [] }, [], false, now);
+    expect(result.items.map((i) => i.title)).toEqual(["event", "today"]);
+    expect(result.items[0].href).toBe("/admin/events?board=board#step-event");
+    expect(
+      businessAttention({ tasks, checks: [] }, [], true, now).items.map(
+        (i) => i.title,
+      ),
+    ).toContain("amount");
   });
-
-  it("distinguishes loading, an empty checked queue and unavailable work", () => {
-    expect(render()).toContain("Loading...");
-    expect(render()).not.toContain("Work queue unavailable");
-    fixture.failed = true;
-    expect(render()).toContain("Work queue unavailable");
-    fixture.failed = false;
-    fixture.tasks = [];
-    expect(render()).toContain("0 open 0 approvals 0 flags");
+  it("links outstanding and follow-up calls, excluding future, decided and cancelled calls", () => {
+    const result = businessAttention(
+      { tasks: [], checks: [] },
+      [
+        call,
+        { ...call, id: "b", outcome: "follow_up" },
+        { ...call, id: "c", status: "cancelled" },
+        { ...call, id: "d", outcome: "won" },
+        { ...call, id: "e", endTime: "2026-11-25T10:30:00Z" },
+      ],
+      true,
+      now,
+    );
+    expect(result.items.map((i) => i.href)).toEqual([
+      "/admin/sales-calls#call-a",
+      "/admin/sales-calls#call-b",
+    ]);
+    expect(result.items[1].reason).toContain("Follow up");
+  });
+  it("links each outstanding coaching action directly to its client", () => {
+    const coaching = [
+      {
+        id: "client:42",
+        title: "Sample Client · message needs a reply",
+        url: "/admin/clients/42",
+        signal_ids: ["message:42", "checkin:42"],
+      },
+    ] as WorkspaceCard[];
+    expect(
+      businessAttention(
+        { tasks: [], checks: [], coaching },
+        [],
+        true,
+        now,
+      ).items.map((i) => i.href),
+    ).toEqual(["/admin/inbox?client=42", "/admin/clients/42"]);
+  });
+  it("distinguishes a missing source from a checked empty queue", () => {
+    expect(businessAttention(null, null, false, now).unavailable).toHaveLength(
+      3,
+    );
+    expect(
+      businessAttention({ tasks: [], checks: [] }, [], false, now),
+    ).toEqual({ items: [], unavailable: [] });
   });
 });
