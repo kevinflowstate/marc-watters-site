@@ -143,19 +143,30 @@ export async function strategyCallBookings(fromMs: number, toMs: number, deps: C
     locationId: LEAD_LOCATION,
     calendarId: STRATEGY_CALENDAR,
     startTime: String(fromMs),
-    endTime: String(toMs),
+    endTime: String(toMs - 1),
   });
-  const body = await call<{ events?: Record<string, unknown>[] }>(`/calendars/events?${q}`, deps);
-  return (body.events ?? [])
-    .filter((e) => e.deleted !== true && (includeCancelled || String(e.appointmentStatus ?? "") !== "cancelled"))
+  const body = await call<{ events?: Record<string, unknown>[] }>(`/calendars/events?${q}`, {
+    ...deps, token: deps.token ?? (getEnv("CBB_GHL_PIT_TOKEN") || getEnv("GHL_LOCATION_TOKEN")),
+  });
+  if (!Array.isArray(body.events)) throw new CrmError("Strategy Call calendar response was incomplete");
+  const latest = new Map<string, Record<string, unknown>>();
+  for (const event of body.events) {
+    if (!event.id || (event.calendarId && event.calendarId !== STRATEGY_CALENDAR)
+      || (event.locationId && event.locationId !== LEAD_LOCATION)) continue;
+    const id = String(event.id);
+    const previous = latest.get(id);
+    if (!previous || String(event.dateUpdated ?? "") >= String(previous.dateUpdated ?? "")) latest.set(id, event);
+  }
+  return [...latest.values()]
+    .filter((e) => e.deleted !== true && (includeCancelled || String(e.appointmentStatus ?? "").toLowerCase() !== "cancelled"))
     .map((e) => ({
       id: String(e.id ?? ""),
       name: String(e.title ?? "Strategy call").replace(/\s+/g, " ").trim().slice(0, 120),
       startTime: String(e.startTime ?? ""),
       ...(e.endTime ? { endTime: String(e.endTime) } : {}),
       bookedAt: e.dateAdded ? String(e.dateAdded) : null,
-      status: String(e.appointmentStatus ?? "confirmed"),
+      status: String(e.appointmentStatus ?? "unknown").toLowerCase(),
     }))
-    .filter((e) => e.id && Number.isFinite(Date.parse(e.startTime)))
+    .filter((e) => e.id && Date.parse(e.startTime) >= fromMs && Date.parse(e.startTime) < toMs)
     .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime));
 }

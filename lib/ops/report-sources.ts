@@ -1,3 +1,5 @@
+import { strategyCallBookings } from "@/lib/lead-dms/crm";
+export { STRATEGY_CALENDAR } from "@/lib/lead-dms/config";
 import { getEnv } from "@/lib/env";
 
 /**
@@ -10,10 +12,6 @@ import { getEnv } from "@/lib/env";
 type Range = { from: string; to: string };
 type Fetch = typeof fetch;
 
-const GHL = "https://services.leadconnectorhq.com";
-const LOCATION = "93GJEdsr0cT9el3OINXq";
-/** "Strategy Call" calendar in the CRM; the sales-call reviews use the same booking link. */
-export const STRATEGY_CALENDAR = "4SOIodvlfHYmyzKvIAmn";
 const DAY = 86_400_000;
 
 const within = (iso: unknown, r: Range) => {
@@ -22,38 +20,32 @@ const within = (iso: unknown, r: Range) => {
 };
 
 export async function strategyCalls(ranges: { current: Range; previous: Range }, f: Fetch = fetch) {
-  const token = getEnv("GHL_LOCATION_TOKEN");
+  const token = getEnv("CBB_GHL_PIT_TOKEN") || getEnv("GHL_LOCATION_TOKEN");
   if (!token) return { connected: false as const, note: "not connected" };
   try {
     const start = Date.parse(ranges.previous.from);
     // Bookings made this week can be for a slot weeks ahead, so look ahead 60 days.
     const end = Date.parse(ranges.current.to) + 60 * DAY;
-    const url = `${GHL}/calendars/events?locationId=${LOCATION}&calendarId=${STRATEGY_CALENDAR}&startTime=${start}&endTime=${end}`;
-    const r = await f(url, {
-      headers: { Authorization: `Bearer ${token}`, Version: "2021-04-15" },
-      signal: AbortSignal.timeout(15_000),
-      cache: "no-store",
-    });
-    if (!r.ok) return { connected: false as const, note: "not connected" };
-    const body = (await r.json()) as { events?: Record<string, unknown>[] };
-    const events = (body.events || []).filter((e) => e.deleted !== true);
+    const events = await strategyCallBookings(start, end, { token, fetch: f }, true);
     const period = (range: Range) => {
-      const held = events.filter((e) => within(e.startTime, range));
-      const status = (e: Record<string, unknown>) => String(e.appointmentStatus ?? "unknown");
-      const count = (rows: Record<string, unknown>[], s: string) => rows.filter((e) => status(e) === s).length;
+      const slots = events.filter((event) => within(event.startTime, range));
+      const count = (status: string) => slots.filter((event) => event.status === status).length;
+      const cancelled = count("cancelled");
       return {
-        booked: events.filter((e) => within(e.dateAdded, range)).length,
-        scheduled: held.length,
-        showed: count(held, "showed"),
-        no_show: count(held, "noshow"),
-        cancelled: count(held, "cancelled"),
-        not_yet_marked: count(held, "confirmed") + count(held, "new"),
+        booked: events.filter((event) => within(event.bookedAt, range)).length,
+        scheduled: slots.length,
+        non_cancelled_scheduled: slots.length - cancelled,
+        showed: count("showed"),
+        no_show: count("noshow"),
+        cancelled,
+        not_yet_marked: count("confirmed") + count("new"),
       };
     };
     return {
       connected: true as const,
       calendar: "Strategy Call",
-      note: "booked = bookings made in the period; scheduled = calls whose time fell in the period, by the status recorded in the CRM",
+      booking_lookahead_days: 60,
+      note: "Bookings made counts creation dates for slots up to 60 days ahead. Scheduled counts call times in the period and includes cancellations.",
       current: period(ranges.current),
       previous: period(ranges.previous),
     };
@@ -97,7 +89,7 @@ function summarise(items: { at: number; currency: string; amount: number; refund
   return by;
 }
 
-async function stripeList(f: Fetch, key: string, path: string, params: Record<string, string>) {
+export async function stripeList(f: Fetch, key: string, path: string, params: Record<string, string>) {
   const rows: Record<string, unknown>[] = [];
   let after = "";
   for (let page = 0; page < 20; page += 1) {
@@ -110,9 +102,11 @@ async function stripeList(f: Fetch, key: string, path: string, params: Record<st
     });
     if (!r.ok) return { ok: false as const, status: r.status };
     const body = (await r.json()) as { data?: Record<string, unknown>[]; has_more?: boolean };
-    const batch = body.data || [];
+    if (!Array.isArray(body.data) || typeof body.has_more !== "boolean") return { ok: false as const, status: 502 };
+    const batch = body.data;
     rows.push(...batch);
-    if (!body.has_more || !batch.length) return { ok: true as const, rows };
+    if (!body.has_more) return { ok: true as const, rows };
+    if (!batch.length || !batch[batch.length - 1].id || batch[batch.length - 1].id === after) return { ok: false as const, status: 502 };
     after = String(batch[batch.length - 1].id);
   }
   return { ok: false as const, status: 507 };
