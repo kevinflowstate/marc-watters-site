@@ -12,7 +12,6 @@ import {
 } from "./payment-display";
 import {
   GHL_PROGRESS_EVENTS,
-  reminderStatusRank,
   type GhlProgressEvent,
   type PaymentCase,
   type PaymentCaseEvent,
@@ -208,9 +207,9 @@ async function afterSnapshot(saved: { duplicate: boolean; case?: PaymentCase }) 
   if (!c?.id || saved.duplicate) return saved;
   let reminders: string;
   try {
-    if (["paid", "void", "cancelled"].includes(c.state)) reminders = await stopReminders(c);
-    else if (c.state === "unpaid") reminders = await startReminders(c);
-    else reminders = c.latest_delivery || "not_started";
+    if (c.state === "unpaid") reminders = await startReminders(c);
+    else if (c.contact_id) reminders = await stopReminders(c);
+    else reminders = "no_contact";
     await syncPaymentTask(await loadCase(c.id));
   } catch (e) {
     console.error("Payment reminder follow-on failed", errorText(e));
@@ -283,10 +282,36 @@ async function startReminders(c: PaymentCase) {
       }
       contactId = matches[0].id;
     }
+    // A reply/opt-out can arrive before a contact is bound to its new case.
+    const contact = await getGhlContact(contactId);
+    const dnd = contact.dndSettings as Record<string, {status?: string}> | undefined;
+    if (contact.dnd === true || Object.entries(dnd || {}).some(([channel, setting]) =>
+      channel.toLowerCase() === "whatsapp" && ["active", "permanent"].includes(String(setting?.status).toLowerCase())
+    )) {
+      await updateCase(c.id, { contact_id: contactId, contact_dnd: true, latest_delivery: "held_for_review" });
+      await logCaseEvent(c.id, "held_for_review", { reason: "WhatsApp do not disturb in CRM" });
+      return "held_for_review";
+    }
+    const owners = createAdminClient().from("ops_payment_workflow_owners");
+    const ownership = await owners.insert({ contact_id: contactId, case_id: c.id, phase: "adding" });
+    if (ownership.error?.code === "23505") {
+      await updateCase(c.id, { contact_id: contactId, latest_delivery: "held_for_review" });
+      await logCaseEvent(c.id, "held_for_review", { reason: "CRM contact already has a workflow owner" });
+      return "held_for_review";
+    }
+    dbError(ownership.error);
+    await updateCase(c.id, { contact_id: contactId });
+    const current = await loadCase(c.id);
+    if (current.state !== "unpaid" || current.manual_pause || current.reply_needs_human || current.contact_dnd) {
+      dbError((await owners.delete().eq("case_id", c.id).eq("phase", "adding")).error);
+      await updateCase(c.id, { latest_delivery: "held_for_review" });
+      return "held_for_review";
+    }
     const plan = paymentReminderPlan(c.first_failed_at);
     await addContactToWorkflow(contactId, { eventStartTime: plan?.first });
     const at = new Date().toISOString();
-    await updateCase(c.id, { contact_id: contactId, bound_at: at, latest_delivery: "enrolled" });
+    dbError((await createAdminClient().from("ops_payment_cases")
+      .update({ bound_at: at, latest_delivery: "enrolled" }).eq("id", c.id).eq("latest_delivery", "enrolling")).error);
     await logCaseEvent(
       c.id,
       "enrolled",
@@ -297,8 +322,14 @@ async function startReminders(c: PaymentCase) {
       },
       { occurredAt: at },
     );
+    dbError((await owners.update({phase: "active"}).eq("case_id", c.id).eq("phase", "adding")).error);
+    const afterAdd = await loadCase(c.id);
+    if (afterAdd.state !== "unpaid" || afterAdd.reply_needs_human || afterAdd.contact_dnd || afterAdd.manual_pause)
+      return stopReminders(afterAdd);
     return "enrolled";
   } catch (e) {
+    dbError((await createAdminClient().from("ops_payment_workflow_owners")
+      .update({phase:"uncertain"}).eq("case_id", c.id).eq("phase","adding")).error);
     await updateCase(c.id, { latest_delivery: "enrol_failed" });
     await logCaseEvent(c.id, "enrol_failed", { error: errorText(e) });
     return "enrol_failed";
@@ -307,21 +338,20 @@ async function startReminders(c: PaymentCase) {
 
 /** Paid, voided or cancelled: take the contact out of the reminder workflow once. */
 async function stopReminders(c: PaymentCase) {
-  if (!c.contact_id) return "no_contact";
   const externalId = `portal:removed:${c.id}`;
-  const done = await createAdminClient()
-    .from("ops_payment_case_events")
-    .select("id")
-    .eq("source", "ghl")
-    .eq("external_id", externalId)
-    .maybeSingle();
-  dbError(done.error);
-  if (done.data) return "already_removed";
+  const owners = createAdminClient().from("ops_payment_workflow_owners");
+  const claim = await owners.update({phase:"removing"})
+    .eq("case_id", c.id).eq("phase","active").select("contact_id");
+  dbError(claim.error);
+  if (!claim.data?.length) return "no_active_workflow_owned";
   try {
-    const result = await removeContactFromWorkflow(c.contact_id);
-    await logCaseEvent(c.id, "removed_from_workflow", { contact_id: c.contact_id, ...result }, { externalId });
+    const contactId = claim.data[0].contact_id;
+    const result = await removeContactFromWorkflow(contactId);
+    await logCaseEvent(c.id, "removed_from_workflow", { contact_id: contactId, ...result }, { externalId });
+    dbError((await owners.delete().eq("case_id",c.id).eq("phase","removing")).error);
     return result.removed ? "removed" : "not_in_workflow";
   } catch (e) {
+    dbError((await owners.update({phase:"uncertain"}).eq("case_id",c.id).eq("phase","removing")).error);
     await logCaseEvent(c.id, "removal_failed", { contact_id: c.contact_id, error: errorText(e) });
     return "removal_failed";
   }
@@ -396,22 +426,7 @@ export async function syncPaymentTask(
   return task?.id ?? null;
 }
 
-function progressPatch(c: PaymentCase, type: GhlProgressEvent) {
-  const advance = (status: string, count: number) => ({
-    reminder_count: Math.max(c.reminder_count || 0, count),
-    latest_delivery:
-      (reminderStatusRank[c.latest_delivery || ""] || 0) < reminderStatusRank[status]
-        ? status
-        : c.latest_delivery,
-  });
-  if (type === "reminder_1_sent") return advance("reminder_1_sent", 1);
-  if (type === "reminder_2_sent") return advance("reminder_2_sent", 2);
-  if (type === "escalated") return advance("escalated", 2);
-  if (type === "reply_received") return { reply_needs_human: true };
-  return { contact_dnd: true };
-}
-
-/** GHL workflow progress: { event_type, contact_id, occurred_at, event_id, invoice_id? }. */
+/** Delivery belongs to a specific merchant invoice. Replies and DND stop the contact. */
 export async function recordGhlPaymentProgress(input: unknown) {
   const b = record(input);
   // occurred_at is optional: GHL may not expose a reliable timestamp merge field.
@@ -427,6 +442,7 @@ export async function recordGhlPaymentProgress(input: unknown) {
     b.event_id.length > 200 ||
     !Number.isFinite(Date.parse(occurredRaw)) ||
     Date.parse(occurredRaw) > Date.now() + 300000 ||
+    (b.stripe_account_id !== undefined && (typeof b.stripe_account_id !== "string" || !/^acct_[A-Za-z0-9]+$/.test(b.stripe_account_id))) ||
     (invoiceId !== null && !/^in_[A-Za-z0-9]+$/.test(invoiceId))
   )
     throw new OpsError(
@@ -437,45 +453,35 @@ export async function recordGhlPaymentProgress(input: unknown) {
   const eventId = b.event_id.trim();
   const occurredAt = new Date(occurredRaw).toISOString();
   const db = createAdminClient();
-  let query = db
-    .from("ops_payment_cases")
-    .select("*")
-    .eq("contact_id", b.contact_id)
-    .in("state", OPEN_STATES);
-  if (invoiceId) query = query.eq("invoice_id", invoiceId);
-  const found = await query.limit(20);
+  const contactStop = type === "reply_received" || type === "dnd";
+  if (!contactStop && (!invoiceId || !b.stripe_account_id))
+    throw new OpsError("A reminder outcome needs its original invoice_id and stripe_account_id", 422);
+  let query = db.from("ops_payment_cases").select("*")
+    .eq("contact_id", b.contact_id).in("state", OPEN_STATES);
+  // A WhatsApp reply or DND stops the contact's reminders across all invoices.
+  if (!contactStop) query = query.eq("invoice_id", invoiceId).eq("stripe_account_id", b.stripe_account_id);
+  const found = await query.limit(501);
   dbError(found.error);
   const cases = (found.data || []) as PaymentCase[];
-  if (!cases.length)
-    return { received: true, matched: 0, note: "No open payment case for this contact" };
-  const externalIds = cases.map((c) => `progress:${eventId}:${c.id}`);
-  const seen = await db
-    .from("ops_payment_case_events")
-    .select("external_id")
-    .eq("source", "ghl")
-    .in("external_id", externalIds);
-  dbError(seen.error);
-  const seenIds = new Set((seen.data || []).map((e: { external_id: string }) => e.external_id));
-  const fresh = cases.filter((c) => !seenIds.has(`progress:${eventId}:${c.id}`));
-  if (!fresh.length) return { received: true, duplicate: true, matched: cases.length };
-  const note =
-    cases.length > 1
-      ? `This CRM contact has ${cases.length} open invoices; the workflow update "${type}" was applied to all of them.`
-      : undefined;
-  for (const c of fresh) {
-    await updateCase(c.id, progressPatch(c, type));
-    await logCaseEvent(
-      c.id,
-      type,
-      { event_id: eventId, contact_id: b.contact_id, invoice_id: invoiceId },
-      { externalId: `progress:${eventId}:${c.id}`, occurredAt },
-    );
+  if (cases.length > 500) throw new OpsError("Too many open invoices for one contact", 503);
+  let applied = 0, duplicates = 0;
+  for (const c of cases) {
+    const result = await db.rpc("ops_apply_invoice_progress", {
+      p_case: c.id, p_contact: b.contact_id, p_type: type, p_event_id: eventId, p_occurred: occurredAt
+    });
+    dbError(result.error);
+    if (result.data === "closed") continue;
+    if (result.data === "duplicate") duplicates++;
+    else applied++;
+    const current = await loadCase(c.id);
+    if (contactStop || type === "reminder_failed") await stopReminders(current);
+    // Also reconcile on redelivery if a prior post-commit task update failed.
     await syncPaymentTask(await loadCase(c.id), {
-      reopen: ["escalated", "reply_received", "dnd"].includes(type),
-      extraLines: note ? [note] : [],
+      reopen: result.data !== "duplicate" && (contactStop || type === "reminder_failed" || type === "escalated"),
     });
   }
-  return { received: true, duplicate: false, matched: cases.length, applied: fresh.length, note };
+  return {received:true, matched:cases.length, applied, duplicate: duplicates > 0 && !applied};
+
 }
 
 /** Admin match of a case to a CRM contact (e.g. after "no single CRM contact matched"). */

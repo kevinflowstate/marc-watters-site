@@ -33,6 +33,7 @@ export const reminderStatusRank: Record<string, number> = {
 export const GHL_PROGRESS_EVENTS = [
   "reminder_1_sent",
   "reminder_2_sent",
+  "reminder_failed",
   "escalated",
   "reply_received",
   "dnd",

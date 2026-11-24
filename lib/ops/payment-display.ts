@@ -96,7 +96,7 @@ export function reportedReminderAttempts(
         state: "sent",
         provider_message_id: null,
         created_at: event.created_at,
-        receipt_verified: true,
+        receipt_verified: false,
         verified_sent_at: event.occurred_at,
       });
   }
@@ -118,6 +118,7 @@ const workflowLabels: Record<string, string> = {
   held_for_review: "Not in the reminder workflow · held for Eimear to review",
   enrol_failed: "Not in the reminder workflow · adding them failed",
   enrolled: "In the CRM reminder workflow · no reminder reported yet",
+  reminder_failed: "CRM reported a failed WhatsApp · Eimear to review",
   reminder_1_sent: "Reminder 1 reported sent",
   reminder_2_sent: "Both reminders reported sent",
   escalated: "Both reminders sent · Eimear takes over",
@@ -181,7 +182,7 @@ export function paymentDisplayStatus(payment: PaymentCase): PaymentDisplayStatus
   if (payment.state === "paid") return "paid";
   if (payment.state === "void") return "voided";
   if (payment.state === "cancelled") return "cancelled";
-  if (payment.reply_needs_human || payment.contact_dnd || payment.state !== "unpaid")
+  if (payment.manual_pause || payment.reply_needs_human || payment.contact_dnd || payment.state !== "unpaid")
     return "needs_person";
   return "unpaid";
 }
@@ -233,11 +234,15 @@ export function paymentNextStep(
       detail: "Stripe does not show this invoice as simply unpaid (it may be paused or need a decision). Eimear should check it.",
     };
   const status = payment.latest_delivery || "";
+  if (status === "reminder_failed" || payment.manual_pause)
+    return {kind:"stopped",title:"Eimear takes over",detail: status === "reminder_failed"
+      ? "The CRM reported a failed WhatsApp. Check the conversation and contact the client personally if needed."
+      : "Automatic reminders are paused. Eimear should review this invoice."};
   if (status === "escalated" || payment.reminder_count >= 2)
     return {
       kind: "stopped",
       title: "Eimear takes over",
-      detail: "Both reminders have gone and the invoice is still unpaid. Eimear follows up personally.",
+      detail: payment.reminder_count >= 2 ? "Both reminders have gone and the invoice is still unpaid. Eimear follows up personally." : "The CRM escalated this unpaid invoice. Eimear should check the reported reminder history.",
     };
   if (status === "reminders_off")
     return {
@@ -308,7 +313,7 @@ export function paymentHumanHandoff(
     required: !closed && next.kind !== "planned",
     title: closed ? "No payment chase needed" : next.title,
     summary: closed
-      ? "Stripe records this invoice as closed. The client has been taken out of the reminder workflow."
+      ? "Stripe records this invoice as closed. No further payment chase is needed for this invoice."
       : remindersEnabled
         ? "The CRM workflow sends the two reminders. This portal records what it reports back."
         : "Automatic reminders are off. New cases are recorded for Eimear only.",
@@ -373,7 +378,9 @@ export function paymentTaskText(
   ];
   return {
     title:
-      next.kind === "stopped"
+      next.kind === "planned"
+        ? `Failed payment alert — ${label} · ${payment.reminder_count ? "WhatsApp reported sent" : "Reminder scheduled"} · No action required`
+        : next.kind === "stopped"
         ? `Eimear: follow up on unpaid payment — ${label}`
         : `Payment needs checking — ${label}`,
     detail: lines.join("\n"),
