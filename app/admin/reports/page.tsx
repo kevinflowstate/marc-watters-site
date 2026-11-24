@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { reportWeekLabel } from "@/lib/ops/report-week";
 import { Chip, Empty, Icon, StatusIcon } from "@/components/ops/workspace/WorkspaceUI";
 type Row = {
   id: string;
@@ -81,9 +82,7 @@ export default function Reports() {
                 <span className="min-w-0">
                   <span className="ws-row-title">
                     Week of{" "}
-                    {new Date(r.week_start + "T12:00:00Z").toLocaleDateString(
-                      "en-GB",
-                    )}
+                    {reportWeekLabel(r.week_start)}
                   </span>
                   <span className="ws-row-sub">
                     Updated {new Date(r.updated_at).toLocaleString("en-GB")}
