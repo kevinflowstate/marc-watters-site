@@ -413,7 +413,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     check("clients", "Client activity", () =>
       readAll(
         "client_profiles",
-        "id,business_name,archived_at,payment_status,last_login,last_checkin,user:users!client_profiles_user_id_fkey(full_name)",
+        "id,business_name,archived_at,payment_status,checkin_prompts_enabled,last_login,last_checkin,user:users!client_profiles_user_id_fkey(full_name)",
       ),
     ),
     check("messages", "Client messages", () =>

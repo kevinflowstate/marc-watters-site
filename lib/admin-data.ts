@@ -102,6 +102,7 @@ export interface AdminClient {
   name: string;
   email: string;
   phone: string;
+  checkin_prompts_enabled?: boolean;
   business_name: string;
   business_type: string;
   goals: string;
@@ -144,7 +145,7 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
     .from("client_profiles")
     .select(`
       id, user_id, phone, business_name, business_type, goals,
-      start_date, last_login, last_checkin, created_at,
+      start_date, last_login, last_checkin, created_at, checkin_prompts_enabled,
       archived_at, archived_by, archive_reason,
       user:users!client_profiles_user_id_fkey(email, full_name)
     `)
@@ -253,7 +254,8 @@ export async function getClients(options: { includeArchived?: boolean } = {}): P
       name: user?.full_name || "Unknown",
       email: user?.email || "",
       phone: p.phone || "",
-      business_name: p.business_name || "",
+      checkin_prompts_enabled: p.checkin_prompts_enabled !== false,
+    business_name: p.business_name || "",
       business_type: p.business_type || "",
       goals: p.goals || "",
       start_date: p.start_date,
@@ -293,7 +295,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     .from("client_profiles")
     .select(`
       id, user_id, phone, business_name, business_type, goals,
-      start_date, last_login, last_checkin, created_at,
+      start_date, last_login, last_checkin, created_at, checkin_prompts_enabled,
       archived_at, archived_by, archive_reason,
       user:users!client_profiles_user_id_fkey(email, full_name)
     `)
@@ -426,6 +428,7 @@ export async function getClientById(id: string): Promise<AdminClient | null> {
     name: user?.full_name || "Unknown",
     email: user?.email || "",
     phone: p.phone || "",
+    checkin_prompts_enabled: p.checkin_prompts_enabled !== false,
     business_name: p.business_name || "",
     business_type: p.business_type || "",
     goals: p.goals || "",

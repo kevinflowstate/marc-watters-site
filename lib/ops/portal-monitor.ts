@@ -31,7 +31,7 @@ const collections = {
 } as const;
 type Collection = keyof typeof collections;
 const clientFields =
-  "id,business_name,start_date,last_login,last_checkin,created_at,payment_status,user:users!client_profiles_user_id_fkey(full_name)";
+  "id,business_name,start_date,last_login,last_checkin,created_at,payment_status,checkin_prompts_enabled,user:users!client_profiles_user_id_fkey(full_name)";
 
 function text(value: unknown) {
   return typeof value === "string" ? value : null;
@@ -50,7 +50,7 @@ function daysSince(value: unknown, now: number) {
 }
 /** A recorded pause/cancellation suppresses routine gap prompts, never a client's question. */
 export function routineFollowUpPaused(row: Record<string, unknown>) {
-  return row.payment_status === "paused" || row.payment_status === "cancelled";
+  return row.checkin_prompts_enabled === false || row.payment_status === "paused" || row.payment_status === "cancelled";
 }
 function clientSummary(row: Row, now = Date.now()) {
   const times = [timestamp(row.last_login), timestamp(row.last_checkin)].filter(

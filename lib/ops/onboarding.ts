@@ -69,6 +69,13 @@ export async function updateClientSignals(
   const b = record(input),
     c = await getClient(id),
     updates: Record<string, unknown> = {};
+  if (Object.keys(b).length === 1 && typeof b.checkin_prompts_enabled === "boolean") {
+    const result = await createAdminClient().rpc("ops_set_checkin_prompts", {
+      p_client: c.id, p_enabled: b.checkin_prompts_enabled, p_actor: actor,
+    });
+    if (result.error) throw new OpsError("Could not save check-in preference", 409);
+    return result.data;
+  }
   for (const k of Object.keys(b))
     if (
       !["stage", "payment_status", "next_action", "next_action_due"].includes(k)
