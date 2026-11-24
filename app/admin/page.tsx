@@ -1,5 +1,6 @@
 "use client";
 import { checkinReplyState } from "@/lib/checkin-reply-state";
+import BusinessOverview from "@/components/ops/BusinessOverview";
 import AttentionCard from "@/components/ops/AttentionCard";
 import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { initials } from "@/lib/initials";
@@ -76,12 +77,16 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diffDays / 7)} weeks ago`;
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+export default function AdminDashboard() {
+  return (
+    <div className="ws ws-page">
+      <BusinessOverview />
+      <ClientDashboard />
+    </div>
+  );
 }
 
-
-export default function AdminDashboard() {
+function ClientDashboard() {
   const { toast } = useToast();
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [recentCheckins, setRecentCheckins] = useState<EnrichedCheckin[]>([]);
@@ -89,7 +94,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [showOnTrack, setShowOnTrack] = useState(false);
-  const [adminName, setAdminName] = useState("");
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcastSending, setBroadcastSending] = useState(false);
@@ -104,9 +108,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [clientsRes, meRes, configRes] = await Promise.all([
+        const [clientsRes, configRes] = await Promise.all([
           fetch("/api/admin/clients"),
-          fetch("/api/portal/me"),
           fetch("/api/admin/form-config?type=checkin"),
         ]);
         if (clientsRes.ok) {
@@ -124,12 +127,6 @@ export default function AdminDashboard() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
           setRecentCheckins(checkins);
-        }
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (meData.fullName) {
-            setAdminName(meData.fullName.split(" ")[0]);
-          }
         }
         if (configRes.ok) {
           const configData = await configRes.json();
@@ -222,9 +219,9 @@ export default function AdminDashboard() {
     <div className="ws ws-page">
       <div className="ws-ph">
         <div className="min-w-0">
-          <h1 className="ws-title">Welcome back{adminName ? `, ${adminName}` : ""}</h1>
+          <h2 className="ws-title">Client workspace</h2>
           <p className="ws-meta mt-1">
-            {formatDate(new Date())} · {clients.length} client{clients.length === 1 ? "" : "s"}
+            {clients.length} client{clients.length === 1 ? "" : "s"}
           </p>
         </div>
         <div className="ws-ph-acts">
