@@ -50,7 +50,7 @@ function CallsAndPayments({ data }: { data: Record<string, unknown> }) {
   if (!("strategy_calls" in data) && !("payments_received" in data)) return null;
   return (
     <div className="grid sm:grid-cols-2 gap-4 mb-6">
-      <section className="v2-surface p-5">
+      <section className="lg-card lg-rise p-5">
         <h2 className="font-heading font-bold mb-3">Strategy calls</h2>
         {!calls.connected ? (
           <p className="text-text-muted">Not connected</p>
@@ -62,7 +62,7 @@ function CallsAndPayments({ data }: { data: Record<string, unknown> }) {
           </>
         )}
       </section>
-      {"payments_received" in data && <section className="v2-surface p-5">
+      {"payments_received" in data && <section className="lg-card lg-rise p-5">
         <h2 className="font-heading font-bold mb-3">Payments received</h2>
         {!accounts.length ? (
           <p className="text-text-muted">Not connected</p>
@@ -105,7 +105,7 @@ export default function ReportSummary({
       }).map(([key, fields]) => {
         const source = object(data[key]);
         return (
-          <section className="v2-surface p-5" key={key}>
+          <section className="lg-card lg-rise p-5" key={key}>
             <h2 className="font-heading font-bold mb-3">{labels[key]}</h2>
             {!source.connected ? (
               <p className="text-text-muted">Not connected</p>

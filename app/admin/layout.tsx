@@ -1,5 +1,6 @@
 import "./work/workspace.css";
 import "../restyle.css";
+import "./glass.css";
 import AdminChrome from "@/components/admin/AdminChrome";
 
 export const metadata = {

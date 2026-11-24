@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { CountUp, GlassCard, Ring } from "./charts/Glass";
+import { Icon } from "./workspace/WorkspaceUI";
 import { outcomeLabels, type CallOutcome } from "@/lib/ops/call-outcomes";
 
 type Row = {
@@ -22,6 +24,23 @@ type Period = {
   };
   range: { from: number; to: number };
 };
+const outcomeColour: Record<CallOutcome, string> = {
+  won: "var(--ws-ok)",
+  lost: "var(--ws-bad)",
+  follow_up: "var(--ws-accent-ink)",
+  unqualified: "var(--ws-team)",
+  no_show: "var(--ws-attn)",
+};
+const part = (time: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(time).toLocaleString("en-GB", { timeZone: "Europe/London", ...opts });
+function DateTile({ time }: { time: string }) {
+  return (
+    <span className="lg-date" aria-hidden="true">
+      <b>{part(time, { day: "numeric" })}</b>
+      <span>{part(time, { month: "short" })}</span>
+    </span>
+  );
+}
 const dateLabel = (time: number | string) =>
   new Date(time).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -142,123 +161,221 @@ export default function SalesCallRegister({
       </p>
     );
   }
+  const decided = data?.calls.filter((c) => c.outcome && c.status !== "cancelled") ?? [];
+  const split = (Object.keys(outcomeLabels) as CallOutcome[])
+    .map((key) => ({ key, value: decided.filter((c) => c.outcome === key).length }))
+    .filter((o) => o.value > 0);
   return (
-    <main className="ws ws-page">
-      <Link href="/admin/work" className="ws-back">
+    <main className="ws ws-page lg-stage">
+      <Link href="/admin/work" className="ws-back ws-focus">
+        <Icon name="chevron" size={14} className="ws-back-ic" />
         Workspace
       </Link>
-      <h1 className="ws-title">Sales call tracker</h1>
-      <p>
-        {data && !data.canEdit ? "You can view the recorded outcomes here." : "Choose an outcome next to a completed call to save it."}
-        {" "}Conversion rate uses converted calls divided by converted and lost calls.
-      </p>
-      {notice && <p className="ws-note" role="status">{notice}</p>}
+      <header className="lg-hello lg-rise">
+        <div>
+          <h1>Sales call tracker</h1>
+          <p className="ws-meta mt-1.5">
+            {data && !data.canEdit ? "You can view the recorded outcomes here." : "Choose an outcome next to a completed call to save it."}
+            {" "}Conversion rate uses converted calls divided by converted and lost calls.
+          </p>
+        </div>
+      </header>
+      {notice && (
+        <div className="ws-note is-ok" role="status">
+          <Icon name="checkCircle" size={15} />
+          <span>{notice}</span>
+        </div>
+      )}
       {error && (
-        <p role="alert">
-          {error}{" "}
-          <button className="ws-btn" onClick={() => void load()}>
-            Reload
-          </button>
-        </p>
+        <div role="alert" className="ws-note is-attn">
+          <Icon name="alert" size={15} />
+          <span>
+            {error}{" "}
+            <button className="ws-link" onClick={() => void load()}>
+              Reload
+            </button>
+          </span>
+        </div>
       )}
       {data ? (
         <>
-          <p className="ws-note">
-            {dateLabel(data.range.from)} – {dateLabel(data.range.to - 1)} ·{" "}
-            {data.stats.won} converted from {data.stats.qualified_decisions} decided
-            calls · Qualified close rate{" "}
-            {data.stats.close_rate === null
-              ? "pending"
-              : data.stats.close_rate + "%"}
-          </p>
-          {!before && (
-            <section className="ws-panel p-4" aria-label="Upcoming strategy calls">
-              <h2 className="ws-h2">Upcoming strategy calls · next 7 days</h2>
-              {data.upcoming?.length ? data.upcoming.map((call) => (
-                <p key={call.id}>{call.name} · {new Date(call.startTime).toLocaleString("en-GB", {
-                  timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-                })}</p>
-              )) : <p className="ws-meta">No active bookings in the next 7 days.</p>}
-            </section>
-          )}
-          <h2 className="ws-h2">Past strategy calls</h2>
-          <div className="ws-ph-acts flex-wrap" aria-label="Filter calls">
-            {([
-              ["all", "All calls", data.calls.length],
-              ["pending", "Needs outcome", pending.length],
-              ["follow_up", "Follow-up", followUps.length],
-            ] as const).map(([key, label, count]) => (
-              <button key={key} type="button" aria-pressed={filter === key}
-                className={`ws-btn ws-focus ${filter === key ? "ws-btn-primary" : "ws-btn-quiet"}`}
-                onClick={() => setFilter(key)}>{label} ({count})</button>
-            ))}
-          </div>
-          <div className="ws-ph-acts">
-            <button
-              className="ws-btn"
-              onClick={() => {
-                setData(null);
-                setBefore(new Date(data.range.from).toISOString().slice(0, 10));
-              }}
-            >
-              Earlier calls
-            </button>
-            {before && (
-              <button
-                className="ws-btn"
-                onClick={() => {
-                  setData(null);
-                  setBefore("");
-                }}
-              >
-                Latest calls
-              </button>
+          <div className="lg-grid lg-grid-hero">
+            <GlassCard index={1} title="This period" sub={dateLabel(data.range.from) + " – " + dateLabel(data.range.to - 1)}>
+              <div className="lg-card-body flex flex-wrap items-center gap-6">
+                <Ring
+                  value={data.stats.close_rate}
+                  color="var(--ws-ok)"
+                  size={120}
+                  label={data.stats.close_rate === null ? "-" : <CountUp value={data.stats.close_rate} format={(n) => Math.round(n) + "%"} />}
+                  caption={data.stats.close_rate === null ? "Pending" : "Close rate"}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap gap-x-8 gap-y-3">
+                    <div>
+                      <div className="lg-metric-l">Converted</div>
+                      <div className="lg-metric-n is-sm"><CountUp value={data.stats.won} /></div>
+                    </div>
+                    <div>
+                      <div className="lg-metric-l">Decided calls</div>
+                      <div className="lg-metric-n is-sm"><CountUp value={data.stats.qualified_decisions} /></div>
+                    </div>
+                    <div>
+                      <div className="lg-metric-l">Needs outcome</div>
+                      <div className="lg-metric-n is-sm" style={pending.length ? { color: "var(--ws-attn)" } : undefined}>
+                        <CountUp value={pending.length} />
+                      </div>
+                    </div>
+                  </div>
+                  {split.length > 0 && (
+                    <>
+                      <div className="lg-split mt-4" aria-hidden="true">
+                        {split.map((o, i) => (
+                          <i key={o.key} style={{ flex: o.value, "--c": outcomeColour[o.key], "--i": i } as CSSProperties} />
+                        ))}
+                      </div>
+                      <div className="lg-legend mt-2.5">
+                        {split.map((o) => (
+                          <span key={o.key}>
+                            <i style={{ background: outcomeColour[o.key] }} />
+                            {outcomeLabels[o.key]} {o.value}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </GlassCard>
+            {!before && (
+              <GlassCard index={2} title="Upcoming strategy calls" sub="Next 7 days" aria-label="Upcoming strategy calls">
+                <div className="lg-card-body">
+                  {data.upcoming?.length ? (
+                    <div className="grid gap-2">
+                      {data.upcoming.map((call, i) => (
+                        <div key={call.id} className="lg-up" style={{ "--i": i } as CSSProperties}>
+                          <DateTile time={call.startTime} />
+                          <span className="min-w-0">
+                            <span className="lg-call-t block">{call.name}</span>
+                            <span className="lg-call-s block">
+                              {part(call.startTime, { weekday: "long" })} · {part(call.startTime, { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="ws-meta">No active bookings in the next 7 days.</p>
+                  )}
+                </div>
+              </GlassCard>
             )}
           </div>
-          {visible.length ? (
-            visible.map((call) => (
-              <div id={"call-" + call.id} tabIndex={-1} className="ws-row ws-focus flex-wrap" key={call.id}>
-                <span>
-                  <strong>{call.name}</strong>
-                  <br />
-                  {dateLabel(call.startTime)} ·{" "}
-                  {new Date(call.startTime).toLocaleTimeString("en-GB", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "Europe/London",
-                  })}
-                </span>
-                {call.status === "cancelled" ? (
-                  <span>Cancelled</span>
-                ) : !data.canEdit ? (
-                  <span>{call.outcome ? outcomeLabels[call.outcome] : "Needs outcome"}</span>
-                ) : (
-                  <select
-                    aria-label={"Outcome for " + call.name}
-                    className="ws-input"
-                    style={{ width: "auto" }}
-                    disabled={!!busy}
-                    value={call.outcome || ""}
-                    onChange={(e) => void mark(call, e.target.value)}
+          <GlassCard
+            index={3}
+            title="Past strategy calls"
+            action={
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="lg-btn ws-focus"
+                  onClick={() => {
+                    setData(null);
+                    setBefore(new Date(data.range.from).toISOString().slice(0, 10));
+                  }}
+                >
+                  <Icon name="history" size={14} />
+                  Earlier calls
+                </button>
+                {before && (
+                  <button
+                    className="lg-btn ws-focus"
+                    onClick={() => {
+                      setData(null);
+                      setBefore("");
+                    }}
                   >
-                    <option value="" disabled>
-                      Record outcome
-                    </option>
-                    {Object.entries(outcomeLabels).map(([key, label]) => (
-                      <option value={key} key={key}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
+                    Latest calls
+                  </button>
                 )}
               </div>
-            ))
-          ) : (
-            <p>{filter === "pending" ? "Every completed call in this period has an outcome." : filter === "follow_up" ? "No calls marked for follow-up in this period." : "No completed calls in this period."}</p>
-          )}
+            }
+          >
+            <div className="px-[18px] pt-3">
+              <div className="lg-seg" aria-label="Filter calls" role="group">
+                {([
+                  ["all", "All calls", data.calls.length],
+                  ["pending", "Needs outcome", pending.length],
+                  ["follow_up", "Follow-up", followUps.length],
+                ] as const).map(([key, label, count]) => (
+                  <button key={key} type="button" aria-pressed={filter === key} className="ws-focus" onClick={() => setFilter(key)}>
+                    {label}
+                    <em>{count}</em>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {visible.length ? (
+              <ul className="lg-calls">
+                {visible.map((call, i) => (
+                  <li id={"call-" + call.id} tabIndex={-1} className="lg-call ws-focus" key={call.id} style={{ "--i": Math.min(i, 12) } as CSSProperties}>
+                    <DateTile time={call.startTime} />
+                    <span className="min-w-0">
+                      <span className="lg-call-t block">{call.name}</span>
+                      <span className="lg-call-s block">
+                        {part(call.startTime, { weekday: "short" })} {dateLabel(call.startTime)} ·{" "}
+                        {part(call.startTime, { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </span>
+                    {call.status === "cancelled" ? (
+                      <span className="lg-pill" style={{ "--c": "var(--ws-ink-4)" } as CSSProperties}>Cancelled</span>
+                    ) : !data.canEdit ? (
+                      <span className="lg-pill" style={{ "--c": call.outcome ? outcomeColour[call.outcome] : "var(--ws-attn)" } as CSSProperties}>
+                        {call.outcome ? outcomeLabels[call.outcome] : "Needs outcome"}
+                      </span>
+                    ) : (
+                      <select
+                        aria-label={"Outcome for " + call.name}
+                        className="lg-outcome"
+                        style={{ "--c": call.outcome ? outcomeColour[call.outcome] : "var(--ws-attn)" } as CSSProperties}
+                        disabled={!!busy}
+                        value={call.outcome || ""}
+                        onChange={(e) => void mark(call, e.target.value)}
+                      >
+                        <option value="" disabled>
+                          {busy === call.id ? "Saving…" : "Record outcome"}
+                        </option>
+                        {Object.entries(outcomeLabels).map(([key, label]) => (
+                          <option value={key} key={key}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="lg-clear">
+                <span className="lg-q-ic" aria-hidden="true"><Icon name="check" size={16} /></span>
+                <span>{filter === "pending" ? "Every completed call in this period has an outcome." : filter === "follow_up" ? "No calls marked for follow-up in this period." : "No completed calls in this period."}</span>
+              </div>
+            )}
+          </GlassCard>
         </>
       ) : (
-        !error && <p role="status">Loading calls…</p>
+        !error && (
+          <div className="lg-card p-4" role="status" aria-label="Loading calls">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5">
+                <div className="lg-skel" style={{ width: 40, height: 42, borderRadius: 10 }} />
+                <div className="flex-1">
+                  <div className="lg-skel" style={{ height: 11, width: "45%" }} />
+                  <div className="lg-skel mt-2" style={{ height: 9, width: "30%" }} />
+                </div>
+                <div className="lg-skel" style={{ width: 120, height: 30, borderRadius: 999 }} />
+              </div>
+            ))}
+          </div>
+        )
       )}
     </main>
   );
