@@ -16,11 +16,15 @@ async function marc() {
 export async function GET(request: Request) {
   return respond(async () => {
     await marc();
-    const range = salesWindow(new URL(request.url).searchParams.get("before"));
-    const calls = (await callsForPeriod(range.from, range.to))
-      .filter((c) => Date.parse(c.endTime || c.startTime) <= Date.now())
-      .reverse();
-    return { calls, stats: outcomeStats(calls), range };
+    const before = new URL(request.url).searchParams.get("before");
+    const now = Date.now();
+    const range = salesWindow(before, now);
+    const rows = await callsForPeriod(range.from, before ? range.to : now + 7 * 86400000);
+    const calls = rows.filter((call) => Date.parse(call.endTime || call.startTime) <= now).reverse();
+    const upcoming = before ? [] : rows.filter((call) =>
+      call.status !== "cancelled" && Date.parse(call.endTime || call.startTime) > now,
+    );
+    return { calls, upcoming, stats: outcomeStats(calls), range };
   });
 }
 export async function PATCH(request: Request) {
