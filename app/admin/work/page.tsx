@@ -2,6 +2,8 @@
 
 import "./workspace.css";
 import Link from "next/link";
+import SalesCallRegister from "@/components/ops/SalesCallRegister";
+import { MARC_USER_ID } from "@/lib/ops/call-outcomes";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { areaLabels, ownerLabels, statusLabels, needsApproval, isClosed } from "@/lib/ops/workspace";
@@ -115,6 +117,7 @@ export default function WorkPage() {
   const [owner, setOwner] = useState<(typeof assignees)[number]>("eimear");
   const [newArea, setNewArea] = useState<OpsTask["area"]>("other");
   const [today, setToday] = useState("");
+  const [isMarc, setIsMarc] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [search, setSearch] = useState("");
   const panel = useRef<HTMLDialogElement>(null);
@@ -131,6 +134,7 @@ export default function WorkPage() {
         if (!cancelled && me && typeof me.fullName === "string") {
           const first = me.fullName.trim().split(/\s+/)[0] || "";
           setFirstName(first);
+          setIsMarc(me.userId === MARC_USER_ID);
           // New tasks default to the other person: Marc mostly adds work for Eimear, and back.
           if (first.toLowerCase() === "eimear") setOwner("marc");
         }
@@ -408,6 +412,7 @@ export default function WorkPage() {
           </button>
         </div>
       </header>
+      {isMarc && <SalesCallRegister compact />}
 
       {error && (
         <p role="alert" className="ws-note is-attn mt-4">

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OpsError, uuid, record } from "./tasks";
+import { businessDashboard } from "./business-dashboard";
 import { gatherReportData, reportPeriods } from "./report-data";
 import { notifyOpsAdmins } from "./notify";
 import { sendOpsReportEmail } from "@/lib/resend";
@@ -75,7 +76,8 @@ export async function createReportDraft(
       String(existing.data?.periods?.current?.to || "") < periods.current.to;
     if (!options.refresh && !incomplete) return existing;
   }
-  const data = await gatherReportData(now);
+  const [snapshot, dashboard] = await Promise.all([gatherReportData(now), businessDashboard(periods)]);
+  const data = { ...snapshot, dashboard };
   if (existing) {
     // Refresh numbers only. Codex or a person prepares the narrative separately.
     // Preserve every existing word, including text already approved by a person.
