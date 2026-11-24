@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import type { ComponentProps } from "react";
 import { PaymentCaseSummary } from "../components/ops/workspace/PaymentCasePanel";
 import type { PaymentCase } from "../lib/ops/payment-policy";
 
@@ -47,6 +48,18 @@ describe("payment case summary for Marc and Eimear", () => {
     const html = renderToStaticMarkup(createElement(PaymentCaseSummary, { payment, remindersEnabled: null }));
     expect(html).toContain("Reminder settings have not been confirmed");
     expect(html).not.toContain("Automatic reminders are off");
+  });
+
+  it("shows a CRM-reported send time without treating it as a provider delivery receipt", () => {
+    const current = {...payment, reminder_count:1, latest_delivery:"reminder_1_sent"};
+    const detail = {
+      payment_case: current,
+      attempts:[{id:"reported",step_key:"first",state:"sent",receipt_verified:false,
+        provider_message_id:null,created_at:payment.source_verified_at,verified_sent_at:payment.source_verified_at}],
+    } as NonNullable<ComponentProps<typeof PaymentCaseSummary>["detail"]>;
+    const html = renderToStaticMarkup(createElement(PaymentCaseSummary, {payment:current, remindersEnabled:true, detail}));
+    expect(html).toContain("Reported sent");
+    expect(html).not.toContain("Delivered");
   });
 
   it("shows a settled invoice without a plan", () => {
