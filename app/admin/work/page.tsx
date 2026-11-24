@@ -60,6 +60,8 @@ function bool(v: unknown) {
   return typeof v === "boolean" ? v : null;
 }
 function cardLink(card: WorkspaceCard) {
+  if (card.id === "coaching-replies") return "Review coaching replies";
+  if (card.area === "onboarding" && card.url.startsWith("/admin/clients/")) return "Open client";
   return card.id.startsWith("client:") || card.id.startsWith("message:") || card.id.startsWith("checkin:") || card.id.startsWith("missing-checkin:") || card.id.startsWith("activity")
     ? "Open client"
     : "Open";
@@ -360,7 +362,7 @@ export default function WorkPage() {
 
   const drawerTitle =
     drawer?.kind === "connections" ? "Connections"
-      : selectedTask ? selectedTask.title
+      : selectedTask ? selectedCard?.title || selectedTask.title
         : selectedCard ? selectedCard.title
           : selectedResult ? readableResultTitle(selectedResult)
             : selectedArtifact ? selectedArtifact.title
@@ -953,9 +955,9 @@ function TaskDetail({
         <LessonPackageCard taskId={task.id} pack={lessonPackage(task.payload)!} disabled={busy} onOpened={onLessonReview} />
       ) : (
         <>
-          {task.detail && (
+          {(task.detail || (task.area === "onboarding" && card?.detail)) && (
             <div className="ws-section">
-              <ReportText text={task.detail} />
+              <ReportText text={task.detail || card?.detail || ""} />
             </div>
           )}
           <LinkList links={[...task.links, ...task.outputs]} />

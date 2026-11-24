@@ -91,7 +91,9 @@ export function clientSignalCards(
       if (reply.needs_reply !== false)
         cards.push({
           ...base,
+          owner: "marc",
           id: `message:${c.id}`,
+          replies_due: reply.needs_reply ? 1 : 0,
           area: "inbox",
           priority: 1,
           title: `${name} · ${reply.needs_reply ? "message needs a reply" : "conversation needs checking"}`,
@@ -111,7 +113,9 @@ export function clientSignalCards(
       if (pending.length)
         cards.push({
           ...base,
+          owner: "marc",
           id: `checkin:${c.id}`,
+          replies_due: pending.length,
           area: "engagement",
           title: `${name} · check-in needs a review`,
           state: "Needs review",
@@ -203,6 +207,7 @@ export function clientSignalCards(
     return {
       ...first,
       id: `client:${first.url.split("/").at(-1)}`,
+      replies_due: group.reduce((sum, card) => sum + (card.replies_due || 0), 0),
       areas: [...new Set(group.map((c) => c.area))],
       signal_ids: [...new Set(group.map((c) => c.id))],
       detail: group.map((c) => c.detail).join("\n"),
@@ -214,11 +219,20 @@ export function clientSignalCards(
   });
 }
 export function taskCards(tasks: OpsTask[]): WorkspaceCard[] {
-  return tasks.map((t) => ({
+  const onboardingSteps: Record<string, string> = {
+    community_added: "Add this client to the WhatsApp community and mark the step complete.",
+    pack_sent: "Confirm the delivery address and check the welcome pack has been arranged before marking this complete.",
+  };
+  return tasks.map((t) => {
+    const name = t.client_profiles?.users?.full_name;
+    const step = (t.external_ref || "").split(":").at(-1) || "";
+    const instructions = t.area === "onboarding" ? onboardingSteps[step] || "Review the client’s outstanding welcome steps and record the next action." : null;
+    return ({
     id: `task:${t.id}`,
     task_id: t.id,
-    title: t.title,
-    detail: t.detail || "Open this task for its instructions and linked work.",
+    title: t.area === "onboarding" && name && !t.title.includes(name)
+      ? name + " · " + t.title.replace(/^onboarding:\s*/i, "") : t.title,
+    detail: t.detail || instructions || "Open this task for its instructions and linked work.",
     next: needsApproval(t)
       ? "Review the linked work and record your decision."
       : t.status === "rejected"
@@ -228,7 +242,7 @@ export function taskCards(tasks: OpsTask[]): WorkspaceCard[] {
     area: t.area,
     state: statusLabels[t.status],
     priority: t.priority,
-    url: `/admin/work?task=${t.id}`,
+    url: t.area === "onboarding" && t.client_id ? `/admin/clients/${t.client_id}` : `/admin/work?task=${t.id}`,
     source:
       t.source === "human"
         ? "Added by the team"
@@ -241,7 +255,8 @@ export function taskCards(tasks: OpsTask[]): WorkspaceCard[] {
       (t.source === "system" && /^engagement:/.test(t.external_ref || "")),
     approval: needsApproval(t),
     attention: t.kind === "flag" || t.status === "rejected",
-  }));
+    });
+  });
 }
 export function artifactCards(
   artifacts: OpsArtifact[],
@@ -445,19 +460,20 @@ export async function getWorkspace(): Promise<WorkspaceData> {
     (payments || []).map((p) => p.task_id).filter(Boolean),
   );
   const controls = automationControls();
+  const coaching = clientSignalCards(clients || [], messages, checkins, Date.now(), training, lessons, staffReacted)
+    .filter(card => card.owner === "marc");
+  const replyCount = coaching.reduce((sum, card) => sum + (card.replies_due || 0), 0);
   const cards = [
     ...taskCards((tasks || []).filter((t) => !paymentTaskIds.has(t.id))),
     ...artifactCards(artifacts || [], controls),
     ...paymentCards(payments || [], controls.payment_reminders),
-    ...clientSignalCards(
-      clients || [],
-      messages,
-      checkins,
-      Date.now(),
-      training,
-      lessons,
-      staffReacted,
-    ),
+    ...(coaching.length ? [{
+      id: "coaching-replies", area: "inbox" as const, owner: "marc" as const, priority: 1,
+      title: replyCount + (replyCount === 1 ? " coaching reply due" : " coaching replies due"),
+      detail: coaching.length + (coaching.length === 1 ? " client conversation needs review." : " client conversations need review."),
+      next: "Open the Dashboard reply list to review messages and check-ins.", state: "Needs review",
+      source: "Portal records", observed_at: checked_at, url: "/admin/coaching-replies", attention: true,
+    }] : []),
     ...(reports || []).map((r, index) => ({
       id: `report:${r.id}`,
       title: `Business report · week of ${r.week_start}`,
@@ -478,6 +494,7 @@ export async function getWorkspace(): Promise<WorkspaceData> {
   return {
     checked_at,
     cards,
+    coaching,
     tasks: tasks || [],
     results: results || [],
     checks,

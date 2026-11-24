@@ -295,7 +295,8 @@ describe("workspace partial-source coverage", () => {
       count: 1,
     });
     expect(result.cards.some((c) => c.id === "artifact:a1")).toBe(true);
-    expect(result.cards.some((c) => c.detail.includes("check-in"))).toBe(true);
+    expect(result.coaching?.some((c) => c.detail.includes("check-in"))).toBe(true);
+    expect(result.cards.find(c => c.id === "coaching-replies")).toMatchObject({ owner: "marc", title: "1 coaching reply due" });
     expect(
       result.cards.some((c) => c.detail.includes("No recorded visit")),
     ).toBe(false);
