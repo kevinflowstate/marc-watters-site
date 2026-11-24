@@ -5,6 +5,8 @@
 import { getEnv } from "@/lib/env";
 import { MARC_PAYMENT_LOCATION } from "./payment-policy";
 
+import { signPaymentRun, type PaymentRun } from "./payment-run";
+
 const API = "https://services.leadconnectorhq.com";
 const VERSION = "2021-07-28";
 
@@ -85,9 +87,26 @@ export async function findContactsByEmail(email: string, options: GhlWorkflowOpt
  * "wait until event start time" step fire at the portal-calculated reminder 1 time. */
 export async function addContactToWorkflow(
   contactId: string,
-  options: GhlWorkflowOptions & { eventStartTime?: string } = {},
+  options: GhlWorkflowOptions & { eventStartTime?: string; paymentRun?: PaymentRun } = {},
 ) {
   const s = settings(options);
+  if (options.paymentRun) {
+    const entry = getEnv("OPS_PAYMENT_WORKFLOW_ENTRY_URL");
+    const allowed = new RegExp("^https://services\\.leadconnectorhq\\.com/hooks/" + MARC_PAYMENT_LOCATION + "/webhook-trigger/[a-zA-Z0-9-]+$");
+    if (!entry || !allowed.test(entry) || options.paymentRun.contact_id !== contactId)
+      throw new GhlWorkflowError("A verified invoice-scoped workflow trigger is required", 503);
+    const response = await s.request(entry, {
+      ...init, method: "POST", headers: {"Content-Type":"application/json"},
+      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({
+        contact_id: contactId,
+        first_due_at: options.eventStartTime,
+        run_context: signPaymentRun(options.paymentRun),
+      }),
+    });
+    if (!response.ok) throw new GhlWorkflowError("Invoice-scoped workflow trigger was not confirmed", 502);
+    return { workflow_id: s.workflowId };
+  }
   const r = await s.request(contactPath(contactId, s.workflowId), {
     ...init,
     method: "POST",
@@ -132,4 +151,16 @@ export async function getGhlContact(contactId: string, options: GhlWorkflowOptio
   if (contact.id !== contactId || contact.locationId !== (options.locationId ?? MARC_PAYMENT_LOCATION))
     throw new GhlWorkflowError("CRM contact is not in Marc's location", 409);
   return contact;
+}
+
+export function ghlWhatsAppBlocked(contact: Record<string, unknown>) {
+  const channels = contact.dndSettings;
+  if (contact.dnd === true) return true;
+  if (channels !== undefined && (channels === null || typeof channels !== "object" || Array.isArray(channels))) return true;
+  for (const [name, value] of Object.entries(channels || {})) {
+    if (name.toLowerCase() !== "whatsapp") continue;
+    const status = value && typeof value === "object" ? String(value.status || "").toLowerCase() : "";
+    if (!["inactive", "disabled"].includes(status)) return true;
+  }
+  return contact.dnd !== false;
 }

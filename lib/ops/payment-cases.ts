@@ -1,3 +1,4 @@
+import { verifyPaymentRun } from "./payment-run";
 import { randomUUID } from "node:crypto";
 import { onboardFromPayment } from "./stripe-new-client";
 import { getEnv } from "@/lib/env";
@@ -27,6 +28,7 @@ import {
   findContactsByEmail,
   getGhlContact,
   GhlWorkflowError,
+  ghlWhatsAppBlocked,
   removeContactFromWorkflow,
 } from "./ghl-workflow";
 
@@ -284,10 +286,7 @@ async function startReminders(c: PaymentCase) {
     }
     // A reply/opt-out can arrive before a contact is bound to its new case.
     const contact = await getGhlContact(contactId);
-    const dnd = contact.dndSettings as Record<string, {status?: string}> | undefined;
-    if (contact.dnd === true || Object.entries(dnd || {}).some(([channel, setting]) =>
-      channel.toLowerCase() === "whatsapp" && ["active", "permanent"].includes(String(setting?.status).toLowerCase())
-    )) {
+    if (ghlWhatsAppBlocked(contact)) {
       await updateCase(c.id, { contact_id: contactId, contact_dnd: true, latest_delivery: "held_for_review" });
       await logCaseEvent(c.id, "held_for_review", { reason: "WhatsApp do not disturb in CRM" });
       return "held_for_review";
@@ -308,7 +307,10 @@ async function startReminders(c: PaymentCase) {
       return "held_for_review";
     }
     const plan = paymentReminderPlan(c.first_failed_at);
-    await addContactToWorkflow(contactId, { eventStartTime: plan?.first });
+    await addContactToWorkflow(contactId, {
+      eventStartTime: plan?.first, paymentRun: {case_id:c.id, contact_id:contactId,
+        stripe_account_id:c.stripe_account_id, invoice_id:c.invoice_id},
+    });
     const at = new Date().toISOString();
     dbError((await createAdminClient().from("ops_payment_cases")
       .update({ bound_at: at, latest_delivery: "enrolled" }).eq("id", c.id).eq("latest_delivery", "enrolling")).error);
@@ -428,7 +430,16 @@ export async function syncPaymentTask(
 
 /** Delivery belongs to a specific merchant invoice. Replies and DND stop the contact. */
 export async function recordGhlPaymentProgress(input: unknown) {
-  const b = record(input);
+  const b = { ...record(input) };
+  const run = b.run_context === undefined ? null : verifyPaymentRun(b.run_context, b.contact_id);
+  if (run) {
+    if ((b.invoice_id !== undefined && b.invoice_id !== run.invoice_id) ||
+        (b.stripe_account_id !== undefined && b.stripe_account_id !== run.stripe_account_id))
+      throw new OpsError("Conflicting payment run identity", 422);
+    if (b.event_id === undefined) b.event_id = "native:" + run.case_id + ":" + String(b.event_type);
+    b.invoice_id = run.invoice_id;
+    b.stripe_account_id = run.stripe_account_id;
+  }
   // occurred_at is optional: GHL may not expose a reliable timestamp merge field.
   const occurredRaw =
     typeof b.occurred_at === "string" && b.occurred_at.trim() ? b.occurred_at.trim() : new Date().toISOString();
@@ -454,12 +465,23 @@ export async function recordGhlPaymentProgress(input: unknown) {
   const occurredAt = new Date(occurredRaw).toISOString();
   const db = createAdminClient();
   const contactStop = type === "reply_received" || type === "dnd";
+  if (!contactStop && getEnv("OPS_PAYMENT_WORKFLOW_ENTRY_URL") && !run)
+    throw new OpsError("The original signed payment run is required", 422);
   if (!contactStop && (!invoiceId || !b.stripe_account_id))
     throw new OpsError("A reminder outcome needs its original invoice_id and stripe_account_id", 422);
+  if (run && (type === "reminder_1_sent" || type === "reminder_2_sent")) {
+    const step = type === "reminder_1_sent" ? "first" : "second";
+    const claim = await db.from("ops_payment_case_events").select("id")
+      .eq("case_id", run.case_id).eq("source", "ghl")
+      .eq("external_id", "native-claim:" + run.case_id + ":" + step).maybeSingle();
+    dbError(claim.error);
+    if (!claim.data) throw new OpsError("This reminder has no matching pre-send claim", 409);
+  }
   let query = db.from("ops_payment_cases").select("*")
     .eq("contact_id", b.contact_id).in("state", OPEN_STATES);
   // A WhatsApp reply or DND stops the contact's reminders across all invoices.
   if (!contactStop) query = query.eq("invoice_id", invoiceId).eq("stripe_account_id", b.stripe_account_id);
+  if (run && !contactStop) query = query.eq("id", run.case_id);
   const found = await query.limit(501);
   dbError(found.error);
   const cases = (found.data || []) as PaymentCase[];
