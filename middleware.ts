@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getEnv } from './lib/env';
+import { adminReturnPath } from './lib/admin-return-path';
 
 
 export async function middleware(request: NextRequest) {
@@ -156,7 +157,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname =
       role === 'admin'
-        ? '/admin'
+        ? adminReturnPath(safeRedirect)
         : role === 'growth_operator'
           ? '/admin/growth-engine'
           : archivedAt

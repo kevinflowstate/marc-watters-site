@@ -1,5 +1,5 @@
-import { MARC_USER_ID } from "@/lib/ops/team-identities";
-import { adminActor, respond } from "@/lib/ops/http";
+import { isBusinessManager } from "@/lib/ops/team-identities";
+import { adminActor, respondPrivate } from "@/lib/ops/http";
 import {
   validOutcome,
   outcomeStats,
@@ -8,14 +8,9 @@ import { callsForPeriod, salesWindow } from "@/lib/ops/sales-calls";
 import { OpsError } from "@/lib/ops/tasks";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-async function marc() {
-  const id = await adminActor();
-  if (id !== MARC_USER_ID) throw new OpsError("Not found", 404);
-  return id;
-}
 export async function GET(request: Request) {
-  return respond(async () => {
-    await marc();
+  return respondPrivate(async () => {
+    const actor = await adminActor();
     const before = new URL(request.url).searchParams.get("before");
     const now = Date.now();
     const range = salesWindow(before, now);
@@ -24,12 +19,13 @@ export async function GET(request: Request) {
     const upcoming = before ? [] : rows.filter((call) =>
       call.status !== "cancelled" && Date.parse(call.endTime || call.startTime) > now,
     );
-    return { calls, upcoming, stats: outcomeStats(calls), range };
+    return { calls, upcoming, stats: outcomeStats(calls), range, canEdit: isBusinessManager(actor) };
   });
 }
 export async function PATCH(request: Request) {
-  return respond(async () => {
-    const recorded_by = await marc();
+  return respondPrivate(async () => {
+    const recorded_by = await adminActor();
+    if (!isBusinessManager(recorded_by)) throw new OpsError("You have read-only access to sales calls.", 403);
     const { id, outcome, startTime, revision } = await request.json();
     const start = Date.parse(startTime);
     if (

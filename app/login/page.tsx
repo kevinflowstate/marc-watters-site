@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { adminReturnPath } from "@/lib/admin-return-path";
 import Spinner from "@/components/ui/Spinner";
 
 function LoginForm() {
@@ -43,7 +44,10 @@ function LoginForm() {
       const role = roleData?.role;
 
       if (role === "admin") {
-        router.push("/admin");
+        const destination = adminReturnPath(redirect);
+        const row = destination === "/admin/sales-calls" && /^#call-[A-Za-z0-9_-]+$/.test(window.location.hash)
+          ? window.location.hash : "";
+        router.push(destination + row);
       } else if (role === "growth_operator") {
         router.push("/admin/growth-engine");
       } else {
