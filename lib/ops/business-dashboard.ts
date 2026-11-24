@@ -8,7 +8,7 @@ import { summariseHubdocWeek } from "./hubdoc-week";
 
 type Range = { from: string; to: string };
 const SALES_PIPELINE = "Z3CMicvtro1CL2nQa51X";
-async function newLeads(range: Range) {
+export async function newLeads(range: Range) {
   const token = getEnv("CBB_GHL_PIT_TOKEN") || getEnv("GHL_LOCATION_TOKEN");
   if (!token) return null;
   const contacts = new Set<string>();
@@ -55,7 +55,7 @@ async function newLeads(range: Range) {
   return null;
 }
 
-async function publishedPosts(range: Range) {
+export async function publishedPosts(range: Range) {
   const token = getEnv("GHL_LOCATION_TOKEN") || getEnv("CBB_GHL_PIT_TOKEN");
   if (!token) return null;
   const ids = new Set<string>();

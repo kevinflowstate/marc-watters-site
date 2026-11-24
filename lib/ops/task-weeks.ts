@@ -40,7 +40,11 @@ export function weekStart(at: Date): Date {
   const [y, m, d] = londonDate(at).split("-").map(Number);
   const day = new Date(Date.UTC(y, m - 1, d));
   day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-  // London midnight on that Monday: subtract London's offset at (roughly) that time.
+  return londonMidnight(day.toISOString().slice(0, 10));
+}
+
+export function londonMidnight(date: string) {
+  const day = new Date(date + "T00:00:00Z");
   const guess = new Date(day.getTime() - londonOffsetMinutes(day) * 60000);
   return new Date(day.getTime() - londonOffsetMinutes(guess) * 60000);
 }
