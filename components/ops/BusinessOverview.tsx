@@ -4,51 +4,10 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import TeamActivity from "./TeamActivity";
 
-type Total = number | null;
-type Period = {
-  netGBP: Total;
-  payments: Total;
-  refundsGBP: Total;
-  recurring: Total;
-};
-type Snapshot = {
-  asOf: string;
-  weekStart: string;
-  monthStart: string;
-  revenue?: {
-    coverage: string;
-    week: Period;
-    month: Period;
-    accounts: { label: string; coverage: string }[];
-    otherCurrencies?: string[];
-    cashBank: string;
-  };
-  operations: {
-    leads: Total;
-    calls: {
-      scheduled: number;
-      cancelled: number;
-      won: number;
-      lost: number;
-      follow_up: number;
-      unqualified: number;
-      no_show: number;
-      unmarked: number;
-      qualified_decisions: number;
-      close_rate: Total;
-    } | null;
-    posts: Total;
-    recurring: Total;
-    bookingsMade: Total;
-    tasks: { open: Total; priority: Total; completed: Total };
-    hubdoc: {
-      forwarded: Total;
-      recordedDays: Total;
-      expectedDays: number;
-      coverage: string;
-      ingestion: string;
-    } | null;
-  };
+import type { BusinessOverviewSnapshot } from "@/lib/ops/business-overview-snapshot";
+
+type Snapshot = Omit<BusinessOverviewSnapshot, "revenue"> & {
+  revenue?: BusinessOverviewSnapshot["revenue"];
 };
 type Overview = {
   capabilities: { canViewRevenue: boolean; canViewTeamActivity: boolean };

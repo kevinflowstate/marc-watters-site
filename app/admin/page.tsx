@@ -99,11 +99,7 @@ function ClientDashboard() {
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastError, setBroadcastError] = useState("");
   const [broadcastSuccess, setBroadcastSuccess] = useState("");
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "" });
-  const [inviteSending, setInviteSending] = useState(false);
-  const [inviteError, setInviteError] = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState(false);
+
 
   useEffect(() => {
     async function load() {
@@ -245,10 +241,10 @@ function ClientDashboard() {
             <Icon name="bell" size={14} />
             Broadcasts
           </button>
-          <button type="button" onClick={() => setInviteOpen(true)} className="ws-btn ws-btn-primary ws-focus">
+          <Link href="/admin/clients?add=1" className="ws-btn ws-btn-primary ws-focus">
             <Icon name="plus" size={14} />
-            Invite client
-          </button>
+            Add client
+          </Link>
         </div>
       </div>
 
@@ -469,123 +465,7 @@ function ClientDashboard() {
         </div>
       )}
 
-      {inviteOpen && (
-        <div className="ws-overlay">
-          <div className="ws-overlay-bg" onClick={() => { setInviteOpen(false); setInviteError(""); setInviteSuccess(false); }} />
-          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Invite new client">
-            <div className="ws-dialog-head">
-              <h3 className="ws-dialog-title">Invite new client</h3>
-              <button
-                type="button"
-                onClick={() => { setInviteOpen(false); setInviteError(""); setInviteSuccess(false); }}
-                className="ws-btn ws-btn-quiet ws-btn-icon ws-focus"
-                aria-label="Close"
-              >
-                <Icon name="close" size={16} />
-              </button>
-            </div>
 
-            {inviteSuccess ? (
-              <div className="ws-dialog-body">
-                <div className="ws-empty">
-                  <span className="ws-empty-glyph" style={{ color: "var(--ws-ok)" }}>
-                    <Icon name="checkCircle" size={22} />
-                  </span>
-                  <p className="ws-empty-h">Invite sent</p>
-                  <p>They will receive an email to set up their account.</p>
-                </div>
-                <div className="ws-dialog-foot" style={{ justifyContent: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => { setInviteOpen(false); setInviteSuccess(false); setInviteForm({ firstName: "", lastName: "", email: "" }); }}
-                    className="ws-btn ws-btn-primary ws-focus"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                setInviteSending(true);
-                setInviteError("");
-                try {
-                  const res = await fetch("/api/admin/create-client", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      email: inviteForm.email,
-                      full_name: `${inviteForm.firstName} ${inviteForm.lastName}`.trim(),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.error || "Failed to send invite");
-                  }
-                  setInviteSuccess(true);
-                  // Refresh client list
-                  const clientsRes = await fetch("/api/admin/clients");
-                  if (clientsRes.ok) {
-                    const data = await clientsRes.json();
-                    setClients(data.clients || []);
-                  }
-                } catch (err) {
-                  setInviteError(err instanceof Error ? err.message : "Failed to send invite");
-                } finally {
-                  setInviteSending(false);
-                }
-              }} className="ws-dialog-body">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="ws-label">First name</label>
-                    <input
-                      type="text"
-                      required
-                      value={inviteForm.firstName}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, firstName: e.target.value }))}
-                      className="ws-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="ws-label">Last name</label>
-                    <input
-                      type="text"
-                      required
-                      value={inviteForm.lastName}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, lastName: e.target.value }))}
-                      className="ws-input"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="ws-label">Email address</label>
-                  <input
-                    type="email"
-                    required
-                    value={inviteForm.email}
-                    onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="client@example.com"
-                    className="ws-input"
-                  />
-                </div>
-                {inviteError && (
-                  <div className="ws-note is-bad">
-                    <Icon name="alert" size={15} />
-                    <span>{inviteError}</span>
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={inviteSending}
-                  className="ws-btn ws-btn-primary ws-focus w-full"
-                >
-                  {inviteSending ? "Sending invite..." : "Send invite"}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
