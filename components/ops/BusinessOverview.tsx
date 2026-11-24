@@ -134,14 +134,21 @@ export default function BusinessOverview() {
             · Daily at 08:00 UK time
           </p>
         </div>
-        <button
-          type="button"
-          className="ws-btn ws-focus"
-          disabled={busy}
-          onClick={refresh}
-        >
-          {busy && overview ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="ws-ph-acts">
+          {overview?.capabilities.canViewTeamActivity && (
+            <a className="ws-btn ws-focus" href="#workspace-activity">
+              Eimear’s activity
+            </a>
+          )}
+          <button
+            type="button"
+            className="ws-btn ws-focus"
+            disabled={busy}
+            onClick={refresh}
+          >
+            {busy && overview ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </header>
       {error && (
         <p role="alert" className="ws-meta">
@@ -266,7 +273,9 @@ export default function BusinessOverview() {
         </>
       )}
       {overview?.capabilities.canViewTeamActivity && (
-        <TeamActivity key={snapshot?.asOf} />
+        <div id="workspace-activity" className="scroll-mt-16">
+          <TeamActivity key={snapshot?.asOf} />
+        </div>
       )}
     </section>
   );
