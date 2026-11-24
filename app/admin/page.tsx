@@ -815,6 +815,7 @@ function NeedsYou({ clients, recentCheckins }: { clients: AdminClient[]; recentC
       <section className="ws-panel" aria-label="What needs you">
         <div className="ws-panel-head">
           <h2 className="ws-h2">What needs you</h2>
+          <Link href="/admin/coaching-replies" className="ws-link">All coaching replies</Link>
           <span className="ws-caption">{total} item{total === 1 ? "" : "s"}</span>
         </div>
         {groups.length === 0 ? (

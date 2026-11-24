@@ -156,7 +156,7 @@ describe("live workspace signals", () => {
       expect(clientSignalCards([held], [], [], now)).toEqual([]);
       const cards = clientSignalCards([held], [msg("client")], [{ ...checkin, admin_reply: null }], now);
       expect(cards).toHaveLength(1);
-      expect(cards[0]).toMatchObject({ id: "client:client-1", owner: "eimear", area: "inbox" });
+      expect(cards[0]).toMatchObject({ id: "client:client-1", owner: "marc", area: "inbox" });
       expect(cards[0].signal_ids).toEqual(["message:client-1", "checkin:client-1"]);
     }
   });
@@ -169,18 +169,26 @@ describe("live workspace signals", () => {
     expect(card.next).toContain("before contacting");
     expect(card.signal_ids).toEqual(["missing-checkin:client-1", "activity:client-1"]);
   });
-  it("keeps one stable Eimear card when several client concerns appear or clear", () => {
+  it("keeps one stable Marc card when several client concerns appear or clear", () => {
     const current = clientSignalCards([client], [msg("client")], [{ ...checkin, admin_reply: null }], now);
     const replied = clientSignalCards([client], [msg("client", old), msg("admin")], [{ ...checkin, admin_reply: null }], now);
     expect(current).toHaveLength(1);
     expect(replied).toHaveLength(1);
     expect(current[0].id).toBe(replied[0].id);
-    expect(current[0].owner).toBe("eimear");
-    expect(replied[0].owner).toBe("eimear");
+    expect(current[0].owner).toBe("marc");
+    expect(current[0].replies_due).toBe(2);
+    expect(replied[0].owner).toBe("marc");
+    expect(replied[0].replies_due).toBe(1);
     expect(replied[0].signal_ids).toEqual(["checkin:client-1"]);
   });
 });
 describe("workspace action projections", () => {
+  it("names and links an existing welcome checklist task without changing its stored record", () => {
+    const [card] = taskCards([{id: "t", area: "onboarding", client_id: "demo", title: "onboarding: Admit to community", external_ref: "onboarding:demo:community_added", client_profiles: {users: {full_name: "Example Client"}}} as OpsTask]);
+    expect(card.title).toContain("Example Client");
+    expect(card.url).toBe("/admin/clients/demo");
+    expect(card.detail).toContain("WhatsApp community");
+  });
   it("keeps changed artwork visible with Flowstate and excludes superseded versions", () => {
     const a = {
       id: "art",

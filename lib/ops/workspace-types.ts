@@ -39,6 +39,7 @@ export type WorkspaceCard = {
   area: OpsTask["area"];
   areas?: OpsTask["area"][];
   signal_ids?: string[];
+  replies_due?: number;
   state: string;
   priority: number;
   url: string;
@@ -61,6 +62,7 @@ export type SourceCheck = {
 export type WorkspaceData = {
   checked_at: string;
   cards: WorkspaceCard[];
+  coaching?: WorkspaceCard[];
   tasks: OpsTask[];
   results: WorkspaceResult[];
   checks: SourceCheck[];
