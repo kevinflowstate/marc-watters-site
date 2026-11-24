@@ -1,3 +1,4 @@
+import { scheduledStrategyCalls } from "@/lib/ops/call-outcomes";
 import BusinessDashboard from "./BusinessDashboard";
 import type { businessDashboard } from "@/lib/ops/business-dashboard";
 function object(value: unknown): Record<string, unknown> {
@@ -26,8 +27,8 @@ function CallsAndPayments({ data }: { data: Record<string, unknown> }) {
   const accounts = Array.isArray(pay.accounts) ? (pay.accounts as Record<string, unknown>[]) : [];
   const callRow = (label: string, p: Record<string, unknown>) => (
     <p className="text-sm text-text-secondary mb-1" key={label}>
-      <b className="text-text-primary">{label}:</b> {String(p.booked ?? 0)} booked · {String(p.scheduled ?? 0)} calls due
-      {" "}({String(p.showed ?? 0)} showed, {String(p.no_show ?? 0)} no-show, {String(p.cancelled ?? 0)} cancelled, {String(p.not_yet_marked ?? 0)} not marked)
+      <b className="text-text-primary">{label}:</b> {scheduledStrategyCalls(p) ?? "Unknown"} scheduled · {String(p.booked ?? "Unknown")} new bookings made
+      {" "}({String(p.showed ?? "Unknown")} showed, {String(p.no_show ?? "Unknown")} no-show, {String(p.not_yet_marked ?? "Unknown")} unmarked, {String(p.cancelled ?? "Unknown")} cancelled separately)
     </p>
   );
   const payRow = (label: string, p: Record<string, unknown>) => {
@@ -57,10 +58,11 @@ function CallsAndPayments({ data }: { data: Record<string, unknown> }) {
           <>
             {callRow("This week so far", object(calls.current))}
             {callRow("Last week", object(calls.previous))}
+            <p className="text-xs text-text-muted">Scheduled uses the appointment date and excludes cancellations. New bookings uses the date the booking was made and includes slots up to 60 days ahead.</p>
           </>
         )}
       </section>
-      <section className="v2-surface p-5">
+      {"payments_received" in data && <section className="v2-surface p-5">
         <h2 className="font-heading font-bold mb-3">Payments received</h2>
         {!accounts.length ? (
           <p className="text-text-muted">Not connected</p>
@@ -81,7 +83,7 @@ function CallsAndPayments({ data }: { data: Record<string, unknown> }) {
           ))
         )}
         <p className="text-xs text-text-muted mt-2">Money taken in Stripe by the date it was paid. Not invoices raised, not payouts.</p>
-      </section>
+      </section>}
     </div>
   );
 }

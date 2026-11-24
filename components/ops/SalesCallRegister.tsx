@@ -13,6 +13,7 @@ type Row = {
 };
 type Period = {
   calls: Row[];
+  upcoming: Row[];
   stats: {
     won: number;
     qualified_decisions: number;
@@ -135,6 +136,17 @@ export default function SalesCallRegister({
               ? "pending"
               : data.stats.close_rate + "%"}
           </p>
+          {!before && (
+            <section className="ws-panel p-4" aria-label="Upcoming strategy calls">
+              <h2 className="ws-h2">Upcoming strategy calls · next 7 days</h2>
+              {data.upcoming?.length ? data.upcoming.map((call) => (
+                <p key={call.id}>{call.name} · {new Date(call.startTime).toLocaleString("en-GB", {
+                  timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                })}</p>
+              )) : <p className="ws-meta">No active bookings in the next 7 days.</p>}
+            </section>
+          )}
+          <h2 className="ws-h2">Past strategy calls</h2>
           <div className="ws-ph-acts">
             <button
               className="ws-btn"

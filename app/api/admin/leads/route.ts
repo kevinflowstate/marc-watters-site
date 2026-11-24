@@ -19,7 +19,7 @@ async function load() {
     admin.from("lead_dm_drafts").select(COLUMNS).in("status", [...OPEN_STATUSES]).gt("inbound_at", since).order("inbound_at", { ascending: false }).limit(100),
     admin.from("lead_dm_drafts").select(COLUMNS).in("status", ["sent", "edited_sent"]).gt("decided_at", since).order("decided_at", { ascending: false }).limit(50),
     admin.from("users").select("id, full_name").eq("role", "admin"),
-    strategyCallBookings(now - 2 * 60 * 60 * 1000, now + 7 * 24 * 60 * 60 * 1000).then(
+    strategyCallBookings(now - 28 * 86400000, now + 7 * 86400000, {}, true).then(
       (rows) => ({ rows, error: null as string | null }),
       (e) => ({ rows: [], error: e instanceof Error ? e.message : "CRM error" }),
     ),
@@ -34,7 +34,8 @@ async function load() {
   return {
     waiting: (open.data || []).map(shape),
     sent: (sent.data || []).map(shape),
-    bookings: bookings.rows,
+    bookings: bookings.rows.filter((row) => Date.parse(row.endTime || row.startTime) > now && row.status !== "cancelled"),
+    recentBookings: bookings.rows.filter((row) => Date.parse(row.endTime || row.startTime) <= now).reverse(),
     bookingsError: bookings.error ? "Could not read the Strategy Call calendar." : null,
   };
 }

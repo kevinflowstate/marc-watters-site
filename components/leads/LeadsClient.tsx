@@ -23,7 +23,7 @@ type Lead = {
   window_ends_at: string;
 };
 type Booking = { id: string; name: string; startTime: string; bookedAt: string | null; status: string };
-type Data = { waiting: Lead[]; sent: Lead[]; bookings: Booking[]; bookingsError: string | null };
+type Data = { waiting: Lead[]; sent: Lead[]; bookings: Booking[]; recentBookings: Booking[]; bookingsError: string | null };
 type Line = { id: string; from: "lead" | "marc" | "ai"; text: string; media: number; at: string };
 type View = "waiting" | "marc" | "sent";
 
@@ -92,7 +92,11 @@ function sameLondonDay(a: Date, b: Date) {
 
 function Bookings({ data, loading }: { data: Data | null; loading: boolean }) {
   const [all, setAll] = useState(false);
-  const rows = data?.bookings ?? [];
+  const [selected, setSelected] = useState<"upcoming" | "recent" | null>(null);
+  const upcoming = data?.bookings ?? [];
+  const recent = data?.recentBookings ?? [];
+  const view = selected ?? (upcoming.length || !recent.length ? "upcoming" : "recent");
+  const rows = view === "upcoming" ? upcoming : recent;
   const now = new Date();
   const shown = all ? rows : rows.slice(0, 6);
   return (
@@ -101,9 +105,16 @@ function Bookings({ data, loading }: { data: Data | null; loading: boolean }) {
         <div className="ld-book-head">
           <Icon name="calendar" size={15} />
           <span className="ws-h2">Strategy calls</span>
-          <span className="ws-caption">Next 7 days</span>
+
         </div>
-        {rows.length > 0 && <span className="ws-caption">{rows.length} booked</span>}
+        <div className="flex flex-wrap gap-1" aria-label="Strategy call period">
+          {(["upcoming", "recent"] as const).map((period) => (
+            <button key={period} type="button" className="ws-btn ws-btn-sm ws-focus" aria-pressed={view === period}
+              onClick={() => { setSelected(period); setAll(false); }}>
+              {period === "upcoming" ? "Next 7 days" : "Past 28 days"}{data && !data.bookingsError && ` (${period === "upcoming" ? upcoming.length : recent.length})`}
+            </button>
+          ))}
+        </div>
       </div>
       {loading && !data ? (
         <SkeletonRows count={2} />
@@ -113,7 +124,7 @@ function Bookings({ data, loading }: { data: Data | null; loading: boolean }) {
           <div className="min-w-0">{data.bookingsError}</div>
         </div>
       ) : rows.length === 0 ? (
-        <Empty icon="calendar" title="No calls booked" text="Nothing on the Strategy Call calendar for the next 7 days." />
+        <Empty icon="calendar" title={view === "upcoming" ? "No upcoming strategy calls" : "No recent strategy calls"} text={view === "upcoming" ? "No active bookings in the next 7 days." : "No call slots in the past 28 days."} />
       ) : (
         <>
           <div className="ld-book-rows">
@@ -125,6 +136,7 @@ function Bookings({ data, loading }: { data: Data | null; loading: boolean }) {
                   <span className={`ld-book-dot${isNew ? " is-new" : today ? " is-today" : ""}`} aria-hidden="true" />
                   <span className="ld-book-n">
                     {b.name}
+                    {view === "recent" && <span className="ws-caption"> · {b.status === "noshow" ? "No-show" : b.status}</span>}
                     {isNew && <span className="ws-caption"> · booked {when(b.bookedAt)}</span>}
                   </span>
                   <span className="ld-book-w" title={fullDate(b.startTime)}>
@@ -438,7 +450,7 @@ export default function LeadsClient() {
       <div className="ws-ph ld-title">
         <div className="min-w-0">
           <h1 className="ws-title">Leads</h1>
-          <p className="ws-meta mt-1">Instagram messages waiting for a reply in the last 24 hours, and upcoming strategy calls.</p>
+          <p className="ws-meta mt-1">Instagram messages waiting for a reply in the last 24 hours, and recent and upcoming strategy calls.</p>
         </div>
         <div className="ws-ph-acts">
           <button type="button" className="ws-btn ws-focus" onClick={() => void refresh()} disabled={syncing}>
