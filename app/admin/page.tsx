@@ -1,7 +1,6 @@
 "use client";
 import { checkinReplyState } from "@/lib/checkin-reply-state";
 import BusinessOverview from "@/components/ops/BusinessOverview";
-import AttentionCard from "@/components/ops/AttentionCard";
 import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { initials } from "@/lib/initials";
 import { roundStart } from "@/lib/client-health";
@@ -247,8 +246,6 @@ function ClientDashboard() {
           </Link>
         </div>
       </div>
-
-      <AttentionCard />
 
       {/* Stats */}
       <div className="ws-strip">

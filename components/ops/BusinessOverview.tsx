@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import AttentionCard from "./AttentionCard";
 import TeamActivity from "./TeamActivity";
 
 import type { BusinessOverviewSnapshot } from "@/lib/ops/business-overview-snapshot";
@@ -30,6 +31,32 @@ function periodStart(date: string) {
     day: "numeric",
     month: "long",
   }).format(new Date(date + "T12:00:00Z"));
+}
+type ReceiptCount = NonNullable<Snapshot["operations"]["hubdoc"]> & {
+  codexForwarded?: number | null;
+  codexRecordedDays?: number;
+  sentReconciled?: number | null;
+};
+function receiptSource(receipts?: ReceiptCount | null) {
+  const notes = [];
+  if (receipts?.codexRecordedDays) {
+    notes.push(
+      "Codex reported on " +
+        receipts.codexRecordedDays +
+        " of " +
+        receipts.expectedDays +
+        " weekdays",
+    );
+  }
+  if (receipts?.sentReconciled != null) {
+    const count = receipts.sentReconciled;
+    notes.push(
+      "Separate Sent mail check found " +
+        count +
+        (count === 1 ? " qualifying item" : " qualifying items"),
+    );
+  }
+  return notes.join(" · ") || "Source: Marc’s Codex receipt-forwarding job";
 }
 function Metric({
   label,
@@ -104,6 +131,7 @@ export default function BusinessOverview() {
       });
     return () => request.abort();
   }, []);
+  const [revision, setRevision] = useState(0);
   async function refresh() {
     if (busy) return;
     setBusy(true);
@@ -114,12 +142,14 @@ export default function BusinessOverview() {
       setError("Refresh failed. Try again in a moment.");
     } finally {
       setBusy(false);
+      setRevision((n) => n + 1);
     }
   }
   const snapshot = overview?.snapshot;
   const revenue = overview?.capabilities.canViewRevenue && snapshot?.revenue;
   const ops = snapshot?.operations;
   const calls = ops?.calls;
+  const receipts: ReceiptCount | null | undefined = ops?.hubdoc;
   return (
     <section aria-label="Business overview" className="ws-stack">
       <header className="ws-ph">
@@ -155,6 +185,7 @@ export default function BusinessOverview() {
           {error}
         </p>
       )}
+      <AttentionCard revision={revision} />
       {revenue && snapshot && (
         <Panel title="Revenue">
           <dl className="grid gap-5 sm:grid-cols-2">
@@ -204,7 +235,7 @@ export default function BusinessOverview() {
         <>
           <Panel
             title={"Sales since " + periodStart(snapshot.weekStart)}
-            link="Sales call register"
+            link="Review sales calls"
             href="/admin/sales-calls"
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
@@ -245,25 +276,18 @@ export default function BusinessOverview() {
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
               <Metric
-                label="Invoices forwarded to Hubdoc"
-                value={ops.hubdoc?.forwarded}
-                note={
-                  ops.hubdoc?.coverage === "partial"
-                    ? "Partial forwarding records"
-                    : "Forwarding evidence only"
+                label="Invoices and receipts forwarded to Hubdoc"
+                value={
+                  receipts?.codexForwarded ?? (
+                    <span className="ws-caption">
+                      Awaiting Codex forwarding record
+                    </span>
+                  )
                 }
+                note={receiptSource(receipts)}
               />
               <Metric label="Published posts" value={ops.posts} />
               <Metric label="Completed tasks" value={ops.tasks.completed} />
-              <Metric
-                label="Open tasks"
-                value={ops.tasks.open}
-                note={
-                  ops.tasks.priority == null
-                    ? undefined
-                    : ops.tasks.priority + " priority"
-                }
-              />
               <Metric
                 label="Recurring payments received"
                 value={ops.recurring}

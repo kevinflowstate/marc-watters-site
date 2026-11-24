@@ -178,11 +178,12 @@ export default function ClientDetailPage() {
   }, [id]);
 
   useEffect(() => { loadClient(); }, [loadClient]);
-  // The Dashboard's "Plans to set up" links here with #plan; jump to the plan once it has loaded.
+  // Dashboard links can target a section before its client data has loaded.
   useEffect(() => {
-    if (loading || window.location.hash !== "#plan") return;
+    const target = window.location.hash.slice(1);
+    if (loading || !["plan", "check-in-history"].includes(target)) return;
     // Sections above the plan finish loading after it, so settle the scroll a few times.
-    const jump = () => document.getElementById("plan")?.scrollIntoView({ block: "start" });
+    const jump = () => document.getElementById(target)?.scrollIntoView({ block: "start" });
     jump();
     const timers = [300, 800, 1600].map((ms) => window.setTimeout(jump, ms));
     return () => timers.forEach((t) => window.clearTimeout(t));
@@ -1084,7 +1085,7 @@ export default function ClientDetailPage() {
         </div>
 
         {/* Check-in History */}
-        <div className="ws-stack">
+        <div className="ws-stack" id="check-in-history">
           <div className="ws-cd-colhead">
             <h2 className="ws-cd-h">Check-in history</h2>
           </div>
