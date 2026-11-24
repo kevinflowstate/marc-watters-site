@@ -1,3 +1,4 @@
+import { installWelcome } from "@/lib/client-intake";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "@/lib/email-templates";
@@ -150,7 +151,7 @@ export async function POST(request: Request) {
     await admin.from("notifications").insert({
       user_id: userId,
       title: "Welcome to the Blueprint",
-      message: `Welcome ${normalizedName.split(" ")[0]}! Your portal is set up and ready. Start by exploring your training modules and completing your first check-in.`,
+      message: installWelcome,
       link: "/portal",
     });
   }

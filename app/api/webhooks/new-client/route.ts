@@ -1,3 +1,4 @@
+import { installWelcome } from "@/lib/client-intake";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
 import { startOnboarding } from "@/lib/ops/onboarding";
@@ -122,7 +123,7 @@ export async function POST(request: Request) {
   await admin.from("notifications").insert({
     user_id: newUser.user.id,
     title: "Welcome to the Blueprint",
-    message: `Welcome ${name.split(" ")[0]}! Your portal is set up and ready. Start by exploring your training modules and completing your first check-in.`,
+    message: installWelcome,
     link: "/portal",
   });
 

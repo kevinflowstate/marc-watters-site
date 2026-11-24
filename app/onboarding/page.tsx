@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { installWelcome, intakeFields } from "@/lib/client-intake";
+
 const questions = [
+  {id:"full_name",label:"Full name",placeholder:"Your full name",type:"text" as const},
+  {id:"phone",label:"Mobile number",placeholder:"Include your area or country code",type:"tel" as const},
+  {id:"home_address",label:intakeFields.home_address,placeholder:"House, street, town, postcode and country",type:"textarea" as const},
+  {id:"business_address",label:intakeFields.business_address,placeholder:"House, street, town, postcode and country",type:"textarea" as const},
   { id: "business_name", label: "Business Name", placeholder: "e.g. Smith Construction Ltd", type: "text" as const },
   { id: "business_type", label: "What type of work does your business do?", placeholder: "e.g. Residential builds, joinery, fit-outs", type: "text" as const },
   { id: "staff_count", label: "How many people work in the business?", placeholder: "e.g. 8 including yourself", type: "text" as const },
@@ -18,27 +24,37 @@ export default function OnboardingPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    fetch("/api/portal/me").then(r => r.ok ? r.json() : null).then(data => {
+      if (active && data) setAnswers(current => ({ full_name: data.fullName || "", phone: data.profile?.phone || "", business_name: data.profile?.business_name || "", goals: data.profile?.goals || "", ...current }));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
   function updateAnswer(id: string, value: string) {
     setAnswers((prev) => ({ ...prev, [id]: value }));
   }
 
   async function handleSubmit() {
     setSubmitting(true);
+    setError("");
     try {
-      const res = await fetch("/api/portal/settings", {
+      const res = await fetch("/api/portal/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          businessName: answers.business_name,
-          businessType: answers.business_type,
-          goals: answers.goals,
-        }),
+        body: JSON.stringify(answers),
       });
 
       if (res.ok) {
         setStep("done");
         setTimeout(() => router.push("/portal"), 3000);
+      } else {
+        setError((await res.json()).error || "Your profile could not be saved.");
       }
+    } catch {
+      setError("Connection interrupted. Your answers are still here. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -49,7 +65,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-2xl">
         {/* Progress indicator */}
         <div className="flex items-center gap-3 mb-8">
-          {["Watch", "Profile", "Start"].map((label, i) => {
+          {["Welcome", "Profile", "Start"].map((label, i) => {
             const stepIndex = step === "video" ? 0 : step === "form" ? 1 : 2;
             const isActive = i === stepIndex;
             const isDone = i < stepIndex;
@@ -79,22 +95,8 @@ export default function OnboardingPage() {
             <div className="p-6 sm:p-8">
               <h1 className="text-2xl font-heading font-bold text-text-primary mb-2">Welcome to the Blueprint</h1>
               <p className="text-text-secondary text-sm leading-relaxed mb-6">
-                Watch this short video from Marc before you get started. It covers what to expect, how the programme works, and what you need to do in your first week.
+                {installWelcome}
               </p>
-            </div>
-
-            {/* Video embed placeholder */}
-            <div className="relative w-full bg-black" style={{ paddingBottom: "56.25%" }}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-8 h-8 text-accent-bright ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
-                  <p className="text-text-muted text-sm">Onboarding video - to be added by Marc</p>
-                </div>
-              </div>
             </div>
 
             <div className="p-6 sm:p-8">
@@ -116,12 +118,13 @@ export default function OnboardingPage() {
               This helps Marc tailor the programme to your specific situation. Be honest - the more he knows, the more he can help.
             </p>
 
+            <form onSubmit={event => { event.preventDefault(); void handleSubmit(); }}>
             <div className="space-y-5">
               {questions.map((q) => (
                 <div key={q.id}>
-                  <label className="block text-sm font-medium text-text-primary mb-2">{q.label}</label>
+                  <label htmlFor={q.id} className="block text-sm font-medium text-text-primary mb-2">{q.label}{q.id in intakeFields ? " (required)" : ""}</label>
                   {q.type === "textarea" ? (
-                    <textarea
+                    <textarea id={q.id} required={q.id in intakeFields}
                       value={answers[q.id] || ""}
                       onChange={(e) => updateAnswer(q.id, e.target.value)}
                       placeholder={q.placeholder}
@@ -130,7 +133,7 @@ export default function OnboardingPage() {
                     />
                   ) : (
                     <input
-                      type="text"
+                      id={q.id} required={q.id in intakeFields} type={q.type}
                       value={answers[q.id] || ""}
                       onChange={(e) => updateAnswer(q.id, e.target.value)}
                       placeholder={q.placeholder}
@@ -143,19 +146,21 @@ export default function OnboardingPage() {
 
             <div className="flex gap-3 mt-8">
               <button
-                onClick={() => setStep("video")}
+                type="button" onClick={() => setStep("video")}
                 className="px-5 py-3 text-text-muted text-sm hover:text-text-secondary cursor-pointer"
               >
                 Back
               </button>
               <button
-                onClick={handleSubmit}
+                type="submit"
                 disabled={submitting}
                 className="flex-1 py-3.5 gradient-accent text-white rounded-xl text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {submitting ? "Saving..." : "Complete Setup"}
               </button>
             </div>
+            {error && <p role="alert" className="mt-3 text-red-300">{error}</p>}
+            </form>
           </div>
         )}
 

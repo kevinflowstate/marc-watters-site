@@ -1,3 +1,4 @@
+import { installWelcome } from "@/lib/client-intake";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOrReplaceClientInvite } from "@/lib/client-invites";
 import { sendWelcomeEmail } from "@/lib/email-templates";
@@ -52,7 +53,7 @@ export async function activateClient(name: string, email: string): Promise<Activ
   await admin.from("notifications").insert({
     user_id: userId,
     title: "Welcome to the Blueprint",
-    message: `Welcome ${name.split(" ")[0]}! Your portal is set up and ready. Start by exploring your training modules and completing your first check-in.`,
+    message: installWelcome,
     link: "/portal",
   });
 

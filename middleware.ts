@@ -81,12 +81,13 @@ export async function middleware(request: NextRequest) {
 
   let role: string | undefined;
   let archivedAt: string | null | undefined;
+  let requiresIntake = false;
   const requiresPasswordSetup = user?.user_metadata?.requires_password_setup === true;
 
   const needsRoleLookup =
     !!user &&
     (
-      path === '/login' ||
+      path === '/login' || path === '/onboarding' ||
       isPortalRoot ||
       path.startsWith('/portal') ||
       path.startsWith('/admin')
@@ -116,11 +117,16 @@ export async function middleware(request: NextRequest) {
     if (role === 'client' || !role) {
       const { data: clientProfile } = await adminSupabase
         .from('client_profiles')
-        .select('archived_at')
+        .select('archived_at,first_login_intake_required')
         .eq('user_id', user.id)
         .maybeSingle();
       archivedAt = clientProfile?.archived_at;
+      requiresIntake = clientProfile?.first_login_intake_required === true;
     }
+  }
+
+  if (path === '/onboarding' && (!user || role !== 'client' || archivedAt || requiresPasswordSetup)) {
+    return NextResponse.redirect(new URL(!user ? '/login' : archivedAt ? '/access-archived' : requiresPasswordSetup ? '/portal/settings?setup=true' : '/admin', request.url));
   }
 
   if (isPortalRoot) {
@@ -186,6 +192,10 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set('setup', 'true');
         return NextResponse.redirect(url);
       }
+    }
+
+    if (path.startsWith('/portal') && role === 'client' && requiresIntake && !requiresPasswordSetup) {
+      return NextResponse.redirect(new URL('/onboarding', request.url));
     }
 
     if (path.startsWith('/portal') && (role === 'admin' || role === 'growth_operator')) {
