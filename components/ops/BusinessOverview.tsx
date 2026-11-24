@@ -32,6 +32,27 @@ function periodStart(date: string) {
     month: "long",
   }).format(new Date(date + "T12:00:00Z"));
 }
+type ReceiptCount = NonNullable<Snapshot["operations"]["hubdoc"]> & {
+  basis?: "codex_run" | "sent_reconciliation" | "mixed" | "missing";
+  codexForwarded?: number | null;
+};
+function receiptSource(receipts?: ReceiptCount | null) {
+  if (receipts?.forwarded == null)
+    return "Marc’s Codex has no verified count for this week.";
+  let source = "Verified forwarding records";
+  if (receipts.basis === "codex_run")
+    source = "Recorded by Marc’s Codex forwarding job";
+  if (receipts.basis === "sent_reconciliation")
+    source = "Verified in Sent mail; sender attribution unavailable";
+  if (receipts.basis === "mixed")
+    source =
+      receipts.codexForwarded == null
+        ? "Codex and Sent mail records"
+        : "Codex and Sent mail records · " +
+          receipts.codexForwarded +
+          " attributed to Codex";
+  return receipts.coverage === "partial" ? source + " · Partial week" : source;
+}
 function Metric({
   label,
   value,
@@ -257,11 +278,7 @@ export default function BusinessOverview() {
                     </span>
                   )
                 }
-                note={
-                  ops.hubdoc?.coverage === "partial"
-                    ? "Marc’s Codex · Partial forwarding records"
-                    : "Source: Marc’s Codex"
-                }
+                note={receiptSource(ops.hubdoc)}
               />
               <Metric label="Published posts" value={ops.posts} />
               <Metric label="Completed tasks" value={ops.tasks.completed} />

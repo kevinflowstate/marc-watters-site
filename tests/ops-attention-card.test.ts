@@ -87,7 +87,7 @@ describe("Dashboard attention", () => {
         true,
         now,
       ).items.map((i) => i.href),
-    ).toEqual(["/admin/inbox?client=42", "/admin/clients/42"]);
+    ).toEqual(["/admin/inbox?client=42", "/admin/clients/42#check-in-history"]);
   });
   it("distinguishes a missing source from a checked empty queue", () => {
     expect(businessAttention(null, null, false, now).unavailable).toHaveLength(

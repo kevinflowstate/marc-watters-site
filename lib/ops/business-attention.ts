@@ -124,7 +124,7 @@ export function businessAttention(
         id: card.id + ":checkin",
         title: name,
         reason: "Review client check-in",
-        href: card.url,
+        href: card.url + "#check-in-history",
         rank: 2,
         when: card.observed_at || "",
       });
