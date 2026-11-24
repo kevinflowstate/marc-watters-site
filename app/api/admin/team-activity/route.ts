@@ -1,16 +1,21 @@
-import { respond, adminActor } from "@/lib/ops/http";
-import { MARC_USER_ID } from "@/lib/ops/team-identities";
+import { respondPrivate, adminActor } from "@/lib/ops/http";
+import { businessCapabilities } from "@/lib/ops/team-identities";
 import { readTeamActivity } from "@/lib/ops/team-activity";
 import { OpsError } from "@/lib/ops/tasks";
 import { getReport } from "@/lib/ops/reports";
 
+import { weekStart } from "@/lib/ops/task-weeks";
+
 export async function GET(request: Request) {
-  return respond(async () => {
-    if ((await adminActor()) !== MARC_USER_ID)
+  return respondPrivate(async () => {
+    if (!businessCapabilities(await adminActor()).canViewTeamActivity)
       throw new OpsError("Not found", 404);
-    const report = await getReport(
-      new URL(request.url).searchParams.get("report") || "",
-    );
+    const id = new URL(request.url).searchParams.get("report");
+    if (id === null) {
+      const now = new Date();
+      return readTeamActivity(weekStart(now).toISOString(), now.toISOString());
+    }
+    const report = await getReport(id);
     const range = report.data?.periods?.current;
     if (!range?.from || !range?.to)
       throw new OpsError("Report period unavailable", 409);

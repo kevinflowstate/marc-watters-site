@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-export default function TeamActivity({ report }: { report: string }) {
+export default function TeamActivity({ report }: { report?: string }) {
   const [data, setData] = useState<{
     completed: number;
     actions: number;
@@ -9,7 +9,7 @@ export default function TeamActivity({ report }: { report: string }) {
   const [error, setError] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/admin/team-activity?report=" + encodeURIComponent(report), {
+    fetch("/api/admin/team-activity" + (report ? "?report=" + encodeURIComponent(report) : ""), {
       signal: controller.signal,
       cache: "no-store",
     })
@@ -34,7 +34,7 @@ export default function TeamActivity({ report }: { report: string }) {
         {data.activeMinutes} minutes between nearby actions
       </p>
       <p className="ws-meta">
-        Private to Marc. Estimated active minutes count intervals up to five
+        Visible to Marc and Kevin. Estimated active minutes count intervals up to five
         minutes between recorded workspace actions. Reading, offline work and
         idle sign-in time are outside this measure.
       </p>

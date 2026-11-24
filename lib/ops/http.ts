@@ -40,3 +40,10 @@ export function taskFilters(request: Request) {
     clientId: p.get("clientId") || undefined,
   };
 }
+
+/** Authenticated, identity-specific responses must never be reused by a shared cache. */
+export async function respondPrivate(fn: () => Promise<unknown>) {
+  const response = await respond(fn);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}

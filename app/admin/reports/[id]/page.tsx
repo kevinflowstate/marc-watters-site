@@ -13,7 +13,9 @@ type Report = {
   status: string;
   updated_at: string;
   send_claim_id: string | null;
-  narrative_md: string;
+  narrative_md?: string;
+  shared_observations_md?: string;
+  locked?: boolean;
   observations_md: string;
   data: Record<string, unknown>;
 };
@@ -21,6 +23,7 @@ export default function ReportDetail() {
   const { id } = useParams<{ id: string }>(),
     [report, setReport] = useState<Report | null>(null),
     [reconciliationSheetUrl, setReconciliationSheetUrl] = useState<string | null>(null),
+    [manager, setManager] = useState(false),
     [text, setText] = useState(""),
     [observations, setObservations] = useState(""),
     [error, setError] = useState(""),
@@ -31,9 +34,10 @@ export default function ReportDetail() {
       d = await r.json();
     if (!r.ok) throw Error(d.error);
     setReport(d.report);
+    setManager(d.capabilities?.canViewRevenue === true);
     setReconciliationSheetUrl(d.reconciliationSheetUrl ?? null);
-    setText(d.report.narrative_md);
-    setObservations(d.report.observations_md);
+    setText(d.report.narrative_md ?? "");
+    setObservations(d.report.shared_observations_md ?? "");
   }, [id]);
   useEffect(() => {
     void load().catch((e) => setError(e.message));
@@ -51,8 +55,8 @@ export default function ReportDetail() {
               ? { action, expected_updated_at: report?.updated_at }
               : {
                   expected_updated_at: report?.updated_at,
-                  narrative_md: text,
-                  observations_md: observations,
+                  ...(manager ? { narrative_md: text } : {}),
+                  shared_observations_md: observations,
                   ...(action ? { action } : {}),
                 },
           ),
@@ -61,8 +65,8 @@ export default function ReportDetail() {
       if (!r.ok) throw Error(d.error);
       setReport(d.report);
       if (d.refreshed) {
-        setText(d.report.narrative_md);
-        setObservations(d.report.observations_md);
+        setText(d.report.narrative_md ?? "");
+        setObservations(d.report.shared_observations_md ?? "");
       }
       setNotice(
         d.refreshed
@@ -128,7 +132,7 @@ export default function ReportDetail() {
               </span>
             </div>
           )}
-          {!report.narrative_md.trim() && (
+          {manager && !report.narrative_md?.trim() && (
             <div className="ws-note">
               <Icon name="info" size={15} />
               <span>
@@ -138,7 +142,7 @@ export default function ReportDetail() {
           )}
           <div className="ws-rp-summary">
             <ReportSummary data={report.data} />
-            <TeamActivity report={id} />
+            {manager && <TeamActivity report={id} />}
             {reconciliationSheetUrl && (
               <a
                 className="ws-btn ws-focus"
@@ -150,14 +154,14 @@ export default function ReportDetail() {
               </a>
             )}
           </div>
-          <div className="ws-rp-cols">
+          {manager && <div className="ws-rp-cols">
             <label className="ws-rp-field">
               <span className="ws-label">Narrative</span>
               <textarea
                 aria-label="Report narrative"
                 rows={22}
                 disabled={
-                  report.status === "sent" || Boolean(report.send_claim_id)
+                  report.locked || report.status === "sent" || Boolean(report.send_claim_id)
                 }
                 className="ws-input ws-rp-ta"
                 value={text}
@@ -172,14 +176,15 @@ export default function ReportDetail() {
                 <MarkdownPreview text={text} />
               </div>
             </section>
-          </div>
+          </div>}
+          {manager && report.observations_md && <details className="ws-panel"><summary>Earlier observations</summary><MarkdownPreview text={report.observations_md} /></details>}
           <label className="ws-rp-field">
-            <span className="ws-label">Eimear’s observations</span>
+            <span className="ws-label">Shared operational observations</span>
             <textarea
               aria-label="Observations"
               rows={5}
               disabled={
-                report.status === "sent" || Boolean(report.send_claim_id)
+                report.locked || report.status === "sent" || Boolean(report.send_claim_id)
               }
               className="ws-input ws-rp-ta"
               value={observations}
@@ -192,7 +197,7 @@ export default function ReportDetail() {
                 type="button"
                 className="ws-btn ws-focus"
                 disabled={
-                  busy ||
+                  busy || report.locked ||
                   report.status === "sent" ||
                   Boolean(report.send_claim_id)
                 }
@@ -204,18 +209,18 @@ export default function ReportDetail() {
                 type="button"
                 className="ws-btn ws-focus"
                 disabled={
-                  busy ||
+                  busy || report.locked ||
                   report.status === "sent" ||
                   Boolean(report.send_claim_id) ||
                   report.week_start !== reportWeekStart() ||
-                  text !== report.narrative_md ||
-                  observations !== report.observations_md
+                  text !== (report.narrative_md ?? "") ||
+                  observations !== (report.shared_observations_md ?? "")
                 }
                 onClick={() => void save("refresh")}
               >
                 Refresh source data
               </button>
-              <button
+              {manager && <><button
                 type="button"
                 className="ws-btn ws-btn-primary ws-focus"
                 disabled={
@@ -232,16 +237,16 @@ export default function ReportDetail() {
                 type="button"
                 className="ws-btn ws-focus"
                 disabled={
-                  busy ||
+                  busy || report.locked ||
                   report.status !== "reviewed" ||
                   Boolean(report.send_claim_id) ||
-                  text !== report.narrative_md ||
-                  observations !== report.observations_md
+                  text !== (report.narrative_md ?? "") ||
+                  observations !== (report.shared_observations_md ?? "")
                 }
                 onClick={() => void save("send")}
               >
                 Send to Marc
-              </button>
+              </button></>}
             </div>
             <p className="ws-caption">
               Source refresh is available for the current week. Historical
