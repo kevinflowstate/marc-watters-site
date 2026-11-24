@@ -33,25 +33,30 @@ function periodStart(date: string) {
   }).format(new Date(date + "T12:00:00Z"));
 }
 type ReceiptCount = NonNullable<Snapshot["operations"]["hubdoc"]> & {
-  basis?: "codex_run" | "sent_reconciliation" | "mixed" | "missing";
   codexForwarded?: number | null;
+  codexRecordedDays?: number;
+  sentReconciled?: number | null;
 };
 function receiptSource(receipts?: ReceiptCount | null) {
-  if (receipts?.forwarded == null)
-    return "Marc’s Codex has no verified count for this week.";
-  let source = "Verified forwarding records";
-  if (receipts.basis === "codex_run")
-    source = "Recorded by Marc’s Codex forwarding job";
-  if (receipts.basis === "sent_reconciliation")
-    source = "Verified in Sent mail; sender attribution unavailable";
-  if (receipts.basis === "mixed")
-    source =
-      receipts.codexForwarded == null
-        ? "Codex and Sent mail records"
-        : "Codex and Sent mail records · " +
-          receipts.codexForwarded +
-          " attributed to Codex";
-  return receipts.coverage === "partial" ? source + " · Partial week" : source;
+  const notes = [];
+  if (receipts?.codexRecordedDays) {
+    notes.push(
+      "Codex reported on " +
+        receipts.codexRecordedDays +
+        " of " +
+        receipts.expectedDays +
+        " weekdays",
+    );
+  }
+  if (receipts?.sentReconciled != null) {
+    const count = receipts.sentReconciled;
+    notes.push(
+      "Separate Sent mail check found " +
+        count +
+        (count === 1 ? " qualifying item" : " qualifying items"),
+    );
+  }
+  return notes.join(" · ") || "Source: Marc’s Codex receipt-forwarding job";
 }
 function Metric({
   label,
@@ -144,6 +149,7 @@ export default function BusinessOverview() {
   const revenue = overview?.capabilities.canViewRevenue && snapshot?.revenue;
   const ops = snapshot?.operations;
   const calls = ops?.calls;
+  const receipts: ReceiptCount | null | undefined = ops?.hubdoc;
   return (
     <section aria-label="Business overview" className="ws-stack">
       <header className="ws-ph">
@@ -270,15 +276,15 @@ export default function BusinessOverview() {
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
               <Metric
-                label="Invoices forwarded to Hubdoc"
+                label="Invoices and receipts forwarded to Hubdoc"
                 value={
-                  ops.hubdoc?.forwarded ?? (
+                  receipts?.codexForwarded ?? (
                     <span className="ws-caption">
                       Awaiting Codex forwarding record
                     </span>
                   )
                 }
-                note={receiptSource(ops.hubdoc)}
+                note={receiptSource(receipts)}
               />
               <Metric label="Published posts" value={ops.posts} />
               <Metric label="Completed tasks" value={ops.tasks.completed} />
