@@ -17,7 +17,7 @@ export function salesWindow(endDate?: string | null, now = Date.now()) {
   const midnight = Date.parse(
     new Date(end).toISOString().slice(0, 10) + "T00:00:00Z",
   );
-  return { from: midnight - 28 * DAY, to: end };
+  return { from: midnight - 42 * DAY, to: end };
 }
 export async function callsForPeriod(from: number, to: number) {
   const bookings = await strategyCallBookings(
