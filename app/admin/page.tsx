@@ -1,5 +1,6 @@
 "use client";
 import { checkinReplyState } from "@/lib/checkin-reply-state";
+import BusinessOverview from "@/components/ops/BusinessOverview";
 import AttentionCard from "@/components/ops/AttentionCard";
 import ReplyDraftCard from "@/components/reply-drafts/ReplyDraftCard";
 import { initials } from "@/lib/initials";
@@ -76,12 +77,16 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diffDays / 7)} weeks ago`;
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+export default function AdminDashboard() {
+  return (
+    <div className="ws ws-page">
+      <BusinessOverview />
+      <ClientDashboard />
+    </div>
+  );
 }
 
-
-export default function AdminDashboard() {
+function ClientDashboard() {
   const { toast } = useToast();
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [recentCheckins, setRecentCheckins] = useState<EnrichedCheckin[]>([]);
@@ -89,24 +94,18 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [showOnTrack, setShowOnTrack] = useState(false);
-  const [adminName, setAdminName] = useState("");
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastError, setBroadcastError] = useState("");
   const [broadcastSuccess, setBroadcastSuccess] = useState("");
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "" });
-  const [inviteSending, setInviteSending] = useState(false);
-  const [inviteError, setInviteError] = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState(false);
+
 
   useEffect(() => {
     async function load() {
       try {
-        const [clientsRes, meRes, configRes] = await Promise.all([
+        const [clientsRes, configRes] = await Promise.all([
           fetch("/api/admin/clients"),
-          fetch("/api/portal/me"),
           fetch("/api/admin/form-config?type=checkin"),
         ]);
         if (clientsRes.ok) {
@@ -124,12 +123,6 @@ export default function AdminDashboard() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
           setRecentCheckins(checkins);
-        }
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (meData.fullName) {
-            setAdminName(meData.fullName.split(" ")[0]);
-          }
         }
         if (configRes.ok) {
           const configData = await configRes.json();
@@ -222,9 +215,9 @@ export default function AdminDashboard() {
     <div className="ws ws-page">
       <div className="ws-ph">
         <div className="min-w-0">
-          <h1 className="ws-title">Welcome back{adminName ? `, ${adminName}` : ""}</h1>
+          <h2 className="ws-title">Client workspace</h2>
           <p className="ws-meta mt-1">
-            {formatDate(new Date())} · {clients.length} client{clients.length === 1 ? "" : "s"}
+            {clients.length} client{clients.length === 1 ? "" : "s"}
           </p>
         </div>
         <div className="ws-ph-acts">
@@ -248,10 +241,10 @@ export default function AdminDashboard() {
             <Icon name="bell" size={14} />
             Broadcasts
           </button>
-          <button type="button" onClick={() => setInviteOpen(true)} className="ws-btn ws-btn-primary ws-focus">
+          <Link href="/admin/clients?add=1" className="ws-btn ws-btn-primary ws-focus">
             <Icon name="plus" size={14} />
-            Invite client
-          </button>
+            Add client
+          </Link>
         </div>
       </div>
 
@@ -472,123 +465,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {inviteOpen && (
-        <div className="ws-overlay">
-          <div className="ws-overlay-bg" onClick={() => { setInviteOpen(false); setInviteError(""); setInviteSuccess(false); }} />
-          <div className="ws-dialog" role="dialog" aria-modal="true" aria-label="Invite new client">
-            <div className="ws-dialog-head">
-              <h3 className="ws-dialog-title">Invite new client</h3>
-              <button
-                type="button"
-                onClick={() => { setInviteOpen(false); setInviteError(""); setInviteSuccess(false); }}
-                className="ws-btn ws-btn-quiet ws-btn-icon ws-focus"
-                aria-label="Close"
-              >
-                <Icon name="close" size={16} />
-              </button>
-            </div>
 
-            {inviteSuccess ? (
-              <div className="ws-dialog-body">
-                <div className="ws-empty">
-                  <span className="ws-empty-glyph" style={{ color: "var(--ws-ok)" }}>
-                    <Icon name="checkCircle" size={22} />
-                  </span>
-                  <p className="ws-empty-h">Invite sent</p>
-                  <p>They will receive an email to set up their account.</p>
-                </div>
-                <div className="ws-dialog-foot" style={{ justifyContent: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => { setInviteOpen(false); setInviteSuccess(false); setInviteForm({ firstName: "", lastName: "", email: "" }); }}
-                    className="ws-btn ws-btn-primary ws-focus"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                setInviteSending(true);
-                setInviteError("");
-                try {
-                  const res = await fetch("/api/admin/create-client", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      email: inviteForm.email,
-                      full_name: `${inviteForm.firstName} ${inviteForm.lastName}`.trim(),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.error || "Failed to send invite");
-                  }
-                  setInviteSuccess(true);
-                  // Refresh client list
-                  const clientsRes = await fetch("/api/admin/clients");
-                  if (clientsRes.ok) {
-                    const data = await clientsRes.json();
-                    setClients(data.clients || []);
-                  }
-                } catch (err) {
-                  setInviteError(err instanceof Error ? err.message : "Failed to send invite");
-                } finally {
-                  setInviteSending(false);
-                }
-              }} className="ws-dialog-body">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="ws-label">First name</label>
-                    <input
-                      type="text"
-                      required
-                      value={inviteForm.firstName}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, firstName: e.target.value }))}
-                      className="ws-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="ws-label">Last name</label>
-                    <input
-                      type="text"
-                      required
-                      value={inviteForm.lastName}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, lastName: e.target.value }))}
-                      className="ws-input"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="ws-label">Email address</label>
-                  <input
-                    type="email"
-                    required
-                    value={inviteForm.email}
-                    onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="client@example.com"
-                    className="ws-input"
-                  />
-                </div>
-                {inviteError && (
-                  <div className="ws-note is-bad">
-                    <Icon name="alert" size={15} />
-                    <span>{inviteError}</span>
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={inviteSending}
-                  className="ws-btn ws-btn-primary ws-focus w-full"
-                >
-                  {inviteSending ? "Sending invite..." : "Send invite"}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
