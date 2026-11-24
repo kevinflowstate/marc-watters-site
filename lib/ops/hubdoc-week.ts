@@ -33,6 +33,8 @@ export function summariseHubdocWeek(
     codexTotal = 0,
     codexRecordedDays = 0;
   let hasSentAudit = weekly !== null;
+  let sentDailyTotal = 0,
+    codexCompleteDays = 0;
   for (let i = 0; i < 5; i++) {
     const date = new Date(start.getTime() + i * 86400000)
       .toISOString()
@@ -46,8 +48,12 @@ export function summariseHubdocWeek(
     if (run) {
       codexTotal += run.count;
       codexRecordedDays++;
+      if (run.complete) codexCompleteDays++;
     }
-    if (audit) hasSentAudit = true;
+    if (audit) {
+      hasSentAudit = true;
+      sentDailyTotal += audit.count;
+    }
     const count = Math.max(run?.count ?? 0, audit?.count ?? 0);
     dailyTotal += count;
     if (audit ? audit.complete && audit.count === count : run?.complete)
@@ -72,10 +78,21 @@ export function summariseHubdocWeek(
     : anyReceipts
       ? "partial"
       : "missing";
+  const codexCoverage: Coverage =
+    expectedDays > 0 && codexCompleteDays === expectedDays
+      ? "complete"
+      : codexRecordedDays
+        ? "partial"
+        : "missing";
   return {
     forwarded,
+    sentReconciled: hasSentAudit
+      ? Math.max(weekly?.count ?? 0, sentDailyTotal)
+      : null,
+    codexCoverage,
     basis,
-    codexForwarded: codexRecordedDays ? codexTotal : null,
+    codexForwarded:
+      codexTotal > 0 || codexCoverage === "complete" ? codexTotal : null,
     codexRecordedDays,
     recordedDays: weekly ? null : recordedDays,
     expectedDays,
