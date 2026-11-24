@@ -11,7 +11,8 @@ export async function readDashboardHubdoc(now: Date) {
   const keys = [`hubdoc:${week}:week-reconciled`];
   for (let i = 0; i < 5; i++) {
     const date = new Date(monday + i * 86400000).toISOString().slice(0, 10);
-    if (date <= today) keys.push(`hubdoc:${date}:scheduled`);
+    if (date <= today)
+      keys.push(`hubdoc:${date}:scheduled`, `hubdoc:${date}:sent-reconciled`);
   }
   const { data, error } = await createAdminClient()
     .from("ops_workspace_results")

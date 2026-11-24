@@ -13,7 +13,7 @@ function fields(value: unknown, names: string[]) {
 }
 
 const callMetrics = ["scheduled", "cancelled", "won", "lost", "follow_up", "unqualified", "no_show", "unmarked", "qualified_decisions", "close_rate"];
-const hubdocMetrics = ["forwarded", "recordedDays", "expectedDays", "coverage", "ingestion", "weekStart", "checkedAt"];
+const hubdocMetrics = ["basis", "sentReconciled", "codexCoverage", "codexForwarded", "codexRecordedDays", "forwarded", "recordedDays", "expectedDays", "coverage", "ingestion", "weekStart", "checkedAt"];
 
 export function operationalOverview(value: unknown) {
   const ops = object(value);
