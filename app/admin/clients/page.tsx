@@ -181,13 +181,28 @@ export default function ClientsPage() {
                   </div>
                 )}
                 <div>
-                  <label htmlFor="intake-method" className="ws-label">Onboarding route</label>
-                  <select id="intake-method" className="ws-input mb-3" value={intakeMethod} onChange={e=>setIntakeMethod(e.target.value)}>
-                    <option value="" disabled>Select an onboarding route</option>
-                    <option value="cash">Cash payment · contract and welcome</option>
-                    <option value="bank_transfer">Bank transfer · contract and welcome</option>
-                    <option value="portal">Portal access only · no contract</option>
-                  </select>
+                  <span id="intake-method" className="ws-label">Onboarding route</span>
+                  <div className="lg-choices" role="radiogroup" aria-labelledby="intake-method">
+                    {([
+                      ["cash", "Cash payment", "Sends the contract, then the welcome workflow", "finance", "var(--ws-ok)"],
+                      ["bank_transfer", "Bank transfer", "Sends the contract, then the welcome workflow", "payments", "var(--ws-accent-ink)"],
+                      ["portal", "Portal access only", "Activation email, no contract", "plug", "var(--ws-eimear)"],
+                    ] as const).map(([value, title, line, icon, colour]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={intakeMethod === value}
+                        className="lg-choice ws-focus"
+                        style={{ "--c": colour } as CSSProperties}
+                        onClick={() => setIntakeMethod(value)}
+                      >
+                        <span className="lg-choice-ic" aria-hidden="true"><Icon name={icon} size={16} /></span>
+                        <span className="min-w-0"><b>{title}</b><span>{line}</span></span>
+                        <span className="lg-radio" aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
                   <label className="ws-label" htmlFor="invite-name">Full name</label>
                   <input
                     id="invite-name"

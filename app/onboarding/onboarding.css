@@ -1,0 +1,125 @@
+/* First-login onboarding: one glass sheet on a soft lit stage. Reads the .ws and .lg tokens. */
+.ob {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+  color: var(--ws-ink);
+  background: #0b0c0f;
+  font-size: 14px;
+  overflow: hidden;
+}
+.ob .lg-stage::before { inset: -160px -200px auto; height: 900px; }
+.ob-wrap { width: 100%; max-width: 620px; }
+.ob-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font-size: 13px; font-weight: 500; color: var(--ws-ink-2); }
+.ob-brand i { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 12px; color: #fff; background: linear-gradient(160deg, #3b86ea, #1d5fc2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 20px -10px rgba(34, 114, 222, 0.9); }
+
+.ob-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+.ob-step { font-size: 12px; font-weight: 500; color: var(--ws-ink-4); transition: color 300ms; }
+.ob-step.is-on { color: var(--ws-ink); }
+.ob-step.is-done { color: var(--ws-ink-2); }
+.ob-step-bar { height: 4px; border-radius: 999px; background: var(--lg-track); overflow: hidden; margin-bottom: 8px; }
+.ob-step-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--ws-accent), var(--ws-accent-ink)); transform-origin: left; transform: scaleX(0); transition: transform 700ms var(--ws-ease); }
+.ob-step.is-on .ob-step-bar i,
+.ob-step.is-done .ob-step-bar i { transform: scaleX(1); }
+.ob-step.is-done .ob-step-bar i { background: var(--ws-ok); }
+
+.ob-sheet { padding: 28px; border-radius: 22px; }
+@media (max-width: 520px) { .ob-sheet { padding: 22px 18px; } }
+.ob-sheet h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.2; }
+.ob-lead { margin-top: 10px; font-size: 14px; line-height: 1.6; color: var(--ws-ink-2); white-space: pre-line; }
+
+.ob-tips { display: grid; gap: 10px; margin-top: 22px; }
+.ob-tip { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px; border-radius: 14px; background: var(--lg-track); border: 1px solid var(--lg-edge); animation: lg-rise 520ms var(--ws-ease) both; animation-delay: calc(200ms + var(--i, 0) * 80ms); }
+.ob-tip b { display: block; font-size: 13.5px; font-weight: 600; color: var(--ws-ink); }
+.ob-tip-copy > span { display: block; font-size: 12.5px; color: var(--ws-ink-3); margin-top: 2px; line-height: 1.45; }
+
+.ob-form { display: grid; gap: 16px; margin-top: 24px; }
+.ob-group { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--lg-edge); }
+.ob-group:first-child { padding-top: 0; border-top: 0; }
+.ob-group-h { font-size: 12.5px; font-weight: 600; color: var(--ws-ink-3); }
+.ob-field { display: grid; gap: 6px; animation: lg-rise 480ms var(--ws-ease) both; animation-delay: calc(80ms + var(--i, 0) * 35ms); }
+.ob-field label { font-size: 13px; font-weight: 500; color: var(--ws-ink); }
+.ob-field label em { font-style: normal; font-weight: 400; color: var(--ws-ink-4); margin-left: 4px; }
+.ob-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ws-ink);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--lg-edge);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: border-color 160ms, box-shadow 200ms var(--ws-ease), background 160ms;
+  resize: vertical;
+}
+.ob-input::placeholder { color: var(--ws-ink-4); }
+.ob-input:hover { border-color: var(--lg-edge-hover); }
+.ob-input:focus { outline: none; border-color: color-mix(in srgb, var(--ws-accent-ink) 70%, transparent); background: rgba(255, 255, 255, 0.05); box-shadow: 0 0 0 4px var(--ws-accent-soft); }
+.ob-two { display: grid; gap: 14px; }
+@media (min-width: 560px) { .ob-two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.ob-actions { display: flex; align-items: center; gap: 10px; margin-top: 26px; }
+.ob-cta {
+  flex: 1;
+  height: 46px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, #3b86ea 0%, #2272de 100%);
+  border: 1px solid rgba(127, 178, 245, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 12px 28px -14px rgba(34, 114, 222, 0.95);
+  cursor: pointer;
+  transition: transform 160ms var(--ws-ease), filter 160ms, opacity 160ms;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.ob-cta:hover { filter: brightness(1.07); }
+.ob-cta:active:not(:disabled) { transform: scale(0.985); }
+.ob-cta:disabled { opacity: 0.55; cursor: default; }
+.ob-cta svg { transition: transform 200ms var(--ws-ease); }
+.ob-cta:hover svg { transform: translateX(3px); }
+.ob-back { height: 46px; padding: 0 16px; border-radius: 14px; font-size: 13.5px; font-weight: 500; color: var(--ws-ink-3); cursor: pointer; }
+.ob-back:hover { color: var(--ws-ink); background: var(--lg-track); }
+
+.ob-done { text-align: center; padding: 44px 28px; }
+.ob-tick { width: 72px; height: 72px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; color: var(--ws-ok); background: color-mix(in srgb, var(--ws-ok) 14%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ws-ok) 30%, transparent), 0 0 0 10px color-mix(in srgb, var(--ws-ok) 6%, transparent); animation: ob-pop 640ms var(--ws-ease) both; }
+.ob-tick path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: lg-draw 520ms var(--ws-ease) 300ms forwards; }
+@keyframes ob-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.ob-redirect { margin-top: 18px; height: 3px; border-radius: 999px; background: var(--lg-track); overflow: hidden; max-width: 200px; margin-inline: auto; }
+.ob-redirect i { display: block; height: 100%; background: var(--ws-ok); transform-origin: left; animation: lg-bar 3000ms linear both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-tip, .ob-field, .ob-tick, .ob-tick path, .ob-redirect i { animation: none !important; }
+  .ob-tick path { stroke-dashoffset: 0; }
+  .ob-step-bar i { transition: none; }
+}
+
+/* The first-login screen is always the dark glass sheet, whatever theme the device last used. */
+.light .ws.ob {
+  --lg-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.022) 48%, rgba(255, 255, 255, 0.045) 100%);
+  --lg-fill-strong: linear-gradient(160deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 55%, rgba(255, 255, 255, 0.06) 100%);
+  --lg-edge: rgba(255, 255, 255, 0.085);
+  --lg-edge-hover: rgba(255, 255, 255, 0.15);
+  --lg-hi: inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  --lg-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 18px 40px -22px rgba(0, 0, 0, 0.7);
+  --lg-sheen: radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.09), transparent 46%);
+  --lg-blob-a: rgba(34, 114, 222, 0.2);
+  --lg-blob-b: rgba(47, 191, 168, 0.12);
+  --lg-blob-c: rgba(127, 178, 245, 0.1);
+  --lg-track: rgba(255, 255, 255, 0.07);
+  color-scheme: dark;
+}
+.light .ws.ob .ob-input {
+  background-color: rgba(255, 255, 255, 0.035) !important;
+  color: var(--ws-ink) !important;
+  border-color: var(--lg-edge) !important;
+}
+.light .ws.ob .ob-input::placeholder { color: var(--ws-ink-4) !important; }
+.ob-two { align-items: end; }

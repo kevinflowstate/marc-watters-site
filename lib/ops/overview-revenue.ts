@@ -55,6 +55,61 @@ export function totalsForPeriod(
   };
 }
 
+const londonDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/London",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Net GBP pence per London day, using the same charge and refund rules as totalsForPeriod. */
+export function dailyNetPence(
+  charges: Row[] | null,
+  refunds: Row[] | null,
+  from: number,
+  to: number,
+): Map<string, number> | null {
+  if (!charges || !refunds) return null;
+  const days = new Map<string, number>();
+  const add = (at: unknown, pence: number) => {
+    if (typeof at !== "number" || at < from || at >= to) return;
+    const key = londonDay.format(new Date(at * 1000));
+    days.set(key, (days.get(key) ?? 0) + pence);
+  };
+  for (const c of charges)
+    if (
+      c.status === "succeeded" &&
+      c.paid === true &&
+      c.currency === "gbp" &&
+      Number(c.amount_captured) > 0
+    )
+      add(c.created, Number(c.amount_captured));
+  for (const r of refunds)
+    if (r.status === "succeeded" && r.currency === "gbp")
+      add(r.created, -Number(r.amount));
+  return days;
+}
+
+/** One entry per London day from `from` to `to`; null when any merchant is incomplete. */
+export function dailySeries(
+  perAccount: (Map<string, number> | null)[],
+  from: number,
+  to: number,
+) {
+  if (!perAccount.length || perAccount.some((m) => m === null)) return null;
+  const series: { date: string; netGBP: number }[] = [];
+  const last = londonDay.format(new Date(to * 1000 - 1));
+  for (let at = from * 1000 + 12 * 3600000; ; at += 86400000) {
+    const date = londonDay.format(new Date(at));
+    if (series.at(-1)?.date === date) continue;
+    if (date > last) break;
+    const pence = perAccount.reduce((n, m) => n + (m!.get(date) ?? 0), 0);
+    series.push({ date, netGBP: Math.round(pence) / 100 });
+    if (date === last) break;
+  }
+  return series;
+}
+
 function combine(values: Amounts[]) {
   const sum = (key: keyof Amounts) =>
     values.some((v) => v[key] === null)
@@ -140,6 +195,7 @@ export async function overviewRevenue(
       return {
         label,
         coverage,
+        daily: dailyNetPence(charges, refunds, from, to),
         week: totalsForPeriod(
           charges,
           refunds,
@@ -174,6 +230,11 @@ export async function overviewRevenue(
     accounts: accounts.map(({ label, coverage }) => ({ label, coverage })),
     week: combine(accounts.map((a) => a.week)),
     month: combine(accounts.map((a) => a.month)),
+    daily: dailySeries(
+      accounts.map((a) => a.daily),
+      Math.floor(from),
+      Math.ceil(to),
+    ),
     cashBank: "unverified" as const,
     otherCurrencies: [...new Set(accounts.flatMap((a) => a.currencies))],
   };
