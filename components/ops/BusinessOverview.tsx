@@ -209,6 +209,7 @@ export default function BusinessOverview() {
               <Metric
                 label="Bookings made this week"
                 value={ops.bookingsMade}
+                note="For appointments up to 60 days ahead"
               />
               <Metric label="Sales won" value={calls?.won} />
               <Metric
