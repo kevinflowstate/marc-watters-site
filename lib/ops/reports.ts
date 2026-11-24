@@ -136,6 +136,7 @@ export async function updateReport(
       ![
         "narrative_md",
         "observations_md",
+        "shared_observations_md",
         "action",
         "expected_updated_at",
       ].includes(k)
@@ -203,7 +204,7 @@ export async function updateReport(
     return { report: finished.data, ...result };
   }
   const updates: Record<string, unknown> = {};
-  for (const k of ["narrative_md", "observations_md"]) {
+  for (const k of ["narrative_md", "observations_md", "shared_observations_md"]) {
     if (k in b) {
       if (typeof b[k] !== "string" || (b[k] as string).length > 50000)
         throw new OpsError("Invalid report text");

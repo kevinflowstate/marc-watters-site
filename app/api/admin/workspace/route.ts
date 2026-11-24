@@ -1,9 +1,11 @@
-import { adminActor, respond } from "@/lib/ops/http";
+import { adminActor, respondPrivate } from "@/lib/ops/http";
 import { getWorkspace } from "@/lib/ops/workspace-feed";
+import { workspaceResultForActor } from "@/lib/ops/business-report-access";
 export const dynamic = "force-dynamic";
 export async function GET() {
-  return respond(async () => {
-    await adminActor();
-    return getWorkspace();
+  return respondPrivate(async () => {
+    const actor = await adminActor();
+    const workspace = await getWorkspace();
+    return { ...workspace, results: workspace.results.map(row => workspaceResultForActor(row, actor)) };
   });
 }
