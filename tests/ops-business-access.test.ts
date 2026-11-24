@@ -33,7 +33,7 @@ function route(path: string, actor: string | null, mocks: Record<string, unknown
 const privateText = "PRIVATE_FINANCIAL_INFORMATION";
 const snapshot = {
   asOf: "now", weekStart: "monday", monthStart: "first",
-  operations: { calls: { close_rate: 50 }, hubdoc: { forwarded: 8 } },
+  operations: { calls: { close_rate: 50, hidden: privateText }, hubdoc: { forwarded: 8 }, hidden: privateText },
   revenue: { netGBP: privateText }, internal: privateText,
 };
 const report = {
@@ -57,6 +57,7 @@ describe("business access at portal boundaries", () => {
         const result = await handler() as { snapshot: typeof snapshot };
         expect(result.snapshot).not.toHaveProperty("internal");
         expect(result.snapshot.operations.calls.close_rate).toBe(50);
+        expect(JSON.stringify(result.snapshot.operations)).not.toContain(privateText);
         expect("revenue" in result.snapshot).toBe(manager);
         expect(result).toHaveProperty("capabilities.canViewTeamActivity", manager);
       }

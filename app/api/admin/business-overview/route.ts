@@ -1,4 +1,5 @@
 import { adminActor, respondPrivate } from "@/lib/ops/http";
+import { operationalOverview } from "@/lib/ops/business-report-access";
 import { businessCapabilities } from "@/lib/ops/team-identities";
 import { readBusinessOverview, refreshBusinessOverview } from "@/lib/ops/business-overview-snapshot";
 
@@ -14,7 +15,7 @@ function overview(load: typeof readBusinessOverview) {
     return {
       capabilities,
       snapshot: {
-        asOf, weekStart, monthStart, operations,
+        asOf, weekStart, monthStart, operations: operationalOverview(operations),
         ...(capabilities.canViewRevenue ? { revenue: snapshot.revenue } : {}),
       },
     };

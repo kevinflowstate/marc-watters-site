@@ -12,6 +12,19 @@ function fields(value: unknown, names: string[]) {
   return Object.fromEntries(names.filter(name => Object.hasOwn(row, name)).map(name => [name, row[name]]));
 }
 
+const callMetrics = ["scheduled", "cancelled", "won", "lost", "follow_up", "unqualified", "no_show", "unmarked", "qualified_decisions", "close_rate"];
+const hubdocMetrics = ["forwarded", "recordedDays", "expectedDays", "coverage", "ingestion"];
+
+export function operationalOverview(value: unknown) {
+  const ops = object(value);
+  return {
+    ...fields(ops, ["leads", "posts", "bookingsMade", "recurring"]),
+    calls: ops.calls ? fields(ops.calls, callMetrics) : null,
+    tasks: fields(ops.tasks, ["open", "priority", "completed"]),
+    hubdoc: ops.hubdoc ? fields(ops.hubdoc, hubdocMetrics) : null,
+  };
+}
+
 export function reportHeader(row: Row) {
   return fields(row, ["id", "week_start", "status", "updated_at"]);
 }
