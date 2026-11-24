@@ -48,6 +48,16 @@ async function taskCounts(range: Range) {
   };
 }
 
+async function weeklyCallStats(week: Date, nextWeek: Date, asOf: Date) {
+  const rows = await callsForPeriod(week.getTime(), nextWeek.getTime());
+  const cancelled = rows.filter((call) => call.status === "cancelled").length;
+  return {
+    ...outcomeStats(rows.filter((call) => Date.parse(call.endTime || call.startTime) <= asOf.getTime())),
+    scheduled: rows.length - cancelled,
+    cancelled,
+  };
+}
+
 async function collect(now: Date) {
   const today = londonDate(now);
   const week = weekStart(now);
@@ -63,20 +73,7 @@ async function collect(now: Date) {
     await Promise.all([
       overviewRevenue(week, month, now),
       newLeads(current).catch(() => null),
-      callsForPeriod(week.getTime(), nextWeek.getTime())
-        .then((rows) => {
-          const cancelled = rows.filter(
-            (r) => r.status.toLowerCase() === "cancelled",
-          ).length;
-          return {
-            ...outcomeStats(
-              rows.filter((r) => Date.parse(r.startTime) < now.getTime()),
-            ),
-            scheduled: rows.length - cancelled,
-            cancelled,
-          };
-        })
-        .catch(() => null),
+      weeklyCallStats(week, nextWeek, now).catch(() => null),
       strategyCalls({ current, previous })
         .then((r) => (r.connected ? r.current.booked : null))
         .catch(() => null),
@@ -114,7 +111,19 @@ export async function readBusinessOverview(): Promise<BusinessOverviewSnapshot |
     .single();
   if (row.error)
     throw new OpsError("Dashboard snapshot could not be read", 503);
-  return row.data.snapshot as BusinessOverviewSnapshot | null;
+  const snapshot = row.data.snapshot as BusinessOverviewSnapshot | null;
+  if (!snapshot) return null;
+  // A saved outcome should appear on the next Dashboard visit, without rerunning finance or other sources.
+  const week = londonMidnight(snapshot.weekStart);
+  const nextWeek = weekStart(new Date(week.getTime() + 8 * day));
+  const changed = await createAdminClient().from("cbb_sales_call_outcomes")
+    .select("appointment_id").gte("starts_at", week.toISOString()).lt("starts_at", nextWeek.toISOString())
+    .gt("updated_at", snapshot.asOf).limit(1);
+  if (changed.error || changed.data?.length) {
+    const calls = await weeklyCallStats(week, nextWeek, new Date()).catch(() => null);
+    return { ...snapshot, operations: { ...snapshot.operations, calls } };
+  }
+  return snapshot;
 }
 
 async function refresh(morningOnly: boolean) {

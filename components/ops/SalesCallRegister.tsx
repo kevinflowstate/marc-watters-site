@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { outcomeLabels, type CallOutcome } from "@/lib/ops/call-outcomes";
 
 type Row = {
@@ -13,6 +13,7 @@ type Row = {
 };
 type Period = {
   calls: Row[];
+  canEdit: boolean;
   upcoming: Row[];
   stats: {
     won: number;
@@ -38,6 +39,37 @@ export default function SalesCallRegister({
   const [error, setError] = useState("");
   const [before, setBefore] = useState("");
   const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState<"all" | "pending" | "follow_up">("all");
+  const [target, setTarget] = useState("");
+  const focused = useRef("");
+  useEffect(() => {
+    if (compact) return;
+    function locate() {
+      const hash = window.location.hash.slice(1);
+      if (!hash.startsWith("call-")) return;
+      try {
+        setTarget(decodeURIComponent(hash));
+        focused.current = "";
+        setFilter("all");
+        setBefore("");
+      } catch {
+        // Ignore an invalid URL fragment.
+      }
+    }
+    locate();
+    window.addEventListener("hashchange", locate);
+    return () => window.removeEventListener("hashchange", locate);
+  }, [compact]);
+  useEffect(() => {
+    if (!data || !target || focused.current === target) return;
+    const row = document.getElementById(target);
+    if (row) {
+      row.focus({ preventScroll: true });
+      row.scrollIntoView({ block: "center" });
+      focused.current = target;
+    }
+  }, [data, target, filter]);
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
@@ -72,7 +104,8 @@ export default function SalesCallRegister({
     };
   }, [load, before]);
   async function mark(call: Row, outcome: string) {
-    if (!outcome) return;
+    if (!outcome || !data?.canEdit) return;
+    setNotice("");
     setBusy(call.id);
     try {
       const res = await fetch("/api/admin/sales-calls", {
@@ -87,6 +120,7 @@ export default function SalesCallRegister({
       });
       if (!res.ok)
         throw Error((await res.json()).error || "Could not save outcome.");
+      setNotice(`Saved ${outcomeLabels[outcome as CallOutcome]} for ${call.name}.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save outcome.");
@@ -94,10 +128,10 @@ export default function SalesCallRegister({
       setBusy("");
     }
   }
+  const pending = data?.calls.filter((call) => !call.outcome && call.status !== "cancelled") ?? [];
+  const followUps = data?.calls.filter((call) => call.outcome === "follow_up" && call.status !== "cancelled") ?? [];
+  const visible = filter === "pending" ? pending : filter === "follow_up" ? followUps : data?.calls ?? [];
   if (compact) {
-    const pending = data?.calls.filter(
-      (c) => !c.outcome && c.status !== "cancelled",
-    );
     return (
       <p className="ws-note">
         <Link href="/admin/sales-calls" className="ws-focus">
@@ -113,11 +147,12 @@ export default function SalesCallRegister({
       <Link href="/admin/work" className="ws-back">
         Workspace
       </Link>
-      <h1 className="ws-title">Sales call outcomes</h1>
+      <h1 className="ws-title">Sales call tracker</h1>
       <p>
-        Record an outcome after each strategy call. Qualified close rate uses
-        wins divided by wins plus losses. Follow-ups stay open.
+        {data && !data.canEdit ? "You can view the recorded outcomes here." : "Choose an outcome next to a completed call to save it."}
+        {" "}Conversion rate uses converted calls divided by converted and lost calls.
       </p>
+      {notice && <p className="ws-note" role="status">{notice}</p>}
       {error && (
         <p role="alert">
           {error}{" "}
@@ -130,7 +165,7 @@ export default function SalesCallRegister({
         <>
           <p className="ws-note">
             {dateLabel(data.range.from)} – {dateLabel(data.range.to - 1)} ·{" "}
-            {data.stats.won} wins from {data.stats.qualified_decisions} decided
+            {data.stats.won} converted from {data.stats.qualified_decisions} decided
             calls · Qualified close rate{" "}
             {data.stats.close_rate === null
               ? "pending"
@@ -147,6 +182,17 @@ export default function SalesCallRegister({
             </section>
           )}
           <h2 className="ws-h2">Past strategy calls</h2>
+          <div className="ws-ph-acts flex-wrap" aria-label="Filter calls">
+            {([
+              ["all", "All calls", data.calls.length],
+              ["pending", "Needs outcome", pending.length],
+              ["follow_up", "Follow-up", followUps.length],
+            ] as const).map(([key, label, count]) => (
+              <button key={key} type="button" aria-pressed={filter === key}
+                className={`ws-btn ws-focus ${filter === key ? "ws-btn-primary" : "ws-btn-quiet"}`}
+                onClick={() => setFilter(key)}>{label} ({count})</button>
+            ))}
+          </div>
           <div className="ws-ph-acts">
             <button
               className="ws-btn"
@@ -169,9 +215,9 @@ export default function SalesCallRegister({
               </button>
             )}
           </div>
-          {data.calls.length ? (
-            data.calls.map((call) => (
-              <label className="ws-row" key={call.id}>
+          {visible.length ? (
+            visible.map((call) => (
+              <div id={"call-" + call.id} tabIndex={-1} className="ws-row ws-focus flex-wrap" key={call.id}>
                 <span>
                   <strong>{call.name}</strong>
                   <br />
@@ -184,6 +230,8 @@ export default function SalesCallRegister({
                 </span>
                 {call.status === "cancelled" ? (
                   <span>Cancelled</span>
+                ) : !data.canEdit ? (
+                  <span>{call.outcome ? outcomeLabels[call.outcome] : "Needs outcome"}</span>
                 ) : (
                   <select
                     aria-label={"Outcome for " + call.name}
@@ -203,10 +251,10 @@ export default function SalesCallRegister({
                     ))}
                   </select>
                 )}
-              </label>
+              </div>
             ))
           ) : (
-            <p>No completed calls in this period.</p>
+            <p>{filter === "pending" ? "Every completed call in this period has an outcome." : filter === "follow_up" ? "No calls marked for follow-up in this period." : "No completed calls in this period."}</p>
           )}
         </>
       ) : (

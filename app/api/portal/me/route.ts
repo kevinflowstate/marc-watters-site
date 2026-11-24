@@ -1,4 +1,4 @@
-import { MARC_USER_ID } from "@/lib/ops/team-identities";
+import { isBusinessManager } from "@/lib/ops/team-identities";
 import { PORTAL_PROFILE_COLUMNS } from "@/lib/portal-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -41,7 +41,7 @@ export async function GET() {
 
   return NextResponse.json({
     userId,
-    canManageSalesCalls: userData?.role === "admin" && userId === MARC_USER_ID,
+    canManageSalesCalls: userData?.role === "admin" && isBusinessManager(userId),
     fullName: userData?.full_name || "",
     avatarUrl: userData?.avatar_url || null,
     role: userData?.role || "client",

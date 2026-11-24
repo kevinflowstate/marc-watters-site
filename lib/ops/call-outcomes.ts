@@ -1,6 +1,6 @@
 export const outcomeLabels = {
-  won: "Won",
-  lost: "Lost",
+  won: "Converted",
+  lost: "Did not convert",
   follow_up: "Follow-up",
   unqualified: "Not qualified",
   no_show: "No-show",
