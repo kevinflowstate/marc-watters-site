@@ -31,3 +31,10 @@ export function outcomeStats(
     close_rate: decided ? Math.round((1000 * counts.won) / decided) / 10 : null,
   };
 }
+
+/** Saved reports before the scheduled-call tile already stored total slots and cancellations. */
+export function scheduledStrategyCalls(period?: { scheduled?: number; cancelled?: number; non_cancelled_scheduled?: number }) {
+  if (typeof period?.non_cancelled_scheduled === "number") return period.non_cancelled_scheduled;
+  if (typeof period?.scheduled !== "number" || typeof period.cancelled !== "number") return null;
+  return period.scheduled - period.cancelled;
+}

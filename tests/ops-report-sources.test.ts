@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const env: Record<string, string> = {};
 vi.mock("@/lib/env", () => ({ getEnv: (k: string) => env[k] }));
 
+import { scheduledStrategyCalls } from "@/lib/ops/call-outcomes";
 import { paymentsReceived, strategyCalls, STRATEGY_CALENDAR } from "@/lib/ops/report-sources";
 
 const ranges = {
@@ -26,19 +27,40 @@ describe("strategy calls", () => {
       expect(u.searchParams.get("calendarId")).toBe(STRATEGY_CALENDAR);
       return Response.json({
         events: [
-          { dateAdded: "2026-11-09T10:00:00Z", startTime: "2026-11-20T10:00:00Z", appointmentStatus: "confirmed" },
-          { dateAdded: "2026-11-01T10:00:00Z", startTime: "2026-11-03T10:00:00Z", appointmentStatus: "showed" },
-          { dateAdded: "2026-11-01T10:00:00Z", startTime: "2026-11-04T10:00:00Z", appointmentStatus: "noshow" },
-          { dateAdded: "2026-11-03T10:00:00Z", startTime: "2026-11-10T10:00:00Z", appointmentStatus: "cancelled" },
-          { dateAdded: "2026-11-03T10:00:00Z", startTime: "2026-11-10T11:00:00Z", appointmentStatus: "showed", deleted: true },
+          { id: "slot0", dateAdded: "2026-11-09T10:00:00Z", startTime: "2026-11-20T10:00:00Z", appointmentStatus: "confirmed" },
+          { id: "slot1", dateAdded: "2026-11-01T10:00:00Z", startTime: "2026-11-03T10:00:00Z", appointmentStatus: "showed" },
+          { id: "slot2", dateAdded: "2026-11-01T10:00:00Z", startTime: "2026-11-04T10:00:00Z", appointmentStatus: "noshow" },
+          { id: "slot3", dateAdded: "2026-11-03T10:00:00Z", startTime: "2026-11-10T10:00:00Z", appointmentStatus: "cancelled" },
+          { id: "slot4", dateAdded: "2026-11-03T10:00:00Z", startTime: "2026-11-10T11:00:00Z", appointmentStatus: "showed", deleted: true },
         ],
       });
     });
     const r = await strategyCalls(ranges, f as unknown as typeof fetch);
     expect(r.connected).toBe(true);
     if (!r.connected) return;
-    expect(r.current).toEqual({ booked: 1, scheduled: 1, showed: 0, no_show: 0, cancelled: 1, not_yet_marked: 0 });
-    expect(r.previous).toEqual({ booked: 1, scheduled: 2, showed: 1, no_show: 1, cancelled: 0, not_yet_marked: 0 });
+    expect(r.current).toEqual({ booked: 1, scheduled: 1, non_cancelled_scheduled: 0, showed: 0, no_show: 0, cancelled: 1, not_yet_marked: 0 });
+    expect(r.previous).toEqual({ booked: 1, scheduled: 2, non_cancelled_scheduled: 2, showed: 1, no_show: 1, cancelled: 0, not_yet_marked: 0 });
+  });
+
+  it("counts a prior-week booking as scheduled this week, includes no-show, and deduplicates calendar updates", async () => {
+    env.CBB_GHL_PIT_TOKEN = "t";
+    const event = { id: "existing", startTime: "2026-11-10T10:00:00Z", dateAdded: "2026-11-05T10:00:00Z" };
+    const events = [
+      { ...event, appointmentStatus: "noshow", dateUpdated: "2026-11-10T12:00:00Z" },
+      { ...event, appointmentStatus: "confirmed", dateUpdated: "2026-11-09T12:00:00Z" },
+      { ...event, id: "foreign", calendarId: "another-calendar" },
+    ];
+    const result = await strategyCalls(ranges, async () => Response.json({ events }));
+    expect(result.current).toMatchObject({ booked: 0, scheduled: 1, non_cancelled_scheduled: 1, no_show: 1 });
+    expect(result.previous?.booked).toBe(1);
+    expect(scheduledStrategyCalls({ scheduled: 3, cancelled: 1 })).toBe(2);
+    expect(scheduledStrategyCalls({})).toBeNull();
+  });
+
+  it("keeps a malformed calendar response unavailable instead of showing zero", async () => {
+    env.GHL_LOCATION_TOKEN = "t";
+    const result = await strategyCalls(ranges, async () => Response.json({}));
+    expect(result.connected).toBe(false);
   });
 
   it("reports not connected when the CRM refuses", async () => {

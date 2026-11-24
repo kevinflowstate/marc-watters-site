@@ -56,10 +56,11 @@ export default function BookPage() {
             {/* Calendar Embed */}
             <div className="w-full">
               <iframe
-                src="https://link.constructionbusinessblueprint.co.uk/widget/booking/9SVdnjIjQsmtxsafPfBP"
+                src="https://link.constructionbusinessblueprint.co.uk/widget/booking/4SOIodvlfHYmyzKvIAmn"
                 style={{ width: "100%", border: "none", overflow: "hidden" }}
+                title="Book a strategy call with Marc"
                 scrolling="no"
-                id="9SVdnjIjQsmtxsafPfBP_1773832093345"
+                id="4SOIodvlfHYmyzKvIAmn_1773832093345"
                 className="min-h-[700px]"
               />
               <Script
