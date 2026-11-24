@@ -25,14 +25,14 @@ describe("internal onboarding preparation with sending off", () => {
   it("persists one Eimear checklist, preserves human work on replay and never claims an invite", async () => {
     const first = await prepareOnboardingChecklist(h.profile.id);
     expect(first.onboarding_stage).toBe("none");
-    expect(h.tasks.size).toBe(3);
+    expect(h.tasks.size).toBe(5);
     expect([...h.tasks.values()].every((t) => t.assignee === "eimear" && t.area === "onboarding")).toBe(true);
     const ref = `onboarding:${h.profile.id}:admission`;
     h.tasks.get(ref)!.status = "done";
     h.tasks.get(ref)!.detail = "Eimear checked the agreed offer";
     const originalIds = [...h.tasks.values()].map((t) => t.id);
     await prepareOnboardingChecklist(h.profile.id);
-    expect(h.tasks.size).toBe(3);
+    expect(h.tasks.size).toBe(5);
     expect([...h.tasks.values()].map((t) => t.id)).toEqual(originalIds);
     expect(h.tasks.get(ref)).toMatchObject({ status: "done", detail: "Eimear checked the agreed offer" });
     expect(h.profile.onboarding_stage).toBe("none");

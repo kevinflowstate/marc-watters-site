@@ -22,7 +22,7 @@ const NEW_CLIENT_DAYS = 30;
 type Client = { id: string; onboarding_stage: string; archived_at: string | null; created_at: string };
 type Deps = {
   fetch?: typeof fetch;
-  findClient?: (email: string) => Promise<Client | null>;
+  findClient?: (email: string) => Promise<Client | "manual_intake" | null>;
   start?: (clientId: string) => Promise<unknown>;
   raiseTask?: typeof createTask;
   activate?: (name: string, email: string) => Promise<Activation>;
@@ -32,11 +32,15 @@ type Deps = {
 const clean = (v: unknown, max = 120) =>
   typeof v === "string" ? v.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max) : "";
 
-async function findClientByEmail(email: string): Promise<Client | null> {
+async function findClientByEmail(email: string): Promise<Client | "manual_intake" | null> {
   const db = createAdminClient();
   const user = await db.from("users").select("id").eq("email", email).limit(1).maybeSingle();
   if (user.error) throw new Error("client lookup failed");
-  if (!user.data) return null;
+  if (!user.data) {
+    const manual = await db.from("client_manual_intakes").select("state").eq("email", email).maybeSingle();
+    if (manual.error) throw new Error("manual intake lookup failed");
+    return manual.data ? "manual_intake" : null;
+  }
   const profile = await db
     .from("client_profiles")
     .select("id,onboarding_stage,archived_at,created_at")
@@ -117,6 +121,7 @@ export async function onboardFromPayment(account: StripePaymentAccount, type: st
   if (type === "checkout.session.completed" && pay.invoice) return { action: "ignored" as const };
 
   const client = await (deps.findClient ?? findClientByEmail)(pay.email);
+  if (client === "manual_intake") return { action: "manual_intake_in_progress" as const };
   const now = deps.now ?? new Date();
   const start = deps.start ?? startOnboarding;
   if (client && !client.archived_at) {

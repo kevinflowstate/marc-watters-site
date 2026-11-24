@@ -47,14 +47,16 @@ export async function prepareOnboardingChecklist(id: string) {
   if (client.onboarding_stage === "complete") return client;
   const steps = [
     ["admission", "Review the new client’s access", "Confirm the agreed offer and admission requirements before giving access or contacting the client."],
-    ["community_added", "Add the client to the community", "Check that admission is agreed, then confirm community access. This task does not add anyone automatically."],
-    ["pack_sent", "Send the client’s welcome pack", "Review the correct welcome pack and sending permission. This task does not send it."],
+    ["community_added", "Add to the WhatsApp community", "Confirm admission and add the client to the WhatsApp community."],
+    ["card_checked", "Check Stripe card on file", "Confirm a card is on file in Stripe, including clients who paid by cash or bank transfer."],
+    ["address_checked", "Verify delivery address", "Check the home delivery address on the client profile before ordering."],
+    ["pack_sent", "Confirm welcome pack order", "After checking the address, check for an existing order before triggering the supplier once. Record the order reference."],
   ] as const;
   for (const [key, title, detail] of steps) {
     // Stable references also match the existing onboarding RPC's community/pack tasks.
     // The task store reuses existing records and preserves their human decisions.
     await createOnboardingTask({
-      kind: "task", area: "onboarding", assignee: "eimear", title, detail,
+      kind: "task", area: "onboarding", assignee: "eimear", title: title + " · " + (client.users?.full_name || client.business_name || "New client"), detail,
       client_id: client.id, external_ref: `onboarding:${client.id}:${key}`,
       due_at: client.onboarding_due_at || null, source: "system",
     });
