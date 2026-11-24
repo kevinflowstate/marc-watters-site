@@ -40,3 +40,16 @@ GHL endpoints used (base `https://services.leadconnectorhq.com`, header `Version
 ## Timing and recovery
 
 Bank holidays use the existing weekday rule. Cases opened while reminders were off are not enrolled retroactively. If a workflow owner becomes uncertain after an interrupted provider request, reconcile that invoice with CRM enrolment history before clearing its owner or retrying.
+
+### Invoice-bound trigger and pre-send gate
+
+The portal payment enrolment path accepts only the GHL inbound webhook for Marc’s location configured as `OPS_PAYMENT_WORKFLOW_ENTRY_URL`. Keep it unset until verified. The ordinary add-contact endpoint has no field for immutable invoice context. The portal posts a signed `run_context`, the existing `contact_id`, and `first_due_at`. The context binds the specific case, original merchant, invoice and recipient. Never store this token in a contact field.
+
+To finish the **draft** in GHL:
+
+1. Add an Inbound Webhook trigger and provide a private dummy mapping reference. Find the existing contact by the inbound contact ID. End the missing-contact branch. Verify the contact identity, and retain the original trigger context across the waits.
+2. Wait until the inbound first due time. Immediately before each native send, use a Custom Webhook POST to `/api/webhooks/ghl-payment/preflight`, with the configured secret header, the original `run_context`, the actual **resolved** CRM contact ID, and `step` equal to `first` or `second`. Save the response and allow only the literal boolean `allow_send: true` to reach the sender. Missing data, errors and timeouts must exit. The preflight checks fresh Stripe and WhatsApp DND plus the portal’s recorded opt-in, unpaid case, manual holds, active enrolment and timing. It claims the attempt atomically; an uncertain or repeated attempt cannot be automatically resent.
+3. Following each WhatsApp action, route its **Delivered** and **Undelivered** branches to the existing signed progress webhook, with the original `run_context`, actual resolved contact ID and respectively `reminder_1_sent` or `reminder_2_sent`, or `reminder_failed`. Stop on failure. An absent provider outcome goes to human review. A signed native report is shown separately from an independently verified provider receipt. Wait 48 hours after the first report before the second preflight. The portal rejects any earlier or repeated claim.
+4. Validate the mapped payload and both branch results on an authorised private fixture. Keep the portal switch off and all three workflows in Draft until the provider wiring and test are complete. GHL’s setup instructions cover [inbound trigger mapping](https://help.gohighlevel.com/support/solutions/articles/48001237383) and [contact matching](https://help.gohighlevel.com/support/solutions/articles/155000002686-workflow-action-find-contact).
+
+The production trigger URL has not been configured. The preflight endpoint itself never sends a message.

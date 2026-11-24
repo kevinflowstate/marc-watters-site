@@ -116,7 +116,7 @@ function rpc(fn: string, args: Record<string, unknown>) {
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: query, rpc }) }));
 vi.mock("@/lib/env", () => ({ getEnv: (key: string) => process.env[key] }));
-vi.mock("@/lib/ops/ghl-workflow", () => ({ ...ghl, GhlWorkflowError: class extends Error {} }));
+vi.mock("@/lib/ops/ghl-workflow", async (load) => ({...await load<typeof import("@/lib/ops/ghl-workflow")>(), ...ghl}));
 vi.mock("@/lib/ops/tasks", () => ({
   OpsError: class extends Error {
     constructor(message: string, public status = 400) { super(message); }
@@ -189,7 +189,7 @@ describe("failed payment -> GHL workflow enrolment", () => {
     expect(result.cases?.[0]).toMatchObject({ reminders: "enrolled" });
     expect(ghl.findContactsByEmail).toHaveBeenCalledWith("client@example.invalid");
     // Friday failure: reminder 1 is Monday 09:00 London, passed as the workflow event start time.
-    expect(ghl.addContactToWorkflow).toHaveBeenCalledWith("contactFixture01", { eventStartTime: "2026-11-09T09:00:00.000Z" });
+    expect(ghl.addContactToWorkflow).toHaveBeenCalledWith("contactFixture01", expect.objectContaining({ eventStartTime: "2026-11-09T09:00:00.000Z", paymentRun:expect.objectContaining({invoice_id:"in_Fixture",contact_id:"contactFixture01"}) }));
     expect(theCase()).toMatchObject({ contact_id: "contactFixture01", bound_at: now.toISOString(), latest_delivery: "enrolled" });
     expect(ghlEvents("enrolled")).toHaveLength(1);
     expect(String(theTask().detail)).toContain("MRW Management Ltd (A)");
