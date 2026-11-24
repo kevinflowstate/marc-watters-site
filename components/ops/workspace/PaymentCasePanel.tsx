@@ -58,7 +58,7 @@ export function PaymentCaseSummary({
   const status = paymentDisplayStatus(current);
   const next = paymentNextStep(current, detail?.attempts ?? null);
   const plan = paymentReminderPlan(current.first_failed_at, detail?.attempts?.find((a) => a.step_key === "first")?.verified_sent_at || null);
-  const sent = (detail?.attempts || []).filter((a) => a.receipt_verified);
+  const sent = (detail?.attempts || []).filter((a) => a.state === "sent" || a.state === "delivered");
   const sentFirst = sent.find((a) => a.step_key === "first")?.verified_sent_at;
   const sentSecond = sent.find((a) => a.step_key === "second")?.verified_sent_at;
   const stripeUrl = paymentInvoiceSourceUrl(current);
@@ -91,7 +91,7 @@ export function PaymentCaseSummary({
               <span className="ws-step-dot" />
               <div>
                 <strong>Reminder 1</strong>
-                <span>{sentFirst ? `Sent ${fullDate(sentFirst)}` : plan ? `Planned ${fullDate(plan.first)} · next working day after the failure` : "Timing needs checking"}</span>
+                <span>{sentFirst ? `Reported sent ${fullDate(sentFirst)}` : plan ? `Planned ${fullDate(plan.first)} · next working day after the failure` : "Timing needs checking"}</span>
               </div>
             </div>
             <div className={`ws-step ${sentSecond ? "is-done" : next.step === "second" ? "is-next" : ""}`}>
@@ -99,7 +99,7 @@ export function PaymentCaseSummary({
               <div>
                 <strong>Reminder 2</strong>
                 <span>
-                  {sentSecond ? `Sent ${fullDate(sentSecond)}` : plan ? `Planned ${fullDate(plan.second)} · 48 hours after reminder 1` : "After reminder 1"}
+                  {sentSecond ? `Reported sent ${fullDate(sentSecond)}` : plan ? `Planned ${fullDate(plan.second)} · 48 hours after reminder 1` : "After reminder 1"}
                   {!sentSecond && plan?.second_on_weekend ? " (lands on a weekend)" : ""}
                 </span>
               </div>
