@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 type Signals = {
+  checkin_prompts_enabled: boolean;
   payment_status: string;
   payment_chase_count: number;
   last_payment_at: string | null;
@@ -77,6 +78,13 @@ export default function ClientSignals({ id }: { id: string }) {
       )}
       {s && (
         <div className="ws-signals">
+          <label className="ws-label col-span-full flex items-center gap-3">
+            <input type="checkbox" checked={s.checkin_prompts_enabled} disabled={busy}
+              onChange={e => void save({ checkin_prompts_enabled: e.target.checked })} />
+            <span>Weekly check-in reminders and inactivity follow-ups
+              <span className="ws-caption block">Activity history and incoming messages remain available on this profile.</span>
+            </span>
+          </label>
           <label className="ws-label">
             Payment status
             <select

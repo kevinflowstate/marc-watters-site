@@ -165,8 +165,8 @@ export default function AdminDashboard() {
     );
   }
 
-  const amberCount = clients.filter((c) => c.status === "amber").length;
-  const redCount = clients.filter((c) => c.status === "red").length;
+  const amberCount = clients.filter((c) => c.checkin_prompts_enabled !== false && c.status === "amber").length;
+  const redCount = clients.filter((c) => c.checkin_prompts_enabled !== false && c.status === "red").length;
 
   async function sendBroadcast() {
     const trimmed = broadcastMessage.trim();
@@ -691,7 +691,7 @@ function buildNeedsYou(clients: AdminClient[], recentCheckins: EnrichedCheckin[]
   }).sort((a, b) => Number(b.chip?.tone === "bad") - Number(a.chip?.tone === "bad"));
 
   const behind: NeedsYouItem[] = clients
-    .filter((c) => c.status === "amber")
+    .filter((c) => c.checkin_prompts_enabled !== false && c.status === "amber")
     .map((c) => ({
       id: `behind-${c.id}-${c.health.missed_rounds}`,
       clientName: c.name,
@@ -701,7 +701,7 @@ function buildNeedsYou(clients: AdminClient[], recentCheckins: EnrichedCheckin[]
     }));
 
   const quiet: NeedsYouItem[] = clients
-    .filter((c) => c.status === "red")
+    .filter((c) => c.checkin_prompts_enabled !== false && c.status === "red")
     .map((c) => ({
       id: `quiet-${c.id}`,
       clientName: c.name,

@@ -27,7 +27,7 @@ export async function listClientsNeedingAttention() {
           c.onboarding_stage !== "complete" &&
           Date.parse(c.onboarding_due_at) < Date.now()) ||
         (c.next_action_due && Date.parse(c.next_action_due) < Date.now()) ||
-        Date.parse(c.last_checkin || c.created_at) <
-          Date.now() - 14 * 86400000),
+        (c.checkin_prompts_enabled !== false && Date.parse(c.last_checkin || c.created_at) <
+          Date.now() - 14 * 86400000)),
   );
 }
