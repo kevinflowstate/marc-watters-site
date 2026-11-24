@@ -18,6 +18,14 @@ describe("weekly supplier receipt evidence", () => {
     expect(summariseHubdocWeek(rows,week,"2026-11-17")).toMatchObject({forwarded:2,recordedDays:2,expectedDays:2,coverage:"complete"});
     expect(summariseHubdocWeek([daily(16,2)],week,"2026-11-17")).toMatchObject({forwarded:2,recordedDays:1,expectedDays:2,coverage:"partial"});
   });
+  it("does not attribute a mailbox audit to Codex and does not add overlapping sources", () => {
+    const audit = {...daily(16,4),run_key:"hubdoc:2026-11-16:sent-reconciled"};
+    const weekly = {...audit,run_key:"hubdoc:2026-11-16:week-reconciled",outcome:"partial"};
+    expect(summariseHubdocWeek([audit],week)).toMatchObject({forwarded:4,codexForwarded:null,codexRecordedDays:0,basis:"sent_reconciliation"});
+    expect(summariseHubdocWeek([weekly],week)).toMatchObject({forwarded:4,codexForwarded:null,basis:"sent_reconciliation"});
+    expect(summariseHubdocWeek([weekly,audit,daily(16,2),daily(17,1)],week)).toMatchObject({forwarded:5,codexForwarded:3,codexRecordedDays:2,basis:"mixed",coverage:"partial"});
+    expect(summariseHubdocWeek([daily(16,0)],week)).toMatchObject({forwarded:0,codexForwarded:0,basis:"codex_run"});
+  });
   it("never reads failed, unstructured, or differently keyed rows as zero", () => {
     expect(summariseHubdocWeek([{...daily(16,4),outcome:"failed"},{...daily(17,4),summary:"Held four invoices."}],week)).toMatchObject({forwarded:null});
   });
