@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { transformSync } from "esbuild";
 import { readFileSync } from "node:fs";
-import { MARC_USER_ID, EIMEAR_USER_ID } from "../lib/ops/call-outcomes";
+import { MARC_USER_ID, EIMEAR_USER_ID } from "../lib/ops/team-identities";
 
 function moduleWith(path: string, imports: Record<string, unknown>) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
@@ -34,7 +34,7 @@ const read = vi.fn(async () => ({ completed: 2 }));
 const actor = vi.fn();
 const deps = {
   "@/lib/ops/http": { adminActor: actor, respond: (fn: () => unknown) => fn() },
-  "@/lib/ops/call-outcomes": { MARC_USER_ID },
+  "@/lib/ops/team-identities": { MARC_USER_ID },
   "@/lib/ops/team-activity": { readTeamActivity: read },
   "@/lib/ops/reports": { getReport: report },
   "@/lib/ops/tasks": { OpsError },

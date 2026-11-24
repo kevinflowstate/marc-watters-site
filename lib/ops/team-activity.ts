@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { EIMEAR_USER_ID } from "./call-outcomes";
+import { EIMEAR_USER_ID } from "./team-identities";
 import { OpsError } from "./tasks";
 type Interaction = {
   created_at: string;

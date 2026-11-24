@@ -3,7 +3,6 @@
 import "./workspace.css";
 import Link from "next/link";
 import SalesCallRegister from "@/components/ops/SalesCallRegister";
-import { MARC_USER_ID } from "@/lib/ops/call-outcomes";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { areaLabels, ownerLabels, statusLabels, needsApproval, isClosed } from "@/lib/ops/workspace";
@@ -134,7 +133,7 @@ export default function WorkPage() {
         if (!cancelled && me && typeof me.fullName === "string") {
           const first = me.fullName.trim().split(/\s+/)[0] || "";
           setFirstName(first);
-          setIsMarc(me.userId === MARC_USER_ID);
+          setIsMarc(me.canManageSalesCalls === true);
           // New tasks default to the other person: Marc mostly adds work for Eimear, and back.
           if (first.toLowerCase() === "eimear") setOwner("marc");
         }
