@@ -48,7 +48,8 @@ export function matchesPost(saved: CrmPost, payload: Payload) {
     saved.locationId === CBB_LOCATION_ID &&
     saved.status === "scheduled" &&
     saved.type === payload.type &&
-    saved.summary === payload.summary &&
+    // Social Planner can strip trailing whitespace when it saves a caption.
+    (saved.summary === payload.summary || saved.summary === payload.summary.trimEnd()) &&
     ids.length === 1 &&
     ids[0] === payload.accountIds[0] &&
     Date.parse(saved.displayDate ?? saved.scheduleDate ?? "") ===
@@ -302,7 +303,7 @@ export async function reconcileVideo(id: string) {
         postsPath + "/" + encodeURIComponent(p.provider_post_id),
       );
       found =
-        data.results?.post && matchesPost(data.results.post, payload)
+        data.results?.post?._id === p.provider_post_id && matchesPost(data.results.post, payload)
           ? [data.results.post]
           : [];
     }

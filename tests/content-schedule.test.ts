@@ -47,6 +47,14 @@ describe("platform payload and guarded create", () => {
         expect(body.facebookPostDetails).toEqual({ type: "reel" });
     },
   );
+  it("recognises a scheduled post when the provider drops trailing caption whitespace", () => {
+    const approved = { ...payload, summary: "First line\nSecond line " };
+    const returned = { ...saved, summary: "First line\nSecond line" };
+    expect(matchesPost(returned, approved)).toBe(true);
+    expect(matchesPost({ ...returned, summary: "First line Second line" }, approved)).toBe(false);
+    expect(matchesPost({ ...returned, accountIds: ["another"] }, approved)).toBe(false);
+    expect(matchesPost(returned, { ...approved, summary: " " + approved.summary })).toBe(false);
+  });
   it("writes nothing with the switch off, including media import", async () => {
     vi.stubEnv("OPS_CONTENT_SCHEDULING_ENABLED", "false");
     const f = vi.fn();
