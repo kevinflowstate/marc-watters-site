@@ -47,9 +47,12 @@ beforeEach(() => {
 });
 
 describe("weekly lesson source", () => {
-  it("only acts on Wednesdays, for Tuesday", () => {
+  it("prepares on Tuesday evenings in London in winter and summer and catches up Wednesday", () => {
     expect(lessonDateFor(WED)).toBe("2026-11-10");
-    expect(lessonDateFor(new Date("2026-11-10T21:00:00Z"))).toBeNull();
+    expect(lessonDateFor(new Date("2026-11-10T21:00:00Z"))).toBe("2026-11-10");
+    expect(lessonDateFor(new Date("2026-07-07T19:00:00Z"))).toBe("2026-07-07");
+    expect(lessonDateFor(new Date("2026-07-07T18:59:00Z"))).toBeNull();
+    expect(lessonDateFor(new Date("2026-11-12T07:00:00Z"))).toBeNull();
   });
 
   it("picks the evening lesson call, not an afternoon meeting or a short one", () => {
@@ -61,6 +64,14 @@ describe("weekly lesson source", () => {
     const f = fathom();
     expect(await advanceLessonSource({ fetch: f, now: WED, key: "k" })).toEqual({ date: "2026-11-10", status: "ready" });
     expect(rows.get("2026-11-10")).toMatchObject({ status: "ready", recording_id: 201755940, download_id: "dl_1" });
+  });
+
+  it("keeps looking when the completed recording appears after the first Tuesday check", async () => {
+    const now = new Date("2026-11-10T20:30:00Z");
+    const empty = vi.fn(async () => Response.json({ items: [] })) as unknown as typeof fetch;
+    expect((await advanceLessonSource({ fetch: empty, now, key: "k" })).status).toBe("awaiting_recording");
+    expect(rows.size).toBe(0);
+    expect((await advanceLessonSource({ fetch: fathom(), now, key: "k" })).status).toBe("ready");
   });
 
   it("records a week with no lesson call as normal, not a failure", async () => {
@@ -79,7 +90,15 @@ describe("weekly lesson source", () => {
     expect(after.upload).toBeUndefined();
   });
 
-  it("turns the handoff into Eimear's review task with the video at its fingerprint name", async () => {
+  it("renews an expired export and never advertises a missing video as ready", async () => {
+    await advanceLessonSource({ fetch: fathom(), now: WED, key: "k" });
+    const deps = { fetch: fathom("expired"), now: WED, key: "k" };
+    expect((await lessonSourceForSnapshot(deps)).status).toBe("unavailable");
+    expect((await advanceLessonSource(deps)).status).toBe("requested");
+    expect((await advanceLessonSource({ ...deps, fetch: fathom() })).status).toBe("ready");
+  });
+
+  it("turns the handoff into Marc's review task with the video at its fingerprint name", async () => {
     await advanceLessonSource({ fetch: fathom(), now: WED, key: "k" });
     const pack = {
       schema_version: 1, lesson_ref: "lesson:2026-11-10:pricing-the-job", version: 1, mode: "append",
@@ -89,7 +108,7 @@ describe("weekly lesson source", () => {
     await importLessonPackage({ kind: "lesson_package", lesson_date: "2026-11-10", lesson_package: pack });
     expect(storage.copy).toHaveBeenCalledWith("incoming/2026-11-10/201755940.mp4", `approved/${SHA}.mp4`);
     const task = createTask.mock.calls[0][0];
-    expect(task).toMatchObject({ assignee: "eimear", area: "lessons", source: "system", external_ref: "lesson-review:lesson:2026-11-10:pricing-the-job:v1" });
+    expect(task).toMatchObject({ assignee: "marc", area: "lessons", source: "system", external_ref: "lesson-review:lesson:2026-11-10:pricing-the-job:v1" });
     expect((task.payload as Record<string, Record<string, Record<string, unknown>>>).lesson_package.media.storage_path).toBe(`approved/${SHA}.mp4`);
     expect(rows.get("2026-11-10")).toMatchObject({ status: "packaged", task_id: "task-1" });
   });
