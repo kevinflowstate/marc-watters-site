@@ -3,7 +3,7 @@ import { requireCron } from "@/lib/ops/auth";
 import { advanceLessonSource, lessonOverdue } from "@/lib/ops/lesson-source";
 import { reportStepFailure } from "@/lib/ops/job-health";
 
-/** Wednesdays: finds Tuesday's lesson recording in Fathom and gets the video ready for the scheduled lesson job. */
+/** Finds Tuesday's lesson recording on the evening of the call or during Wednesday catch-up in Fathom and gets the video ready for the scheduled lesson job. */
 export async function GET(request: Request) {
   const result = await respond(async () => {
     requireCron(request);
