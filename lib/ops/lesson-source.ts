@@ -5,16 +5,10 @@ import { validateLessonPackage } from "./lesson-review";
 import { createTask, OpsError, record } from "./tasks";
 
 /**
- * Scheduled Codex runs get no secrets, so they cannot call Fathom or the portal. The portal does
- * those parts and hands the run SHORT-LIVED links through Marc's Drive snapshot:
- *  1. Tuesday evening: find Tuesday's 19:30 lesson recording in Fathom and ask Fathom to prepare the MP4.
- *  2. Every snapshot (20 and 50 past): a fresh Fathom video link (expires in hours) and a fresh one-file
- *     upload slot (expires in 2 hours) for the finished lesson video.
- *  3. Codex edits, uploads to the slot and leaves lesson_package-YYYY-MM-DD.json in the handoff folder.
- *  4. The portal moves the upload to its fingerprint name and opens Marc's lesson review task.
- * No permanent key ever leaves the portal.
+ * Prepare Tuesday's Fathom recording before the weekly scheduled chat selects its
+ * edits. The portal's worker renders the media from the dated native Doc. The
+ * snapshot also retains the short-lived transfer links for interactive recovery.
  */
-
 const FATHOM = "https://api.fathom.ai/external/v1";
 const BUCKET = "lesson-media";
 const DAY = 86_400_000;
@@ -285,8 +279,8 @@ export async function lessonOverdue(now = new Date()) {
       title: `Weekly lesson has not arrived · ${date}`,
       detail:
         row.status === "failed"
-          ? "Fathom could not prepare Tuesday’s video. Check the recording in Fathom, then run the lesson in Marc's Codex by hand."
-          : "Tuesday’s recording has no lesson review package yet. In Marc's Codex, check the CBB — Weekly lesson job's last run; if it did not finish, run the lesson by hand in a chat.",
+          ? "Fathom could not prepare Tuesday’s video. Check the export for this recording and restore the portal’s source job."
+          : "The portal is still waiting for Tuesday’s approval draft. Check the weekly lesson task for a paused Google Drive permission, its dated edit document in CBB Portal Handoff, and the portal render job for this date.",
     },
     "system",
   ).catch(() => undefined);
