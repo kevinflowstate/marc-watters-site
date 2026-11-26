@@ -47,6 +47,16 @@ async function fathom(path: string, deps: Deps, method: "GET" | "POST" = "GET") 
   return record(await r.json());
 }
 
+/** The recovery editor only reads these from Marc's existing Fathom connection. */
+export async function lessonEditorialSource(id: number) {
+  const [transcript, summary] = await Promise.all([
+    fathom(`/recordings/${id}/transcript`, {}), fathom(`/recordings/${id}/summary`, {}),
+  ]);
+  const markdown = record(summary.summary ?? {}).markdown_formatted;
+  if (typeof markdown !== "string") throw new OpsError("The Fathom meeting summary is still preparing", 503);
+  return { transcript: transcript.transcript, summary: markdown };
+}
+
 /** Prepare before the Tuesday 21:00 London edit, with Wednesday catch-up. */
 export function lessonDateFor(now: Date) {
   const clock = londonClock(now);
