@@ -265,6 +265,12 @@ export function LessonReview({
           <p className="mt-2 text-sm text-text-muted">Length: {duration}</p>
         )}
       </div>
+      {text(preview?.reviewer_note) && (
+        <div className="rounded-xl border border-current/10 p-4">
+          <h3 className="font-heading font-bold">Private editing notes</h3>
+          <p className="mt-2 whitespace-pre-line text-sm">{text(preview?.reviewer_note)}</p>
+        </div>
+      )}
       <div className="rounded-xl border border-current/10 p-4">
         <h3 className="font-heading font-bold">Training destination</h3>
         <p className="mt-2 break-words text-sm">

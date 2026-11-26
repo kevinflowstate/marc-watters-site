@@ -297,8 +297,15 @@ describe("approved lesson publication", () => {
     const complete = (await api.previewLessonPublication(manifest, d)) as {
       review: { title: string; ready_for_review: boolean };
     };
-    expect(complete.review.title).toBe("Lesson ready for Eimear’s review");
+    expect(complete.review.title).toBe("Lesson ready for review");
     expect(complete.review.ready_for_review).toBe(true);
+    const { previewLessonPublication } = await import("@/lib/ops/lesson-publication");
+    const pdfOnly = await previewLessonPublication({ ...manifest, workbook_md: "", workbook_pdf: {
+      storage_path: `workbooks/${manifest.media.sha256}.pdf`, sha256: manifest.media.sha256, bytes: 4096, name: "Workbook.pdf",
+    } }, { ...d, reviewNote: async () => "Check the participant exchange at 8:00." });
+    expect(pdfOnly.review.ready_for_review).toBe(true);
+    expect(pdfOnly.reviewer_note).toContain("8:00");
+    expect(pdfOnly.manifest).not.toHaveProperty("reviewer_note");
   });
   it("refuses stale media, published destinations and publication exposing other drafts", async () => {
     await expect(

@@ -61,6 +61,7 @@ export type LessonPublicationDeps = {
     actorId: string,
   ) => Promise<LessonMediaVerification>;
   verification: (id: string) => Promise<LessonMediaVerification>;
+  reviewNote?: (lessonRef: string, version: number) => Promise<string | null>;
   publication: (
     recordingId: string,
   ) => Promise<{ media_verification_id: string; media_sha256: string } | null>;
@@ -235,6 +236,15 @@ function dependencies(): LessonPublicationDeps {
         p_object: input,
         p_actor: actorId,
       }),
+    reviewNote: async (lessonRef, version) => {
+      const result = await db().from("ops_tasks").select("detail")
+        .eq("external_ref", `lesson-review:${lessonRef}:v${version}`).maybeSingle();
+      if (result.error) throw new OpsError("Could not read the lesson review notes", 503);
+      const marker = "Notes for you (not shown to clients):";
+      const detail = String(result.data?.detail ?? "");
+      const start = detail.indexOf(marker);
+      return start === -1 ? null : detail.slice(start + marker.length).trim().slice(0, 2000);
+    },
     verification: async (id) => {
       const result = await db()
         .from("ops_lesson_media_verifications")
@@ -386,15 +396,16 @@ export async function previewLessonPublication(
       "Publishing requires an empty dedicated module to avoid exposing other drafts",
       409,
     );
+  const hasWorkbook = Boolean(manifest.workbook_pdf || manifest.workbook_md.trim());
   const remaining = [
     "Watch the edited video, especially the opening, ending and each join.",
     ...(!manifest.summary_md.trim() ? ["Add the lesson summary."] : []),
-    ...(!manifest.workbook_md.trim() ? ["Add the draft workbook."] : []),
+    ...(!hasWorkbook ? ["Add the draft workbook."] : []),
     manifest.mode === "append"
-      ? `Eimear must approve this exact version before it is added to ${destination.title}. Clients who have that module will see it straight away.`
-      : "Eimear must approve this exact version and Training destination before it is added.",
+      ? `The reviewer must approve this exact version before it is added to ${destination.title}. Clients who have that module will see it straight away.`
+      : "The reviewer must approve this exact version and Training destination before it is added.",
   ];
-  const materialsReady = Boolean(manifest.summary_md.trim() && manifest.workbook_md.trim());
+  const materialsReady = Boolean(manifest.summary_md.trim() && hasWorkbook);
   return {
     dry_run: true as const,
     manifest,
@@ -403,11 +414,12 @@ export async function previewLessonPublication(
     would_publish_module: manifest.mode === "publish",
     publication_enabled: deps.enabled(),
     playback_review_required: true,
+    reviewer_note: await deps.reviewNote?.(manifest.lesson_ref, manifest.version) ?? null,
     review: {
-      title: materialsReady ? "Lesson ready for Eimear’s review" : "Lesson preview — materials still needed",
+      title: materialsReady ? "Lesson ready for review" : "Lesson preview — materials still needed",
       summary: materialsReady
         ? `The edited video and materials are prepared for ${destination.title}. This check has not added or published the lesson.`
-        : `The edited video is saved for ${destination.title}. Add the missing lesson materials before Eimear reviews the complete pack. Nothing has been added or published.`,
+        : `The edited video is saved for ${destination.title}. Add the missing lesson materials before reviewing the complete lesson. Nothing has been added or published.`,
       ready_for_review: materialsReady,
       destination: destination.title,
       remaining,
