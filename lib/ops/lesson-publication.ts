@@ -31,7 +31,8 @@ export type LessonMediaVerification = StoredLessonObject & {
   id: string;
   sha256: string;
   duration_s: number;
-  verified_by: string;
+  verified_by: string | null;
+  verified_by_render?: string | null;
   verified_at: string;
 };
 export type LessonPublicationReceipt = {
@@ -292,6 +293,17 @@ function dependencies(): LessonPublicationDeps {
 }
 
 /** Must be exposed only through a verified admin route/worker. Streams at most 4 GiB. */
+/** The hosted verifier records its own active run, with no human approval authority. */
+export function verifyRenderedLessonMedia(input: unknown, run: string) {
+  const deps = dependencies();
+  deps.saveVerification = async (object) => {
+    const result = await createAdminClient().rpc("ops_register_rendered_lesson_media", { p_object: object, p_run: run });
+    if (result.error || !result.data) throw new OpsError("Could not register the hosted media check", 409);
+    return result.data as LessonMediaVerification;
+  };
+  return verifyStoredLessonMedia(input, run, deps);
+}
+
 export async function verifyStoredLessonMedia(
   input: unknown,
   actorId: string,
