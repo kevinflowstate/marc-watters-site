@@ -18,13 +18,15 @@ const prefix = (job: Job) => `incoming/renders/${job.lesson_date}/${job.run_id}`
 
 async function save(job: Job, change: Record<string, unknown>) {
   const r = await db().from("ops_lesson_edit_jobs").update({ ...change, updated_at: new Date().toISOString() })
-    .eq("lesson_date", job.lesson_date).eq("run_id", job.run_id).eq("state", "running");
+    .eq("lesson_date", job.lesson_date).eq("run_id", job.run_id).eq("state", "running").select("lesson_date").maybeSingle();
   if (r.error) throw new OpsError("Could not update the render job", 503);
+  return Boolean(r.data);
 }
 
 async function failure(job: Job, message: string) {
   const retry = job.attempts < 3;
-  await save(job, { state: retry ? "queued" : "failed", last_error: message });
+  const currentAttempt = await save(job, { state: retry ? "queued" : "failed", last_error: message });
+  if (!currentAttempt) return;
   if (!retry) await createTask({
     kind: "task", area: "lessons", source: "system", assignee: "flowstate", priority: 1,
     external_ref: `lesson-edit-failed:${job.lesson_date}`, title: `Lesson edit needs attention · ${job.lesson_date}`,
@@ -60,8 +62,8 @@ async function start(job: Job) {
     stage = "starting the hosted editor";
     await launchLessonRender(name, job.plan, video, media.data.signedUrl, receipt.data.signedUrl);
     return "render_started";
-  } catch {
-    await failure(job, stage);
+  } catch (error) {
+    await failure(job, error instanceof OpsError ? stage + ". " + error.message : stage);
     return "start_failed";
   }
 }
@@ -71,6 +73,8 @@ async function collect(job: Job) {
   const raw = await bucket().download(`${path}/receipt.json`);
   if (raw.error || !raw.data) {
     if (Date.parse(job.expires_at) > Date.now()) return "rendering";
+    await stopLessonRender(job.sandbox_name).catch(() => undefined);
+    await bucket().remove([`${path}/video.mp4`, `${path}/receipt.json`]);
     await failure(job, "waiting for the hosted editor’s upload receipt");
     return "receipt_missing";
   }
@@ -80,6 +84,7 @@ async function collect(job: Job) {
   await stopLessonRender(job.sandbox_name).catch(() => undefined); // VM also has a hard expiry
   if (!r.ok) {
     const stages = ["source download", "source decode and transcript alignment", "edit plan and render", "edited video decode", "private media upload"];
+    await bucket().remove([`${path}/video.mp4`, `${path}/receipt.json`]);
     await failure(job, stages.includes(r.stage) ? r.stage : "executing the edit");
     return "render_failed";
   }
