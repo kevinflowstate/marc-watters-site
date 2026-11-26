@@ -4,7 +4,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 vi.mock("../lib/ops/actions", () => ({ submitArtifact: vi.fn() }));
 vi.mock("@/lib/ops/actions", () => ({ submitArtifact: vi.fn() }));
 
-import { startLessonReview, validateLessonPackage } from "../lib/ops/lesson-review";
+import { startHostedLessonReview, startLessonReview, validateLessonPackage } from "../lib/ops/lesson-review";
 
 const ADMIN = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TASK = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -35,6 +35,24 @@ function deps(over: Record<string, unknown> = {}) {
 }
 
 describe("lesson package to lesson review", () => {
+  it("submits a verified hosted edit as a system draft with the actual calendar workbook", async () => {
+    const workbook = { storage_path: `workbooks/${SHA}.pdf`, sha256: SHA, bytes: 12345, name: "Call.pdf" };
+    const d = deps({ calendarWorkbook: vi.fn(async () => workbook) }) as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    const result = await startHostedLessonReview(TASK, VERIFY, d as never);
+    expect(d.submit).toHaveBeenCalledWith(expect.objectContaining({ payload: expect.objectContaining({
+      workbook_pdf: workbook, media: expect.objectContaining({ verification_id: VERIFY }),
+    }) }), "system:lesson-editor");
+    expect(result.review_url).toContain("artifact=");
+    expect(d.complete).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the preparation task open when the hosted draft lacks a workbook", async () => {
+    const d = deps() as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    await expect(startHostedLessonReview(TASK, VERIFY, d as never)).rejects.toThrow("workbook is missing");
+    expect(d.submit).not.toHaveBeenCalled();
+    expect(d.complete).not.toHaveBeenCalled();
+  });
+
   it("validates a package without a check receipt and rejects extra media fields", () => {
     expect(validateLessonPackage(pack).media).toEqual({ storage_path: pack.media.storage_path, sha256: SHA });
     expect(() => validateLessonPackage({ ...pack, media: { ...pack.media, verification_id: VERIFY } })).toThrow(

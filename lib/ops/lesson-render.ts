@@ -4,6 +4,7 @@ import { lessonPack, type EditPlan } from "./lesson-edit-plan";
 import { importDriveResults } from "./drive-results";
 import { importLessonPackage, lessonDateFor, lessonExport, loadLessonSource } from "./lesson-source";
 import { launchLessonRender, stopLessonRender } from "./lesson-render-machine";
+import { startHostedLessonReview } from "./lesson-review";
 import { inspectLessonMp4 } from "./publication-mp4";
 import { createTask, OpsError } from "./tasks";
 
@@ -45,8 +46,11 @@ async function start(job: Job) {
     const src = await loadLessonSource(job.lesson_date);
     if (!src || src.recording_id !== job.recording_id) throw new Error("identity");
     if (src.status === "packaged" && !job.verify_only) {
+      if (!src.task_id) throw new Error("missing review task");
+      stage = "opening the approval draft";
+      await startHostedLessonReview(src.task_id, job.run_id);
       await save(job, { state: "done", last_error: null });
-      return "already_packaged";
+      return "approval_ready";
     }
     stage = "fetching a fresh Fathom video export";
     const video = await lessonExport(src);
@@ -90,10 +94,17 @@ async function collect(job: Job) {
     throw new OpsError("Stored edit differs from the hosted render", 409);
   const src = await loadLessonSource(job.lesson_date);
   if (!src || src.recording_id !== job.recording_id) throw new OpsError("The lesson source changed", 409);
+  let taskId = src.task_id;
   if (!job.verify_only && src.status !== "packaged") {
     const detail = r.original_s - r.duration_s < 1 ? "Original replay retained under the three-minute edit rule. " : "";
-    await importLessonPackage({ lesson_date: job.lesson_date, review_note: (detail + job.plan.review_note).slice(0, 2000),
+    await save(job, { receipt: r });
+    const task = await importLessonPackage({ lesson_date: job.lesson_date, review_note: (detail + job.plan.review_note).slice(0, 2000),
       lesson_package: lessonPack(job.plan, mediaPath, r.sha256) }, mediaPath);
+    taskId = task.task_id;
+  }
+  if (!job.verify_only) {
+    if (!taskId) throw new OpsError("The lesson review task is missing", 409);
+    await startHostedLessonReview(taskId, job.run_id);
   }
   await save(job, { state: "done", receipt: r, last_error: null });
   await bucket().remove([mediaPath, `${path}/receipt.json`]);
@@ -118,5 +129,11 @@ export async function advanceLessonEdit() {
     job = queued.data as Job | null;
     if (!job) return { date, status: "waiting_for_plan" };
   }
-  return { date: job.lesson_date, status: job.state === "queued" ? await start(job) : await collect(job) };
+  if (job.state === "queued") return { date: job.lesson_date, status: await start(job) };
+  try {
+    return { date: job.lesson_date, status: await collect(job) };
+  } catch (error) {
+    await failure(job, error instanceof OpsError ? error.message : "verifying the finished edit and opening its approval draft");
+    return { date: job.lesson_date, status: "verification_failed" };
+  }
 }

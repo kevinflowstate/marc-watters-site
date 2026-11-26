@@ -6,6 +6,7 @@ import { findCalendarWorkbook, storeCalendarWorkbook } from "./calendar-workbook
 import {
   validateLessonPublicationManifest,
   verifyStoredLessonMedia,
+  verifyRenderedLessonMedia,
   type LessonPublicationManifest,
   type WorkbookPdfRef,
 } from "./lesson-publication";
@@ -112,8 +113,24 @@ export async function startLessonReview(
     throw new OpsError("Only task_id is accepted");
   const taskId = uuid(b.task_id);
   const actor = uuid(adminId);
-  const d = supplied ?? dependencies();
+  return prepareLessonReview(taskId, actor, supplied ?? dependencies());
+}
+
+export async function startHostedLessonReview(taskId: string, run: string, supplied?: Deps) {
+  const d = supplied ?? { ...dependencies(), verify: (input: unknown) => verifyRenderedLessonMedia(input, run) };
+  return prepareLessonReview(taskId, "system:lesson-editor", d);
+}
+
+async function prepareLessonReview(taskId: string, actor: string, d: Deps) {
   const task = await d.loadTask(taskId);
+  if (actor === "system:lesson-editor" && task.status === "done") {
+    const pack = lessonPackageFromTask(task);
+    if (pack) {
+      const existing = await createAdminClient().from("ops_artifacts").select("id")
+        .eq("external_ref", `lesson:${pack.lesson_ref}:v${pack.version}`).maybeSingle();
+      if (existing.data) return { artifact_id: existing.data.id, review_url: `/admin/work?artifact=${existing.data.id}` };
+    }
+  }
   if (["done", "cancelled", "approved", "rejected"].includes(task.status))
     throw new OpsError("This task is already closed", 409);
   const pack = lessonPackageFromTask(task);
@@ -126,8 +143,10 @@ export async function startLessonReview(
   );
   const { workbook, ...lesson } = pack;
   // Marc's own workbook from the calendar wins; the generated one is only the fallback.
-  const fromCalendar = d.calendarWorkbook ? await d.calendarWorkbook(pack.lesson_ref).catch(() => null) : null;
+  const calendar = d.calendarWorkbook?.(pack.lesson_ref);
+  const fromCalendar = actor === "system:lesson-editor" ? await calendar : await calendar?.catch(() => null);
   const workbookPdf = fromCalendar ?? (workbook ? await d.workbookPdf(workbook, pack.title) : undefined);
+  if (actor === "system:lesson-editor" && !workbookPdf) throw new OpsError("The lesson workbook is missing", 409);
   const manifest: LessonPublicationManifest = {
     ...lesson,
     ...(workbookPdf ? { workbook_pdf: workbookPdf } : {}),
