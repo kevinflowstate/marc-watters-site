@@ -25,7 +25,6 @@ const build = (transcript = rows, pdf = true) =>
     { title: "Quarterly Planning", hasPdf: pdf },
     transcript,
     summary,
-    1500,
   );
 describe("lesson recovery from Fathom", () => {
   it("cuts an announced break and opening, keeps uncertain gaps, and flags participant speech", () => {

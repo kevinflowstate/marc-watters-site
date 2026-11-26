@@ -66,11 +66,14 @@ export function makeFathomPlan(
   calendar: { title: string; hasPdf: boolean },
   transcript: unknown,
   summary: string,
-  duration: number,
 ) {
   const lines = transcriptLines(transcript);
   const last = lines.at(-1)!.at;
-  if (!(duration >= 1200 && last >= duration - 180 && last <= duration + 5))
+  // Fathom's meeting wall clock includes time outside its exported media.
+  // Editorial timestamps use the transcript clock. The worker checks its end
+  // against the measured MP4 duration before applying any cut.
+  const duration = last;
+  if (!(duration >= 1200 && duration <= 8 * 3600))
     throw new OpsError(
       "The Fathom transcript and recording timings differ",
       409,
@@ -240,7 +243,6 @@ export function makeFathomPlan(
 export async function queueFathomRecovery(
   date: string,
   recordingId: number,
-  duration: number,
 ) {
   const db = createAdminClient();
   const until = new Date(
@@ -282,7 +284,6 @@ export async function queueFathomRecovery(
     { title: event.title, hasPdf },
     materials.transcript,
     materials.summary,
-    duration,
   );
   await queueLessonEdit(plan, "CBB lesson edit " + date);
 }

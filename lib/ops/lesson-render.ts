@@ -143,8 +143,7 @@ export async function advanceLessonEdit() {
       if (imported.saved) return { date, status: "plan_received" };
     }
     if (!source?.recording_id) throw new OpsError("The lesson recording is missing", 409);
-    const seconds = (Date.parse(source.recording_end ?? "") - Date.parse(source.recording_start ?? "")) / 1000;
-    await queueFathomRecovery(date, source.recording_id, seconds);
+    await queueFathomRecovery(date, source.recording_id);
     const queued = await db().from("ops_lesson_edit_jobs").select("*").eq("lesson_date", date).eq("state", "queued").maybeSingle();
     if (queued.error) throw new OpsError("Cannot read the imported lesson plan", 503);
     job = queued.data as Job | null;
