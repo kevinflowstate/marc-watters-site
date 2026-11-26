@@ -59,6 +59,10 @@
     {
       "path": "/api/cron/ops-lesson-source",
       "schedule": "*/10 19-23 * * 2"
+    },
+    {
+      "path": "/api/cron/ops-lesson-render",
+      "schedule": "3,8,13,18,23,28,33,38,43,48,53,58 * * * 2,3"
     }
   ]
 }

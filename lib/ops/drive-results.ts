@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { connectContentDrive, type DriveConnection } from "./drive-connection";
 import { ContentPackError, contentResponseBytes } from "./content-pack";
 import { submitWorkspaceResult } from "./workspace-results";
+import { queueLessonEdit } from "./lesson-edit-plan";
 import { importLessonPackage } from "./lesson-source";
 import { OpsError } from "./tasks";
 
@@ -27,6 +28,8 @@ type DriveFile = {
   name?: unknown;
   mimeType?: unknown;
   modifiedTime?: unknown;
+  version?: unknown;
+  parents?: unknown;
   size?: unknown;
   owners?: { emailAddress?: unknown }[];
   lastModifyingUser?: { emailAddress?: unknown };
@@ -47,12 +50,14 @@ export type DriveResultsOutcome = {
 };
 
 type Options = {
+  lessonDate?: string;
   folderId?: string;
   ownerEmails?: string[];
   now?: Date;
   fetch?: typeof fetch;
   connect?: (options: { allowedFileIds: string[] }) => Promise<DriveConnection>;
   submit?: (input: unknown, actor: string) => Promise<{ received_at?: string }>;
+  queueEdit?: typeof queueLessonEdit;
   importLesson?: (doc: unknown) => Promise<unknown>;
 };
 
@@ -130,18 +135,20 @@ export async function importDriveResults(
   }
 
   const since = new Date(now.getTime() - LOOKBACK_MS).toISOString();
+  if (options.lessonDate && !/^\d{4}-\d{2}-\d{2}$/.test(options.lessonDate)) throw new OpsError("Invalid lesson document date");
   const query = [
     `'${config.folderId}' in parents`,
     "trashed = false",
     `modifiedTime > '${since}'`,
-    "(mimeType = 'application/json' or mimeType = 'text/plain')",
+    options.lessonDate ? `mimeType = 'application/vnd.google-apps.document' and name = 'CBB lesson edit ${options.lessonDate}'`
+      : "(mimeType = 'application/json' or mimeType = 'text/plain')",
   ].join(" and ");
   const listUrl =
     `${FILES_URL}?` +
     new URLSearchParams({
       q: query,
       fields:
-        "files(id,name,mimeType,modifiedTime,size,owners(emailAddress),lastModifyingUser(emailAddress),md5Checksum,capabilities(canDownload,canEdit))",
+        "files(id,name,mimeType,modifiedTime,version,parents,size,owners(emailAddress),lastModifyingUser(emailAddress),md5Checksum,capabilities(canDownload,canEdit))",
       orderBy: "modifiedTime",
       pageSize: String(MAX_FILES),
       supportsAllDrives: "true",
@@ -166,6 +173,7 @@ export async function importDriveResults(
     throw new OpsError("Google returned an unreadable folder listing", 502);
   }
 
+  if (options.lessonDate && files.length > 1) throw new OpsError("Multiple edit documents exist for this call", 409);
   for (const file of files.slice(0, MAX_FILES)) {
     outcome.files += 1;
     // Only files from Marc's own account are named in a task; anything else is counted, not described.
@@ -179,18 +187,18 @@ export async function importDriveResults(
     // Owner alone is not enough: someone else with edit access could rewrite Marc's file.
     const editor = file.lastModifyingUser?.emailAddress;
     const size = Number(file.size ?? 0);
+    const nativeEdit = file.mimeType === "application/vnd.google-apps.document" && /^CBB lesson edit \d{4}-\d{2}-\d{2}$/.test(String(file.name));
     if (
       typeof file.id !== "string" ||
       !idPattern.test(file.id) ||
       typeof owner !== "string" ||
       !config.ownerEmails.includes(owner.toLowerCase()) ||
       typeof editor !== "string" ||
-      typeof file.md5Checksum !== "string" ||
-      !/^[a-f0-9]{32}$/.test(file.md5Checksum) ||
+      (!nativeEdit && (typeof file.md5Checksum !== "string" || !/^[a-f0-9]{32}$/.test(file.md5Checksum))) ||
       !config.ownerEmails.includes(editor.toLowerCase()) ||
       file.capabilities?.canDownload !== true ||
       file.capabilities?.canEdit !== false ||
-      !(size > 0 && size <= MAX_FILE_BYTES)
+      (!nativeEdit && !(size > 0 && size <= MAX_FILE_BYTES))
     ) {
       outcome.skipped += 1;
       const trusted =
@@ -204,6 +212,26 @@ export async function importDriveResults(
             : "empty, larger than 64 KB or unreadable",
         trusted,
       );
+      continue;
+    }
+    if (nativeEdit) {
+      try {
+        if (typeof file.version !== "string" || !Array.isArray(file.parents) || !file.parents.includes(config.folderId))
+          throw new Error("document identity unavailable");
+        const id = encodeURIComponent(file.id as string);
+        const exported = await driveText(`${FILES_URL}/${id}/export?mimeType=text%2Fplain`, connection.accessToken, request, MAX_FILE_BYTES);
+        if (!exported.ok) throw new Error("could not export the edit document");
+        // Docs have no content MD5. Pin the revision, location and last editor across the export.
+        const metadata = await driveText(`${FILES_URL}/${id}?fields=version,parents,trashed,lastModifyingUser(emailAddress)&supportsAllDrives=true`, connection.accessToken, request, 4096);
+        const after = metadata.ok ? JSON.parse(metadata.text) : null;
+        if (after?.version !== file.version || after.trashed || !after.parents?.includes(config.folderId) ||
+            after.lastModifyingUser?.emailAddress !== editor) throw new Error("document changed during export");
+        await (options.queueEdit ?? queueLessonEdit)(JSON.parse(exported.text.trim()), String(file.name));
+        outcome.saved++;
+      } catch (error) {
+        outcome.invalid++;
+        problem(error instanceof OpsError ? error.message : "the lesson edit document was unreadable or changed during export");
+      }
       continue;
     }
     let documents: unknown[];

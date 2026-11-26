@@ -80,7 +80,7 @@ export function pickLessonRecording(items: Record<string, unknown>[], date: stri
   return null;
 }
 
-async function loadRow(date: string) {
+export async function loadLessonSource(date: string) {
   const r = await createAdminClient().from("ops_lesson_sources").select("*").eq("lesson_date", date).maybeSingle();
   if (r.error) throw new OpsError("Lesson source state could not be read", 503);
   return (r.data as Row | null) ?? null;
@@ -98,7 +98,7 @@ export async function advanceLessonSource(deps: Deps = {}) {
   const now = deps.now ?? new Date();
   const date = lessonDateFor(now);
   if (!date) return { date: null, status: "not_lesson_day" };
-  let row = await loadRow(date);
+  let row = await loadLessonSource(date);
   if (!row || row.status === "no_recording") {
     const from = `${date}T16:00:00Z`;
     const to = new Date(Date.parse(from) + 15 * 3_600_000).toISOString();
@@ -135,6 +135,34 @@ export async function advanceLessonSource(deps: Deps = {}) {
     }
   }
   return { date, status: row.status };
+}
+
+/** Fetch an export for this exact source, including a delayed retry after the original link expired. */
+export async function lessonExport(row: Row) {
+  if (!row.recording_id || !row.download_id) throw new OpsError("Recording has no Fathom export", 409);
+  const prefix = `/recordings/${row.recording_id}`;
+  let id = row.download_id;
+  for (let i = 0; i < 12; i++) {
+    const result = await fathom(`${prefix}/downloads/${encodeURIComponent(id)}`, {});
+    const video = record(result.video ?? {});
+    if (result.status === "completed" && typeof video.url === "string") {
+      const url = new URL(video.url);
+      if (url.protocol !== "https:" || !["streamkit.storage.googleapis.com", "media.fathom.ai"].includes(url.hostname) ||
+          !Number.isSafeInteger(video.file_size_bytes) || Number(video.file_size_bytes) <= 0 || Number(video.file_size_bytes) > 8 * 1024 ** 3)
+        throw new OpsError("Unexpected Fathom export host or size", 409);
+      return { url: url.href, bytes: Number(video.file_size_bytes) };
+    }
+    if (result.status === "expired" && i === 0) {
+      const next = await fathom(`${prefix}/download`, {}, "POST");
+      if (typeof next.download_id !== "string") throw new OpsError("Fathom export renewal failed", 503);
+      id = next.download_id;
+      const saved = await createAdminClient().from("ops_lesson_sources").update({ download_id: id })
+        .eq("lesson_date", row.lesson_date).eq("recording_id", row.recording_id).eq("download_id", row.download_id);
+      if (saved.error) throw new OpsError("Could not save the renewed Fathom export", 503);
+    } else if (result.status === "failed") throw new OpsError("Fathom video export failed", 503);
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+  throw new OpsError("Fathom video export is still preparing", 503);
 }
 
 const uploadPath = (row: Row) => `incoming/${row.lesson_date}/${row.recording_id}.mp4`;
@@ -192,16 +220,17 @@ export async function lessonSourceForSnapshot(deps: Deps = {}) {
  * The upload is moved to approved/<sha256>.mp4; Eimear's "Check the video" step re-hashes it, so a
  * wrong fingerprint is caught before anything can be approved.
  */
-export async function importLessonPackage(doc: unknown) {
+export async function importLessonPackage(doc: unknown, renderedPath?: string) {
   const d = record(doc);
   const pack = record(d.lesson_package);
   const media = record(pack.media);
   const lessonDate = String(d.lesson_date ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(lessonDate)) throw new OpsError("lesson_date is required");
-  const row = await loadRow(lessonDate);
+  const row = await loadLessonSource(lessonDate);
   if (!row || !row.recording_id || !["ready", "packaged"].includes(row.status))
     throw new OpsError("No lesson source is waiting for this date");
-  if (media.storage_path !== uploadPath(row)) throw new OpsError("The lesson video must be in this lesson's upload slot");
+  const sourcePath = renderedPath ?? uploadPath(row);
+  if (media.storage_path !== sourcePath) throw new OpsError("The lesson video must be in this lesson's upload slot");
   if (typeof media.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(media.sha256)) throw new OpsError("A SHA-256 fingerprint is required");
   // Notes for whoever reviews (what was or was not cut, anything to check) go on the task only.
   // The summary is what clients read once the lesson is published, so it must never carry them.
@@ -214,7 +243,7 @@ export async function importLessonPackage(doc: unknown) {
   if (!finalPack.lesson_ref.startsWith(`lesson:${lessonDate}:`)) throw new OpsError("lesson_ref must start with lesson:<date>:");
 
   const storage = createAdminClient().storage.from(BUCKET);
-  const copied = await storage.copy(uploadPath(row), approved);
+  const copied = await storage.copy(sourcePath, approved);
   if (copied.error && !/exists|duplicate/i.test(copied.error.message))
     throw new OpsError("The uploaded lesson video was not found in its slot", 409);
 
@@ -243,7 +272,7 @@ export async function lessonOverdue(now = new Date()) {
   const date = lessonDateFor(now);
   const clock = londonClock(now);
   if (!date || clock.minutes < (clock.day === "Tue" ? 22 * 60 + 30 : 13 * 60)) return null;
-  const row = await loadRow(date);
+  const row = await loadLessonSource(date);
   if (!row || !["requested", "ready", "failed"].includes(row.status)) return null;
   await createTask(
     {
