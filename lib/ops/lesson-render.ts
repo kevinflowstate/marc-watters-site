@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { lessonPack, type EditPlan } from "./lesson-edit-plan";
+import { fallbackDue, queueFathomRecovery } from "./lesson-fathom-plan";
 import { importDriveResults } from "./drive-results";
 import { importLessonPackage, lessonDateFor, lessonExport, loadLessonSource } from "./lesson-source";
 import { launchLessonRender, stopLessonRender } from "./lesson-render-machine";
@@ -126,9 +127,23 @@ export async function advanceLessonEdit() {
     if (!date) return { status: "idle" };
     const source = await loadLessonSource(date);
     if (!job && source?.status !== "ready") return { status: "idle" };
-    const imported = await importDriveResults({ lessonDate: date });
-    if (!imported.configured || imported.problems.length)
-      throw new OpsError(imported.problems[0]?.reason ?? "Lesson handoff folder unavailable", 503);
+    const rehearsal = job?.verify_only && (job.plan as unknown as { recovery_test?: boolean })?.recovery_test === true;
+    if (!rehearsal) {
+      const due = fallbackDue(new Date());
+      const imported = await importDriveResults({ lessonDate: date }).catch((error) => {
+        // A missing connection cannot prevent the portal from reading its own Fathom recording.
+        // An ambiguous or conflicting file still needs an operator's attention.
+        if (due && error instanceof OpsError && (error.status >= 500 || error.message.includes("cannot list the Drive results folder")))
+          return { configured: false, saved: 0, problems: [] };
+        throw error;
+      });
+      if (imported.problems.length) throw new OpsError(imported.problems[0].reason, 503);
+      if (!imported.configured && !due) throw new OpsError("Lesson handoff folder unavailable", 503);
+      if (!imported.saved && !due) return { date, status: "waiting_for_plan" };
+      if (imported.saved) return { date, status: "plan_received" };
+    }
+    if (!source?.recording_id) throw new OpsError("The lesson recording is missing", 409);
+    await queueFathomRecovery(date, source.recording_id);
     const queued = await db().from("ops_lesson_edit_jobs").select("*").eq("lesson_date", date).eq("state", "queued").maybeSingle();
     if (queued.error) throw new OpsError("Cannot read the imported lesson plan", 503);
     job = queued.data as Job | null;

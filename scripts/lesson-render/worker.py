@@ -34,7 +34,8 @@ def main():
             raise ValueError("Source byte count differs from Fathom")
         stage = "source decode and transcript alignment"
         duration, streams = probe(source)
-        if streams != {"video", "audio"} or not 0 < job["transcript_end_s"] <= duration + 3:
+        if (streams != {"video", "audio"} or not 0 < job["transcript_end_s"] <= duration + 3
+                or duration - job["transcript_end_s"] > 180):
             raise ValueError("Source duration does not cover the transcript")
         decode(source)
         stage = "edit plan and render"
