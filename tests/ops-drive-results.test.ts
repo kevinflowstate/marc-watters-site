@@ -257,3 +257,23 @@ describe("Drive results handoff", () => {
     ).rejects.toMatchObject({ status: 503 });
   });
 });
+
+it("queues a native edit Doc only if its revision, parent and editor survive export", async () => {
+  const name = "CBB lesson edit 2026-11-24";
+  const plan = { kind: "lesson_edit", recording_id: 206539921 };
+  const doc = driveFile("doc-12345678901", { name, mimeType: "application/vnd.google-apps.document", md5Checksum: undefined,
+    parents: [FOLDER], version: "7", size: undefined });
+  for (const version of ["7", "8"]) {
+    const queueEdit = vi.fn(async () => "queued");
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/export")) return new Response("\ufeff" + JSON.stringify(plan) + "\n");
+      if (url.searchParams.has("q")) return Response.json({ files: [doc] });
+      return Response.json({ version, parents: [FOLDER], trashed: false, lastModifyingUser: { emailAddress: OWNER } });
+    });
+    const result = await importDriveResults({ folderId: FOLDER, ownerEmails: [OWNER], now: NOW, connect, fetch, queueEdit });
+    expect(result.invalid).toBe(version === "7" ? 0 : 1);
+    if (version === "7") expect(queueEdit).toHaveBeenCalledWith(plan, name);
+    else expect(queueEdit).not.toHaveBeenCalled();
+  }
+});
