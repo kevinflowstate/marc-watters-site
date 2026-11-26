@@ -50,6 +50,7 @@ export type DriveResultsOutcome = {
 };
 
 type Options = {
+  lessonDate?: string;
   folderId?: string;
   ownerEmails?: string[];
   now?: Date;
@@ -134,11 +135,13 @@ export async function importDriveResults(
   }
 
   const since = new Date(now.getTime() - LOOKBACK_MS).toISOString();
+  if (options.lessonDate && !/^\d{4}-\d{2}-\d{2}$/.test(options.lessonDate)) throw new OpsError("Invalid lesson document date");
   const query = [
     `'${config.folderId}' in parents`,
     "trashed = false",
     `modifiedTime > '${since}'`,
-    "(mimeType = 'application/json' or mimeType = 'text/plain' or (mimeType = 'application/vnd.google-apps.document' and name contains 'CBB lesson edit '))",
+    options.lessonDate ? `mimeType = 'application/vnd.google-apps.document' and name = 'CBB lesson edit ${options.lessonDate}'`
+      : "(mimeType = 'application/json' or mimeType = 'text/plain')",
   ].join(" and ");
   const listUrl =
     `${FILES_URL}?` +
@@ -170,6 +173,7 @@ export async function importDriveResults(
     throw new OpsError("Google returned an unreadable folder listing", 502);
   }
 
+  if (options.lessonDate && files.length > 1) throw new OpsError("Multiple edit documents exist for this call", 409);
   for (const file of files.slice(0, MAX_FILES)) {
     outcome.files += 1;
     // Only files from Marc's own account are named in a task; anything else is counted, not described.

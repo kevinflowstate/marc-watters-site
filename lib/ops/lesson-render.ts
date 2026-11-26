@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { lessonPack, type EditPlan } from "./lesson-edit-plan";
-import { importLessonPackage, lessonExport, loadLessonSource } from "./lesson-source";
+import { importDriveResults } from "./drive-results";
+import { importLessonPackage, lessonDateFor, lessonExport, loadLessonSource } from "./lesson-source";
 import { launchLessonRender, stopLessonRender } from "./lesson-render-machine";
 import { inspectLessonMp4 } from "./publication-mp4";
 import { createTask, OpsError } from "./tasks";
 
 type Job = {
-  lesson_date: string; recording_id: number; plan: EditPlan; state: "queued" | "running";
+  lesson_date: string; recording_id: number; plan: EditPlan; state: "awaiting_plan" | "queued" | "running";
   attempts: number; run_id: string; sandbox_name: string; expires_at: string; verify_only: boolean;
 };
 const db = () => createAdminClient();
@@ -100,10 +101,22 @@ async function collect(job: Job) {
 }
 
 export async function advanceLessonEdit() {
-  const res = await db().from("ops_lesson_edit_jobs").select("*").in("state", ["queued", "running"])
+  const res = await db().from("ops_lesson_edit_jobs").select("*").in("state", ["awaiting_plan", "queued", "running"])
     .order("lesson_date").limit(1).maybeSingle();
   if (res.error) throw new OpsError("Cannot read the edit queue", 503);
-  if (!res.data) return { status: "idle" };
-  const job = res.data as Job;
+  let job = res.data as Job | null;
+  if (!job || job.state === "awaiting_plan") {
+    const date = job?.lesson_date ?? lessonDateFor(new Date());
+    if (!date) return { status: "idle" };
+    const source = await loadLessonSource(date);
+    if (!job && source?.status !== "ready") return { status: "idle" };
+    const imported = await importDriveResults({ lessonDate: date });
+    if (!imported.configured || imported.problems.length)
+      throw new OpsError(imported.problems[0]?.reason ?? "Lesson handoff folder unavailable", 503);
+    const queued = await db().from("ops_lesson_edit_jobs").select("*").eq("lesson_date", date).eq("state", "queued").maybeSingle();
+    if (queued.error) throw new OpsError("Cannot read the imported lesson plan", 503);
+    job = queued.data as Job | null;
+    if (!job) return { date, status: "waiting_for_plan" };
+  }
   return { date: job.lesson_date, status: job.state === "queued" ? await start(job) : await collect(job) };
 }
