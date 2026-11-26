@@ -243,7 +243,9 @@ function dependencies(): LessonPublicationDeps {
       const marker = "Notes for you (not shown to clients):";
       const detail = String(result.data?.detail ?? "");
       const start = detail.indexOf(marker);
-      return start === -1 ? null : detail.slice(start + marker.length).trim().slice(0, 2000);
+      // Recovered and older lessons kept the full reviewer note in the task detail.
+      const note = start === -1 ? detail : detail.slice(start + marker.length);
+      return note.trim().slice(0, 2000) || null;
     },
     verification: async (id) => {
       const result = await db()
