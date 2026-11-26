@@ -45,7 +45,15 @@ export async function queueLessonEdit(doc: unknown, filename: string) {
   const plan = parseLessonEdit(doc, filename);
   const src = await loadLessonSource(plan.lesson_date);
   if (!src || src.recording_id !== plan.recording_id) throw new OpsError("Edit plan does not match the portal recording", 409);
-  if (src.status === "packaged") return "already_packaged";
+  if (src.status === "packaged") {
+    // A service operator can arm one verification-only rehearsal of an existing review.
+    // Normal duplicates never start another machine or open a second review.
+    const rehearsal = await createAdminClient().from("ops_lesson_edit_jobs").update({ plan, state: "queued" })
+      .eq("lesson_date", plan.lesson_date).eq("recording_id", plan.recording_id)
+      .eq("verify_only", true).eq("state", "awaiting_plan").select("lesson_date").maybeSingle();
+    if (rehearsal.error) throw new OpsError("Could not check the existing lesson handoff", 503);
+    return rehearsal.data ? "rehearsal_queued" : "already_packaged";
+  }
   if (src.status !== "ready") throw new OpsError("Recording is still preparing", 409);
   const db = createAdminClient();
   const result = await db.from("ops_lesson_edit_jobs").upsert({ lesson_date: plan.lesson_date,
