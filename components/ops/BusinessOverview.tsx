@@ -30,7 +30,8 @@ type ReceiptCount = NonNullable<Snapshot["operations"]["hubdoc"]> & {
 };
 
 const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
-const headlineMoney = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const wholePounds = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
+const headlineMoney = (value: number) => Number.isInteger(value) ? wholePounds.format(value) : money.format(value);
 const london = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
   day: "numeric",
@@ -114,17 +115,17 @@ function RevenueCard({ snapshot, revenue, children }: { snapshot: Snapshot; reve
           <div>
             <div className="lg-metric-l">Month to date</div>
             <div className="lg-metric-n" style={{ fontSize: 38 }}>
-              <Num value={revenue.month.netGBP} format={(n) => headlineMoney.format(n)} />
+              <Num value={revenue.month.netGBP} format={headlineMoney} />
             </div>
             <div className="lg-metric-s">
-              {revenue.month.payments != null && <b>{revenue.month.payments} payments</b>}
+              {revenue.month.payments != null && <b>{revenue.month.payments} {revenue.month.payments === 1 ? "payment" : "payments"}</b>}
               {revenue.month.refundsGBP ? " · " + money.format(revenue.month.refundsGBP) + " refunded" : ""}
             </div>
           </div>
           <div>
             <div className="lg-metric-l">Week to date</div>
             <div className="lg-metric-n is-sm">
-              <Num value={revenue.week.netGBP} format={(n) => headlineMoney.format(n)} />
+              <Num value={revenue.week.netGBP} format={headlineMoney} />
             </div>
             <div className="lg-metric-s">
               Since {periodStart(revenue.weekStart)}
