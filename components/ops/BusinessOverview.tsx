@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import ManualSales from "./ManualSales";
+import type { readCombinedRevenue } from "@/lib/ops/manual-sales";
 import AttentionCard from "./AttentionCard";
 import TeamActivity from "./TeamActivity";
 import { Icon } from "./workspace/WorkspaceUI";
@@ -9,7 +11,7 @@ import { AreaChart, Bars, CountUp, Funnel, GlassCard, Ring } from "./charts/Glas
 
 import type { BusinessOverviewSnapshot } from "@/lib/ops/business-overview-snapshot";
 
-type Revenue = BusinessOverviewSnapshot["revenue"];
+type Revenue = Awaited<ReturnType<typeof readCombinedRevenue>>;
 type Snapshot = Omit<BusinessOverviewSnapshot, "revenue"> & { revenue?: Revenue };
 type Overview = {
   capabilities: { canViewRevenue: boolean; canViewTeamActivity: boolean };
@@ -28,7 +30,8 @@ type ReceiptCount = NonNullable<Snapshot["operations"]["hubdoc"]> & {
 };
 
 const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
-const money0 = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
+const wholePounds = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
+const headlineMoney = (value: number) => Number.isInteger(value) ? wholePounds.format(value) : money.format(value);
 const london = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
   day: "numeric",
@@ -64,24 +67,24 @@ function Num({ value, format }: { value: number | null | undefined; format?: (n:
   return value == null ? <span className="lg-await">Awaiting source</span> : <CountUp value={value} format={format} />;
 }
 
-function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Revenue }) {
+function RevenueCard({ snapshot, revenue, children }: { snapshot: Snapshot; revenue: Revenue; children: React.ReactNode }) {
   const daily = revenue.daily ?? null;
-  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(snapshot.asOf));
+  const todayKey = revenue.today;
   const month = useMemo(() => {
     if (!daily) return null;
     let sum = 0;
     return daily
-      .filter((d) => d.date >= snapshot.monthStart)
+      .filter((d) => d.date >= revenue.monthStart)
       .map((d) => {
         sum = Math.round((sum + d.netGBP) * 100) / 100;
         return { label: dayShort(d.date), value: sum, detail: "Month to date by " + weekdayLong(d.date) };
       });
-  }, [daily, snapshot.monthStart]);
+  }, [daily, revenue.monthStart]);
   const week = useMemo(() => {
     if (!daily) return null;
     const byDate = new Map(daily.map((d) => [d.date, d.netGBP]));
     return Array.from({ length: 7 }, (_, i) => {
-      const date = addDays(snapshot.weekStart, i);
+      const date = addDays(revenue.weekStart, i);
       const ahead = date > todayKey;
       return {
         label: weekday(date),
@@ -89,7 +92,7 @@ function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Reven
         detail: weekdayLong(date) + (ahead ? " · still to come" : " · net"),
       };
     });
-  }, [daily, snapshot.weekStart, todayKey]);
+  }, [daily, revenue.weekStart, todayKey]);
   const share =
     revenue.week.netGBP != null && revenue.month.netGBP && revenue.month.netGBP > 0
       ? Math.max(0, Math.min(100, Math.round((100 * revenue.week.netGBP) / revenue.month.netGBP)))
@@ -98,7 +101,7 @@ function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Reven
     <GlassCard
       index={1}
       title="Revenue"
-      sub={"Stripe collections after refunds · since " + periodStart(snapshot.monthStart)}
+      sub={"Stripe after refunds, plus recorded cash and bank transfers · since " + periodStart(revenue.monthStart)}
       action={
         revenue.coverage !== "complete" ? (
           <span className="lg-pill" style={{ "--c": "var(--ws-attn)" } as CSSProperties}>
@@ -112,20 +115,20 @@ function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Reven
           <div>
             <div className="lg-metric-l">Month to date</div>
             <div className="lg-metric-n" style={{ fontSize: 38 }}>
-              <Num value={revenue.month.netGBP} format={(n) => money0.format(n)} />
+              <Num value={revenue.month.netGBP} format={headlineMoney} />
             </div>
             <div className="lg-metric-s">
-              {revenue.month.payments != null && <b>{revenue.month.payments} payments</b>}
+              {revenue.month.payments != null && <b>{revenue.month.payments} {revenue.month.payments === 1 ? "payment" : "payments"}</b>}
               {revenue.month.refundsGBP ? " · " + money.format(revenue.month.refundsGBP) + " refunded" : ""}
             </div>
           </div>
           <div>
             <div className="lg-metric-l">Week to date</div>
             <div className="lg-metric-n is-sm">
-              <Num value={revenue.week.netGBP} format={(n) => money0.format(n)} />
+              <Num value={revenue.week.netGBP} format={headlineMoney} />
             </div>
             <div className="lg-metric-s">
-              Since {periodStart(snapshot.weekStart)}
+              Since {periodStart(revenue.weekStart)}
               {revenue.week.refundsGBP ? " · " + money.format(revenue.week.refundsGBP) + " refunded" : ""}
             </div>
           </div>
@@ -141,7 +144,7 @@ function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Reven
             </div>
           )}
         </div>
-        {month && month.length > 1 && (
+        {month && month.length > 0 && (
           <div className="mt-5">
             <AreaChart
               points={month}
@@ -157,7 +160,7 @@ function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Reven
           </div>
         )}
         <p className="ws-caption mt-4">
-          Cash and bank transfers await reconciliation.
+          Stripe updated {london.format(new Date(snapshot.asOf))} UK time.
           {revenue.otherCurrencies?.length ? " GBP figures exclude " + revenue.otherCurrencies.join(", ") + " payments." : ""}
           {!daily ? " The daily trend appears from the next refresh." : ""}
           {revenue.coverage !== "complete"
@@ -171,6 +174,7 @@ function RevenueCard({ snapshot, revenue }: { snapshot: Snapshot; revenue: Reven
               "."
             : ""}
         </p>
+        {children}
       </div>
     </GlassCard>
   );
@@ -345,6 +349,7 @@ export default function BusinessOverview() {
       });
     return () => request.abort();
   }, []);
+  const [savingSale, setSavingSale] = useState(false);
   const [revision, setRevision] = useState(0);
   async function refresh() {
     if (busy) return;
@@ -385,7 +390,7 @@ export default function BusinessOverview() {
               Eimear’s activity
             </a>
           )}
-          <button type="button" className="lg-btn ws-focus" disabled={busy} onClick={refresh}>
+          <button type="button" className="lg-btn ws-focus" disabled={busy || savingSale} onClick={refresh}>
             <Icon name="refresh" size={14} className={busy && overview ? "lg-spin" : ""} />
             {busy && overview ? "Refreshing…" : "Refresh"}
           </button>
@@ -401,7 +406,10 @@ export default function BusinessOverview() {
         <SkeletonGrid />
       ) : (
         <div className={`lg-grid ${showRevenue ? "lg-grid-hero" : ""}`}>
-          {revenue && snapshot && <RevenueCard snapshot={snapshot} revenue={revenue} />}
+          {revenue && snapshot && <RevenueCard snapshot={snapshot} revenue={revenue}>
+            <ManualSales revenue={revenue} busy={busy || savingSale} setBusy={setSavingSale}
+              reload={async () => setOverview(await loadOverview("GET"))} />
+          </RevenueCard>}
           <AttentionCard revision={revision} index={showRevenue ? 2 : 1} />
         </div>
       )}

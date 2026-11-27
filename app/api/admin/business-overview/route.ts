@@ -1,3 +1,4 @@
+import { readCombinedRevenue } from "@/lib/ops/manual-sales";
 import { adminActor, respondPrivate } from "@/lib/ops/http";
 import { operationalOverview } from "@/lib/ops/business-report-access";
 import { readDashboardHubdoc } from "@/lib/ops/hubdoc-dashboard";
@@ -18,7 +19,7 @@ function overview(load: typeof readBusinessOverview) {
       capabilities,
       snapshot: {
         asOf, weekStart, monthStart, operations: operationalOverview(operations),
-        ...(capabilities.canViewRevenue ? { revenue: snapshot.revenue } : {}),
+        ...(capabilities.canViewRevenue ? { revenue: await readCombinedRevenue(snapshot) } : {}),
       },
     };
   });

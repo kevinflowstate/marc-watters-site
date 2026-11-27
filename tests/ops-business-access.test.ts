@@ -23,6 +23,7 @@ function route(path: string, actor: string | null, mocks: Record<string, unknown
     "@/lib/ops/team-identities": identities,
     "@/lib/ops/task-weeks": taskWeeks,
     "@/lib/ops/hubdoc-dashboard": { readDashboardHubdoc: async () => null },
+    "@/lib/ops/manual-sales": { readCombinedRevenue: async () => snapshot.revenue },
     "@/lib/ops/business-report-access": access,
     "@/lib/ops/tasks": { OpsError, record: (v: unknown) => v },
     ...mocks,
@@ -63,6 +64,22 @@ describe("business access at portal boundaries", () => {
         expect(JSON.stringify(result.snapshot.operations)).not.toContain(privateText);
         expect("revenue" in result.snapshot).toBe(manager);
         expect(result).toHaveProperty("capabilities.canViewTeamActivity", manager);
+      }
+    },
+  );
+  it.each([null, identities.EIMEAR_USER_ID, "future-admin", identities.MARC_USER_ID])(
+    "enforces manager access before recording a manual sale for %s", async actor => {
+      const save = vi.fn();
+      const { POST } = route("../app/api/admin/business-overview/manual-sales/route.ts", actor, {
+        "@/lib/ops/manual-sales": { saveManualSale: save },
+      });
+      const request = new Request("https://portal.test", { method: "POST", body: "{}" });
+      if (actor === identities.MARC_USER_ID) {
+        await POST(request);
+        expect(save).toHaveBeenCalledWith({}, actor);
+      } else {
+        await expect(POST(request)).rejects.toMatchObject({ status: actor ? 403 : 401 });
+        expect(save).not.toHaveBeenCalled();
       }
     },
   );
