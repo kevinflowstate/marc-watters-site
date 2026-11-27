@@ -235,7 +235,6 @@ export async function overviewRevenue(
       Math.floor(from),
       Math.ceil(to),
     ),
-    cashBank: "unverified" as const,
     otherCurrencies: [...new Set(accounts.flatMap((a) => a.currencies))],
   };
 }
